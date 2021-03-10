@@ -1,0 +1,104 @@
+@use "./colors";
+
+#edit {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+
+  --mdc-text-field-outlined-idle-border-color: #{colors.$on-background-primary};
+  --mdc-text-field-outlined-hover-border-color: #{colors.$background-secondary};
+  --mdc-text-field-label-ink-color: #{colors.$on-background-primary};
+  --mdc-text-field-ink-color: #{colors.$on-background-primary};
+
+  .date-time {
+    display: flex;
+
+    > *:first-child {
+      margin-right: 0.5em;
+    }
+  }
+
+  .core-content {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    align-self: stretch;
+
+    > * {
+      margin: 0.5em;
+    }
+  }
+
+  .controls {
+    display: flex;
+    justify-content: space-between;
+    align-self: stretch;
+    margin: 1em;
+  }
+
+  .editor {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    flex-grow: 1;
+
+    > * {
+      margin: 0.3em 0;
+    }
+
+    > ol {
+      list-style: none;
+      padding: 0;
+    }
+
+    label {
+      margin: 0.5em 1em;
+    }
+  }
+
+  .option-controls {
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+  }
+
+  .option-editor {
+    display: flex;
+    align-items: center;
+
+    .reorder {
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      margin-right: 0.5em;
+    }
+
+    .details {
+      display: flex;
+      flex-direction: column;
+      align-items: stretch;
+      flex-grow: 1;
+      background-color: colors.$background-primary;
+
+      > * {
+        margin: 0.3em 0;
+      }
+
+      margin: 0.5em 0;
+    }
+
+    .inline {
+      display: flex;
+      align-items: center;
+
+      .fullwidth {
+        flex-grow: 1;
+      }
+    }
+  }
+
+  .errors {
+    color: colors.$bad;
+  }
+}

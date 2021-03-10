@@ -1,0 +1,3 @@
+*.html            text diff=html
+*.scss            text diff=css
+package-lock.json text -diff

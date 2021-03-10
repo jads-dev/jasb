@@ -1,0 +1,16 @@
+{
+  "compilerOptions": {
+    "module": "ES6",
+    "target": "ES2019",
+    "sourceMap": true,
+    "incremental": true,
+    "removeComments": true,
+    "moduleResolution": "Node",
+    "noImplicitReturns": true,
+    "resolveJsonModule": true,
+    "strict": true,
+    "outDir": "dist",
+    "allowSyntheticDefaultImports": true
+  },
+  "include": ["src/ts/**/*"]
+}

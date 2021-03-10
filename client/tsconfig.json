@@ -1,0 +1,13 @@
+{
+  "compilerOptions": {
+    "target": "es6",
+    "sourceMap": true,
+    "removeComments": true,
+    "noImplicitReturns": true,
+    "strict": true,
+    "moduleResolution": "node",
+    "outDir": "dist",
+    "allowJs": true
+  },
+  "include": ["src/elm/JoeBets/index.d.ts", "src/ts/**/*", "src/js/**/*"]
+}

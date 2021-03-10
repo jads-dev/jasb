@@ -1,0 +1,59 @@
+@use "./colors";
+
+.leaderboard {
+  list-style: none;
+  padding: 0;
+
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+
+  counter-reset: leaderboard-counter;
+
+  > li {
+    display: flex;
+    align-items: center;
+
+    counter-increment: leaderboard-counter;
+
+    margin: 0.5em;
+
+    &::before {
+      content: counter(leaderboard-counter);
+      color: colors.$on-primary;
+      background-color: colors.$primary;
+      margin-right: 0.5rem;
+
+      display: flex;
+      align-items: center;
+      justify-content: center;
+
+      font-size: 2em;
+
+      min-width: 1.5em;
+      height: 1.5em;
+      border-radius: 1.5em;
+    }
+
+    > a {
+      display: flex;
+      align-items: center;
+
+      color: colors.$on-tertiary;
+      background-color: colors.$tertiary;
+
+      text-decoration: none;
+
+      padding: 0.25em 0.5em;
+      font-size: 2em;
+
+      .avatar {
+        margin-right: 0.5rem;
+      }
+
+      .score {
+        margin-left: 0.5rem;
+      }
+    }
+  }
+}

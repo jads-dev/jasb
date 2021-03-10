@@ -1,0 +1,15 @@
+{
+  "name": "joebets",
+  "description": "Shared development dependencies.",
+  "version": "1.0.0",
+  "private": true,
+  "devDependencies": {
+    "@typescript-eslint/eslint-plugin": "^4.15.0",
+    "@typescript-eslint/parser": "^4.15.1",
+    "eslint": "^7.20.0",
+    "eslint-plugin-simple-import-sort": "^7.0.0",
+    "prettier": "^2.2.1",
+    "prettier-plugin-elm": "^0.7.0",
+    "typescript": "^4.1.5"
+  }
+}

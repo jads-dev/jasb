@@ -1,0 +1,127 @@
+@use "sass:color";
+@use "./colors";
+@use "./notifications";
+
+.avatar {
+  width: 2.5em;
+  height: 2.5em;
+  border-radius: 2.5em;
+}
+
+.name {
+  .discriminator {
+    opacity: 0.25;
+
+    font-size: 0.75em;
+  }
+}
+
+.score {
+  display: inline-flex;
+  align-items: baseline;
+
+  > span {
+    margin: 0 0 0 0.25em;
+  }
+
+  &::before {
+    display: block;
+    width: 1em;
+    height: 1em;
+
+    content: "";
+    background-image: url("../../assets/images/monocoin.png");
+    background-size: contain;
+    background-position: center;
+  }
+
+  .good {
+    color: colors.$good;
+  }
+
+  .bad {
+    color: colors.$bad;
+  }
+}
+
+#user {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+
+  width: 100%;
+
+  font-size: 2em;
+
+  .identity {
+    display: flex;
+    align-items: center;
+
+    .avatar {
+      margin-right: 0.5rem;
+    }
+  }
+
+  .bets {
+    align-self: stretch;
+
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-evenly;
+
+    ol {
+      list-style: none;
+      padding: 0;
+
+      flex-basis: 25em;
+      flex-grow: 1;
+    }
+  }
+
+  .net-worth {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    padding: 0;
+
+    > li {
+      display: contents;
+    }
+
+    .title,
+    .score {
+      margin: 0.15em;
+    }
+
+    .title {
+      justify-self: flex-end;
+    }
+
+    .score {
+      justify-self: flex-start;
+    }
+  }
+}
+
+.bankrupt {
+  font-size: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  max-width: 30em;
+  margin: 1em;
+  padding: 0.5em;
+  border-radius: 0.5em;
+
+  color: colors.$on-background-secondary;
+  background-color: colors.$background-secondary;
+
+  --mdc-theme-primary: #{colors.$bad};
+
+  p {
+    margin: 0.5em;
+  }
+
+  mwc-button {
+    margin-top: 0.5em;
+  }
+}

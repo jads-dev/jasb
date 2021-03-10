@@ -1,0 +1,265 @@
+@use "sass:color";
+@use "./colors";
+
+#bet {
+  margin: auto;
+  align-items: stretch;
+  max-width: 80em;
+
+  > .game {
+    margin: 0.5em 0;
+  }
+}
+
+#bets {
+  margin: auto;
+  align-items: stretch;
+  max-width: 80em;
+
+  > .game {
+    margin: 0.5em 0;
+  }
+
+  > .controls {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    align-items: center;
+    align-content: center;
+
+    .filter {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      align-content: center;
+      justify-content: flex-end;
+
+      > span {
+        margin: 0.5em 0.5em 0.5em 1em;
+
+        > svg {
+          margin-right: 0.5em;
+        }
+      }
+
+      > div {
+        margin: 0.25em 0.5em;
+        color: colors.$on-background-secondary;
+        background-color: colors.$background-secondary;
+        border-radius: 0.5em;
+        padding: 0.5em;
+      }
+    }
+  }
+
+  > ul {
+    list-style: none;
+    padding: 0;
+
+    margin: 1em 0;
+
+    display: flex;
+    flex-direction: column;
+
+    li {
+      margin: 1em 0;
+    }
+  }
+
+  .empty {
+    font-size: 2em;
+    text-align: center;
+
+    > svg {
+      margin-right: 0.25em;
+    }
+  }
+}
+
+.bet {
+  display: flex;
+  flex-direction: column;
+  background-color: colors.$tertiary;
+  color: colors.$on-tertiary;
+  padding: 1em;
+  border-radius: 0.25em;
+  width: 100%;
+  max-width: 50em;
+  margin: auto;
+
+  font-size: 1.25em;
+
+  box-sizing: border-box;
+
+  position: relative;
+
+  --mdc-button-disabled-fill-color: #cccccc;
+  --mdc-button-disabled-ink-color: #555555;
+
+  &.focus {
+    border: 0.1em solid colors.$primary;
+  }
+
+  > .summary {
+    list-style-type: none;
+
+    &::-webkit-details-marker,
+    &::marker {
+      display: none;
+    }
+  }
+
+  > summary::after {
+    display: block;
+    content: "▼";
+    text-align: center;
+  }
+
+  &[open] > summary::after {
+    content: "▲";
+  }
+
+  .top {
+    display: flex;
+    flex-direction: row;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    align-content: center;
+    align-items: center;
+
+    h3 {
+      margin: 0 0.25em;
+      display: flex;
+      align-items: center;
+    }
+
+    > .details span {
+      margin: 0.25em;
+    }
+  }
+
+  .description {
+    white-space: pre-wrap;
+  }
+
+  .stakes {
+    height: 1.5em;
+    background-color: colors.$background-secondary;
+    border-radius: 0.25em;
+    display: flex;
+    justify-content: stretch;
+    align-items: stretch;
+
+    > span {
+      background-color: colors.$secondary;
+      transition: flex-grow 1s ease-in-out;
+      border-left: 0.05em dotted #000000;
+
+      &.local {
+        background-color: colors.$primary;
+      }
+
+      &:first-of-type {
+        border-top-left-radius: 0.25em;
+        border-bottom-left-radius: 0.25em;
+        border-left: unset;
+      }
+
+      &:last-of-type {
+        border-top-right-radius: 0.25em;
+        border-bottom-right-radius: 0.25em;
+      }
+    }
+
+    > .filler {
+      transition: flex-grow 1s ease-in-out;
+    }
+  }
+
+  .winner {
+    --mdc-button-disabled-fill-color: #{colors.$good};
+    --mdc-button-disabled-ink-color: #000000;
+  }
+
+  .winner .stakes {
+    border: 0.1em solid colors.$good;
+  }
+
+  &.complete .winner .ratio {
+    color: colors.$good;
+  }
+
+  &.complete .ratio {
+    color: colors.$disabled;
+  }
+
+  > ul {
+    list-style: none;
+    margin: 0.5em;
+    padding: 0;
+
+    display: grid;
+    grid-template-columns: auto auto 1fr auto;
+    align-items: center;
+
+    > li {
+      display: contents;
+
+      font-size: 1.5em;
+
+      > img {
+        max-height: 3em;
+        max-width: 3em;
+      }
+
+      > div:empty {
+        margin: 0;
+      }
+
+      > * {
+        margin: 0.25em;
+      }
+
+      .details {
+        font-size: 0.5em;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 0.1em;
+
+        .people {
+          svg {
+            margin-right: 0.25em;
+          }
+        }
+      }
+    }
+  }
+}
+
+.place-bet {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+
+  color: colors.$on-background-primary;
+  background-color: colors.$background-primary;
+  border-radius: 0.5em;
+  padding: 1em;
+
+  --mdc-text-field-outlined-idle-border-color: #{colors.$on-background-primary};
+  --mdc-text-field-outlined-hover-border-color: #{colors.$background-secondary};
+  --mdc-text-field-label-ink-color: #{colors.$on-background-primary};
+  --mdc-text-field-ink-color: #{colors.$on-background-primary};
+
+  .balance {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+
+    .score {
+      font-size: 2em;
+    }
+  }
+}
