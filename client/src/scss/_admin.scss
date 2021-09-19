@@ -16,16 +16,3 @@
 a .admin-controls {
   display: none;
 }
-
-.admin {
-  font-size: 1.5em;
-  padding: 0.25em;
-  border-radius: 0.25em;
-  color: colors.$on-background-secondary;
-  background-color: colors.$background-secondary;
-  align-self: center;
-
-  &:empty {
-    display: none;
-  }
-}

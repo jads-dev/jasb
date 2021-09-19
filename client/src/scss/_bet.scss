@@ -52,7 +52,7 @@
     }
   }
 
-  > ul {
+  > .bet-list {
     list-style: none;
     padding: 0;
 
@@ -151,12 +151,23 @@
     align-items: stretch;
 
     > span {
+      position: relative;
       background-color: colors.$secondary;
       transition: flex-grow 1s ease-in-out;
       border-left: 0.05em dotted #000000;
 
       &.local {
         background-color: colors.$primary;
+      }
+
+      &.highlight {
+        background: repeating-linear-gradient(
+          45deg,
+          #000000,
+          #000000 0.05em,
+          #{colors.$secondary} 0.05em,
+          #{colors.$secondary} 0.25em
+        );
       }
 
       &:first-of-type {
@@ -168,6 +179,74 @@
       &:last-of-type {
         border-top-right-radius: 0.25em;
         border-bottom-right-radius: 0.25em;
+      }
+
+      > .stake {
+        display: none;
+
+        z-index: 1;
+        position: absolute;
+        top: 1.8em;
+        left: 50%;
+        transform: translateX(-50%);
+
+        flex-direction: column;
+        align-items: center;
+
+        color: colors.$on-background-secondary;
+        background-color: colors.$background-secondary;
+        filter: drop-shadow(0 0 0.5em #000000);
+
+        padding: 0.5em;
+        border-radius: 0.5em;
+
+        min-width: 13em;
+
+        > .user {
+          display: flex;
+          justify-content: center;
+          align-items: center;
+          color: colors.$on-background-secondary;
+          text-decoration: none;
+
+          > .avatar {
+            margin-right: 0.5em;
+          }
+        }
+
+        > .message {
+          &:not(:empty) {
+            &::before {
+              content: "“";
+            }
+            &::after {
+              content: "”";
+            }
+          }
+        }
+
+        > .at {
+          margin-top: 1em;
+          font-size: 0.5em;
+        }
+
+        &::before {
+          content: "";
+          position: absolute;
+          top: -0.55em;
+          height: 0;
+          width: 0;
+          left: 50%;
+          transform: translateX(-50%);
+          border-top: 0.3em solid transparent;
+          border-right: 0.4em solid transparent;
+          border-bottom: 0.3em solid colors.$background-secondary;
+          border-left: 0.4em solid transparent;
+        }
+      }
+
+      &:hover > .stake {
+        display: flex;
       }
     }
 
@@ -260,6 +339,15 @@
 
     .score {
       font-size: 2em;
+    }
+  }
+
+  .actions {
+    display: flex;
+    gap: 1em;
+
+    > .cancel {
+      --mdc-theme-primary: #{colors.$bad};
     }
   }
 }

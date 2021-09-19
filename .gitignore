@@ -4,3 +4,7 @@ node_modules
 elm-stuff
 
 dist
+
+server/config.*.json5
+*.pem
+server/oci-config.cfg

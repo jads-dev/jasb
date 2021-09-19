@@ -1,6 +1,5 @@
 module JoeBets.User.Notifications exposing
-    ( Model
-    , Msg(..)
+    ( Msg(..)
     , init
     , load
     , subscriptions
@@ -15,8 +14,8 @@ import Html exposing (Html)
 import Html.Attributes as HtmlA
 import Http
 import JoeBets.Api as Api
+import JoeBets.Coins as Coins
 import JoeBets.Route as Route
-import JoeBets.User as User
 import JoeBets.User.Auth.Model as Auth
 import JoeBets.User.Model as User
 import JoeBets.User.Notifications.Model exposing (..)
@@ -34,14 +33,10 @@ type alias Parent a =
     }
 
 
-type alias Model =
-    List Notification
-
-
 type Msg
     = Request
     | Load (Result Http.Error Model)
-    | Clear
+    | SetRead Int
     | NoOp
 
 
@@ -55,7 +50,7 @@ load wrap model =
     case model.auth.localUser of
         Just { id } ->
             Api.get model.origin
-                { path = [ "user", id |> User.idToString, "notifications" ]
+                { path = Nothing |> Api.Notifications |> Api.User id
                 , expect = Http.expectJson (Load >> wrap) (JsonD.list decoder)
                 }
 
@@ -77,12 +72,12 @@ update wrap msg model =
                 Err _ ->
                     ( model, Cmd.none )
 
-        Clear ->
+        SetRead notificationId ->
             case model.auth.localUser of
                 Just { id } ->
-                    ( { model | notifications = init }
-                    , Api.delete model.origin
-                        { path = [ "user", id |> User.idToString, "notifications" ]
+                    ( { model | notifications = model.notifications |> List.filter (getId >> (/=) notificationId) }
+                    , Api.post model.origin
+                        { path = notificationId |> Just |> Api.Notifications |> Api.User id
                         , body = Http.emptyBody
                         , expect = Http.expectWhatever (NoOp |> wrap |> always)
                         }
@@ -133,7 +128,7 @@ view wrap { notifications } =
                             case reason of
                                 AccountCreated ->
                                     [ Html.text "You have been gifted with "
-                                    , User.viewBalance amount
+                                    , Coins.view amount
                                     , Html.text " as a new user."
                                     ]
 
@@ -152,7 +147,7 @@ view wrap { notifications } =
                             , Html.text " because "
                             , reason
                             , Html.text ". "
-                            , User.viewBalance refund.amount
+                            , Coins.view refund.amount
                             , Html.text " has been returned to your balance."
                             ]
 
@@ -163,7 +158,7 @@ view wrap { notifications } =
                                         Win ->
                                             ( Html.text "won"
                                             , [ Html.text " Your winnings of "
-                                              , User.viewBalance betFinished.amount
+                                              , Coins.view betFinished.amount
                                               , Html.text " have been paid into your balance."
                                               ]
                                             )
@@ -179,9 +174,13 @@ view wrap { notifications } =
                             ]
                                 ++ extra
             in
-            Html.li [] content
+            Html.li []
+                [ Html.p [] content
+                , IconButton.view (Icon.envelopeOpen |> Icon.present |> Icon.view)
+                    "Mark As Read"
+                    (notification |> getId |> SetRead |> wrap |> Just)
+                ]
     in
     Html.div [ HtmlA.id "notifications", HtmlA.classList [ ( "hidden", notifications |> List.isEmpty ) ] ]
-        [ IconButton.view (Icon.trash |> Icon.present |> Icon.view) "Clear" (Clear |> wrap |> Just)
-        , notifications |> List.map viewNotification |> Html.ul []
+        [ notifications |> List.map viewNotification |> Html.ul []
         ]

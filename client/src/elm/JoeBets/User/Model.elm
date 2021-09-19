@@ -1,5 +1,6 @@
 module JoeBets.User.Model exposing
     ( Id
+    , Summary
     , User
     , WithId
     , decoder
@@ -8,6 +9,8 @@ module JoeBets.User.Model exposing
     , idFromString
     , idParser
     , idToString
+    , summary
+    , summaryDecoder
     , withIdDecoder
     )
 
@@ -16,7 +19,7 @@ import JoeBets.Game.Model as Game
 import Json.Decode as JsonD
 import Json.Decode.Pipeline as JsonD
 import Json.Encode as JsonE
-import Time
+import Time.DateTime as DateTime exposing (DateTime)
 import Url.Parser as Url
 import Util.Json.Decode as JsonD
 
@@ -56,7 +59,7 @@ type alias User =
     , avatar : Maybe String
     , balance : Int
     , betValue : Int
-    , created : Time.Posix
+    , created : DateTime
     , admin : Bool
     , mod : EverySet Game.Id
     }
@@ -70,7 +73,7 @@ decoder =
         |> JsonD.optionalAsMaybe "avatar" JsonD.string
         |> JsonD.required "balance" JsonD.int
         |> JsonD.required "betValue" JsonD.int
-        |> JsonD.required "created" JsonD.posix
+        |> JsonD.required "created" DateTime.decoder
         |> JsonD.optional "admin" JsonD.bool False
         |> JsonD.optional "mod" (JsonD.everySetFromList Game.idDecoder) EverySet.empty
 
@@ -84,3 +87,23 @@ withIdDecoder =
     JsonD.succeed WithId
         |> JsonD.required "id" idDecoder
         |> JsonD.required "user" decoder
+
+
+type alias Summary =
+    { name : String
+    , discriminator : String
+    , avatar : Maybe String
+    }
+
+
+summary : User -> Summary
+summary { name, discriminator, avatar } =
+    Summary name discriminator avatar
+
+
+summaryDecoder : JsonD.Decoder Summary
+summaryDecoder =
+    JsonD.succeed Summary
+        |> JsonD.required "name" JsonD.string
+        |> JsonD.required "discriminator" JsonD.string
+        |> JsonD.optionalAsMaybe "avatar" JsonD.string

@@ -3,23 +3,31 @@ module JoeBets.Game.Model exposing
     , Id
     , Progress(..)
     , decoder
-    , encode
+    , encodeId
+    , finish
     , idDecoder
     , idFromString
     , idParser
     , idToString
+    , start
     )
 
 import JoeBets.Game.Progress as Progress
 import Json.Decode as JsonD
 import Json.Decode.Pipeline as JsonD
 import Json.Encode as JsonE
+import Time.Date exposing (Date)
 import Url.Parser as Url
 import Util.Json.Decode as JsonD
 
 
 type Id
     = Id String
+
+
+encodeId : Id -> JsonE.Value
+encodeId =
+    idToString >> JsonE.string
 
 
 idToString : Id -> String
@@ -48,6 +56,32 @@ type Progress
     | Finished Progress.Finished
 
 
+start : Progress -> Maybe Date
+start progress =
+    case progress of
+        Future _ ->
+            Nothing
+
+        Current current ->
+            Just current.start
+
+        Finished finished ->
+            Just finished.start
+
+
+finish : Progress -> Maybe Date
+finish progress =
+    case progress of
+        Future _ ->
+            Nothing
+
+        Current _ ->
+            Nothing
+
+        Finished finished ->
+            Just finished.finish
+
+
 progressDecoder : JsonD.Decoder Progress
 progressDecoder =
     let
@@ -68,22 +102,11 @@ progressDecoder =
     JsonD.field "state" JsonD.string |> JsonD.andThen byName
 
 
-encodeProgress : Progress -> JsonE.Value
-encodeProgress progress =
-    case progress of
-        Future future ->
-            Progress.encodeFuture future
-
-        Current current ->
-            Progress.encodeCurrent current
-
-        Finished finished ->
-            Progress.encodeFinished finished
-
-
 type alias Game =
-    { name : String
+    { version : Int
+    , name : String
     , cover : String
+    , igdbId : String
     , bets : Int
     , progress : Progress
     }
@@ -92,17 +115,9 @@ type alias Game =
 decoder : JsonD.Decoder Game
 decoder =
     JsonD.succeed Game
+        |> JsonD.required "version" JsonD.int
         |> JsonD.required "name" JsonD.string
         |> JsonD.required "cover" JsonD.string
+        |> JsonD.required "igdbId" JsonD.string
         |> JsonD.required "bets" JsonD.int
         |> JsonD.required "progress" progressDecoder
-
-
-encode : Game -> JsonE.Value
-encode game =
-    JsonE.object
-        [ ( "name", game.name |> JsonE.string )
-        , ( "cover", game.cover |> JsonE.string )
-        , ( "bets", game.bets |> JsonE.int )
-        , ( "progress", game.progress |> encodeProgress )
-        ]

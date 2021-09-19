@@ -1,51 +1,40 @@
-import * as Crypto from "crypto";
-import { default as Discord } from "discord-oauth2";
+import * as Joda from "@js-joda/core";
+import { default as DiscordOAuth } from "discord-oauth2";
 import { StatusCodes } from "http-status-codes";
-import parseJwk, { KeyLike } from "jose/jwk/parse";
-import SignJWT from "jose/jwt/sign";
-import jwtVerify from "jose/jwt/verify";
-import * as Util from "util";
 
-import { Games } from "../public/games";
-import { Users } from "../public/users";
+import { Store } from "../data/store";
+import { Notifications, Users } from "../public";
+import { Random } from "../util/random";
+import { SecretToken } from "../util/secret-token";
 import { Config } from "./config";
 import { WebError } from "./errors";
-import { Store } from "./store";
-
-const randomBytes = Util.promisify(Crypto.randomBytes);
-
-export interface Claims {
-  uid: Users.Id;
-  admin?: boolean;
-  mod?: Games.Id[];
-}
 
 export class Auth {
+  static readonly sessionCookieName = "jasb-session";
+  static readonly stateCookieName = "jasb-state";
+
   config: Config.Auth;
   store: Store;
-  oauth: Discord;
-  secret: KeyLike;
+  oauth: DiscordOAuth;
 
-  private constructor(config: Config.Auth, store: Store, secret: KeyLike) {
+  private constructor(config: Config.Auth, store: Store) {
     this.config = config;
     this.store = store;
-    this.oauth = new Discord({
+    this.oauth = new DiscordOAuth({
+      version: "",
       clientId: config.discord.clientId,
-      clientSecret: config.discord.clientSecret,
+      clientSecret: config.discord.clientSecret.value,
     });
-    this.secret = secret;
   }
 
   static async init(config: Config.Auth, store: Store): Promise<Auth> {
-    const secret = await parseJwk(config.privateKey);
-    return new Auth(config, store, secret);
+    return new Auth(config, store);
   }
 
   async redirect(origin: string): Promise<{ url: string; state: string }> {
-    const rawState = await randomBytes(16);
-    const state = rawState.toString("hex");
+    const state = await Random.secureRandomString(24);
     return {
-      url: await this.oauth.generateAuthUrl({
+      url: this.oauth.generateAuthUrl({
         scope: this.config.discord.scopes,
         redirectUri: new URL("/auth", origin).toString(),
         state,
@@ -58,7 +47,13 @@ export class Auth {
   async login(
     origin: string,
     code: string
-  ): Promise<{ user: Users.WithId; token: string }> {
+  ): Promise<{
+    user: Users.WithId;
+    notifications: Notifications.Notification[];
+    isNewUser: boolean;
+    session: SecretToken;
+    expires: Joda.ZonedDateTime;
+  }> {
     const discordToken = await this.oauth.tokenRequest({
       scope: this.config.discord.scopes,
       redirectUri: new URL("/auth", origin).toString(),
@@ -67,56 +62,48 @@ export class Auth {
     });
 
     const discordUser = await this.oauth.getUser(discordToken.access_token);
+    const discordGuilds = await this.oauth.getUserGuilds(
+      discordToken.access_token
+    );
 
-    const user: Users.WithId = {
-      id: discordUser.id,
-      user: Users.fromInternal(
-        await this.store.getOrCreateUser(discordToken, discordUser)
-      ),
-    };
+    const jadsId = this.config.discord.guild;
+    const memberOfJads = discordGuilds.some((guild) => guild.id === jadsId);
+    if (!memberOfJads) {
+      throw new WebError(StatusCodes.FORBIDDEN, "Must be a member of JADS.");
+    }
 
-    const token = await new SignJWT({
-      ...(user.user.admin === true ? { admin: true } : {}),
-      ...(user.user.mod !== undefined ? { mod: user.user.mod } : {}),
-    })
-      .setProtectedHeader({ alg: "ES256" })
-      .setIssuedAt()
-      .setSubject(discordUser.id)
-      .setExpirationTime(`${this.config.tokenLifetime.as("seconds")}s`)
-      .sign(this.secret);
-
+    const login = await this.store.login(
+      discordUser.id,
+      discordUser.username,
+      discordUser.discriminator,
+      discordUser.avatar ?? null,
+      discordToken.access_token,
+      discordToken.refresh_token,
+      Joda.Duration.of(discordToken.expires_in, Joda.ChronoUnit.SECONDS)
+    );
+    const user = Users.fromInternal(login.user);
+    const notifications = login.notifications.map(Notifications.fromInternal);
+    const session = SecretToken.fromUri(login.user.session);
+    if (session === undefined) {
+      throw new Error("Invalid secret.");
+    }
     return {
       user,
-      token,
+      notifications,
+      isNewUser: login.user.is_new_user,
+      session,
+      expires: login.user.started.plus(this.config.sessionLifetime),
     };
   }
 
-  async tryGetClaims(token: string): Promise<Claims | undefined> {
-    try {
-      const { payload } = await jwtVerify(token, this.secret);
-      return {
-        uid: payload.sub as Users.Id,
-        admin: payload.admin,
-        mod: payload.mod,
-      };
-    } catch (error) {
-      return undefined;
+  async logout(userId: string, session: SecretToken): Promise<void> {
+    const accessToken = await this.store.logout(userId, session);
+    if (accessToken != null) {
+      const { clientId, clientSecret } = this.config.discord;
+      const credentials = Buffer.from(`${clientId}:${clientSecret}`).toString(
+        "base64"
+      );
+      await this.oauth.revokeToken(accessToken, credentials);
     }
-  }
-
-  async validate(token: string): Promise<Claims> {
-    const claims = await this.tryGetClaims(token);
-    if (claims === undefined) {
-      throw new WebError(StatusCodes.BAD_REQUEST, "Invalid token.");
-    }
-    return claims;
-  }
-
-  async logout(accessToken: string): Promise<void> {
-    const { clientId, clientSecret } = this.config.discord;
-    const credentials = Buffer.from(`${clientId}:${clientSecret}`).toString(
-      "base64"
-    );
-    await this.oauth.revokeToken(accessToken, credentials);
   }
 }

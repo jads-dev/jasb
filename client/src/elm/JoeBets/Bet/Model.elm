@@ -1,7 +1,9 @@
 module JoeBets.Bet.Model exposing
     ( Bet
+    , Change(..)
     , Id
     , Progress(..)
+    , apply
     , decoder
     , encode
     , idDecoder
@@ -13,6 +15,8 @@ module JoeBets.Bet.Model exposing
 import AssocList
 import JoeBets.Bet.Option as Option exposing (Option)
 import JoeBets.Bet.Progress as Progress
+import JoeBets.Bet.Stake.Model exposing (Stake)
+import JoeBets.User.Model as User
 import Json.Decode as JsonD
 import Json.Decode.Pipeline as JsonD
 import Json.Encode as JsonE
@@ -22,8 +26,7 @@ import Util.Json.Encode as JsonE
 
 
 type Progress
-    = Suggestion Progress.Suggestion
-    | Voting Progress.Voting
+    = Voting Progress.Voting
     | Locked Progress.Locked
     | Complete Progress.Complete
     | Cancelled Progress.Cancelled
@@ -34,9 +37,6 @@ progressDecoder =
     let
         byName name =
             case name of
-                "Suggestion" ->
-                    Progress.suggestionDecoder |> JsonD.map Suggestion
-
                 "Voting" ->
                     Progress.votingDecoder |> JsonD.map Voting
 
@@ -58,9 +58,6 @@ progressDecoder =
 encodeProgress : Progress -> JsonE.Value
 encodeProgress progress =
     case progress of
-        Suggestion suggestion ->
-            Progress.encodeSuggestion suggestion
-
         Voting voting ->
             Progress.encodeVoting voting
 
@@ -100,6 +97,7 @@ idFromString =
 
 type alias Bet =
     { name : String
+    , author : User.Id
     , description : String
     , spoiler : Bool
     , progress : Progress
@@ -115,6 +113,7 @@ decoder =
     in
     JsonD.succeed Bet
         |> JsonD.required "name" JsonD.string
+        |> JsonD.required "author" User.idDecoder
         |> JsonD.required "description" JsonD.string
         |> JsonD.required "spoiler" JsonD.bool
         |> JsonD.required "progress" progressDecoder
@@ -132,8 +131,43 @@ encode bet =
     in
     JsonE.object
         [ ( "name", bet.name |> JsonE.string )
+        , ( "author", bet.author |> User.encodeId )
         , ( "description", bet.description |> JsonE.string )
         , ( "spoiler", bet.spoiler |> JsonE.bool )
         , ( "progress", bet.progress |> encodeProgress )
         , ( "options", bet.options |> JsonE.assocListToList encodeEntry )
         ]
+
+
+type Change
+    = Replace Bet
+    | AddStake Option.Id User.Id Stake
+    | RemoveStake Option.Id User.Id
+    | ChangeStake Option.Id User.Id Int (Maybe String)
+
+
+apply : Change -> Bet -> Bet
+apply change oldBet =
+    let
+        modifyOption modify option =
+            { option | stakes = modify option.stakes }
+
+        modifyOptions option modify =
+            { oldBet | options = oldBet.options |> AssocList.update option (Maybe.map (modifyOption modify)) }
+    in
+    case change of
+        Replace bet ->
+            bet
+
+        AddStake option user stake ->
+            modifyOptions option (AssocList.insert user stake)
+
+        RemoveStake option user ->
+            modifyOptions option (AssocList.remove user)
+
+        ChangeStake option user amount message ->
+            let
+                changeStake stake =
+                    { stake | amount = amount, message = message }
+            in
+            modifyOptions option (AssocList.update user (Maybe.map changeStake))

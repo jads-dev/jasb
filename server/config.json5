@@ -1,0 +1,51 @@
+{
+  logLevel: "error",
+  listenOn: { port: 8081, address: "0.0.0.0" },
+  clientOrigin: "https://jasb.900000000.xyz",
+
+  rules: {
+    initialBalance: 1000,
+    maxBetWhileInDebt: 100,
+    notableStake: 500
+  },
+
+  store: {
+    projectId: "joe-bets",
+    garbageCollectionFrequency: "PT1H"
+  },
+
+  data: {
+    host: "data",
+    user: "jasb",
+    password: "CHANGE_ME"
+  },
+
+  auth: {
+    sessionLifetime: "P7D",
+    sessionIdSize: 64,
+
+    discord: {
+      scopes: ["identify", "guilds"],
+
+      clientId: "CHANGE_ME",
+      clientSecret: "CHANGE_ME",
+
+      guild: "308515582817468420"
+    },
+  },
+
+  notifier: {
+    service: "Discord",
+    token: "CHANGE_ME",
+    channel: "832764921615089697" // JASB
+    // channel: "666328861985865749" // JADS
+  },
+
+  objectUploader: {
+    service: "oci",
+    configPath: "oci-config.cfg",
+    namespace: "CHANGE_ME",
+    bucket: "CHANGE_ME",
+    baseUrl: "CHANGE_ME"
+  }
+}

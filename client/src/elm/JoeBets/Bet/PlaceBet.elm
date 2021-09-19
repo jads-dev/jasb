@@ -14,15 +14,17 @@ import JoeBets.Api as Api
 import JoeBets.Bet.Maths as Bet
 import JoeBets.Bet.Model as Bet exposing (Bet)
 import JoeBets.Bet.Option as Option exposing (Option)
-import JoeBets.Bet.PlaceBet.Model exposing (..)
-import JoeBets.Game.Model as Game
-import JoeBets.User as User
+import JoeBets.Bet.PlaceBet.Model as PlaceBet exposing (..)
+import JoeBets.Coins as Coins
+import JoeBets.Page.User.Model as User
+import JoeBets.Rules as Rules
 import JoeBets.User.Model as User exposing (User)
 import Json.Decode as JsonD
-import Json.Decode.Pipeline as JsonD
 import Json.Encode as JsonE
 import Material.Button as Button
 import Material.TextField as TextField
+import Time.DateTime as DateTime
+import Time.Model as Time
 import Util.Maybe as Maybe
 import Util.RemoteData as RemoteData
 
@@ -38,13 +40,17 @@ init =
     Nothing
 
 
-update : (Msg -> msg) -> (Game.Id -> Bet.Id -> Bet -> User -> msg) -> String -> Msg -> Parent a -> ( Parent a, Cmd msg )
-update wrap handleSuccess origin msg model =
+update : (Msg -> msg) -> (List Change -> msg) -> String -> Time.Context -> Msg -> Parent a -> ( Parent a, Cmd msg )
+update wrap handleSuccess origin time msg model =
     case msg of
         Start target ->
+            let
+                bet =
+                    target.existingBet |> Maybe.withDefault Rules.maxBetWhileInDebt
+            in
             ( { model
                 | placeBet =
-                    Overlay target (target.existingBet |> Maybe.withDefault 100 |> String.fromInt) Nothing |> Just
+                    Overlay target (bet |> String.fromInt) "" Nothing |> Just
               }
             , Cmd.none
             )
@@ -59,36 +65,86 @@ update wrap handleSuccess origin msg model =
             in
             ( { model | placeBet = model.placeBet |> Maybe.map changeAmount }, Cmd.none )
 
-        Place amount ->
+        ChangeMessage newMessage ->
+            let
+                changeMessage overlay =
+                    { overlay | message = newMessage }
+            in
+            ( { model | placeBet = model.placeBet |> Maybe.map changeMessage }, Cmd.none )
+
+        Place { id, user } amount message ->
             let
                 tryPlaceBet { target } =
                     let
+                        putOrPost =
+                            if target.existingBet == Nothing then
+                                "PUT"
+
+                            else
+                                "POST"
+
                         handle response =
                             case response of
-                                Ok ( bet, user ) ->
-                                    handleSuccess target.gameId target.betId bet user
+                                Ok newBalance ->
+                                    handleSuccess
+                                        [ User.ChangeBalance newBalance |> PlaceBet.User id
+                                        , PlaceBet.Bet target.gameId target.betId <|
+                                            case target.existingBet of
+                                                Just _ ->
+                                                    Bet.ChangeStake target.optionId id amount message
+
+                                                Nothing ->
+                                                    Bet.AddStake target.optionId
+                                                        id
+                                                        { amount = amount
+                                                        , message = message
+                                                        , at = DateTime.fromPosix time.now
+                                                        , user = user |> User.summary
+                                                        }
+                                        ]
 
                                 Err error ->
                                     error |> SetError |> wrap
-
-                        betAndUserDecoder =
-                            JsonD.succeed Tuple.pair
-                                |> JsonD.required "bet" Bet.decoder
-                                |> JsonD.required "user" User.decoder
                     in
-                    Api.post origin
+                    Api.request origin
+                        putOrPost
                         { path =
-                            [ "game"
-                            , target.gameId |> Game.idToString
-                            , target.betId |> Bet.idToString
-                            , target.optionId |> Option.idToString
+                            Api.Game target.gameId (Api.Bet target.betId (Api.Option target.optionId Api.Stake))
+                        , body =
+                            [ ( "amount", amount |> JsonE.int ) |> Just
+                            , message |> Maybe.map (\m -> ( "message", m |> JsonE.string ))
                             ]
-                        , body = [ ( "amount", amount |> JsonE.int ) ] |> JsonE.object |> Http.jsonBody
+                                |> List.filterMap identity
+                                |> JsonE.object
+                                |> Http.jsonBody
                         , expect =
-                            Http.expectJson handle betAndUserDecoder
+                            Http.expectJson handle JsonD.int
                         }
             in
             ( model, model.placeBet |> Maybe.map tryPlaceBet |> Maybe.withDefault Cmd.none )
+
+        Withdraw userId ->
+            let
+                tryWithdrawBet { target } =
+                    let
+                        handle response =
+                            case response of
+                                Ok newBalance ->
+                                    handleSuccess
+                                        [ User.ChangeBalance newBalance |> PlaceBet.User userId
+                                        , Bet.RemoveStake target.optionId userId |> PlaceBet.Bet target.gameId target.betId
+                                        ]
+
+                                Err error ->
+                                    error |> SetError |> wrap
+                    in
+                    Api.delete origin
+                        { path = Api.Game target.gameId (Api.Bet target.betId (Api.Option target.optionId Api.Stake))
+                        , body = Http.emptyBody
+                        , expect = Http.expectJson handle JsonD.int
+                        }
+            in
+            ( model, model.placeBet |> Maybe.map tryWithdrawBet |> Maybe.withDefault Cmd.none )
 
         SetError error ->
             let
@@ -99,9 +155,9 @@ update wrap handleSuccess origin msg model =
 
 
 view : (Msg -> msg) -> User.WithId -> Model -> List (Html msg)
-view wrap { id, user } placeBet =
+view wrap ({ id, user } as localUser) placeBet =
     case placeBet of
-        Just { amount, target, error } ->
+        Just { amount, target, message, error } ->
             let
                 { gameName, bet, optionId, optionName, existingBet } =
                     target
@@ -130,28 +186,60 @@ view wrap { id, user } placeBet =
                 currentRatio =
                     Bet.ratio totalAmount optionAmount
 
+                ( messageIfGiven, messageInput ) =
+                    if (amountNumber |> Maybe.withDefault 0) >= Rules.notableStake then
+                        ( message |> Maybe.when (message |> String.isEmpty |> not)
+                        , [ Html.p []
+                                [ Html.text "As you are making a big bet, you can leave a message with it. "
+                                , Html.text "If you do, you won't be able to change your bet. "
+                                , Html.text "You can leave it blank if you don't want to."
+                                ]
+                          , TextField.viewWithAttrs "Message"
+                                TextField.Text
+                                message
+                                (ChangeMessage >> wrap |> Just)
+                                [ HtmlA.attribute "outlined" "", HtmlA.maxlength 200 ]
+                          , Html.p []
+                                [ Html.text "Please be aware: inappropriate messages, spoilers, or anything like that will result in a ban. "
+                                ]
+                          ]
+                        )
+
+                    else
+                        ( Nothing, [] )
+
                 submit =
                     case amountNumber of
                         Just betAmount ->
                             let
                                 toPay =
                                     betAmount - alreadyPaid
+
+                                place =
+                                    Place localUser betAmount messageIfGiven |> wrap |> Ok
                             in
-                            if betAmount < 0 then
+                            if Just betAmount == existingBet && messageIfGiven == Nothing then
+                                Err "You can change your bet."
+
+                            else if betAmount == 0 then
+                                Err "You cannot place a zero value bet, but you can cancel the bet."
+
+                            else if betAmount < 0 then
                                 Err "You cannot make negative bets."
 
                             else if toPay <= user.balance then
-                                betAmount |> Place |> wrap |> Ok
+                                place
 
-                            else if betAmount <= 100 then
-                                if Bet.hasAnyOtherStake bet id optionId |> not then
-                                    betAmount |> Place |> wrap |> Ok
-
-                                else
-                                    Err "You can't place bets for multiple options if it leaves you with a negative balance."
+                            else if betAmount <= Rules.maxBetWhileInDebt then
+                                place
 
                             else
-                                Err "You can't place bets of more than 100 if it leaves you with a negative balance."
+                                [ "You can't place bets of more than "
+                                , Rules.maxBetWhileInDebt |> String.fromInt
+                                , " if it leaves you with a negative balance."
+                                ]
+                                    |> String.concat
+                                    |> Err
 
                         Nothing ->
                             Err "Not a valid, whole number."
@@ -170,57 +258,68 @@ view wrap { id, user } placeBet =
                         |> List.map Html.text
                         |> Html.p [ HtmlA.class "error" ]
 
-                description =
+                ( actionName, description ) =
                     case existingBet of
                         Just _ ->
-                            "Updating"
+                            ( "Change", "Updating" )
 
                         Nothing ->
-                            "Placing"
-            in
-            [ Html.div [ HtmlA.class "overlay" ]
-                [ Html.div [ HtmlA.class "place-bet" ]
-                    [ Html.p []
-                        [ Html.text description
-                        , Html.text " bet on “"
-                        , Html.text optionName
-                        , Html.text "” for “"
-                        , Html.text bet.name
-                        , Html.text "” in “"
-                        , Html.text gameName
-                        , Html.text "” which currently has a return ratio of "
-                        , Html.text currentRatio
-                        , Html.text "."
-                        ]
-                    , Html.p [ HtmlA.class "balance" ]
-                        [ Html.text "Your Balance: "
-                        , User.viewBalanceOrTransaction user.balance
-                            (amountNumber |> Maybe.map ((-) user.balance >> (+) alreadyPaid))
-                        ]
-                    , TextField.viewWithAttrs "Bet Amount"
-                        TextField.Number
-                        amount
-                        (ChangeAmount >> wrap |> Just)
-                        [ HtmlA.attribute "outlined" ""
-                        , 0 |> String.fromInt |> HtmlA.min
-                        , max (user.balance + (existingBet |> Maybe.withDefault 0)) 100 |> String.fromInt |> HtmlA.max
-                        ]
-                    , errorMessage
-                    , Html.div [ HtmlA.class "controls" ]
-                        [ Button.view Button.Standard
-                            Button.Padded
-                            "Cancel"
-                            (Icon.times |> Icon.present |> Icon.view |> Just)
-                            (Cancel |> wrap |> Just)
-                        , Button.view Button.Raised
-                            Button.Padded
-                            "Place Bet"
-                            (Icon.check |> Icon.present |> Icon.view |> Just)
-                            (submit |> Result.toMaybe)
-                        ]
+                            ( "Place", "Placing" )
+
+                contents =
+                    [ [ Html.p []
+                            [ Html.text description
+                            , Html.text " bet on “"
+                            , Html.text optionName
+                            , Html.text "” for “"
+                            , Html.text bet.name
+                            , Html.text "” in “"
+                            , Html.text gameName
+                            , Html.text "” which currently has a return ratio of "
+                            , Html.text currentRatio
+                            , Html.text "."
+                            ]
+                      , Html.p [ HtmlA.class "balance" ]
+                            [ Html.text "Your Balance: "
+                            , Coins.viewAmountOrTransaction user.balance
+                                (amountNumber |> Maybe.map ((-) user.balance >> (+) alreadyPaid))
+                            ]
+                      , TextField.viewWithAttrs "Bet Amount"
+                            TextField.Number
+                            amount
+                            (ChangeAmount >> wrap |> Just)
+                            [ HtmlA.attribute "outlined" ""
+                            , 0 |> String.fromInt |> HtmlA.min
+                            , max (user.balance + (existingBet |> Maybe.withDefault 0)) Rules.maxBetWhileInDebt |> String.fromInt |> HtmlA.max
+                            ]
+                      , errorMessage
+                      ]
+                    , messageInput
+                    , [ Html.div [ HtmlA.class "controls" ]
+                            [ Button.view Button.Standard
+                                Button.Padded
+                                "Back"
+                                (Icon.times |> Icon.present |> Icon.view |> Just)
+                                (Cancel |> wrap |> Just)
+                            , Html.div [ HtmlA.class "actions" ]
+                                [ Html.span [ HtmlA.class "cancel" ]
+                                    [ Button.view Button.Raised
+                                        Button.Padded
+                                        "Cancel Bet"
+                                        (Icon.trash |> Icon.present |> Icon.view |> Just)
+                                        (Withdraw id |> wrap |> Just)
+                                    ]
+                                , Button.view Button.Raised
+                                    Button.Padded
+                                    (actionName ++ " Bet")
+                                    (Icon.check |> Icon.present |> Icon.view |> Just)
+                                    (submit |> Result.toMaybe)
+                                ]
+                            ]
+                      ]
                     ]
-                ]
-            ]
+            in
+            [ Html.div [ HtmlA.class "overlay" ] [ contents |> List.concat |> Html.div [ HtmlA.class "place-bet" ] ] ]
 
         Nothing ->
             []

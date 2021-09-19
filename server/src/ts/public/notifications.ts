@@ -1,13 +1,15 @@
-import { Internal } from "../internal";
+import type { Internal } from "../internal";
 import { Expect } from "../util/expect";
 
 export interface Gifted {
+  id: number;
   type: "Gifted";
   amount: number;
-  reason: "AccountCreated";
+  reason: "AccountCreated" | "Bankruptcy";
 }
 
 export interface Refunded {
+  id: number;
   type: "Refunded";
   gameId: string;
   gameName: string;
@@ -20,6 +22,7 @@ export interface Refunded {
 }
 
 export interface BetFinished {
+  id: number;
   type: "BetFinished";
   gameId: string;
   gameName: string;
@@ -39,40 +42,43 @@ export const unknownNotification = Expect.exhaustive(
 );
 
 export const fromInternal = (internal: Internal.Notification): Notification => {
-  const { message } = internal;
-  switch (message.type) {
+  const { notification } = internal;
+  switch (notification.type) {
     case "Gifted":
       return {
+        id: internal.id,
         type: "Gifted",
-        amount: message.amount,
-        reason: message.reason,
+        amount: notification.amount,
+        reason: notification.reason,
       };
     case "Refunded":
       return {
+        id: internal.id,
         type: "Refunded",
-        gameId: message.gameId,
-        gameName: message.gameName,
-        betId: message.betId,
-        betName: message.betName,
-        optionId: message.optionId,
-        optionName: message.optionName,
-        reason: message.reason,
-        amount: message.amount,
+        gameId: notification.gameId,
+        gameName: notification.gameName,
+        betId: notification.betId,
+        betName: notification.betName,
+        optionId: notification.optionId,
+        optionName: notification.optionName,
+        reason: notification.reason,
+        amount: notification.amount,
       };
     case "BetFinished":
       return {
+        id: internal.id,
         type: "BetFinished",
-        gameId: message.gameId,
-        gameName: message.gameName,
-        betId: message.betId,
-        betName: message.betName,
-        optionId: message.optionId,
-        optionName: message.optionName,
-        result: message.result,
-        amount: message.amount,
+        gameId: notification.gameId,
+        gameName: notification.gameName,
+        betId: notification.betId,
+        betName: notification.betName,
+        optionId: notification.optionId,
+        optionName: notification.optionName,
+        result: notification.result,
+        amount: notification.amount,
       };
     default:
-      return unknownNotification(message);
+      return unknownNotification(notification);
   }
 };
 

@@ -1,10 +1,12 @@
 module JoeBets.Bet exposing
     ( view
     , viewFiltered
+    , viewSummarised
     , voteAsFromAuth
     )
 
 import AssocList
+import EverySet
 import FontAwesome.Icon as Icon
 import FontAwesome.Solid as Icon
 import Html exposing (Html)
@@ -15,14 +17,17 @@ import JoeBets.Bet.Model as Bet exposing (..)
 import JoeBets.Bet.Option as Option exposing (Option)
 import JoeBets.Bet.PlaceBet.Model as PlaceBet
 import JoeBets.Bet.Stakes as Stakes
+import JoeBets.Coins as Coins
 import JoeBets.Game.Model as Game
-import JoeBets.Page.Bets.Model exposing (Filters, ResolvedFilters)
+import JoeBets.Page.Bets.Filters as Filters
+import JoeBets.Page.Bets.Model as Bets
 import JoeBets.Page.Edit.Model as Edit
 import JoeBets.Route as Route
-import JoeBets.User as User
 import JoeBets.User.Auth.Model as Auth
 import JoeBets.User.Model as User exposing (User)
 import Material.Button as Button
+import Time.Model as Time
+import Util.List as List
 import Util.Maybe as Maybe
 
 
@@ -35,40 +40,53 @@ voteAsFromAuth wrap auth =
     auth.localUser |> Maybe.map (\{ id, user } -> { id = id, user = user, wrap = wrap })
 
 
-view : VoteAs msg -> Game.Id -> String -> Bet.Id -> Bet -> Html msg
-view voteAs gameId gameName betId bet =
+view : Time.Context -> VoteAs msg -> Game.Id -> String -> Bet.Id -> Bet -> Html msg
+view timeContext voteAs gameId gameName betId bet =
     let
         hasVoted =
             voteAs |> Maybe.map (.id >> Bet.hasAnyStake bet) |> Maybe.withDefault False
     in
-    internalView voteAs Detailed hasVoted gameId gameName betId bet
+    internalView timeContext voteAs Detailed Nothing hasVoted gameId gameName betId bet
 
 
-viewFiltered : VoteAs msg -> ResolvedFilters -> Game.Id -> String -> Bet.Id -> Bet -> Maybe (Html msg)
-viewFiltered voteAs filters gameId gameName betId bet =
+viewSummarised : Time.Context -> VoteAs msg -> Maybe User.Id -> Game.Id -> String -> Bet.Id -> Bet -> Html msg
+viewSummarised timeContext voteAs highlight gameId gameName betId bet =
+    let
+        hasVoted =
+            voteAs |> Maybe.map (.id >> Bet.hasAnyStake bet) |> Maybe.withDefault False
+    in
+    internalView timeContext voteAs Summarised highlight hasVoted gameId gameName betId bet
+
+
+viewFiltered : Time.Context -> VoteAs msg -> Bets.Subset -> Filters.Resolved -> Game.Id -> String -> Bet.Id -> Bet -> Maybe (Html msg)
+viewFiltered timeContext voteAs subset filters gameId gameName betId bet =
     let
         hasVoted =
             voteAs |> Maybe.map (.id >> Bet.hasAnyStake bet) |> Maybe.withDefault False
 
         progress =
-            case bet.progress of
-                Bet.Suggestion _ ->
-                    False
+            case subset of
+                Bets.Active ->
+                    case bet.progress of
+                        Bet.Voting _ ->
+                            filters.voting
 
-                Bet.Voting _ ->
-                    filters.voting
+                        Bet.Locked _ ->
+                            filters.locked
 
-                Bet.Locked _ ->
-                    filters.locked
+                        Bet.Complete _ ->
+                            filters.complete
 
-                Bet.Complete _ ->
-                    filters.complete
+                        Cancelled _ ->
+                            filters.cancelled
 
-                Cancelled _ ->
-                    filters.cancelled
+                Bets.Suggestions ->
+                    case bet.progress of
+                        _ ->
+                            False
     in
     if progress && (not bet.spoiler || filters.spoilers) && (not hasVoted || filters.hasBet) then
-        internalView voteAs Summarised hasVoted gameId gameName betId bet |> Just
+        internalView timeContext voteAs Summarised Nothing hasVoted gameId gameName betId bet |> Just
 
     else
         Nothing
@@ -79,8 +97,8 @@ type ViewType
     | Detailed
 
 
-internalView : VoteAs msg -> ViewType -> Bool -> Game.Id -> String -> Bet.Id -> Bet -> Html msg
-internalView voteAs viewType hasVoted gameId gameName betId bet =
+internalView : Time.Context -> VoteAs msg -> ViewType -> Maybe User.Id -> Bool -> Game.Id -> String -> Bet.Id -> Bet -> Html msg
+internalView timeContext voteAs viewType highlight hasVoted gameId gameName betId bet =
     let
         optionStakes =
             bet.options |> AssocList.values |> List.map .stakes
@@ -97,22 +115,19 @@ internalView voteAs viewType hasVoted gameId gameName betId bet =
         totalAmount =
             amounts |> List.sum
 
-        ( canVote, maybeWinner ) =
+        ( canVoteOnBet, maybeWinners ) =
             case bet.progress of
-                Suggestion _ ->
-                    ( False, Nothing )
-
                 Voting _ ->
-                    ( True, Nothing )
+                    ( True, EverySet.empty )
 
                 Locked _ ->
-                    ( False, Nothing )
+                    ( False, EverySet.empty )
 
-                Complete { winner } ->
-                    ( False, Just winner )
+                Complete { winners } ->
+                    ( False, winners )
 
                 Cancelled { reason } ->
-                    ( False, Nothing )
+                    ( False, EverySet.empty )
 
         viewOption ( optionId, { name, stakes } as option ) =
             let
@@ -120,21 +135,23 @@ internalView voteAs viewType hasVoted gameId gameName betId bet =
                     case voteAs of
                         Just { id, user, wrap } ->
                             let
+                                existingStake =
+                                    AssocList.get id stakes
+
                                 existingAmount =
-                                    AssocList.get id stakes |> Maybe.map .amount
+                                    existingStake |> Maybe.map .amount
 
                                 hasExistingBet =
                                     existingAmount /= Nothing
 
                                 canVoteForThisOption =
                                     let
-                                        hasNoBalance =
-                                            user.balance < 1
-
-                                        canPlaceNewBet =
-                                            not (hasNoBalance && Bet.hasAnyOtherStake bet id optionId)
+                                        notLocked =
+                                            existingStake
+                                                |> Maybe.map (.message >> (==) Nothing)
+                                                |> Maybe.withDefault True
                                     in
-                                    canVote && (canPlaceNewBet || hasExistingBet)
+                                    canVoteOnBet && notLocked
                             in
                             ( PlaceBet.Target gameId gameName betId bet optionId option.name existingAmount
                                 |> PlaceBet.Start
@@ -147,7 +164,7 @@ internalView voteAs viewType hasVoted gameId gameName betId bet =
                             ( Nothing, False )
 
                 classes =
-                    HtmlA.classList [ ( "voted-for", votedFor ), ( "winner", Just optionId == maybeWinner ) ]
+                    HtmlA.classList [ ( "voted-for", votedFor ), ( "winner", EverySet.member optionId maybeWinners ) ]
 
                 stakeCount =
                     stakes |> AssocList.size
@@ -160,8 +177,8 @@ internalView voteAs viewType hasVoted gameId gameName betId bet =
 
                 ratioDescription =
                     case bet.progress of
-                        Complete { winner } ->
-                            if winner == optionId then
+                        Complete { winners } ->
+                            if winners |> EverySet.member optionId then
                                 "This option paid out at this ratio."
 
                             else
@@ -175,9 +192,6 @@ internalView voteAs viewType hasVoted gameId gameName betId bet =
 
                         Voting _ ->
                             "If this option wins, a bet on it will currently pay out at this return ratio. This will change as votes come in."
-
-                        Suggestion _ ->
-                            ""
 
                 style =
                     if votedFor then
@@ -201,13 +215,13 @@ internalView voteAs viewType hasVoted gameId gameName betId bet =
             , Html.li [ classes ]
                 [ option.image |> Maybe.map (\url -> Html.img [ HtmlA.src url ] []) |> Maybe.withDefault (Html.div [] [])
                 , Button.view style Button.Padded name Nothing action
-                , Stakes.view (voteAs |> Maybe.map .id) maxAmount stakes
+                , Stakes.view timeContext (voteAs |> Maybe.map .id) highlight maxAmount stakes
                 , Html.div [ HtmlA.class "details", HtmlA.title title ]
                     [ Html.span [ HtmlA.class "people" ]
                         [ Icon.user |> Icon.present |> Icon.view
                         , stakeCount |> String.fromInt |> Html.text
                         ]
-                    , totalStake |> User.viewBalance
+                    , totalStake |> Coins.view
                     , Html.span
                         [ HtmlA.class "ratio"
                         , HtmlA.title ratioDescription
@@ -219,16 +233,13 @@ internalView voteAs viewType hasVoted gameId gameName betId bet =
 
         ( class, icon, progressDescription ) =
             case bet.progress of
-                Suggestion _ ->
-                    ( "suggestion", Icon.lightbulb |> Icon.present, "This is a suggestion, you can't place bets until it is approved." )
-
                 Voting { locksWhen } ->
                     ( "voting", Icon.voteYea |> Icon.present, "The bet is open until " ++ locksWhen ++ ", you can place bets." )
 
                 Locked _ ->
                     ( "locked", Icon.lock |> Icon.present, "The bet is locked, awaiting the result, you can no longer place bets." )
 
-                Complete { winner } ->
+                Complete _ ->
                     ( "complete", Icon.check |> Icon.present, "The bet is finished, you can no longer place bets." )
 
                 Cancelled { reason } ->
@@ -254,9 +265,6 @@ internalView voteAs viewType hasVoted gameId gameName betId bet =
 
         extraByProgress =
             case bet.progress of
-                Suggestion _ ->
-                    [ Html.p [] [ Html.text "This is a suggestion, it needs to be approved to bet on it." ] ]
-
                 Voting { locksWhen } ->
                     [ Html.p []
                         [ Html.text "You can place bets, or modify your bet, until "
@@ -266,22 +274,31 @@ internalView voteAs viewType hasVoted gameId gameName betId bet =
                     ]
 
                 Locked _ ->
-                    [ Html.p [] [ Html.text "A total of ", User.viewBalance totalAmount, Html.text " has been bet." ]
+                    [ Html.p [] [ Html.text "A total of ", Coins.view totalAmount, Html.text " has been bet." ]
                     , Html.p [] [ Html.text "You can no longer place or modify bets. When the result is clear the bets will be resolved." ]
                     ]
 
-                Complete { winner } ->
+                Complete { winners } ->
                     let
+                        nameOfOption ( id, option ) =
+                            if EverySet.member id winners then
+                                Just option.name
+
+                            else
+                                Nothing
+
                         winningOption =
                             bet.options
-                                |> AssocList.get winner
-                                |> Maybe.map .name
-                                |> Maybe.withDefault "[Error: Winning option not found.]"
+                                |> AssocList.toList
+                                |> List.filterMap nameOfOption
+                                |> List.intersperse ", "
+                                |> List.addBeforeLast "and "
+                                |> String.concat
                     in
-                    [ Html.p [] [ Html.text "This bet is over, ", Html.text winningOption, Html.text " won." ]
+                    [ Html.p [] [ Html.text "This bet is over: ", Html.text winningOption, Html.text " won." ]
                     , Html.p []
                         [ Html.text "A total of "
-                        , User.viewBalance totalAmount
+                        , Coins.view totalAmount
                         , Html.text " has been distributed to the winners."
                         ]
                     ]
@@ -294,7 +311,7 @@ internalView voteAs viewType hasVoted gameId gameName betId bet =
         adminContent =
             if voteAs |> Auth.isMod gameId then
                 [ Html.div [ HtmlA.class "admin-controls" ]
-                    [ Route.a (betId |> Just |> Edit.Bet gameId |> Route.Edit) [] [ Icon.pen |> Icon.present |> Icon.view ]
+                    [ Route.a (betId |> Edit.Edit |> Edit.Bet gameId |> Route.Edit) [] [ Icon.pen |> Icon.present |> Icon.view ]
                     ]
                 ]
 
@@ -315,14 +332,15 @@ internalView voteAs viewType hasVoted gameId gameName betId bet =
                     [ Html.div [ HtmlA.class "top" ]
                         [ Route.a (Route.Bet gameId betId)
                             [ HtmlA.class "permalink" ]
-                            [ Html.h3 []
+                            [ Html.h3 [ HtmlA.classList [ ( "potential-spoiler", bet.spoiler ) ] ]
                                 [ Html.text bet.name
                                 , Icon.link |> Icon.present |> Icon.view
                                 ]
                             ]
                         , details |> List.concat |> Html.div [ HtmlA.class "details" ]
                         ]
-                    , Html.p [ HtmlA.class "description" ] [ Html.text bet.description ]
+                    , Html.p [ HtmlA.classList [ ( "description", True ), ( "potential-spoiler", bet.spoiler ) ] ]
+                        [ Html.text bet.description ]
                     , Html.div [] adminContent
                     ]
                 , Html.div [ HtmlA.class "extra" ] extraByProgress

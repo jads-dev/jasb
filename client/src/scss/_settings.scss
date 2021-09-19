@@ -1,0 +1,53 @@
+@use "sass:color";
+@use "./colors";
+
+#client-settings {
+  > .background,
+  > .foreground {
+    position: fixed;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    left: 0;
+  }
+
+  > .background {
+    background-color: color.scale(#666666, $alpha: -50%);
+  }
+
+  > .foreground {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    pointer-events: none;
+  }
+
+  .foreground > div {
+    color: colors.$on-background-primary;
+    background-color: colors.$background-primary;
+
+    margin: 1em;
+    padding: 1em;
+    border-radius: 1em;
+
+    pointer-events: auto;
+  }
+
+  .default-filters {
+    ul {
+      list-style: none;
+      padding: 0;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5em;
+      justify-content: center;
+      > li {
+        color: colors.$on-background-secondary;
+        background-color: colors.$background-secondary;
+        border-radius: 0.5em;
+        padding: 0.5em;
+      }
+    }
+  }
+}

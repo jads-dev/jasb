@@ -2,6 +2,8 @@ import { default as Express } from "express";
 import { default as StatusCodes } from "http-status-codes";
 import { default as Winston } from "winston";
 
+import { Auth } from "./auth";
+
 export class WebError extends Error {
   status: number;
 
@@ -32,6 +34,9 @@ export const express: (
     next(error);
   } else {
     const finalError = handler(log, error);
+    if (finalError === StatusCodes.UNAUTHORIZED) {
+      res.clearCookie(Auth.sessionCookieName);
+    }
     res.status(finalError).send();
   }
 };

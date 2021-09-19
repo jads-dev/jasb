@@ -6,6 +6,7 @@ module JoeBets.Page.Games exposing
     )
 
 import AssocList
+import EverySet
 import FontAwesome.Icon as Icon
 import FontAwesome.Solid as Icon
 import Html exposing (Html)
@@ -14,11 +15,13 @@ import Http
 import JoeBets.Api as Api
 import JoeBets.Game as Game
 import JoeBets.Page exposing (Page)
+import JoeBets.Page.Bets.Model as Bets
 import JoeBets.Page.Edit.Model as Edit
 import JoeBets.Page.Games.Model exposing (..)
 import JoeBets.Route as Route
 import JoeBets.User.Auth.Model as Auth
-import Time
+import Material.Switch as Switch
+import Time.Model as Time
 import Util.RemoteData as RemoteData
 
 
@@ -26,22 +29,24 @@ type alias Parent a =
     { a
         | games : Model
         , origin : String
-        , zone : Time.Zone
-        , time : Time.Posix
+        , time : Time.Context
         , auth : Auth.Model
+        , bets : Bets.Model
     }
 
 
 init : Model
 init =
-    RemoteData.Missing
+    { games = RemoteData.Missing
+    , favouritesOnly = False
+    }
 
 
 load : (Msg -> msg) -> Parent a -> ( Parent a, Cmd msg )
 load wrap ({ games } as model) =
     ( model
     , Api.get model.origin
-        { path = [ "game" ]
+        { path = Api.Games
         , expect = Http.expectJson (Load >> wrap) gamesDecoder
         }
     )
@@ -51,19 +56,26 @@ update : Msg -> Parent a -> ( Parent a, Cmd msg )
 update msg ({ games } as model) =
     case msg of
         Load response ->
-            ( { model | games = RemoteData.load response }, Cmd.none )
+            ( { model | games = { games | games = RemoteData.load response } }, Cmd.none )
+
+        SetFavouritesOnly favouritesOnly ->
+            ( { model | games = { games | favouritesOnly = favouritesOnly } }, Cmd.none )
 
 
-view : (Msg -> msg) -> Parent a -> Page msg
-view wrap { auth, zone, time, games } =
+view : (Msg -> msg) -> (Bets.Msg -> msg) -> Parent a -> Page msg
+view wrap wrapBets { auth, time, games, bets } =
     let
         viewGame ( id, game ) =
-            Html.li [] [ Route.a (Route.Bets id Nothing) [] [ Game.view zone time auth.localUser id game ] ]
+            if not games.favouritesOnly || EverySet.member id bets.favourites.value then
+                Html.li [] [ Game.view wrapBets bets time auth.localUser id game Nothing ] |> Just
+
+            else
+                Nothing
 
         viewSubset class title subset =
             Html.div [ HtmlA.class class ]
                 [ Html.h3 [] [ Html.text title ]
-                , subset |> AssocList.toList |> List.map viewGame |> Html.ol []
+                , subset |> AssocList.toList |> List.filterMap viewGame |> Html.ol []
                 ]
 
         body { future, current, finished } =
@@ -83,10 +95,17 @@ view wrap { auth, zone, time, games } =
                 , viewSubset "future" "Future" future
                 , viewSubset "finished" "Finished" finished
                 ]
-            , Html.div [ HtmlA.class "admin" ] admin
+            , Html.ul [ HtmlA.class "final-actions" ] (admin |> List.map (List.singleton >> Html.li []))
             ]
     in
     { title = "Games"
     , id = "games"
-    , body = Html.h2 [] [ Html.text "Games" ] :: RemoteData.view body games
+    , body =
+        Html.h2 [] [ Html.text "Games" ]
+            :: Html.div []
+                [ Switch.view (Html.text "Favourite Games Only")
+                    games.favouritesOnly
+                    (SetFavouritesOnly >> wrap |> Just)
+                ]
+            :: RemoteData.view body games.games
     }

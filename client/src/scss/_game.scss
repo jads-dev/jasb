@@ -39,6 +39,12 @@
 
   position: relative;
 
+  &.favourite {
+    .favourite-control {
+      color: colors.$primary;
+    }
+  }
+
   .cover {
     height: 6em;
   }
@@ -52,5 +58,46 @@
       font-size: 1.25em;
       margin: 0;
     }
+  }
+
+  .mods {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+
+    margin-left: auto;
+
+    ul {
+      padding: 0;
+      margin: 0;
+      list-style: none;
+    }
+
+    a {
+      color: colors.$on-background-primary;
+    }
+
+    .user {
+      display: inline-flex;
+      align-items: baseline;
+
+      .avatar {
+        margin-right: 0.15em;
+        width: 1em;
+        height: 1em;
+      }
+    }
+  }
+
+  .interactions {
+    display: none;
+    position: absolute;
+    top: 0.5em;
+    right: 0.5em;
+  }
+
+  &:hover .interactions {
+    display: block;
   }
 }

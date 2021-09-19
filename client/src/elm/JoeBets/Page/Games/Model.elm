@@ -14,7 +14,9 @@ import Util.RemoteData as RemoteData exposing (RemoteData)
 
 
 type alias Model =
-    RemoteData Games
+    { games : RemoteData Games
+    , favouritesOnly : Bool
+    }
 
 
 type alias Games =
@@ -38,3 +40,4 @@ gamesDecoder =
 
 type Msg
     = Load (RemoteData.Response Games)
+    | SetFavouritesOnly Bool

@@ -1,29 +1,39 @@
 module JoeBets.User.Auth.Model exposing
     ( CodeAndState
+    , Error(..)
+    , LoggedIn
     , LoginProgress(..)
     , Model
     , Msg(..)
     , Redirect
-    , RedirectOrUser(..)
+    , RedirectOrLoggedIn(..)
     , codeAndStateParser
     , encodeCodeAndState
     , isAdmin
     , isMod
     , redirectDecoder
-    , redirectOrUserDecoder
+    , redirectOrLoggedInDecoder
     )
 
 import EverySet
+import Http
 import JoeBets.Game.Model as Game
 import JoeBets.User.Model as User exposing (User)
+import JoeBets.User.Notifications.Model as Notifications exposing (Notification)
 import Json.Decode as JsonD
 import Json.Decode.Pipeline as JsonD
 import Json.Encode as JsonE
 import Url.Parser.Query as Query
 
 
+type Error
+    = HttpError Http.Error
+    | Unauthorized
+
+
 type alias Model =
     { trying : Bool
+    , error : Maybe Error
     , localUser : Maybe User.WithId
     }
 
@@ -44,14 +54,27 @@ isMod game =
 
 type Msg
     = Login LoginProgress
-    | SetLocalUser Bool User.WithId
+    | SetLocalUser Bool LoggedIn
     | Logout
 
 
 type LoginProgress
     = Start
     | Continue Redirect
-    | Failed
+    | Failed Error
+
+
+type alias LoggedIn =
+    { user : User.WithId
+    , notifications : List Notification
+    }
+
+
+loggedInDecoder : JsonD.Decoder LoggedIn
+loggedInDecoder =
+    JsonD.succeed LoggedIn
+        |> JsonD.required "user" User.withIdDecoder
+        |> JsonD.required "notifications" (JsonD.list Notifications.decoder)
 
 
 type alias Redirect =
@@ -83,14 +106,14 @@ encodeCodeAndState { code, state } =
         ]
 
 
-type RedirectOrUser
+type RedirectOrLoggedIn
     = R Redirect
-    | U User.WithId
+    | L LoggedIn
 
 
-redirectOrUserDecoder : JsonD.Decoder RedirectOrUser
-redirectOrUserDecoder =
+redirectOrLoggedInDecoder : JsonD.Decoder RedirectOrLoggedIn
+redirectOrLoggedInDecoder =
     JsonD.oneOf
         [ redirectDecoder |> JsonD.map R
-        , User.withIdDecoder |> JsonD.map U
+        , loggedInDecoder |> JsonD.map L
         ]

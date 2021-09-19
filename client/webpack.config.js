@@ -5,7 +5,6 @@ const sass = require("sass");
 const HtmlWebpackPlugin = require("html-webpack-plugin");
 const FaviconsWebpackPlugin = require("favicons-webpack-plugin");
 const TerserPlugin = require("terser-webpack-plugin");
-const { CleanWebpackPlugin } = require("clean-webpack-plugin");
 const CompressionPlugin = require("compression-webpack-plugin");
 const MiniCssExtractPlugin = require("mini-css-extract-plugin");
 
@@ -37,10 +36,9 @@ module.exports = (env, argv) => {
       rules: [
         {
           test: /\.(svg|png)$/,
-          loader: "file-loader",
-          options: {
-            name: "assets/images/[name].[hash].[ext]",
-            esModule: false,
+          type: "asset/resource",
+          generator: {
+            filename: "assets/images/[name].[hash].[ext]",
           },
         },
         {
@@ -70,10 +68,6 @@ module.exports = (env, argv) => {
               },
             },
             {
-              loader: "resolve-url-loader",
-              options: { sourceMap: !production },
-            },
-            {
               loader: "sass-loader",
               options: {
                 implementation: sass,
@@ -95,7 +89,6 @@ module.exports = (env, argv) => {
               options: {
                 optimize: production,
                 debug: !production,
-                forceWatch: !production,
               },
             },
           ],
@@ -106,9 +99,9 @@ module.exports = (env, argv) => {
       path: dist,
       publicPath: "/",
       filename: "assets/scripts/[name].[contenthash].js",
+      clean: true,
     },
     plugins: [
-      new CleanWebpackPlugin(),
       new MiniCssExtractPlugin({
         filename: "assets/styles/[name].[contenthash].css",
       }),
@@ -136,16 +129,13 @@ module.exports = (env, argv) => {
           },
         },
       }),
-      // ...(production
-      //   ? [
-      //       new CompressionPlugin({
-      //         test: /\.(js|css|html|webmanifest|svg)$/,
-      //         minRatio: 0.95,
-      //         filename: "[path][base]",
-      //         deleteOriginalAssets: true,
-      //       }),
-      //     ]
-      //   : []),
+      ...(production
+        ? [
+            new CompressionPlugin({
+              test: /\.(js|css|html|webmanifest|svg)$/,
+            }),
+          ]
+        : []),
     ],
     optimization: {
       minimizer: [
@@ -162,7 +152,7 @@ module.exports = (env, argv) => {
     },
     devtool: !production ? "eval-source-map" : undefined,
     devServer: {
-      contentBase: dist,
+      static: [{ directory: dist }],
       hot: true,
       //host: "0.0.0.0",
       allowedHosts: ["localhost"],

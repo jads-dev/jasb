@@ -1,0 +1,127 @@
+@use "./colors";
+@use "sass:color";
+
+#feed,
+.feed {
+  > p {
+    text-align: center;
+  }
+
+  > ol {
+    list-style: none;
+    padding: 0;
+
+    display: flex;
+    flex-direction: column;
+
+    > li {
+      display: flex;
+      gap: 0.5em;
+      align-items: center;
+      font-size: 1.5em;
+      margin: 0.5em;
+      padding: 0.5em;
+      color: colors.$on-background-secondary;
+      background-color: colors.$background-secondary;
+
+      p {
+        margin: 0;
+      }
+
+      .user {
+        display: inline-flex;
+        align-items: baseline;
+
+        .avatar {
+          margin-right: 0.15em;
+          width: 1em;
+          height: 1em;
+        }
+      }
+
+      .message {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        gap: 0.5em;
+
+        .user:after {
+          display: inline;
+          content: ":";
+        }
+
+        blockquote {
+          margin: 0;
+          white-space: normal;
+          word-wrap: break-word;
+
+          &:before {
+            display: inline;
+            content: "“";
+          }
+
+          &:after {
+            display: inline;
+            content: "”";
+          }
+        }
+      }
+
+      > div {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 0.25em;
+        flex-grow: 1;
+      }
+
+      > svg {
+        font-size: 2em;
+      }
+    }
+  }
+}
+
+.hide-spoilers {
+  position: relative;
+
+  &::before {
+    display: block;
+    content: "";
+    position: absolute;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    z-index: 10;
+    cursor: pointer;
+    background: repeating-linear-gradient(
+      45deg,
+      colors.$spoiler-warning,
+      colors.$spoiler-warning 0.25em,
+      color.scale(colors.$disabled, $alpha: -70%) 0.25em,
+      color.scale(colors.$disabled, $alpha: -70%) 2em
+    );
+  }
+
+  &::after {
+    display: flex;
+    align-items: flex-end;
+    justify-content: flex-end;
+    content: "Click to reveal spoiler.";
+    position: absolute;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    z-index: 11;
+    pointer-events: none;
+    color: colors.$bad;
+    font-size: 0.75em;
+    padding: 0.5em;
+  }
+
+  .potential-spoiler {
+    filter: blur(0.4em);
+  }
+}

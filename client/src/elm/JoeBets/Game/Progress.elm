@@ -13,9 +13,7 @@ module JoeBets.Game.Progress exposing
 import Json.Decode as JsonD
 import Json.Decode.Pipeline as JsonD
 import Json.Encode as JsonE
-import Time
-import Util.Json.Decode as JsonD
-import Util.Json.Encode as JsonE
+import Time.Date as Date exposing (Date)
 
 
 type alias Future =
@@ -34,38 +32,38 @@ encodeFuture _ =
 
 
 type alias Current =
-    { start : Time.Posix }
+    { start : Date }
 
 
 currentDecoder : JsonD.Decoder Current
 currentDecoder =
     JsonD.succeed Current
-        |> JsonD.required "start" JsonD.posix
+        |> JsonD.required "start" Date.decoder
 
 
 encodeCurrent : Current -> JsonE.Value
 encodeCurrent { start } =
     JsonE.object
         [ ( "state", "Current" |> JsonE.string )
-        , ( "start", start |> JsonE.posix )
+        , ( "start", start |> Date.encode )
         ]
 
 
 type alias Finished =
-    { start : Time.Posix, finish : Time.Posix }
+    { start : Date, finish : Date }
 
 
 finishedDecoder : JsonD.Decoder Finished
 finishedDecoder =
     JsonD.succeed Finished
-        |> JsonD.required "start" JsonD.posix
-        |> JsonD.required "finish" JsonD.posix
+        |> JsonD.required "start" Date.decoder
+        |> JsonD.required "finish" Date.decoder
 
 
 encodeFinished : Finished -> JsonE.Value
 encodeFinished { start, finish } =
     JsonE.object
         [ ( "state", "Finished" |> JsonE.string )
-        , ( "start", start |> JsonE.posix )
-        , ( "start", finish |> JsonE.posix )
+        , ( "start", start |> Date.encode )
+        , ( "finish", finish |> Date.encode )
         ]

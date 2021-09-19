@@ -1,7 +1,18 @@
-import { Internal } from "../internal";
-import { Games } from "./games";
+import * as Schema from "io-ts";
 
-export type Id = string;
+import type { Internal } from "../internal";
+import type { Games } from "./games";
+
+interface UserIdBrand {
+  readonly UserId: unique symbol;
+}
+
+export const Id = Schema.brand(
+  Schema.string,
+  (id): id is Schema.Branded<string, UserIdBrand> => true,
+  "UserId"
+);
+export type Id = Schema.TypeOf<typeof Id>;
 
 export interface User {
   name: string;
@@ -11,27 +22,71 @@ export interface User {
   balance: number;
   betValue: number;
 
-  created: number;
+  created: string;
   admin?: true;
   mod?: Games.Id[];
 }
 
 export interface WithId {
-  id: string;
+  id: Id;
   user: User;
 }
 
-export const fromInternal = (internal: Internal.User): User => ({
-  name: internal.name,
-  discriminator: internal.discriminator,
-  avatar: internal.avatar,
+export interface Summary {
+  name: string;
+  discriminator: string;
+  avatar?: string;
+}
 
-  balance: internal.balance,
-  betValue: internal.betValue,
+export interface BankruptcyStats {
+  amountLost: number;
+  stakesLost: number;
+  lockedStakesLost: number;
+  lockedAmountLost: number;
+  balanceAfter: number;
+}
 
-  created: internal.created.seconds,
-  ...(internal.admin ? { admin: true } : {}),
-  ...(internal.mod ? { mod: internal.mod } : {}),
+export const fromInternal = (
+  internal: Internal.User & Internal.Users.Permissions & Internal.Users.BetStats
+): WithId => ({
+  id: internal.id as Id,
+  user: {
+    name: internal.name,
+    discriminator: internal.discriminator,
+    ...(internal.avatar !== null ? { avatar: internal.avatar } : {}),
+
+    balance: internal.balance,
+    betValue: internal.staked,
+
+    created: internal.created.toJSON(),
+    ...(internal.admin ? { admin: true } : {}),
+    mod: internal.moderator_for as Games.Id[],
+  },
+});
+
+export const summaryFromInternal = (
+  internal: Internal.Users.Summary
+): [Id, Summary] => [
+  internal.id as Id,
+  {
+    name: internal.name,
+    discriminator: internal.discriminator,
+    ...(internal.avatar !== null ? { avatar: internal.avatar } : {}),
+  },
+];
+
+export const bankruptcyStatsFromInternal = ({
+  amount_lost,
+  stakes_lost,
+  locked_amount_lost,
+  locked_stakes_lost,
+  balance_after,
+}: Internal.Users.BankruptcyStats): BankruptcyStats => ({
+  amountLost: amount_lost,
+  stakesLost: stakes_lost,
+  lockedAmountLost: locked_amount_lost,
+  lockedStakesLost: locked_stakes_lost,
+  balanceAfter: balance_after,
 });
 
 export * as Users from "./users";

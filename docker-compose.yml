@@ -1,0 +1,14 @@
+# This file is intended for local development.
+# For a production deployment, please look at deployment/docker-compose.yml instead.
+
+version: "3.9"
+
+services:
+  data:
+    image: postgres:latest
+    environment:
+      POSTGRES_USER: jasb
+      POSTGRES_PASSWORD: jasb
+      TZ: UTC
+    ports:
+      - 5432:5432

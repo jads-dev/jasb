@@ -14,11 +14,9 @@
     display: flex;
     align-items: center;
 
-    counter-increment: leaderboard-counter;
-
     margin: 0.5em;
 
-    &::before {
+    > .rank {
       content: counter(leaderboard-counter);
       color: colors.$on-primary;
       background-color: colors.$primary;

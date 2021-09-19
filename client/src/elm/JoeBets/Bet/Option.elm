@@ -3,13 +3,14 @@ module JoeBets.Bet.Option exposing
     , Option
     , decoder
     , encode
+    , encodeId
     , idDecoder
     , idFromString
     , idToString
     )
 
 import AssocList
-import JoeBets.Bet.Stake as Stake exposing (Stake)
+import JoeBets.Bet.Stake.Model as Stake exposing (Stake)
 import JoeBets.User.Model as User
 import Json.Decode as JsonD
 import Json.Decode.Pipeline as JsonD
@@ -24,6 +25,11 @@ type Id
 idToString : Id -> String
 idToString (Id string) =
     string
+
+
+encodeId : Id -> JsonE.Value
+encodeId =
+    idToString >> JsonE.string
 
 
 idDecoder : JsonD.Decoder Id

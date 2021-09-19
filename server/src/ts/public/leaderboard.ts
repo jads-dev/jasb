@@ -1,5 +1,5 @@
-import { Internal } from "../internal";
-import { Users } from "./users";
+import type { Internal } from "../internal";
+import { Users } from ".";
 
 export interface Entry {
   id: Users.Id;
@@ -8,17 +8,21 @@ export interface Entry {
   discriminator: string;
   avatar?: string;
 
+  rank: number;
   netWorth: number;
 }
 
-export const fromInternal = (id: string, internal: Internal.User): Entry => ({
-  id,
+export const fromInternal = (
+  internal: Internal.User & Internal.Users.BetStats & Internal.Users.Leaderboard
+): Entry => ({
+  id: internal.id as Users.Id,
 
   name: internal.name,
   discriminator: internal.discriminator,
-  avatar: internal.avatar,
+  ...(internal.avatar !== null ? { avatar: internal.avatar } : {}),
 
-  netWorth: internal.netWorth,
+  rank: internal.rank,
+  netWorth: internal.net_worth,
 });
 
 export * as Leaderboard from "./leaderboard";

@@ -1,22 +1,29 @@
-module JoeBets.Bet.Stake exposing
-    ( Stake
-    , decoder
-    )
+module JoeBets.Bet.Stake exposing (view)
 
-import Json.Decode as JsonD
-import Json.Decode.Pipeline as JsonD
-import Time
-import Util.Json.Decode as JsonD
-
-
-type alias Stake =
-    { amount : Int
-    , at : Time.Posix
-    }
+import Html exposing (Html)
+import Html.Attributes as HtmlA
+import JoeBets.Bet.Stake.Model exposing (..)
+import JoeBets.Coins as Coins
+import JoeBets.Route as Route
+import JoeBets.User as User
+import JoeBets.User.Model as User
+import Time.DateTime as DateTime exposing (DateTime)
+import Time.Model as Time
+import Util.Maybe as Maybe
 
 
-decoder : JsonD.Decoder Stake
-decoder =
-    JsonD.succeed Stake
-        |> JsonD.required "amount" JsonD.int
-        |> JsonD.required "at" JsonD.posix
+view : Time.Context -> User.Id -> Stake -> Html msg
+view timeContext by { amount, at, user, message } =
+    let
+        messageIfGiven =
+            message |> Maybe.map Html.text |> Maybe.toList
+    in
+    Html.div [ HtmlA.class "stake" ]
+        [ Html.a [ HtmlA.class "user", by |> Just |> Route.User |> Route.toUrl |> HtmlA.href ]
+            [ User.viewAvatar by user
+            , User.viewName user
+            ]
+        , Coins.view amount
+        , Html.span [ HtmlA.class "message" ] messageIfGiven
+        , Html.span [ HtmlA.class "at" ] [ DateTime.view timeContext Time.Relative at ]
+        ]

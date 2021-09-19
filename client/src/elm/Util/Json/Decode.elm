@@ -4,7 +4,6 @@ module Util.Json.Decode exposing
     , atLeastOne
     , everySetFromList
     , optionalAsMaybe
-    , posix
     , unknownValue
     )
 
@@ -13,7 +12,6 @@ import Dict
 import EverySet exposing (EverySet)
 import Json.Decode as JsonD exposing (..)
 import Json.Decode.Pipeline as JsonD
-import Time
 
 
 atLeastOne : Decoder a -> Decoder ( a, List a )
@@ -45,11 +43,6 @@ assocListFromObject keyFromString valueDecoder =
             dict |> Dict.toList |> List.map wrapKey |> AssocList.fromList
     in
     dict valueDecoder |> map convert
-
-
-posix : JsonD.Decoder Time.Posix
-posix =
-    JsonD.int |> JsonD.map ((*) 1000 >> Time.millisToPosix)
 
 
 unknownValue : String -> String -> Decoder a

@@ -3,17 +3,19 @@ module JoeBets.Bet.Stakes exposing (view)
 import AssocList
 import Html exposing (Html)
 import Html.Attributes as HtmlA
-import JoeBets.Bet.Stake exposing (Stake)
+import JoeBets.Bet.Stake as Stake
+import JoeBets.Bet.Stake.Model exposing (Stake)
 import JoeBets.User.Model as User
+import Time.Model as Time
 
 
-view : Maybe User.Id -> Int -> AssocList.Dict User.Id Stake -> Html msg
-view localUserId max stakes =
+view : Time.Context -> Maybe User.Id -> Maybe User.Id -> Int -> AssocList.Dict User.Id Stake -> Html msg
+view timeContext localUserId highlight max stakes =
     let
-        stakeSegment ( by, { amount } ) =
+        stakeSegment ( by, stake ) =
             let
                 stringAmount =
-                    amount |> String.fromInt
+                    stake.amount |> String.fromInt
 
                 local =
                     Just by == localUserId
@@ -26,11 +28,10 @@ view localUserId max stakes =
                         ""
             in
             Html.span
-                [ HtmlA.classList [ ( "local", local ) ]
+                [ HtmlA.classList [ ( "local", local ), ( "highlight", Just by == highlight ) ]
                 , HtmlA.style "flex-grow" stringAmount
-                , HtmlA.title (stringAmount ++ titleExtra)
                 ]
-                []
+                [ Stake.view timeContext by stake ]
 
         total =
             stakes |> AssocList.values |> List.map .amount |> List.sum

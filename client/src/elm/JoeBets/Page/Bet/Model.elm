@@ -9,6 +9,7 @@ module JoeBets.Page.Bet.Model exposing
 import JoeBets.Bet.Model as Bet exposing (Bet)
 import JoeBets.Bet.PlaceBet.Model as PlaceBet
 import JoeBets.Game.Model as Game exposing (Game)
+import JoeBets.Page.Feed.Model as Feed
 import Json.Decode as JsonD
 import Json.Decode.Pipeline as JsonD
 import Util.RemoteData as RemoteData exposing (RemoteData)
@@ -17,7 +18,9 @@ import Util.RemoteData as RemoteData exposing (RemoteData)
 type Msg
     = Load Game.Id Bet.Id (RemoteData.Response GameAndBet)
     | Update Game.Id Bet.Id Bet
+    | Apply (List PlaceBet.Change)
     | PlaceBetMsg PlaceBet.Msg
+    | FeedMsg Feed.Msg
 
 
 type alias Data =
@@ -36,6 +39,7 @@ type alias GameAndBet =
 type alias Model =
     { data : Maybe Data
     , placeBet : PlaceBet.Model
+    , feed : Feed.Model
     }
 
 

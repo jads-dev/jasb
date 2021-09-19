@@ -1,5 +1,7 @@
 module JoeBets.Game.Editor exposing
-    ( load
+    ( diff
+    , isNew
+    , load
     , toGame
     , update
     , view
@@ -11,37 +13,62 @@ import Html exposing (Html)
 import Html.Attributes as HtmlA
 import Http
 import JoeBets.Api as Api
+import JoeBets.Editing.Slug as Slug
+import JoeBets.Editing.Uploader as Uploader
 import JoeBets.Game as Game
 import JoeBets.Game.Editor.Model exposing (..)
 import JoeBets.Game.Model as Game exposing (Game)
-import JoeBets.Page.Edit.DateTime as DateTime
+import JoeBets.Page.Bets.Model as Bets
 import JoeBets.Page.Edit.Validator as Validator exposing (Validator)
 import JoeBets.User.Auth.Model as Auth
-import Json.Decode as Json
 import Material.Button as Button
 import Material.TextField as TextField
 import Time
+import Time.Date as Date
+import Time.Model as Time
+import Util.Maybe as Maybe
 import Util.RemoteData as RemoteData
 import Util.Url as Url
 
 
 type alias Parent a =
     { a
-        | zone : Time.Zone
-        , time : Time.Posix
+        | time : Time.Context
+        , origin : String
         , auth : Auth.Model
+        , bets : Bets.Model
     }
 
 
 empty : Maybe Game.Id -> Model
 empty maybeGameId =
     { source = maybeGameId |> Maybe.map (\id -> ( id, RemoteData.Missing ))
+    , id = Slug.Auto
     , name = ""
-    , cover = ""
+    , cover = Uploader.init
+    , igdbId = ""
     , bets = 0
-    , start = DateTime.init
-    , finish = DateTime.init
+    , start = ""
+    , finish = ""
     }
+
+
+diff : Model -> Body
+diff model =
+    let
+        ifDifferent getOld getNew =
+            Maybe.ifDifferent
+                (model.source |> Maybe.andThen (Tuple.second >> RemoteData.toMaybe) |> Maybe.map getOld)
+                (model |> getNew |> Just)
+                |> Maybe.andThen identity
+    in
+    Body
+        (model.source |> Maybe.andThen (Tuple.second >> RemoteData.toMaybe) |> Maybe.map .version)
+        (ifDifferent .name .name)
+        (ifDifferent .cover (.cover >> Uploader.toUrl))
+        (ifDifferent .igdbId .igdbId)
+        (ifDifferent (.progress >> Game.start) (.start >> Date.fromIso))
+        (ifDifferent (.progress >> Game.finish) (.finish >> Date.fromIso))
 
 
 load : String -> (Msg -> msg) -> Maybe Game.Id -> ( Model, Cmd msg )
@@ -54,8 +81,8 @@ load origin wrap maybeGameId =
             case maybeGameId of
                 Just id ->
                     Api.get origin
-                        { path = [ "game", id |> Game.idToString ]
-                        , expect = Http.expectJson (Load id >> wrap) (Json.field "game" Game.decoder)
+                        { path = Api.Game id Api.GameRoot
+                        , expect = Http.expectJson (Load id >> wrap) Game.decoder
                         }
 
                 Nothing ->
@@ -64,10 +91,15 @@ load origin wrap maybeGameId =
     ( model, cmd )
 
 
+isNew : Model -> Bool
+isNew { source } =
+    source == Nothing
+
+
 fromGame : Game.Id -> Game -> Model
 fromGame id game =
     let
-        ( startPosix, finishPosix ) =
+        ( startDate, finishDate ) =
             case game.progress of
                 Game.Future _ ->
                     ( Nothing, Nothing )
@@ -77,81 +109,100 @@ fromGame id game =
 
                 Game.Finished { start, finish } ->
                     ( Just start, Just finish )
-
-        fromPosix =
-            Maybe.map DateTime.fromPosix >> Maybe.withDefault DateTime.init
     in
     { source = Just ( id, RemoteData.Loaded game )
+    , id = Slug.Locked id
     , name = game.name
-    , cover = game.cover
+    , cover = game.cover |> Uploader.fromUrl
+    , igdbId = game.igdbId
     , bets = game.bets
-    , start = fromPosix startPosix
-    , finish = fromPosix finishPosix
+    , start = startDate |> Maybe.map Date.toIso |> Maybe.withDefault ""
+    , finish = finishDate |> Maybe.map Date.toIso |> Maybe.withDefault ""
     }
 
 
-update : Msg -> Model -> Model
-update msg model =
+update : (Msg -> msg) -> Msg -> Parent a -> Model -> ( Model, Cmd msg )
+update wrap msg parent model =
     case msg of
         Load id result ->
             case result of
                 Ok game ->
-                    fromGame id game
+                    ( fromGame id game, Cmd.none )
 
                 Err error ->
-                    { model | source = Just ( id, RemoteData.Failed error ) }
+                    ( { model | source = Just ( id, RemoteData.Failed error ) }, Cmd.none )
 
         Reset ->
             case model.source of
                 Just ( gameId, data ) ->
                     case data of
                         RemoteData.Loaded game ->
-                            fromGame gameId game
+                            ( fromGame gameId game, Cmd.none )
 
                         _ ->
-                            model
+                            ( model, Cmd.none )
 
                 Nothing ->
-                    empty Nothing
+                    ( empty Nothing, Cmd.none )
+
+        IgdbLoad igdbId ->
+            ( model, Cmd.none )
+
+        IgdbSet name cover ->
+            ( { model | name = name, cover = model.cover |> Uploader.setUrl cover }, Cmd.none )
+
+        ChangeId id ->
+            ( { model | id = id |> Url.slugify |> Game.idFromString |> Slug.Manual }, Cmd.none )
 
         ChangeName name ->
-            { model | name = name }
+            ( { model | name = name }, Cmd.none )
 
-        ChangeCover cover ->
-            { model | cover = cover }
+        CoverMsg coverMsg ->
+            let
+                ( cover, cmd ) =
+                    Uploader.update (CoverMsg >> wrap) coverMsg parent coverUploaderModel model.cover
+            in
+            ( { model | cover = cover }, cmd )
+
+        ChangeIgdbId igdbId ->
+            ( { model | igdbId = igdbId }, Cmd.none )
 
         ChangeStart start ->
-            { model | start = model.start |> DateTime.update start }
+            ( { model | start = start }, Cmd.none )
 
         ChangeFinish finish ->
-            { model | finish = model.finish |> DateTime.update finish }
+            ( { model | finish = finish }, Cmd.none )
 
 
 toGame : Model -> ( Game.Id, Game )
 toGame model =
     let
         progress =
-            case model.start |> DateTime.toPosix of
-                Ok start ->
-                    case model.finish |> DateTime.toPosix of
-                        Ok finish ->
+            case model.start |> Date.fromIso of
+                Just start ->
+                    case model.finish |> Date.fromIso of
+                        Just finish ->
                             { start = start, finish = finish } |> Game.Finished
 
-                        Err _ ->
+                        Nothing ->
                             { start = start } |> Game.Current
 
-                Err _ ->
-                    case model.finish |> DateTime.toPosix of
-                        Ok _ ->
-                            {} |> Game.Future
+                Nothing ->
+                    {} |> Game.Future
 
-                        Err _ ->
-                            {} |> Game.Future
+        version =
+            model.source
+                |> Maybe.andThen (Tuple.second >> RemoteData.toMaybe)
+                |> Maybe.map (.version >> (+) 1)
+                |> Maybe.withDefault 0
+
+        coverUrl =
+            model.cover |> Uploader.toUrl
     in
     ( model.source
         |> Maybe.map Tuple.first
         |> Maybe.withDefault (model.name |> Url.slugify |> Game.idFromString)
-    , Game model.name model.cover model.bets progress
+    , Game version model.name coverUrl model.igdbId model.bets progress
     )
 
 
@@ -162,23 +213,46 @@ nameValidator =
 
 coverValidator : Validator Model
 coverValidator =
-    Validator.fromPredicate "Cover must not be empty." (.cover >> String.isEmpty)
+    Validator.fromPredicate "Cover must not be empty." (.cover >> Uploader.toUrl >> String.isEmpty)
+
+
+dateValidator : String -> Validator String
+dateValidator name value =
+    if value |> String.isEmpty then
+        []
+
+    else
+        case value |> Date.fromIso of
+            Just _ ->
+                []
+
+            Nothing ->
+                [ name ++ " must be a valid date." ]
+
+
+dateNotEmptyValidator : Validator String
+dateNotEmptyValidator value =
+    if value |> String.isEmpty then
+        [ "Must not be empty." ]
+
+    else
+        []
 
 
 startValidator : Validator Model
 startValidator model =
     let
         startGiven =
-            Validator.map .start DateTime.notEmptyValidator
+            Validator.map .start dateNotEmptyValidator
 
         finishGiven =
-            Validator.map .finish DateTime.notEmptyValidator
+            Validator.map .finish dateNotEmptyValidator
     in
     if Validator.valid finishGiven model && (Validator.valid startGiven model |> not) then
         [ "A start must be given if a finish is." ]
 
     else
-        Validator.map .start DateTime.validIfGivenValidator model
+        Validator.map .start (dateValidator "Start") model
 
 
 finishValidator : Validator Model
@@ -189,12 +263,12 @@ finishValidator =
 
         finishBeforeStart model =
             Maybe.map2 before
-                (model.start |> DateTime.toPosix |> Result.toMaybe)
-                (model.finish |> DateTime.toPosix |> Result.toMaybe)
+                (model.start |> Date.fromIso |> Maybe.map Date.toPosix)
+                (model.finish |> Date.fromIso |> Maybe.map Date.toPosix)
                 |> Maybe.withDefault False
     in
     Validator.all
-        [ Validator.map .finish DateTime.validIfGivenValidator
+        [ Validator.map .finish (dateValidator "Finish")
         , Validator.fromPredicate "Can't finish a game before it is started." finishBeforeStart
         ]
 
@@ -209,8 +283,8 @@ validator =
         ]
 
 
-view : msg -> (Msg -> msg) -> Parent a -> Model -> List (Html msg)
-view save wrap parent model =
+view : msg -> (Msg -> msg) -> (Bets.Msg -> msg) -> Parent a -> Model -> List (Html msg)
+view save wrap wrapBets parent model =
     let
         body () =
             let
@@ -218,21 +292,28 @@ view save wrap parent model =
                     toGame model
 
                 preview =
-                    [ Game.view parent.zone parent.time parent.auth.localUser id game ]
+                    [ Game.view wrapBets parent.bets parent.time parent.auth.localUser id game Nothing ]
 
                 textField name type_ value action attrs =
                     TextField.viewWithAttrs name type_ value action (HtmlA.attribute "outlined" "" :: attrs)
             in
             [ Html.div [ HtmlA.class "core-content" ]
                 [ Html.div [ HtmlA.class "editor" ]
-                    [ textField "Id" TextField.Text (id |> Game.idToString) Nothing []
+                    [ Slug.view Game.idFromString Game.idToString (ChangeId >> wrap) model.name model.id
                     , textField "Name" TextField.Text model.name (ChangeName >> wrap |> Just) [ HtmlA.required True ]
                     , Validator.view nameValidator model
-                    , textField "Cover" TextField.Url model.cover (ChangeCover >> wrap |> Just) [ HtmlA.required True ]
+                    , Uploader.view (CoverMsg >> wrap) coverUploaderModel model.cover
                     , Validator.view coverValidator model
-                    , DateTime.viewEditor "Start" model.start (ChangeStart >> wrap |> Just) [ HtmlA.attribute "outlined" "" ]
+                    , textField "IGDB Id" TextField.Text model.igdbId (ChangeIgdbId >> wrap |> Just) [ HtmlA.required True ]
+                    , Date.viewEditor "Start"
+                        model.start
+                        (ChangeStart >> wrap |> Just)
+                        [ HtmlA.attribute "outlined" "" ]
                     , Validator.view startValidator model
-                    , DateTime.viewEditor "Finish" model.finish (ChangeFinish >> wrap |> Just) [ HtmlA.attribute "outlined" "" ]
+                    , Date.viewEditor "Finish"
+                        model.finish
+                        (ChangeFinish >> wrap |> Just)
+                        [ HtmlA.attribute "outlined" "" ]
                     , Validator.view finishValidator model
                     ]
                 , Html.div [ HtmlA.class "preview" ] preview
@@ -256,3 +337,10 @@ view save wrap parent model =
         |> Maybe.map (RemoteData.map (always ()))
         |> Maybe.withDefault (RemoteData.Loaded ())
         |> RemoteData.view body
+
+
+coverUploaderModel : Uploader.Model
+coverUploaderModel =
+    { label = "Cover"
+    , types = [ "image/*" ]
+    }

@@ -24,14 +24,15 @@ import Util.Maybe as Maybe
 
 type Route
     = About
+    | Feed
     | Auth (Maybe Auth.CodeAndState)
     | User (Maybe User.Id)
-    | Bets Game.Id (Maybe Bets.Filters)
+    | Bets Bets.Subset Game.Id
     | Bet Game.Id Bet.Id
     | Games
     | Leaderboard
     | Edit Edit.Target
-    | UnknownPage String
+    | Problem String
 
 
 toUrl : Route -> String
@@ -47,18 +48,26 @@ toUrlWithGivenRoot root route =
                 About ->
                     ( [], [], Nothing )
 
+                Feed ->
+                    ( [ "feed" ], [], Nothing )
+
                 Auth _ ->
                     ( [ "auth" ], [], Nothing )
 
                 User maybeId ->
                     ( "user" :: (maybeId |> Maybe.map User.idToString |> Maybe.toList), [], Nothing )
 
-                Bets id filters ->
+                Bets subset id ->
                     let
-                        qs =
-                            filters |> Maybe.withDefault Bets.initFilters |> Bets.filtersToQueries
+                        end =
+                            case subset of
+                                Bets.Active ->
+                                    []
+
+                                Bets.Suggestions ->
+                                    [ "suggestions" ]
                     in
-                    ( [ "games", id |> Game.idToString ], qs, Nothing )
+                    ( [ "games", id |> Game.idToString ] ++ end, [], Nothing )
 
                 Bet gameId betId ->
                     ( [ "games", gameId |> Game.idToString, betId |> Bet.idToString ], [], Nothing )
@@ -79,15 +88,18 @@ toUrlWithGivenRoot root route =
                                 Nothing ->
                                     ( [ "games", "new" ], [], Nothing )
 
-                        Edit.Bet gameId maybeBetId ->
-                            case maybeBetId of
-                                Just betId ->
-                                    ( [ "games", gameId |> Game.idToString, betId |> Bet.idToString, "edit" ], [], Nothing )
-
-                                Nothing ->
+                        Edit.Bet gameId editMode ->
+                            case editMode of
+                                Edit.New ->
                                     ( [ "games", gameId |> Game.idToString, "new" ], [], Nothing )
 
-                UnknownPage path ->
+                                Edit.Suggest ->
+                                    ( [ "games", gameId |> Game.idToString, "suggest" ], [], Nothing )
+
+                                Edit.Edit betId ->
+                                    ( [ "games", gameId |> Game.idToString, betId |> Bet.idToString, "edit" ], [], Nothing )
+
+                Problem path ->
                     ( path |> String.split "/", [], Nothing )
     in
     Url.Builder.custom root parts queries fragment
@@ -102,17 +114,20 @@ fromUrl url =
                 , Parser.s "user" |> Parser.map (Nothing |> User)
                 , Parser.s "games" |> Parser.map Games
                 , Parser.s "games" </> Parser.s "new" |> Parser.map (Nothing |> Edit.Game >> Edit)
-                , Parser.s "games" </> Game.idParser <?> Bets.filtersParser |> Parser.map Bets
-                , Parser.s "games" </> Game.idParser </> Parser.s "new" |> Parser.map (\g -> Edit.Bet g Nothing |> Edit)
+                , Parser.s "games" </> Game.idParser |> Parser.map (Bets Bets.Active)
+                , Parser.s "games" </> Game.idParser </> Parser.s "suggest" |> Parser.map (\g -> Edit.Bet g Edit.Suggest |> Edit)
+                , Parser.s "games" </> Game.idParser </> Parser.s "suggestions" |> Parser.map (Bets Bets.Suggestions)
+                , Parser.s "games" </> Game.idParser </> Parser.s "new" |> Parser.map (\g -> Edit.Bet g Edit.New |> Edit)
                 , Parser.s "games" </> Game.idParser </> Parser.s "edit" |> Parser.map (Just >> Edit.Game >> Edit)
                 , Parser.s "games" </> Game.idParser </> Bet.idParser |> Parser.map Bet
-                , Parser.s "games" </> Game.idParser </> Bet.idParser </> Parser.s "edit" |> Parser.map (\g b -> Edit.Bet g (Just b) |> Edit)
+                , Parser.s "games" </> Game.idParser </> Bet.idParser </> Parser.s "edit" |> Parser.map (\g b -> Edit.Bet g (Edit.Edit b) |> Edit)
                 , Parser.s "leaderboard" |> Parser.map Leaderboard
+                , Parser.s "feed" |> Parser.map Feed
                 , Parser.s "auth" <?> Auth.codeAndStateParser |> Parser.map Auth
                 , Parser.top |> Parser.map About
                 ]
     in
-    url |> Parser.parse parser |> Maybe.withDefault (UnknownPage url.path)
+    url |> Parser.parse parser |> Maybe.withDefault (Problem url.path)
 
 
 pushUrl : Navigation.Key -> Route -> Cmd msg

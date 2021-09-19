@@ -19,6 +19,7 @@ type alias Entry =
     { name : String
     , discriminator : String
     , avatar : Maybe String
+    , rank : Int
     , netWorth : Int
     }
 
@@ -29,6 +30,7 @@ entryDecoder =
         |> JsonD.required "name" JsonD.string
         |> JsonD.required "discriminator" JsonD.string
         |> JsonD.optional "avatar" (JsonD.string |> JsonD.map Just) Nothing
+        |> JsonD.required "rank" JsonD.int
         |> JsonD.required "netWorth" JsonD.int
 
 

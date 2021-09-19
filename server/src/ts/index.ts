@@ -2,18 +2,23 @@ import { default as BodyParser } from "body-parser";
 import { default as CookieParser } from "cookie-parser";
 import { default as Cors } from "cors";
 import { default as Express } from "express";
+import { default as FileUpload } from "express-fileupload";
 import { default as Helmet } from "helmet";
 import { default as SourceMapSupport } from "source-map-support";
 import { default as Winston } from "winston";
 
+import { FirestoreLoader } from "./data/loader/firestore";
+import { ObjectUpload } from "./data/object-upload";
+import { Store } from "./data/store";
 import { Server } from "./server";
 import { Auth } from "./server/auth";
 import { Config } from "./server/config";
 import { Errors } from "./server/errors";
 import { ExitCodes } from "./server/exit-codes";
 import { Logger } from "./server/logger";
+import { DiscordNotifier, NullNotifier } from "./server/notifier";
 import { Routes } from "./server/routes";
-import { Store } from "./server/store";
+import { Promise } from "./util/promise";
 
 SourceMapSupport.install();
 
@@ -24,13 +29,24 @@ const load = async (
   config: Config.Server,
   logger: Winston.Logger
 ): Promise<Server.State> => {
-  const store = await Store.load(logger, config);
+  const notifier =
+    config.notifier !== undefined
+      ? await DiscordNotifier.create(logger, config, config.notifier)
+      : new NullNotifier();
+  const store = await Store.load(logger, config, notifier);
+  await store.load(new FirestoreLoader(config));
   return {
     config,
     logger,
     store,
     auth: await Auth.init(config.auth, store),
+    notifier,
+    objectUploader: await ObjectUpload.init(config.objectUploader),
   };
+};
+
+const unload = async (server: Server.State): Promise<void> => {
+  await server.store.unload();
 };
 
 const start = async (server: Server.State): Promise<void> => {
@@ -42,6 +58,12 @@ const start = async (server: Server.State): Promise<void> => {
   app.use(BodyParser.raw());
   app.use(BodyParser.text());
   app.use(CookieParser());
+  app.use(
+    FileUpload({
+      limits: { fileSize: 25 * 1024 * 1024, files: 1 },
+      abortOnLimit: true,
+    })
+  );
 
   const cors = Cors({
     origin: server.config.clientOrigin,
@@ -50,25 +72,47 @@ const start = async (server: Server.State): Promise<void> => {
   app.use(cors);
   app.options("*", cors);
 
-  app.use(Logger.express(server.logger));
-
   app.use(Routes.api(server));
 
   app.use(Errors.express(server.logger));
 
-  app.listen(server.config.listenOn, async () => {
-    server.logger.info(`Listening on ${server.config.listenOn}.`);
+  await app.listen(server.config.listenOn.port, server.config.listenOn.address);
+  server.logger.info(
+    `Listening on ${server.config.listenOn.address}:${server.config.listenOn.port}.`
+  );
+
+  let running = true;
+
+  process.on("SIGTERM", () => {
+    running = false;
+    unload(server)
+      .then(() => {
+        process.exit();
+      })
+      .catch((error) => {
+        console.log(`Error while shutting down: ${error}`);
+        process.exit(ExitCodes.SHUTDOWN_ERROR);
+      });
   });
+
+  while (running) {
+    await Promise.wait(server.config.store.garbageCollectionFrequency);
+    const garbageCollected = await server.store.garbageCollect();
+
+    server.logger.info(
+      `Garbage collected ${garbageCollected.length} expired sessions.`
+    );
+  }
 };
 
 async function main(): Promise<void> {
-  const config = Config.builtIn;
+  const config = await Config.load();
   const logger = await init(config);
   try {
     const server = await load(config, logger);
     await start(server);
   } catch (error) {
-    logger.error(`Unhandled exception: ${error.message}.`, {
+    logger.error(`Unhandled exception: ${(error as Error).message}.`, {
       exception: error,
     });
     process.exit(ExitCodes.UNHANDLED_EXCEPTION);

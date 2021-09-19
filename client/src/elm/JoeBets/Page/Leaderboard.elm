@@ -12,6 +12,7 @@ import Html exposing (Html)
 import Html.Attributes as HtmlA
 import Http
 import JoeBets.Api as Api
+import JoeBets.Coins as Coins
 import JoeBets.Page exposing (Page)
 import JoeBets.Page.Leaderboard.Model as Loaderboard exposing (Model, Msg(..))
 import JoeBets.Route as Route
@@ -33,16 +34,12 @@ init =
 
 load : (Msg -> msg) -> Parent a -> ( Parent a, Cmd msg )
 load wrap model =
-    if model.leaderboard == RemoteData.Missing then
-        ( model
-        , Api.get model.origin
-            { path = [ "leaderboard" ]
-            , expect = Http.expectJson (Load >> wrap) Loaderboard.decoder
-            }
-        )
-
-    else
-        ( model, Cmd.none )
+    ( model
+    , Api.get model.origin
+        { path = Api.Leaderboard
+        , expect = Http.expectJson (Load >> wrap) Loaderboard.decoder
+        }
+    )
 
 
 update : Msg -> Parent a -> ( Parent a, Cmd msg )
@@ -62,13 +59,14 @@ view wrap { leaderboard } =
     let
         body entries =
             let
-                viewEntry ( id, { discriminator, name, netWorth } as entry ) =
+                viewEntry ( id, { discriminator, name, netWorth, rank } as entry ) =
                     Html.li []
-                        [ Route.a (id |> Just |> Route.User)
+                        [ Html.span [ HtmlA.class "rank" ] [ rank |> String.fromInt |> Html.text ]
+                        , Route.a (id |> Just |> Route.User)
                             []
                             [ User.viewAvatar id entry
                             , User.viewName entry
-                            , User.viewBalance netWorth
+                            , Coins.view netWorth
                             ]
                         ]
             in

@@ -2,6 +2,7 @@ module JoeBets.User.Notifications.Model exposing
     ( BetResult(..)
     , Gifted
     , GiftedReason(..)
+    , Model
     , Notification(..)
     , Reference
     , RefundReason(..)
@@ -9,6 +10,7 @@ module JoeBets.User.Notifications.Model exposing
     , betFinishedDecoder
     , betResultDecoder
     , decoder
+    , getId
     , giftedDecoder
     , giftedReasonDecoder
     , refundReasonDecoder
@@ -21,6 +23,10 @@ import JoeBets.Game.Model as Game
 import Json.Decode as JsonD
 import Json.Decode.Pipeline as JsonD
 import Util.Json.Decode as JsonD
+
+
+type alias Model =
+    List Notification
 
 
 type alias Reference a =
@@ -53,7 +59,8 @@ giftedReasonDecoder =
 
 
 type alias Gifted =
-    { amount : Int
+    { id : Int
+    , amount : Int
     , reason : GiftedReason
     }
 
@@ -61,6 +68,7 @@ type alias Gifted =
 giftedDecoder : JsonD.Decoder Gifted
 giftedDecoder =
     JsonD.succeed Gifted
+        |> JsonD.required "id" JsonD.int
         |> JsonD.required "amount" JsonD.int
         |> JsonD.required "reason" giftedReasonDecoder
 
@@ -88,7 +96,8 @@ refundReasonDecoder =
 
 
 type alias Refunded =
-    { gameId : Game.Id
+    { id : Int
+    , gameId : Game.Id
     , gameName : String
     , betId : Bet.Id
     , betName : String
@@ -102,6 +111,7 @@ type alias Refunded =
 refundedDecoder : JsonD.Decoder Refunded
 refundedDecoder =
     JsonD.succeed Refunded
+        |> JsonD.required "id" JsonD.int
         |> JsonD.required "gameId" Game.idDecoder
         |> JsonD.required "gameName" JsonD.string
         |> JsonD.required "betId" Bet.idDecoder
@@ -135,7 +145,8 @@ betResultDecoder =
 
 
 type alias BetFinished =
-    { gameId : Game.Id
+    { id : Int
+    , gameId : Game.Id
     , gameName : String
     , betId : Bet.Id
     , betName : String
@@ -149,6 +160,7 @@ type alias BetFinished =
 betFinishedDecoder : JsonD.Decoder BetFinished
 betFinishedDecoder =
     JsonD.succeed BetFinished
+        |> JsonD.required "id" JsonD.int
         |> JsonD.required "gameId" Game.idDecoder
         |> JsonD.required "gameName" JsonD.string
         |> JsonD.required "betId" Bet.idDecoder
@@ -163,6 +175,19 @@ type Notification
     = Gift Gifted
     | Refund Refunded
     | BetFinish BetFinished
+
+
+getId : Notification -> Int
+getId notification =
+    case notification of
+        Gift gifted ->
+            gifted.id
+
+        Refund refunded ->
+            refunded.id
+
+        BetFinish betFinished ->
+            betFinished.id
 
 
 decoder : JsonD.Decoder Notification

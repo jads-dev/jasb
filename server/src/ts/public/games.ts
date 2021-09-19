@@ -1,9 +1,19 @@
-import { Timestamp } from "@google-cloud/firestore";
+import * as Schema from "io-ts";
 
-import { Internal } from "../internal";
+import type { Internal } from "../internal";
 import { Expect } from "../util/expect";
+import { Users } from "./users";
 
-export type Id = string;
+interface GameIdBrand {
+  readonly GameId: unique symbol;
+}
+
+export const Id = Schema.brand(
+  Schema.string,
+  (id): id is Schema.Branded<string, GameIdBrand> => true,
+  "GameId"
+);
+export type Id = Schema.TypeOf<typeof Id>;
 
 export interface Future {
   state: "Future";
@@ -11,24 +21,31 @@ export interface Future {
 
 export interface Current {
   state: "Current";
-  start: number;
+  start: string;
 }
 
 export interface Finished {
   state: "Finished";
-  start: number;
-  finish: number;
+  start: string;
+  finish: string;
 }
 
 export type Progress = Future | Current | Finished;
 
 export interface Game {
+  version: number;
   name: string;
   cover: string;
+  igdbId: string;
 
   bets: number;
 
   progress: Progress;
+}
+
+export interface Details {
+  staked: number;
+  mods: Record<Users.Id, Users.Summary>;
 }
 
 export interface WithId {
@@ -44,65 +61,68 @@ export interface Library {
 
 export const unknownProgress = Expect.exhaustive(
   "game progress",
-  (i: Internal.Games.Progress) => i.state
+  (i: Internal.Games.Progress) => i
 );
 
-const progressToInternal = (progress: Progress): Internal.Games.Progress => {
-  switch (progress.state) {
+const progressFromInternal = (internal: Internal.Game): Progress => {
+  switch (internal.progress) {
     case "Future":
       return { state: "Future" };
 
     case "Current":
-      return { state: "Current", start: new Timestamp(progress.start, 0) };
+      return {
+        state: "Current",
+        start: internal.started?.toJSON() as string,
+      };
 
     case "Finished":
       return {
         state: "Finished",
-        start: new Timestamp(progress.start, 0),
-        finish: new Timestamp(progress.finish, 0),
+        start: internal.started?.toJSON() as string,
+        finish: internal.finished?.toJSON() as string,
       };
 
     default:
-      return unknownProgress(progress);
+      return unknownProgress(internal.progress);
   }
 };
 
-export const toInternal = (game: Game): Internal.Game => ({
-  name: game.name,
-  cover: game.cover,
+export const fromInternal = (
+  internal: Internal.Game & Internal.Games.BetStats
+): WithId => ({
+  id: internal.id as Id,
+  game: {
+    version: internal.version,
+    name: internal.name,
+    cover: internal.cover,
+    igdbId: internal.igdb_id,
 
-  bets: game.bets,
+    bets: internal.bets,
 
-  progress: progressToInternal(game.progress),
+    progress: progressFromInternal(internal),
+  },
 });
 
-const progressFromInternal = (internal: Internal.Games.Progress): Progress => {
-  switch (internal.state) {
-    case "Future":
-      return { state: "Future" };
+export const detailedFromInternal = (
+  internal: Internal.Game &
+    Internal.Games.BetStats &
+    Internal.Games.StakeStats &
+    Internal.Games.Mods
+): { id: Id; game: Game & Details } => ({
+  id: internal.id as Id,
+  game: {
+    version: internal.version,
+    name: internal.name,
+    cover: internal.cover,
+    igdbId: internal.igdb_id,
 
-    case "Current":
-      return { state: "Current", start: internal.start.seconds };
+    bets: internal.bets,
+    staked: internal.staked,
 
-    case "Finished":
-      return {
-        state: "Finished",
-        start: internal.start.seconds,
-        finish: internal.finish.seconds,
-      };
+    mods: Object.fromEntries(internal.mods.map(Users.summaryFromInternal)),
 
-    default:
-      return unknownProgress(internal);
-  }
-};
-
-export const fromInternal = (internal: Internal.Game): Game => ({
-  name: internal.name,
-  cover: internal.cover,
-
-  bets: internal.bets,
-
-  progress: progressFromInternal(internal.progress),
+    progress: progressFromInternal(internal),
+  },
 });
 
 export * as Games from "./games";

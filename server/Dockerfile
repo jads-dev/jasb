@@ -1,6 +1,6 @@
-FROM node:15-alpine AS base
+FROM node:16-alpine AS base
 
-WORKDIR /party
+WORKDIR /jasb
 
 COPY ["./package.json", "./package-lock.json", "./"]
 
@@ -16,18 +16,19 @@ FROM base as install
 
 RUN ["npm", "ci", "--only=production"]
 
-FROM node:15-alpine
+FROM node:16-alpine
 
 ARG NODE_ENV=production
 ENV NODE_ENV $NODE_ENV
 
-WORKDIR /party
+WORKDIR /jasb
 
 # We've already done all our NPM stuff, but node looks here for `type: "module"` which we need.
 COPY ["./package.json", "./"]
-COPY --from=install ["/party/node_modules", "./node_modules"]
+COPY --from=install ["/jasb/node_modules", "./node_modules"]
 
-COPY --from=build ["/party/dist", "./"]
+COPY --from=build ["/jasb/dist", "./"]
+COPY --from=build ["/jasb/src/sql/migrations", "./src/sql/migrations/"]
 
 EXPOSE 8081
 USER node

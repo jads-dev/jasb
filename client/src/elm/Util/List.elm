@@ -1,11 +1,18 @@
 module Util.List exposing
-    ( filterJust
+    ( addBeforeLast
+    , filterJust
+    , fromNonEmpty
     , insertAt
     , moveTo
     )
 
 import List exposing (..)
 import List.Extra exposing (..)
+
+
+fromNonEmpty : ( a, List a ) -> List a
+fromNonEmpty ( first, rest ) =
+    first :: rest
 
 
 filterJust : List ( a, Maybe b ) -> List ( a, b )
@@ -44,3 +51,16 @@ moveTo from to items =
 
             Nothing ->
                 items
+
+
+addBeforeLast : a -> List a -> List a
+addBeforeLast extra items =
+    case items of
+        first :: last :: [] ->
+            [ first, extra, last ]
+
+        first :: rest ->
+            first :: addBeforeLast extra rest
+
+        [] ->
+            []

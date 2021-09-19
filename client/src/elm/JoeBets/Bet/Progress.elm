@@ -2,43 +2,23 @@ module JoeBets.Bet.Progress exposing
     ( Cancelled
     , Complete
     , Locked
-    , Suggestion
     , Voting
     , cancelledDecoder
     , completeDecoder
     , encodeCancelled
     , encodeComplete
     , encodeLocked
-    , encodeSuggestion
     , encodeVoting
     , lockedDecoder
-    , suggestionDecoder
     , votingDecoder
     )
 
+import EverySet exposing (EverySet)
 import JoeBets.Bet.Option as Option
-import JoeBets.User.Model as User
 import Json.Decode as JsonD
 import Json.Decode.Pipeline as JsonD
 import Json.Encode as JsonE
-
-
-type alias Suggestion =
-    { by : User.Id }
-
-
-suggestionDecoder : JsonD.Decoder Suggestion
-suggestionDecoder =
-    JsonD.succeed Suggestion
-        |> JsonD.required "by" User.idDecoder
-
-
-encodeSuggestion : Suggestion -> JsonE.Value
-encodeSuggestion { by } =
-    JsonE.object
-        [ ( "state", "Suggestion" |> JsonE.string )
-        , ( "by", by |> User.encodeId )
-        ]
+import Util.Json.Decode as JsonD
 
 
 type alias Voting =
@@ -74,20 +54,20 @@ encodeLocked _ =
 
 
 type alias Complete =
-    { winner : Option.Id }
+    { winners : EverySet Option.Id }
 
 
 completeDecoder : JsonD.Decoder Complete
 completeDecoder =
     JsonD.succeed Complete
-        |> JsonD.required "winner" Option.idDecoder
+        |> JsonD.required "winners" (JsonD.everySetFromList Option.idDecoder)
 
 
 encodeComplete : Complete -> JsonE.Value
-encodeComplete { winner } =
+encodeComplete { winners } =
     JsonE.object
         [ ( "state", "Complete" |> JsonE.string )
-        , ( "winner", winner |> Option.idToString |> JsonE.string )
+        , ( "winners", winners |> EverySet.toList |> JsonE.list (Option.idToString >> JsonE.string) )
         ]
 
 

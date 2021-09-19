@@ -1,5 +1,4 @@
-// eslint-disable-next-line @typescript-eslint/no-empty-interface
-export interface Flags {}
+import type * as Store from "../../ts/store";
 
 export interface InboundPort<T> {
   subscribe(callback: (data: T) => void): void;
@@ -14,11 +13,11 @@ export namespace Elm {
   namespace JoeBets {
     export interface App {
       // eslint-disable-next-line @typescript-eslint/ban-types
-      ports: {};
+      ports: Store.Ports;
     }
     export function init(options: {
       node?: HTMLElement | null;
-      flags: Flags;
+      flags: Store.Flags;
     }): Elm.JoeBets.App;
   }
 }

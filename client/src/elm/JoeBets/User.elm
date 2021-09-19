@@ -1,17 +1,31 @@
 module JoeBets.User exposing
-    ( link
+    ( ViewMode(..)
+    , link
     , viewAvatar
-    , viewBalance
-    , viewBalanceOrTransaction
+    , viewLink
     , viewName
-    , viewTransaction
     )
 
 import Html exposing (Html)
 import Html.Attributes as HtmlA
 import JoeBets.Route as Route
-import JoeBets.User.Model as User exposing (User)
+import JoeBets.User.Model exposing (..)
 import Url.Builder
+import Util.Html as Html
+
+
+type ViewMode
+    = Compact
+    | Full
+
+
+viewLink : ViewMode -> Id -> { a | name : String, discriminator : String, avatar : Maybe String } -> Html msg
+viewLink viewMode id user =
+    Route.a (id |> Just |> Route.User)
+        [ HtmlA.classList [ ( "user", True ), ( "permalink", True ), ( "compact", viewMode == Compact ) ] ]
+        [ viewAvatar id user
+        , viewName user
+        ]
 
 
 viewName : { a | name : String, discriminator : String } -> Html msg
@@ -24,48 +38,33 @@ viewName { name, discriminator } =
         ]
 
 
-viewAvatar : User.Id -> { a | discriminator : String, avatar : Maybe String } -> Html msg
-viewAvatar id { discriminator, avatar } =
+viewAvatar : Id -> { a | name : String, discriminator : String, avatar : Maybe String } -> Html msg
+viewAvatar id { name, discriminator, avatar } =
     let
-        avatarPath =
-            case avatar of
-                Just hash ->
-                    [ "avatars", User.idToString id, hash ++ ".png" ]
+        discordUrl path =
+            Url.Builder.crossOrigin "https://cdn.discordapp.com" path []
+
+        fallbackSrc =
+            let
+                default =
+                    discriminator |> String.toInt |> Maybe.map (modBy 5) |> Maybe.withDefault 0 |> String.fromInt
+            in
+            [ "embed", "avatars", default ++ ".png" ] |> discordUrl
+
+        src =
+            avatar |> Maybe.map (\hash -> [ "avatars", idToString id, hash ++ ".png" ] |> discordUrl)
+
+        imgOrFallback alt image fallback attrs =
+            case image of
+                Just imageSrc ->
+                    Html.imgFallback { src = imageSrc, alt = name } { src = fallback, alt = Nothing } attrs
 
                 Nothing ->
-                    [ "embed", "avatars", discriminator ++ ".png" ]
+                    Html.img ([ HtmlA.src fallback, HtmlA.alt alt ] ++ attrs) []
     in
-    Html.img
-        [ HtmlA.class "avatar"
-        , Url.Builder.crossOrigin "https://cdn.discordapp.com" avatarPath [] |> HtmlA.src
-        ]
-        []
+    imgOrFallback name src fallbackSrc [ HtmlA.class "avatar" ]
 
 
-viewBalance : Int -> Html msg
-viewBalance score =
-    viewBalanceOrTransaction score Nothing
-
-
-viewTransaction : Int -> Int -> Html msg
-viewTransaction before after =
-    viewBalanceOrTransaction before (Just after)
-
-
-viewBalanceOrTransaction : Int -> Maybe Int -> Html msg
-viewBalanceOrTransaction before after =
-    let
-        goodBad score =
-            Html.span
-                [ HtmlA.classList [ ( "good", score > 0 ), ( "bad", score < 0 ) ] ]
-                [ score |> String.fromInt |> Html.text ]
-
-        rest afterAmount =
-            [ Html.text " → ", goodBad afterAmount ]
-    in
-    Html.span [ HtmlA.class "score" ] (goodBad before :: (after |> Maybe.map rest |> Maybe.withDefault []))
-
-
-link : User.WithId -> Html msg
+link : WithId -> Html msg
 link { id, user } =
     Route.a (id |> Just |> Route.User) [] [ viewAvatar id user, Html.text "You" ]
