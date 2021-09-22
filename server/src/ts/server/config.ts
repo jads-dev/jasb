@@ -21,9 +21,18 @@ const Rules = Schema.strict({
 });
 export type Rules = Schema.TypeOf<typeof Rules>;
 
+const PostgresData = Schema.partial({
+  user: Schema.string,
+  database: Schema.string,
+  password: Validation.SecretTokenOrPlaceholder,
+  port: Schema.Int,
+  host: Schema.string,
+});
+export type PostgresData = Schema.TypeOf<typeof PostgresData>;
+
 const Store = Schema.strict({
-  projectId: Schema.string,
   garbageCollectionFrequency: Validation.Duration,
+  source: PostgresData,
 });
 export type Store = Schema.TypeOf<typeof Store>;
 
@@ -48,15 +57,6 @@ const DiscordAuth = Schema.strict({
   guild: Schema.string,
 });
 
-const PostgresData = Schema.partial({
-  user: Schema.string,
-  database: Schema.string,
-  password: Validation.SecretTokenOrPlaceholder,
-  port: Schema.Int,
-  host: Schema.string,
-});
-export type PostgresData = Schema.TypeOf<typeof PostgresData>;
-
 const Auth = Schema.strict({
   sessionLifetime: Validation.Duration,
   sessionIdSize: Schema.Int,
@@ -80,7 +80,6 @@ const Server = Schema.intersection([
 
     rules: Rules,
     store: Store,
-    data: PostgresData,
     auth: Auth,
   }),
   Schema.partial({
@@ -136,7 +135,7 @@ export async function load(
         );
       }
       config.auth.discord.clientSecret.inSecureEnvironment();
-      config.data.password?.inSecureEnvironment();
+      config.store.source.password?.inSecureEnvironment();
       config.notifier?.token?.inSecureEnvironment();
     }
     return config;
@@ -163,14 +162,13 @@ export const builtIn: Server = {
   },
 
   store: {
-    projectId: "jasb",
     garbageCollectionFrequency: Joda.Duration.of(1, Joda.ChronoUnit.HOURS),
-  },
 
-  data: {
-    host: "postgres",
-    user: "jasb",
-    password: new PlaceholderSecretToken(),
+    source: {
+      host: "postgres",
+      user: "jasb",
+      password: new PlaceholderSecretToken(),
+    },
   },
 
   auth: {

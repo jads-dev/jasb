@@ -1,8 +1,9 @@
+import * as Joda from "@js-joda/core";
+
 import type { Internal } from "../../internal";
 import { Stake, Stakes } from "../bets";
 import type { Options } from "../bets/options";
 import type { Users } from "../users";
-import * as Joda from "@js-joda/core";
 
 export interface EditableOption {
   id: Options.Id;

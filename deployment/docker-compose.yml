@@ -17,14 +17,12 @@ services:
     image: "ghcr.io/jads-dev/jasb/server:latest"
     environment:
       NODE_ENV: production
-      GOOGLE_APPLICATION_CREDENTIALS: /jasb/firestore-credentials.json
     networks:
       - backend
       - frontend
     depends_on:
       - data
     volumes:
-      - /host/path/to/firestore-credentials.json:/jasb/firestore-credentials.json:ro
       - /host/path/to/config.json5:/jasb/config.json5:ro
       - /host/path/to/oci-config.cfg:/jasb/oci-config.cfg:ro
       - /host/path/to/oci_api_key.pem:/jasb/oci_api_key.pem:ro

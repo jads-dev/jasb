@@ -7,7 +7,6 @@ import { default as Helmet } from "helmet";
 import { default as SourceMapSupport } from "source-map-support";
 import { default as Winston } from "winston";
 
-import { FirestoreLoader } from "./data/loader/firestore";
 import { ObjectUpload } from "./data/object-upload";
 import { Store } from "./data/store";
 import { Server } from "./server";
@@ -34,7 +33,6 @@ const load = async (
       ? await DiscordNotifier.create(logger, config, config.notifier)
       : new NullNotifier();
   const store = await Store.load(logger, config, notifier);
-  await store.load(new FirestoreLoader(config));
   return {
     config,
     logger,

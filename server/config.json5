@@ -10,14 +10,13 @@
   },
 
   store: {
-    projectId: "joe-bets",
-    garbageCollectionFrequency: "PT1H"
-  },
+    garbageCollectionFrequency: "PT1H",
 
-  data: {
-    host: "data",
-    user: "jasb",
-    password: "CHANGE_ME"
+    source: {
+      host: "data",
+      user: "jasb",
+      password: "CHANGE_ME"
+    }
   },
 
   auth: {

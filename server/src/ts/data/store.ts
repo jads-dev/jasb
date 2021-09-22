@@ -19,7 +19,6 @@ import { Config } from "../server/config";
 import { WebError } from "../server/errors";
 import { Notifier } from "../server/notifier";
 import { SecretToken } from "../util/secret-token";
-import { FirestoreLoader } from "./loader/firestore";
 
 const postgresDateTimeFormatter = new Joda.DateTimeFormatterBuilder()
   .parseCaseInsensitive()
@@ -39,7 +38,7 @@ export class Store {
   private constructor(config: Config.Server, notifier: Notifier) {
     this.config = config;
     this.notifier = notifier;
-    const conf = this.config.data;
+    const conf = this.config.store.source;
     const passPart =
       conf.password !== undefined ? `:${conf.password.value}` : "";
     const userPart = conf.user !== undefined ? `${conf.user}${passPart}@` : "";
@@ -80,7 +79,7 @@ export class Store {
   }
 
   private async migrate(): Promise<void> {
-    const conf = this.config.data;
+    const conf = this.config.store.source;
     const user = conf.user ?? "postgres";
     await migrate(
       {
@@ -92,114 +91,6 @@ export class Store {
       },
       "./src/sql/migrations"
     );
-  }
-
-  public async load(loader: FirestoreLoader): Promise<void> {
-    await this.inTransaction(async (client) => {
-      const instance = await client.query(
-        sql`SELECT migrated_from_firestore FROM jasb.instance`
-      );
-      if (!instance.rows[0]["migrated_from_firestore"]) {
-        const { games } = await loader.games();
-        await client.query(sql`
-            INSERT INTO jasb.games (id, cover, name, igdb_id, started, finished)
-            SELECT *
-            FROM ${sql.unnest(games, [
-              "text",
-              "text",
-              "text",
-              "text",
-              "timestamptz",
-              "timestamptz",
-            ])};
-        `);
-        const { users, moderators } = await loader.users();
-        await client.query(sql`
-            INSERT INTO jasb.users (id, name, discriminator, avatar, created, admin, balance)
-            SELECT *
-            FROM ${sql.unnest(users, [
-              "text",
-              "text",
-              "text",
-              "text",
-              "timestamptz",
-              "bool",
-              "int4",
-            ])};
-        `);
-        await client.query(sql`
-            INSERT INTO jasb.per_game_permissions ("user", game, manage_bets)
-            SELECT *
-            FROM ${sql.unnest(moderators, ["text", "text", "bool"])};
-        `);
-        const { bets, options, stakes } = await loader.bets();
-        await client.query(sql`
-            INSERT INTO jasb.bets (
-                game, id, name, description, spoiler, locks_when, progress, created, resolved, cancelled_reason, by)
-            SELECT *
-            FROM ${sql.unnest(bets, [
-              "text",
-              "text",
-              "text",
-              "text",
-              "bool",
-              "text",
-              "betprogress",
-              "timestamptz",
-              "timestamptz",
-              "text",
-              "text",
-            ])};
-        `);
-        await client.query(sql`
-            INSERT INTO jasb.options (game, bet, id, name, image, won, "order")
-            SELECT *
-            FROM ${sql.unnest(options, [
-              "text",
-              "text",
-              "text",
-              "text",
-              "text",
-              "bool",
-              "int4",
-            ])};
-        `);
-        await client.query(sql`
-            INSERT INTO jasb.stakes (game, bet, option, owner, made_at, amount, message)
-            SELECT *
-            FROM ${sql.unnest(stakes, [
-              "text",
-              "text",
-              "text",
-              "text",
-              "timestamptz",
-              "int4",
-              "text",
-            ])};
-        `);
-        const { notifications } = await loader.notifications();
-        if (notifications.length > 0) {
-          await client.query(sql`
-              INSERT INTO jasb.notifications ("for", happened, notification)
-              SELECT *
-              FROM ${sql.unnest(notifications, [
-                "text",
-                "timestamptz",
-                "json",
-              ])};
-          `);
-        }
-        const { logs } = await loader.logs();
-        await client.query(sql`
-            INSERT INTO jasb.audit_logs ("user", happened, event)
-            SELECT *
-            FROM ${sql.unnest(logs, ["text", "timestamptz", "json"])};
-        `);
-        await client.query(
-          sql`UPDATE jasb.instance SET migrated_from_firestore = TRUE WHERE highlander = TRUE`
-        );
-      }
-    });
   }
 
   async validateAdminOrMod(
