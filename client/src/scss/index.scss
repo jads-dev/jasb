@@ -5,7 +5,6 @@
 @use "./bet";
 @use "./about";
 @use "./edit";
-@use "./admin";
 @use "./feed";
 @use "./settings";
 
@@ -143,7 +142,7 @@ a .external {
 }
 
 .permalink {
-  color: colors.$on-tertiary;
+  color: inherit;
   text-decoration: unset;
 
   svg {
@@ -172,5 +171,22 @@ a {
 
   &:empty {
     display: none;
+  }
+}
+
+.interactions {
+  position: absolute;
+  top: 0.5em;
+  right: 0.5em;
+
+  display: flex;
+  align-items: center;
+
+  & > * {
+    flex-basis: 2em;
+  }
+
+  a {
+    color: inherit;
   }
 }

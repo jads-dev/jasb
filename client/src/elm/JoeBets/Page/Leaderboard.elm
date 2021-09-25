@@ -8,7 +8,7 @@ module JoeBets.Page.Leaderboard exposing
 import AssocList
 import FontAwesome.Icon as Icon
 import FontAwesome.Solid as Icon
-import Html exposing (Html)
+import Html
 import Html.Attributes as HtmlA
 import Http
 import JoeBets.Api as Api
@@ -55,7 +55,7 @@ update msg model =
 
 
 view : (Msg -> msg) -> Parent a -> Page msg
-view wrap { leaderboard } =
+view _ { leaderboard } =
     let
         body entries =
             let

@@ -46,7 +46,7 @@ init =
 
 
 load : (Msg -> msg) -> Maybe ( Game.Id, Bet.Id ) -> Parent a -> ( Parent a, Cmd msg )
-load wrap limitTo ({ feed, origin } as model) =
+load wrap limitTo ({ origin } as model) =
     let
         path =
             case limitTo of
@@ -65,7 +65,7 @@ load wrap limitTo ({ feed, origin } as model) =
 
 
 update : (Msg -> msg) -> Msg -> Parent a -> ( Parent a, Cmd msg )
-update wrap msg ({ feed } as model) =
+update _ msg ({ feed } as model) =
     case msg of
         Load result ->
             let

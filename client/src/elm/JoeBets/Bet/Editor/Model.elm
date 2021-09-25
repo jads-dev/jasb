@@ -23,7 +23,7 @@ import EverySet exposing (EverySet)
 import Http
 import JoeBets.Bet.Editor.EditableBet as EditableBet exposing (EditableBet, EditableOption)
 import JoeBets.Bet.Model as Bet exposing (Bet)
-import JoeBets.Bet.Option as Option exposing (Option)
+import JoeBets.Bet.Option as Option
 import JoeBets.Editing.Slug as Slug exposing (Slug)
 import JoeBets.Editing.Uploader as Uploader exposing (Uploader)
 import JoeBets.Game.Model as Game
@@ -102,7 +102,7 @@ resolveId { id, name } =
 
 
 toBet : User.Id -> Model -> Bet
-toBet localUser { gameId, source, id, name, description, spoiler, locksWhen, options } =
+toBet localUser { source, name, description, spoiler, locksWhen, options } =
     let
         maybeSourceBet =
             source |> Maybe.andThen (.bet >> RemoteData.toMaybe)
@@ -239,7 +239,7 @@ encodeDiff { version, name, description, spoiler, locksWhen, removeOptions, edit
 
 
 diff : Model -> Result String Diff
-diff { gameId, source, id, name, description, spoiler, locksWhen, options } =
+diff { source, name, description, spoiler, locksWhen, options } =
     case source of
         Just existing ->
             case existing.bet |> RemoteData.toMaybe of
@@ -340,6 +340,7 @@ type alias CompleteAction =
 encodeCompleteAction : CompleteAction -> JsonE.Value
 encodeCompleteAction { version, winners } =
     JsonE.startObject
+        |> JsonE.field "version" (version |> JsonE.int)
         |> JsonE.field "winners" (winners |> EverySet.toList |> JsonE.list Option.encodeId)
         |> JsonE.finishObject
 
@@ -353,5 +354,6 @@ type alias CancelAction =
 encodeCancelAction : CancelAction -> JsonE.Value
 encodeCancelAction { version, reason } =
     JsonE.startObject
+        |> JsonE.field "version" (version |> JsonE.int)
         |> JsonE.field "reason" (reason |> JsonE.string)
         |> JsonE.finishObject

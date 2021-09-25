@@ -7,7 +7,7 @@ import JoeBets.Coins as Coins
 import JoeBets.Route as Route
 import JoeBets.User as User
 import JoeBets.User.Model as User
-import Time.DateTime as DateTime exposing (DateTime)
+import Time.DateTime as DateTime
 import Time.Model as Time
 import Util.Maybe as Maybe
 

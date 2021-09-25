@@ -15,7 +15,7 @@ import JoeBets.Page.Edit.Model as Edit
 import JoeBets.Route as Route
 import JoeBets.User as User
 import JoeBets.User.Auth.Model as Auth
-import JoeBets.User.Model as User exposing (User)
+import JoeBets.User.Model as User
 import Material.IconButton as IconButton
 import Time.Date as Date
 import Time.Model as Time

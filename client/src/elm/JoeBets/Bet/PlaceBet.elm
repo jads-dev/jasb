@@ -12,13 +12,12 @@ import Html.Attributes as HtmlA
 import Http
 import JoeBets.Api as Api
 import JoeBets.Bet.Maths as Bet
-import JoeBets.Bet.Model as Bet exposing (Bet)
-import JoeBets.Bet.Option as Option exposing (Option)
+import JoeBets.Bet.Model as Bet
 import JoeBets.Bet.PlaceBet.Model as PlaceBet exposing (..)
 import JoeBets.Coins as Coins
 import JoeBets.Page.User.Model as User
 import JoeBets.Rules as Rules
-import JoeBets.User.Model as User exposing (User)
+import JoeBets.User.Model as User
 import Json.Decode as JsonD
 import Json.Encode as JsonE
 import Material.Button as Button

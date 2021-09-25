@@ -145,7 +145,7 @@ update wrap msg parent model =
                 Nothing ->
                     ( empty Nothing, Cmd.none )
 
-        IgdbLoad igdbId ->
+        IgdbLoad _ ->
             ( model, Cmd.none )
 
         IgdbSet name cover ->

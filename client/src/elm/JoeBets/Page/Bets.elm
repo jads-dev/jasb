@@ -38,7 +38,7 @@ import Material.IconButton as IconButton
 import Material.Switch as Switch
 import Time.Model as Time
 import Util.Maybe as Maybe
-import Util.RemoteData as RemoteData exposing (RemoteData)
+import Util.RemoteData as RemoteData
 
 
 type alias Parent a =
@@ -74,7 +74,7 @@ init storeData =
 
 
 load : (Msg -> msg) -> Game.Id -> Subset -> Parent a -> ( Parent a, Cmd msg )
-load wrap id subset ({ bets, settings } as model) =
+load wrap id subset ({ bets } as model) =
     let
         newBets =
             if Just id /= (bets.gameBets |> Maybe.map .id) then
@@ -113,7 +113,7 @@ updateSelected gameId change ({ bets } as model) =
 
 
 update : (Msg -> msg) -> Msg -> Parent a -> ( Parent a, Cmd msg )
-update wrap msg ({ bets, settings, origin, time } as model) =
+update wrap msg ({ bets, origin, time } as model) =
     case msg of
         Load loadedId loadedSubset result ->
             let

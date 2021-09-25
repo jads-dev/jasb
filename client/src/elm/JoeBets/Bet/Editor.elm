@@ -19,9 +19,9 @@ import JoeBets.Api as Api
 import JoeBets.Bet as Bet
 import JoeBets.Bet.Editor.EditableBet as EditableBet exposing (EditableBet)
 import JoeBets.Bet.Editor.Model exposing (..)
-import JoeBets.Bet.Model as Bet exposing (Bet)
+import JoeBets.Bet.Model as Bet
 import JoeBets.Bet.Option as Option
-import JoeBets.Editing.Slug as Slug exposing (Slug)
+import JoeBets.Editing.Slug as Slug
 import JoeBets.Editing.Uploader as Uploader
 import JoeBets.Game.Model as Game
 import JoeBets.Page.Edit.Model as Edit
@@ -51,7 +51,7 @@ type alias Parent a =
 
 
 empty : User.Id -> Bool -> Game.Id -> Edit.EditMode -> Model
-empty localUser isMod gameId editMode =
+empty _ isMod gameId editMode =
     let
         ( source, id ) =
             case editMode of
@@ -509,10 +509,10 @@ view save wrap time localUser model =
                       ]
                     )
 
-                EditableBet.Complete { resolved } ->
+                EditableBet.Complete _ ->
                     ( "Bet complete.", [] )
 
-                EditableBet.Cancelled { reason, resolved } ->
+                EditableBet.Cancelled _ ->
                     ( "Bet cancelled.", [] )
 
         progressOverlay =

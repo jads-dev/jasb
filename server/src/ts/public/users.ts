@@ -10,7 +10,7 @@ interface UserIdBrand {
 export const Id = Schema.brand(
   Schema.string,
   (id): id is Schema.Branded<string, UserIdBrand> => true,
-  "UserId"
+  "UserId",
 );
 export type Id = Schema.TypeOf<typeof Id>;
 
@@ -46,8 +46,16 @@ export interface BankruptcyStats {
   balanceAfter: number;
 }
 
+export interface Permissions {
+  gameId: Games.Id;
+  gameName: string;
+  canManageBets: boolean;
+}
+
 export const fromInternal = (
-  internal: Internal.User & Internal.Users.Permissions & Internal.Users.BetStats
+  internal: Internal.User &
+    Internal.Users.Permissions &
+    Internal.Users.BetStats,
 ): WithId => ({
   id: internal.id as Id,
   user: {
@@ -65,7 +73,7 @@ export const fromInternal = (
 });
 
 export const summaryFromInternal = (
-  internal: Internal.Users.Summary
+  internal: Internal.Users.Summary,
 ): [Id, Summary] => [
   internal.id as Id,
   {
@@ -87,6 +95,16 @@ export const bankruptcyStatsFromInternal = ({
   lockedAmountLost: locked_amount_lost,
   lockedStakesLost: locked_stakes_lost,
   balanceAfter: balance_after,
+});
+
+export const permissionsFromInternal = ({
+  game_id,
+  game_name,
+  manage_bets,
+}: Internal.Users.PerGamePermissions): Permissions => ({
+  gameId: game_id as Games.Id,
+  gameName: game_name,
+  canManageBets: manage_bets,
 });
 
 export * as Users from "./users";

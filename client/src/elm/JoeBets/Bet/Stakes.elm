@@ -19,13 +19,6 @@ view timeContext localUserId highlight max stakes =
 
                 local =
                     Just by == localUserId
-
-                titleExtra =
-                    if local then
-                        " (your bet)"
-
-                    else
-                        ""
             in
             Html.span
                 [ HtmlA.classList [ ( "local", local ), ( "highlight", Just by == highlight ) ]

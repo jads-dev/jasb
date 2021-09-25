@@ -34,7 +34,7 @@ const CreateBetBody = Schema.intersection([
         id: Options.Id,
         name: Schema.string,
         image: Schema.union([Schema.string, Schema.null]),
-      })
+      }),
     ),
   }),
 ]);
@@ -54,7 +54,7 @@ const EditBetBody = Schema.intersection([
           image: Schema.union([Schema.string, Schema.null]),
           order: Schema.Int,
         }),
-      ])
+      ]),
     ),
     addOptions: Schema.array(
       Schema.strict({
@@ -62,7 +62,7 @@ const EditBetBody = Schema.intersection([
         name: Schema.string,
         image: Schema.union([Schema.string, Schema.null]),
         order: Schema.Int,
-      })
+      }),
     ),
   }),
 ]);
@@ -91,7 +91,7 @@ export const betsApi = (server: Server.State): Express.Router => {
       }
       const bet = await server.store.getBet(
         request.params.gameId,
-        request.params.betId
+        request.params.betId,
       );
       if (bet === undefined) {
         throw new WebError(StatusCodes.NOT_FOUND, "Bet not found.");
@@ -101,7 +101,7 @@ export const betsApi = (server: Server.State): Express.Router => {
         bet: Bets.fromInternal(bet).bet,
       };
       response.json(result);
-    })
+    }),
   );
 
   router.get(
@@ -109,14 +109,14 @@ export const betsApi = (server: Server.State): Express.Router => {
     asyncHandler(async (request, response) => {
       const bet = await server.store.getBet(
         request.params.gameId,
-        request.params.betId
+        request.params.betId,
       );
       if (bet === undefined) {
         throw new WebError(StatusCodes.NOT_FOUND, "Bet not found.");
       }
       const result: Editor.Bets.EditableBet = Editor.Bets.fromInternal(bet);
       response.json(result);
-    })
+    }),
   );
 
   // Create Bet
@@ -136,11 +136,11 @@ export const betsApi = (server: Server.State): Express.Router => {
         body.description,
         body.spoiler,
         body.locksWhen,
-        body.addOptions
+        body.addOptions,
       );
       const result: Editor.Bets.EditableBet = Editor.Bets.fromInternal(bet);
       response.json(result);
-    })
+    }),
   );
 
   // Edit Bet
@@ -163,14 +163,14 @@ export const betsApi = (server: Server.State): Express.Router => {
         body.locksWhen,
         body.removeOptions,
         body.editOptions,
-        body.addOptions
+        body.addOptions,
       );
       if (bet === undefined) {
         throw new WebError(StatusCodes.NOT_FOUND, "Bet not found.");
       }
       const result: Editor.Bets.EditableBet = Editor.Bets.fromInternal(bet);
       response.json(result);
-    })
+    }),
   );
 
   // Complete Bet
@@ -186,14 +186,14 @@ export const betsApi = (server: Server.State): Express.Router => {
         gameId,
         request.params.betId,
         body.version,
-        body.winners
+        body.winners,
       );
       if (bet === undefined) {
         throw new WebError(StatusCodes.NOT_FOUND, "Bet not found.");
       }
       const result: Editor.Bets.EditableBet = Editor.Bets.fromInternal(bet);
       response.json(result);
-    })
+    }),
   );
 
   // Lock Bet
@@ -209,14 +209,14 @@ export const betsApi = (server: Server.State): Express.Router => {
         gameId,
         request.params.betId,
         body.version,
-        true
+        true,
       );
       if (bet === undefined) {
         throw new WebError(StatusCodes.NOT_FOUND, "Bet not found.");
       }
       const result: Editor.Bets.EditableBet = Editor.Bets.fromInternal(bet);
       response.json(result);
-    })
+    }),
   );
 
   // Unlock Bet
@@ -232,14 +232,14 @@ export const betsApi = (server: Server.State): Express.Router => {
         gameId,
         request.params.betId,
         body.version,
-        false
+        false,
       );
       if (bet === undefined) {
         throw new WebError(StatusCodes.NOT_FOUND, "Bet not found.");
       }
       const result: Editor.Bets.EditableBet = Editor.Bets.fromInternal(bet);
       response.json(result);
-    })
+    }),
   );
 
   // Cancel Bet
@@ -255,14 +255,14 @@ export const betsApi = (server: Server.State): Express.Router => {
         gameId,
         request.params.betId,
         body.version,
-        body.reason
+        body.reason,
       );
       if (bet === undefined) {
         throw new WebError(StatusCodes.NOT_FOUND, "Bet not found.");
       }
       const result: Editor.Bets.EditableBet = Editor.Bets.fromInternal(bet);
       response.json(result);
-    })
+    }),
   );
 
   // Get Bet Feed
@@ -274,7 +274,7 @@ export const betsApi = (server: Server.State): Express.Router => {
       const feed = await server.store.getBetFeed(gameId, betId);
       const result: Feed.Event[] = feed.map(Feed.fromInternal);
       response.json(result);
-    })
+    }),
   );
 
   function validateStakeBody(body: unknown): StakeBody {
@@ -286,20 +286,20 @@ export const betsApi = (server: Server.State): Express.Router => {
       if (stakeBody.amount < server.config.rules.notableStake) {
         throw new WebError(
           StatusCodes.BAD_REQUEST,
-          "Not allowed to give a message without a notable bet amount."
+          "Not allowed to give a message without a notable bet amount.",
         );
       }
       if (stakeBody.message.length > 200) {
         throw new WebError(
           StatusCodes.BAD_REQUEST,
-          "Invalid message given (too long)."
+          "Invalid message given (too long).",
         );
       }
     }
     if (stakeBody.amount < 0) {
       throw new WebError(
         StatusCodes.BAD_REQUEST,
-        "Can't bet a negative amount."
+        "Can't bet a negative amount.",
       );
     }
     return stakeBody;
@@ -318,10 +318,10 @@ export const betsApi = (server: Server.State): Express.Router => {
         request.params.betId,
         request.params.optionId,
         amount,
-        message ?? null
+        message ?? null,
       );
       response.json(new_balance);
-    })
+    }),
   );
 
   // Edit Stake.
@@ -337,10 +337,10 @@ export const betsApi = (server: Server.State): Express.Router => {
         request.params.betId,
         request.params.optionId,
         amount,
-        message ?? null
+        message ?? null,
       );
       response.json(new_balance);
-    })
+    }),
   );
 
   // Withdraw Stake.
@@ -353,10 +353,10 @@ export const betsApi = (server: Server.State): Express.Router => {
         sessionCookie.session,
         request.params.gameId,
         request.params.betId,
-        request.params.optionId
+        request.params.optionId,
       );
       response.json(new_balance);
-    })
+    }),
   );
 
   return router;

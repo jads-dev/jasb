@@ -17,7 +17,6 @@ import JoeBets.Api as Api
 import JoeBets.Coins as Coins
 import JoeBets.Route as Route
 import JoeBets.User.Auth.Model as Auth
-import JoeBets.User.Model as User
 import JoeBets.User.Notifications.Model exposing (..)
 import Json.Decode as JsonD
 import Material.IconButton as IconButton

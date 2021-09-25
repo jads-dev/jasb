@@ -11,7 +11,7 @@ import JoeBets.Page.Bets.Filters as Filters
 import JoeBets.Settings.Model exposing (..)
 import JoeBets.Store as Store
 import JoeBets.Store.Codecs as Codecs
-import JoeBets.Store.Item as Item exposing (Item)
+import JoeBets.Store.Item as Item
 import JoeBets.Store.KeyedItem as Store exposing (KeyedItem)
 import Material.Switch as Switch
 
@@ -53,7 +53,7 @@ update msg ({ settings } as model) =
 
 
 view : (Msg -> msg) -> Parent a -> List (Html msg)
-view wrap ({ settings } as model) =
+view wrap { settings } =
     if settings.visible then
         let
             filters =

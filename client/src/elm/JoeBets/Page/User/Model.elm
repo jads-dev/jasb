@@ -2,13 +2,19 @@ module JoeBets.Page.User.Model exposing
     ( BankruptcyOverlay
     , BankruptcyStats
     , Change(..)
+    , GamePermissions
     , Model
     , Msg(..)
+    , Permissions
+    , PermissionsOverlay
     , apply
     , decodeBankruptcyStats
+    , decodeGamePermissions
+    , decodePermissions
     , decodeUserBet
     )
 
+import AssocList
 import Http
 import JoeBets.Bet.Model as Bet exposing (Bet)
 import JoeBets.Game.Model as Game
@@ -16,6 +22,32 @@ import JoeBets.User.Model as User exposing (User)
 import Json.Decode as JsonD
 import Json.Decode.Pipeline as JsonD
 import Util.RemoteData exposing (RemoteData)
+
+
+type alias Permissions =
+    { canManageBets : Bool
+    }
+
+
+decodePermissions : JsonD.Decoder Permissions
+decodePermissions =
+    JsonD.succeed Permissions
+        |> JsonD.required "canManageBets" JsonD.bool
+
+
+type alias GamePermissions =
+    { gameId : Game.Id
+    , gameName : String
+    , permissions : Permissions
+    }
+
+
+decodeGamePermissions : JsonD.Decoder GamePermissions
+decodeGamePermissions =
+    JsonD.succeed GamePermissions
+        |> JsonD.required "gameId" Game.idDecoder
+        |> JsonD.required "gameName" JsonD.string
+        |> JsonD.custom decodePermissions
 
 
 type alias UserBet =
@@ -60,11 +92,16 @@ type alias BankruptcyOverlay =
     }
 
 
+type alias PermissionsOverlay =
+    { permissions : RemoteData (AssocList.Dict Game.Id GamePermissions) }
+
+
 type alias Model =
     { id : Maybe User.Id
     , user : RemoteData User
     , bets : RemoteData (List UserBet)
     , bankruptcyOverlay : Maybe BankruptcyOverlay
+    , permissionsOverlay : Maybe PermissionsOverlay
     }
 
 
@@ -75,6 +112,10 @@ type Msg
     | SetBankruptcyToggle Bool
     | LoadBankruptcyStats User.Id (Result Http.Error BankruptcyStats)
     | GoBankrupt
+    | TogglePermissionsOverlay Bool
+    | LoadPermissions User.Id (Result Http.Error (List GamePermissions))
+    | SetPermissions User.Id Game.Id Permissions
+    | NoOp
 
 
 type Change

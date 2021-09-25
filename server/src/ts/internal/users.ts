@@ -47,4 +47,10 @@ export interface BankruptcyStats {
   balance_after: number;
 }
 
+export interface PerGamePermissions {
+  game_id: string;
+  game_name: string;
+  manage_bets: boolean;
+}
+
 export * as Users from "./users";

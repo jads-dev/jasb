@@ -31,6 +31,7 @@ type UserPath
     | Notifications (Maybe Int)
     | UserBets
     | Bankrupt
+    | Permissions
 
 
 type BetPath
@@ -164,6 +165,9 @@ userPathToStringList path =
 
         Bankrupt ->
             [ "bankrupt" ]
+
+        Permissions ->
+            [ "permissions" ]
 
 
 gamePathToStringList : GamePath -> List String

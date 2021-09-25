@@ -64,14 +64,14 @@ export class Store {
               Joda.ZonedDateTime.parse(v, postgresDateTimeFormatter),
           },
         ],
-      }
+      },
     );
   }
 
   public static async load(
     logger: Winston.Logger,
     config: Config.Server,
-    notifier: Notifier
+    notifier: Notifier,
   ): Promise<Store> {
     const store = new Store(config, notifier);
     await store.migrate();
@@ -89,13 +89,13 @@ export class Store {
         port: conf.port ?? 5432,
         database: conf.database ?? user,
       },
-      "./src/sql/migrations"
+      "./src/sql/migrations",
     );
   }
 
   async validateAdminOrMod(
     id: string,
-    sessionId: SecretToken
+    sessionId: SecretToken,
   ): Promise<string> {
     return await this.withClient(async (client) => {
       await client.query(sql`
@@ -112,7 +112,7 @@ export class Store {
 
   async getUser(
     id: string,
-    sessionId?: SecretToken
+    sessionId?: SecretToken,
   ): Promise<(User & Users.Permissions & Users.BetStats) | undefined> {
     return await this.withClient(async (client) => {
       if (sessionId !== undefined) {
@@ -224,13 +224,13 @@ export class Store {
     avatar: string | null,
     accessToken: string,
     refreshToken: string,
-    discordExpiresIn: Joda.Duration
+    discordExpiresIn: Joda.Duration,
   ): Promise<{
     user: User & Users.Permissions & Users.BetStats & Users.LoginDetail;
     notifications: Notification[];
   }> {
     const sessionId = await SecretToken.secureRandom(
-      this.config.auth.sessionIdSize
+      this.config.auth.sessionIdSize,
     );
     return await this.inTransaction(async (client) => {
       const [loginResults, notificationResults] = await Promise.all([
@@ -303,7 +303,7 @@ export class Store {
 
   async logout(
     userId: string,
-    session: SecretToken
+    session: SecretToken,
   ): Promise<string | undefined> {
     return await this.withClient(async (client) => {
       const results = await client.query(sql`
@@ -323,7 +323,7 @@ export class Store {
 
   async getTile(
     gameId: string,
-    betId: string | null
+    betId: string | null,
   ): Promise<{ game_name: string; bet_name: string | null } | undefined> {
     return await this.withClient(async (client) => {
       const results = await client.query(sql`
@@ -342,7 +342,7 @@ export class Store {
   }
 
   async getGame(
-    id: string
+    id: string,
   ): Promise<
     (Game & Games.BetStats & Games.StakeStats & Games.Mods) | undefined
   > {
@@ -413,7 +413,7 @@ export class Store {
     cover: string,
     igdbId: string,
     started: string | null,
-    finished: string | null
+    finished: string | null,
   ): Promise<Game> {
     return await this.withClient(async (client) => {
       const result = await client.query(sql`
@@ -443,7 +443,7 @@ export class Store {
     cover?: string,
     igdbId?: string,
     started?: string | null,
-    finished?: string | null
+    finished?: string | null,
   ): Promise<Game & Games.BetStats> {
     return await this.withClient(async (client) => {
       const results = await client.query(sql`
@@ -493,7 +493,7 @@ export class Store {
   }
 
   betWithOptionsAndAuthorFromBets<T>(
-    betsSubquery: Slonik.TaggedTemplateLiteralInvocationType<T>
+    betsSubquery: Slonik.TaggedTemplateLiteralInvocationType<T>,
   ): Slonik.TaggedTemplateLiteralInvocationType<T> {
     return sql`
       SELECT
@@ -523,13 +523,13 @@ export class Store {
 
   async getBet(
     gameId: string,
-    betId: string
+    betId: string,
   ): Promise<(Bet & Bets.Options & Bets.Author) | undefined> {
     return await this.withClient(async (client) => {
       const results = await client.query(
         this.betWithOptionsAndAuthorFromBets(sql`
         SELECT * FROM jasb.bets WHERE bets.game = ${gameId} AND bets.id = ${betId}
-      `)
+      `),
       );
       return results.rowCount > 0
         ? (results.rows[0] as unknown as Bet & Bets.Options & Bets.Author)
@@ -562,7 +562,7 @@ export class Store {
       id: string;
       name: string;
       image: string | null;
-    }[]
+    }[],
   ): Promise<Bet & Bets.Options & Bets.Author> {
     const optionsArray =
       options !== undefined
@@ -583,7 +583,7 @@ export class Store {
             ${locksWhen},
             ${optionsArray}
           )
-      `)
+      `),
       );
       return results.rows[0] as unknown as Bet & Bets.Options & Bets.Author;
     });
@@ -630,13 +630,13 @@ export class Store {
       name: string;
       image: string | null;
       order: number;
-    }[]
+    }[],
   ): Promise<(Bet & Bets.Options & Bets.Author) | undefined> {
     const editArray =
       editOptions !== undefined
         ? sql`ARRAY[${sql.join(
             editOptions.map(this.toEditOptionRow),
-            sql`, `
+            sql`, `,
           )}]`
         : null;
     const addArray =
@@ -665,7 +665,7 @@ export class Store {
             ${editArray},
             ${addArray}
           )
-        `)
+        `),
       );
       return results.rowCount > 0
         ? (results.rows[0] as unknown as Bet & Bets.Options & Bets.Author)
@@ -679,7 +679,7 @@ export class Store {
     gameId: string,
     id: string,
     old_version: number,
-    locked: boolean
+    locked: boolean,
   ): Promise<(Bet & Bets.Options & Bets.Author) | undefined> {
     return await this.withClient(async (client) => {
       const results = await client.query(
@@ -693,7 +693,7 @@ export class Store {
             ${id},
             ${locked}
           )
-        `)
+        `),
       );
       return results.rowCount > 0
         ? (results.rows[0] as unknown as Bet & Bets.Options & Bets.Author)
@@ -707,7 +707,7 @@ export class Store {
     gameId: string,
     betId: string,
     old_version: number,
-    winners: string[]
+    winners: string[],
   ): Promise<(Bet & Bets.Options & Bets.Author) | undefined> {
     return await this.inTransaction(async (client) => {
       const results = await client.query(
@@ -721,7 +721,7 @@ export class Store {
             ${betId},
             ${sql.array(winners, "text")}
           )
-        `)
+        `),
       );
       return results.rowCount > 0
         ? (results.rows[0] as unknown as Bet & Bets.Options & Bets.Author)
@@ -735,7 +735,7 @@ export class Store {
     gameId: string,
     betId: string,
     old_version: number,
-    reason: string
+    reason: string,
   ): Promise<(Bet & Bets.Options & Bets.Author) | undefined> {
     return await this.inTransaction(async (client) => {
       const results = await client.query(
@@ -749,7 +749,7 @@ export class Store {
             ${betId},
             ${reason}
           )
-        `)
+        `),
       );
       return results.rowCount > 0
         ? (results.rows[0] as unknown as Bet & Bets.Options & Bets.Author)
@@ -764,7 +764,7 @@ export class Store {
     betId: string,
     optionId: string,
     amount: number,
-    message: string | null
+    message: string | null,
   ): Promise<number> {
     return await this.inTransaction(async (client) => {
       const result = await client.query(sql`
@@ -790,7 +790,7 @@ export class Store {
     sessionId: SecretToken,
     gameId: string,
     betId: string,
-    optionId: string
+    optionId: string,
   ): Promise<number> {
     return await this.inTransaction(async (client) => {
       const result = await client.query(sql`
@@ -814,7 +814,7 @@ export class Store {
     betId: string,
     optionId: string,
     amount: number,
-    message: string | null
+    message: string | null,
   ): Promise<number> {
     return await this.inTransaction(async (client) => {
       const result = await client.query(sql`
@@ -838,7 +838,7 @@ export class Store {
   async getNotifications(
     userId: string,
     sessionId: SecretToken,
-    includeRead = false
+    includeRead = false,
   ): Promise<Notification[]> {
     return await this.withClient(async (client) => {
       const results = await client.query(sql`
@@ -861,7 +861,7 @@ export class Store {
   async clearNotification(
     userId: string,
     sessionId: SecretToken,
-    id: string
+    id: string,
   ): Promise<void> {
     return await this.withClient(async (client) => {
       await client.query(sql`
@@ -887,11 +887,47 @@ export class Store {
   async getBetFeed(gameId: string, betId: string): Promise<Feed.Item[]> {
     return await this.withClient(async (client) => {
       const results = await client.query(sql`
-          SELECT item from jasb.feed 
+          SELECT item FROM jasb.feed 
           WHERE game = ${gameId} AND bet = ${betId} 
           ORDER BY time DESC 
       `);
       return results.rows as unknown as Feed.Item[];
+    });
+  }
+
+  async getPermissions(userId: string): Promise<Users.PerGamePermissions[]> {
+    return await this.withClient(async (client) => {
+      const results = await client.query(sql`
+        SELECT 
+          games.id AS game_id, 
+          games.name AS game_name,
+          COALESCE(per_game_permissions.manage_bets, FALSE) AS manage_bets
+        FROM 
+          jasb.games LEFT JOIN 
+            jasb.per_game_permissions ON "user" = ${userId} AND games.id = per_game_permissions.game;
+      `);
+      return results.rows as unknown as Users.PerGamePermissions[];
+    });
+  }
+
+  async setPermissions(
+    editorId: string,
+    sessionId: SecretToken,
+    userId: string,
+    gameId: string,
+    manage_bets: boolean | undefined,
+  ): Promise<void> {
+    await this.withClient(async (client) => {
+      await client.query(sql`
+        SELECT * FROM jasb.set_permissions(
+          ${editorId},
+          ${sessionId.uri},
+          ${this.config.auth.sessionLifetime.toString()},
+          ${userId},
+          ${gameId},
+          ${manage_bets ?? null}
+        );
+      `);
     });
   }
 
@@ -911,25 +947,25 @@ export class Store {
   }
 
   private async withClient<Value>(
-    operation: (client: Slonik.DatabasePoolConnectionType) => Promise<Value>
+    operation: (client: Slonik.DatabasePoolConnectionType) => Promise<Value>,
   ): Promise<Value> {
     return await Store.translatingErrors(
-      async () => await this.pool.connect(operation)
+      async () => await this.pool.connect(operation),
     );
   }
 
   private async inTransaction<Value>(
     operation: (
-      client: Slonik.DatabaseTransactionConnectionType
-    ) => Promise<Value>
+      client: Slonik.DatabaseTransactionConnectionType,
+    ) => Promise<Value>,
   ): Promise<Value> {
     return await Store.translatingErrors(
-      async () => await this.pool.transaction(operation)
+      async () => await this.pool.transaction(operation),
     );
   }
 
   private static async translatingErrors<Value>(
-    operation: () => Promise<Value>
+    operation: () => Promise<Value>,
   ): Promise<Value> {
     try {
       return await operation();
@@ -942,32 +978,32 @@ export class Store {
           case "UAUTH":
             throw new WebError(
               StatusCodes.UNAUTHORIZED,
-              `Unauthorized: ${error.message}`
+              `Unauthorized: ${error.message}`,
             );
           case "NTFND":
             throw new WebError(
               StatusCodes.NOT_FOUND,
-              `Not Found: ${error.message}`
+              `Not Found: ${error.message}`,
             );
           case "FRBDN":
             throw new WebError(
               StatusCodes.FORBIDDEN,
-              `Forbidden: ${error.message}`
+              `Forbidden: ${error.message}`,
             );
           case "BDREQ":
             throw new WebError(
               StatusCodes.BAD_REQUEST,
-              `Bad Request: ${error.message}`
+              `Bad Request: ${error.message}`,
             );
           case "CONFL":
             throw new WebError(
               StatusCodes.CONFLICT,
-              `Conflict: ${error.message}`
+              `Conflict: ${error.message}`,
             );
           case "ISERR":
             throw new WebError(
               StatusCodes.INTERNAL_SERVER_ERROR,
-              `Internal Server Error: ${error.message}`
+              `Internal Server Error: ${error.message}`,
             );
         }
       }

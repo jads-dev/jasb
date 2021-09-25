@@ -80,7 +80,7 @@ default (Codec { defaultValue, version }) =
 
 
 itemDecoder : Codec value -> JsonD.Decoder (Item value)
-itemDecoder ((Codec { key, decoder, defaultValue, version }) as codec) =
+itemDecoder ((Codec { decoder }) as codec) =
     let
         decodeForVersion givenVersion =
             JsonD.succeed Item

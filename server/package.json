@@ -21,7 +21,6 @@
     "queries": "npx pgtyped -c pgtyped.json"
   },
   "dependencies": {
-    "@google-cloud/firestore": "^4.9.4",
     "@js-joda/core": "^4.0.0",
     "cookie-parser": "^1.4.5",
     "cors": "^2.8.5",
@@ -40,9 +39,8 @@
     "postgres-interval": "^4.0.0",
     "postgres-migrations": "^5.2.0",
     "slonik": "^24.0.1",
-    "webpack": "^5.27.1",
-    "webpack-cli": "^4.5.0",
-    "winston": "^3.3.3"
+    "winston": "^3.3.3",
+    "source-map-support": "^0.5.20"
   },
   "devDependencies": {
     "@types/cookie-parser": "^1.4.2",

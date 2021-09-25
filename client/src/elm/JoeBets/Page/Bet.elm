@@ -78,7 +78,7 @@ load wrap gameId betId ({ bet, bets, settings, origin } as model) =
 
 
 update : (Msg -> msg) -> Msg -> Parent a -> ( Parent a, Cmd msg )
-update wrap msg ({ bet, settings, origin, bets, auth, time } as model) =
+update wrap msg ({ bet, settings, origin, bets, time } as model) =
     let
         updateRemoteData gameId betId change m =
             let

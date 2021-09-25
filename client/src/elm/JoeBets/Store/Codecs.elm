@@ -10,7 +10,7 @@ import JoeBets.Game.Model as Game
 import JoeBets.Page.Bets.Filters as Filters exposing (Filters)
 import JoeBets.Page.Bets.Model as Bets
 import JoeBets.Settings.Model as Settings
-import JoeBets.Store.Item as Item exposing (Item)
+import JoeBets.Store.Item as Item
 import JoeBets.Store.KeyedItem exposing (KeyedItem(..))
 import JoeBets.Store.Model exposing (Key(..), keyDecoder)
 import Json.Decode as JsonD

@@ -4,7 +4,7 @@ module JoeBets.Page.Problem exposing
     , view
     )
 
-import Html exposing (Html)
+import Html
 import JoeBets.Page exposing (Page)
 import JoeBets.Page.Problem.Model exposing (..)
 
@@ -19,7 +19,7 @@ init =
 
 
 load : String -> Parent a -> ( Parent a, Cmd msg )
-load path ({ problem } as model) =
+load path model =
     ( { model | problem = UnknownPage { path = path } }, Cmd.none )
 
 

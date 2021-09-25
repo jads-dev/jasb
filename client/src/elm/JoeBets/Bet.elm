@@ -14,7 +14,7 @@ import Html.Attributes as HtmlA
 import Html.Keyed as HtmlK
 import JoeBets.Bet.Maths as Bet
 import JoeBets.Bet.Model as Bet exposing (..)
-import JoeBets.Bet.Option as Option exposing (Option)
+import JoeBets.Bet.Option as Option
 import JoeBets.Bet.PlaceBet.Model as PlaceBet
 import JoeBets.Bet.Stakes as Stakes
 import JoeBets.Coins as Coins
@@ -126,14 +126,14 @@ internalView timeContext voteAs viewType highlight hasVoted gameId gameName betI
                 Complete { winners } ->
                     ( False, winners )
 
-                Cancelled { reason } ->
+                Cancelled _ ->
                     ( False, EverySet.empty )
 
         viewOption ( optionId, { name, stakes } as option ) =
             let
                 ( action, votedFor ) =
                     case voteAs of
-                        Just { id, user, wrap } ->
+                        Just { id, wrap } ->
                             let
                                 existingStake =
                                     AssocList.get id stakes
@@ -341,7 +341,7 @@ internalView timeContext voteAs viewType highlight hasVoted gameId gameName betI
                         ]
                     , Html.p [ HtmlA.classList [ ( "description", True ), ( "potential-spoiler", bet.spoiler ) ] ]
                         [ Html.text bet.description ]
-                    , Html.div [] adminContent
+                    , Html.div [ HtmlA.class "interactions" ] adminContent
                     ]
                 , Html.div [ HtmlA.class "extra" ] extraByProgress
                 , HtmlK.ul [] (bet.options |> AssocList.toList |> List.map viewOption)

@@ -9,7 +9,7 @@ import AssocList
 import EverySet
 import FontAwesome.Icon as Icon
 import FontAwesome.Solid as Icon
-import Html exposing (Html)
+import Html
 import Html.Attributes as HtmlA
 import Http
 import JoeBets.Api as Api
@@ -43,7 +43,7 @@ init =
 
 
 load : (Msg -> msg) -> Parent a -> ( Parent a, Cmd msg )
-load wrap ({ games } as model) =
+load wrap model =
     ( model
     , Api.get model.origin
         { path = Api.Games

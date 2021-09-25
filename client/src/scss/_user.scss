@@ -170,3 +170,46 @@
     text-shadow: 0 0 0.75em colors.$on-background-primary;
   }
 }
+
+#permissions-overlay {
+  border-radius: 0.5em;
+  max-width: min(40em, 90%);
+  padding: 1em;
+  margin: 1em;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  color: colors.$on-background-primary;
+  background-color: colors.$background-primary;
+  gap: 1em;
+  max-height: calc(100% - 4em);
+
+  > ul {
+    padding: 0;
+    margin: 0;
+    list-style: none;
+    display: grid;
+    grid-template-columns: 1fr auto;
+    align-items: stretch;
+    font-size: 0.6em;
+    overflow: auto;
+
+    > li {
+      display: contents;
+
+      &:nth-child(odd) {
+        --line-color: #{color.scale(#ffffff, $alpha: -50%)};
+      }
+
+      > * {
+        background-color: var(--line-color, unset);
+        padding: 0.25em;
+      }
+
+      > div {
+        display: flex;
+        align-items: center;
+      }
+    }
+  }
+}

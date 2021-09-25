@@ -1,6 +1,6 @@
 module JoeBets.Page.About exposing (view)
 
-import Html exposing (Html)
+import Html
 import Html.Attributes as HtmlA
 import JoeBets.Page exposing (Page)
 import JoeBets.Rules as Rules
