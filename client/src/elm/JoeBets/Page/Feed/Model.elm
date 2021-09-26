@@ -13,6 +13,7 @@ module JoeBets.Page.Feed.Model exposing
 
 import JoeBets.Bet.Model as Bet
 import JoeBets.Bet.Option as Option
+import JoeBets.Game.Id as Game
 import JoeBets.Game.Model as Game
 import JoeBets.User.Model as User
 import Json.Decode as JsonD

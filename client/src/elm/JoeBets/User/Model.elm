@@ -15,7 +15,7 @@ module JoeBets.User.Model exposing
     )
 
 import EverySet exposing (EverySet)
-import JoeBets.Game.Model as Game
+import JoeBets.Game.Id as Game
 import Json.Decode as JsonD
 import Json.Decode.Pipeline as JsonD
 import Json.Encode as JsonE

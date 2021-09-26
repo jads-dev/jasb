@@ -7,16 +7,16 @@ module JoeBets.Page.User.Model exposing
     , Msg(..)
     , Permissions
     , PermissionsOverlay
+    , UserModel
     , apply
     , decodeBankruptcyStats
     , decodeGamePermissions
     , decodePermissions
-    , decodeUserBet
     )
 
 import AssocList
 import Http
-import JoeBets.Bet.Model as Bet exposing (Bet)
+import JoeBets.Game.Id as Game
 import JoeBets.Game.Model as Game
 import JoeBets.User.Model as User exposing (User)
 import Json.Decode as JsonD
@@ -50,23 +50,6 @@ decodeGamePermissions =
         |> JsonD.custom decodePermissions
 
 
-type alias UserBet =
-    { gameId : Game.Id
-    , gameName : String
-    , betId : Bet.Id
-    , bet : Bet
-    }
-
-
-decodeUserBet : JsonD.Decoder UserBet
-decodeUserBet =
-    JsonD.succeed UserBet
-        |> JsonD.required "gameId" Game.idDecoder
-        |> JsonD.required "gameName" JsonD.string
-        |> JsonD.required "id" Bet.idDecoder
-        |> JsonD.required "bet" Bet.decoder
-
-
 type alias BankruptcyStats =
     { amountLost : Int
     , stakesLost : Int
@@ -97,9 +80,13 @@ type alias PermissionsOverlay =
 
 
 type alias Model =
-    { id : Maybe User.Id
+    Maybe UserModel
+
+
+type alias UserModel =
+    { id : User.Id
     , user : RemoteData User
-    , bets : RemoteData (List UserBet)
+    , bets : RemoteData (AssocList.Dict Game.Id Game.WithBets)
     , bankruptcyOverlay : Maybe BankruptcyOverlay
     , permissionsOverlay : Maybe PermissionsOverlay
     }
@@ -107,7 +94,8 @@ type alias Model =
 
 type Msg
     = Load (Result Http.Error User.WithId)
-    | LoadBets User.Id (Result Http.Error (List UserBet))
+    | TryLoadBets User.Id
+    | LoadBets User.Id (Result Http.Error (AssocList.Dict Game.Id Game.WithBets))
     | ToggleBankruptcyOverlay Bool
     | SetBankruptcyToggle Bool
     | LoadBankruptcyStats User.Id (Result Http.Error BankruptcyStats)

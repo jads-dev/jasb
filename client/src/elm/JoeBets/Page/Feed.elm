@@ -16,6 +16,7 @@ import Http
 import JoeBets.Api as Api
 import JoeBets.Bet.Model as Bet
 import JoeBets.Coins as Coins
+import JoeBets.Game.Id as Game
 import JoeBets.Game.Model as Game
 import JoeBets.Page exposing (Page)
 import JoeBets.Page.Bets.Filters as Filters

@@ -15,6 +15,7 @@ import JoeBets.Bet.Model as Bet
 import JoeBets.Bet.PlaceBet as PlaceBet
 import JoeBets.Bet.PlaceBet.Model as PlaceBet
 import JoeBets.Game as Game
+import JoeBets.Game.Id as Game
 import JoeBets.Game.Model as Game
 import JoeBets.Page exposing (Page)
 import JoeBets.Page.Bet.Model exposing (..)

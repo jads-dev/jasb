@@ -9,6 +9,7 @@ module JoeBets.Bet.PlaceBet.Model exposing
 import Http
 import JoeBets.Bet.Model as Bet exposing (Bet)
 import JoeBets.Bet.Option as Option
+import JoeBets.Game.Id as Game
 import JoeBets.Game.Model as Game
 import JoeBets.Page.User.Model as User
 import JoeBets.User.Model as User

@@ -5,6 +5,7 @@ module JoeBets.Store.Model exposing
     , keyDecoder
     )
 
+import JoeBets.Game.Id as Game
 import JoeBets.Game.Model as Game
 import Json.Decode as JsonD
 import Json.Encode as JsonE

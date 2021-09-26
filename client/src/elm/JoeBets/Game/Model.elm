@@ -1,53 +1,21 @@
 module JoeBets.Game.Model exposing
     ( Game
-    , Id
     , Progress(..)
+    , WithBets
     , decoder
-    , encodeId
     , finish
-    , idDecoder
-    , idFromString
-    , idParser
-    , idToString
     , start
+    , withBetsDecoder
     )
 
+import AssocList
+import JoeBets.Bet.Model as Bet exposing (Bet)
 import JoeBets.Game.Progress as Progress
 import Json.Decode as JsonD
 import Json.Decode.Pipeline as JsonD
-import Json.Encode as JsonE
+import String exposing (fromList)
 import Time.Date exposing (Date)
-import Url.Parser as Url
 import Util.Json.Decode as JsonD
-
-
-type Id
-    = Id String
-
-
-encodeId : Id -> JsonE.Value
-encodeId =
-    idToString >> JsonE.string
-
-
-idToString : Id -> String
-idToString (Id string) =
-    string
-
-
-idParser : Url.Parser (Id -> a) a
-idParser =
-    Url.custom "GAME ID" (Id >> Just)
-
-
-idDecoder : JsonD.Decoder Id
-idDecoder =
-    JsonD.string |> JsonD.map Id
-
-
-idFromString : String -> Id
-idFromString =
-    Id
 
 
 type Progress
@@ -121,3 +89,32 @@ decoder =
         |> JsonD.required "igdbId" JsonD.string
         |> JsonD.required "bets" JsonD.int
         |> JsonD.required "progress" progressDecoder
+
+
+type alias WithBets =
+    { game : Game
+    , bets : AssocList.Dict Bet.Id Bet
+    }
+
+
+withBetsDecoder : JsonD.Decoder WithBets
+withBetsDecoder =
+    let
+        gameWithoutGivenBetCount bets =
+            JsonD.succeed Game
+                |> JsonD.required "version" JsonD.int
+                |> JsonD.required "name" JsonD.string
+                |> JsonD.required "cover" JsonD.string
+                |> JsonD.required "igdbId" JsonD.string
+                |> JsonD.hardcoded bets
+                |> JsonD.required "progress" progressDecoder
+
+        betsDecoder =
+            JsonD.assocListFromList (JsonD.field "id" Bet.idDecoder) (JsonD.field "bet" Bet.decoder)
+
+        fromBets bets =
+            JsonD.succeed WithBets
+                |> JsonD.custom (bets |> AssocList.size |> gameWithoutGivenBetCount)
+                |> JsonD.hardcoded bets
+    in
+    JsonD.field "bets" betsDecoder |> JsonD.andThen fromBets

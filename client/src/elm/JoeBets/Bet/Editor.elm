@@ -23,6 +23,7 @@ import JoeBets.Bet.Model as Bet
 import JoeBets.Bet.Option as Option
 import JoeBets.Editing.Slug as Slug
 import JoeBets.Editing.Uploader as Uploader
+import JoeBets.Game.Id as Game
 import JoeBets.Game.Model as Game
 import JoeBets.Page.Edit.Model as Edit
 import JoeBets.Page.Edit.Validator as Validator exposing (Validator)

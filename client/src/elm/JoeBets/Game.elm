@@ -9,6 +9,7 @@ import Html exposing (Html)
 import Html.Attributes as HtmlA
 import JoeBets.Coins as Coins
 import JoeBets.Game.Details as Game
+import JoeBets.Game.Id as Game
 import JoeBets.Game.Model as Game exposing (Game)
 import JoeBets.Page.Bets.Model as Bets
 import JoeBets.Page.Edit.Model as Edit

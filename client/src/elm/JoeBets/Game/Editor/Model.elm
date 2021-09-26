@@ -7,6 +7,7 @@ module JoeBets.Game.Editor.Model exposing
 
 import JoeBets.Editing.Slug exposing (Slug)
 import JoeBets.Editing.Uploader as Uploader exposing (Uploader)
+import JoeBets.Game.Id as Game
 import JoeBets.Game.Model as Game exposing (Game)
 import Json.Encode as JsonE
 import Time.Date as Date exposing (Date)

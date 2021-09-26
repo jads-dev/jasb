@@ -17,6 +17,7 @@ module JoeBets.User.Auth.Model exposing
 
 import EverySet
 import Http
+import JoeBets.Game.Id as Game
 import JoeBets.Game.Model as Game
 import JoeBets.User.Model as User exposing (User)
 import JoeBets.User.Notifications.Model as Notifications exposing (Notification)

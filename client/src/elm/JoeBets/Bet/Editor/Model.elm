@@ -26,6 +26,7 @@ import JoeBets.Bet.Model as Bet exposing (Bet)
 import JoeBets.Bet.Option as Option
 import JoeBets.Editing.Slug as Slug exposing (Slug)
 import JoeBets.Editing.Uploader as Uploader exposing (Uploader)
+import JoeBets.Game.Id as Game
 import JoeBets.Game.Model as Game
 import JoeBets.User.Model as User
 import Json.Encode as JsonE

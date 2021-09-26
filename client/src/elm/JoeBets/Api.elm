@@ -15,6 +15,7 @@ module JoeBets.Api exposing
 import Http
 import JoeBets.Bet.Model as Bets
 import JoeBets.Bet.Option as Option
+import JoeBets.Game.Id as Game
 import JoeBets.Game.Model as Game
 import JoeBets.User.Model as User
 import Url.Builder

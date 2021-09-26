@@ -13,6 +13,7 @@ import EverySet exposing (EverySet)
 import JoeBets.Bet.Model as Bet exposing (Bet)
 import JoeBets.Bet.PlaceBet.Model as PlaceBet
 import JoeBets.Game.Details as Game
+import JoeBets.Game.Id as Game
 import JoeBets.Game.Model as Game
 import JoeBets.Page.Bets.Filters exposing (Filter, Filters)
 import JoeBets.Store.Item exposing (Item)

@@ -8,6 +8,7 @@ module JoeBets.Page.Bet.Model exposing
 
 import JoeBets.Bet.Model as Bet exposing (Bet)
 import JoeBets.Bet.PlaceBet.Model as PlaceBet
+import JoeBets.Game.Id as Game
 import JoeBets.Game.Model as Game exposing (Game)
 import JoeBets.Page.Feed.Model as Feed
 import Json.Decode as JsonD

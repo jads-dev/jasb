@@ -6,6 +6,7 @@ module JoeBets.Page.Games.Model exposing
     )
 
 import AssocList
+import JoeBets.Game.Id as Game
 import JoeBets.Game.Model as Game exposing (Game)
 import Json.Decode as JsonD
 import Json.Decode.Pipeline as JsonD

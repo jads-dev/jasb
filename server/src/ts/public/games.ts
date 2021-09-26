@@ -3,6 +3,7 @@ import * as Schema from "io-ts";
 import type { Internal } from "../internal";
 import { Expect } from "../util/expect";
 import { Users } from "./users";
+import { Bets } from "./bets";
 
 interface GameIdBrand {
   readonly GameId: unique symbol;
@@ -11,7 +12,7 @@ interface GameIdBrand {
 export const Id = Schema.brand(
   Schema.string,
   (id): id is Schema.Branded<string, GameIdBrand> => true,
-  "GameId"
+  "GameId",
 );
 export type Id = Schema.TypeOf<typeof Id>;
 
@@ -43,6 +44,10 @@ export interface Game {
   progress: Progress;
 }
 
+export type WithBets = Omit<Game, "bets"> & {
+  bets: Bets.WithId[];
+};
+
 export interface Details {
   staked: number;
   mods: Record<Users.Id, Users.Summary>;
@@ -61,7 +66,7 @@ export interface Library {
 
 export const unknownProgress = Expect.exhaustive(
   "game progress",
-  (i: Internal.Games.Progress) => i
+  (i: Internal.Games.Progress) => i,
 );
 
 const progressFromInternal = (internal: Internal.Game): Progress => {
@@ -88,7 +93,7 @@ const progressFromInternal = (internal: Internal.Game): Progress => {
 };
 
 export const fromInternal = (
-  internal: Internal.Game & Internal.Games.BetStats
+  internal: Internal.Game & Internal.Games.BetStats,
 ): WithId => ({
   id: internal.id as Id,
   game: {
@@ -107,7 +112,7 @@ export const detailedFromInternal = (
   internal: Internal.Game &
     Internal.Games.BetStats &
     Internal.Games.StakeStats &
-    Internal.Games.Mods
+    Internal.Games.Mods,
 ): { id: Id; game: Game & Details } => ({
   id: internal.id as Id,
   game: {
@@ -116,12 +121,28 @@ export const detailedFromInternal = (
     cover: internal.cover,
     igdbId: internal.igdb_id,
 
+    progress: progressFromInternal(internal),
+
     bets: internal.bets,
     staked: internal.staked,
 
     mods: Object.fromEntries(internal.mods.map(Users.summaryFromInternal)),
+  },
+});
+
+export const withBetsFromInternal = (
+  internal: Internal.Game & Internal.Games.EmbeddedBets,
+): { id: Id; game: WithBets } => ({
+  id: internal.id as Id,
+  game: {
+    version: internal.version,
+    name: internal.name,
+    cover: internal.cover,
+    igdbId: internal.igdb_id,
 
     progress: progressFromInternal(internal),
+
+    bets: internal.bets.map(Bets.fromInternal),
   },
 });
 

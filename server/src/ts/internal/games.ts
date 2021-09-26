@@ -1,6 +1,6 @@
 import * as Joda from "@js-joda/core";
 
-import { Users } from "../internal";
+import { Users, Bets } from "../internal";
 
 export type Progress = "Future" | "Current" | "Finished";
 
@@ -21,6 +21,10 @@ export interface Game {
 
 export interface BetStats {
   bets: number;
+}
+
+export interface EmbeddedBets {
+  bets: (Bets.Bet & Bets.Options)[];
 }
 
 export interface StakeStats {

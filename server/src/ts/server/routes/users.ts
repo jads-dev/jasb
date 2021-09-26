@@ -3,7 +3,7 @@ import { default as asyncHandler } from "express-async-handler";
 import { StatusCodes } from "http-status-codes";
 import * as Schema from "io-ts";
 
-import { Notifications, Users } from "../../public";
+import { Notifications, Users, Games, Bets } from "../../public";
 import { Validation } from "../../util/validation";
 import { WebError } from "../errors";
 import { Server } from "../model";
@@ -44,6 +44,19 @@ export const usersApi = (server: Server.State): Express.Router => {
         throw new WebError(StatusCodes.NOT_FOUND, "User not found.");
       }
       const result: Users.WithId = Users.fromInternal(internalUser);
+      response.json(result);
+    }),
+  );
+
+  // Get User Bets.
+  router.get(
+    "/:userId/bets",
+    asyncHandler(async (request, response) => {
+      const id = request.params.userId;
+      const games = await server.store.getUserBets(id);
+      const result: { id: Games.Id; game: Games.WithBets }[] = games.map(
+        Games.withBetsFromInternal,
+      );
       response.json(result);
     }),
   );

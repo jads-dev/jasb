@@ -11,6 +11,7 @@ import Browser.Navigation as Navigation
 import Html exposing (Html)
 import Html.Attributes as HtmlA
 import JoeBets.Bet.Model as Bet
+import JoeBets.Game.Id as Game
 import JoeBets.Game.Model as Game
 import JoeBets.Page.Bets.Model as Bets
 import JoeBets.Page.Edit.Model as Edit

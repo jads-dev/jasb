@@ -67,18 +67,71 @@
   }
 
   .bets {
-    align-self: stretch;
+    font-size: 0.8em;
 
-    display: flex;
-    flex-wrap: wrap;
-    justify-content: space-evenly;
+    > summary {
+      list-style-type: none;
 
-    ol {
+      &::-webkit-details-marker,
+      &::marker {
+        display: none;
+      }
+
+      > h3 {
+        text-align: center;
+
+        &::after {
+          display: inline;
+          margin-left: 0.5em;
+          content: "▼";
+        }
+      }
+    }
+
+    &[open] > summary > h3::after {
+      content: "▲";
+    }
+
+    .game-section {
       list-style: none;
       padding: 0;
 
-      flex-basis: 25em;
-      flex-grow: 1;
+      display: flex;
+      flex-direction: column;
+
+      > li > details {
+        > summary {
+          list-style-type: none;
+
+          &::-webkit-details-marker,
+          &::marker {
+            display: none;
+          }
+
+          > h4::after {
+            display: inline;
+            margin-left: 0.5em;
+            content: "▼";
+          }
+        }
+
+        &[open] > summary > h4::after {
+          content: "▲";
+        }
+
+        .bets-section {
+          list-style: none;
+          padding: 0;
+
+          display: flex;
+          flex-direction: column;
+          gap: 1em;
+        }
+      }
+
+      .bet {
+        font-size: 0.8em;
+      }
     }
   }
 
