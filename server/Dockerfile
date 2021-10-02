@@ -8,8 +8,8 @@ FROM base AS build
 
 RUN ["npm", "ci"]
 
-COPY ["./src", "./src"]
 COPY ["./tsconfig.json", "./"]
+COPY ["./src", "./src"]
 RUN ["npm", "run", "build"]
 
 FROM base as install
@@ -27,8 +27,8 @@ WORKDIR /jasb
 COPY ["./package.json", "./"]
 COPY --from=install ["/jasb/node_modules", "./node_modules"]
 
-COPY --from=build ["/jasb/dist", "./"]
 COPY --from=build ["/jasb/src/sql/migrations", "./src/sql/migrations/"]
+COPY --from=build ["/jasb/dist", "./"]
 
 EXPOSE 8081
 USER node
