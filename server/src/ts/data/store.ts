@@ -131,16 +131,9 @@ export class Store {
       }
       const results = await client.query(sql`
         SELECT
-          users.id,
-          users.name,
-          users.discriminator,
-          users.avatar,
-          users.created,
-          users.admin,
-          users.balance,
-          users.staked,
+          users.*,
           (users.staked + users.balance) AS net_worth,
-          ARRAY_AGG(perm.game) FILTER (WHERE perm.game IS NOT NULL) AS moderator_for
+          COALESCE(ARRAY_AGG(perm.game) FILTER (WHERE perm.game IS NOT NULL), '{}') AS moderator_for
         FROM
           jasb.users_with_stakes AS users LEFT JOIN 
           permissions AS perm ON users.id = perm."user" AND manage_bets = TRUE
@@ -273,18 +266,11 @@ export class Store {
                 )
             )
             SELECT
-              users.id,
-              users.name,
-              users.discriminator,
-              users.avatar,
-              users.created,
-              users.admin,
-              users.balance,
-              users.staked,
+              users.*,
               session.session,
               session.started,
               (users.staked + users.balance) AS net_worth,
-              ARRAY_AGG(permissions.game) AS moderator_for
+              COALESCE(ARRAY_AGG(permissions.game) FILTER ( WHERE permissions.game IS NOT NULL ), '{}') AS moderator_for
             FROM
               jasb.users_with_stakes AS users LEFT JOIN
               jasb.permissions ON users.id = permissions."user" AND manage_bets = TRUE LEFT JOIN

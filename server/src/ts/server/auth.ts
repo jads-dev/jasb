@@ -46,7 +46,7 @@ export class Auth {
 
   async login(
     origin: string,
-    code: string
+    code: string,
   ): Promise<{
     user: Users.WithId;
     notifications: Notifications.Notification[];
@@ -63,7 +63,7 @@ export class Auth {
 
     const discordUser = await this.oauth.getUser(discordToken.access_token);
     const discordGuilds = await this.oauth.getUserGuilds(
-      discordToken.access_token
+      discordToken.access_token,
     );
 
     const jadsId = this.config.discord.guild;
@@ -79,7 +79,7 @@ export class Auth {
       discordUser.avatar ?? null,
       discordToken.access_token,
       discordToken.refresh_token,
-      Joda.Duration.of(discordToken.expires_in, Joda.ChronoUnit.SECONDS)
+      Joda.Duration.of(discordToken.expires_in, Joda.ChronoUnit.SECONDS),
     );
     const user = Users.fromInternal(login.user);
     const notifications = login.notifications.map(Notifications.fromInternal);
@@ -101,9 +101,13 @@ export class Auth {
     if (accessToken != null) {
       const { clientId, clientSecret } = this.config.discord;
       const credentials = Buffer.from(`${clientId}:${clientSecret}`).toString(
-        "base64"
+        "base64",
       );
-      await this.oauth.revokeToken(accessToken, credentials);
+      try {
+        await this.oauth.revokeToken(accessToken, credentials);
+      } catch (e) {
+        // Do nothing, if we can't revoke there isn't much we can do about it.
+      }
     }
   }
 }
