@@ -3,6 +3,7 @@ module JoeBets.Store.Codecs exposing
     , gameFavourites
     , gameFilters
     , itemDecoder
+    , theme
     )
 
 import EverySet exposing (EverySet)
@@ -14,6 +15,7 @@ import JoeBets.Settings.Model as Settings
 import JoeBets.Store.Item as Item
 import JoeBets.Store.KeyedItem exposing (KeyedItem(..))
 import JoeBets.Store.Model exposing (Key(..), keyDecoder)
+import JoeBets.Theme as Theme exposing (Theme)
 import Json.Decode as JsonD
 import Util.Json.Decode as JsonD
 import Util.Json.Encode as JsonE
@@ -37,6 +39,11 @@ gameFavourites =
         EverySet.empty
 
 
+theme : Item.Codec Theme
+theme =
+    Item.initial Theme Theme.decoder Theme.encode Theme.Auto
+
+
 itemDecoder : JsonD.Decoder KeyedItem
 itemDecoder =
     let
@@ -44,6 +51,9 @@ itemDecoder =
             case key of
                 DefaultFilters ->
                     defaultFilters |> Item.itemDecoder |> JsonD.map (Settings.DefaultFiltersItem >> SettingsItem)
+
+                Theme ->
+                    theme |> Item.itemDecoder |> JsonD.map (Settings.ThemeItem >> SettingsItem)
 
                 GameFilters gameId ->
                     gameId |> gameFilters |> Item.itemDecoder |> JsonD.map (Bets.FiltersItem gameId >> BetsItem)

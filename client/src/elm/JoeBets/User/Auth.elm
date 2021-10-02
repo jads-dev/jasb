@@ -1,6 +1,7 @@
 module JoeBets.User.Auth exposing
     ( init
     , load
+    , logInButton
     , logInOutButton
     , update
     , updateLocalUser
@@ -27,6 +28,7 @@ import JoeBets.User.Notifications as Notifications
 import JoeBets.User.Notifications.Model as Notifications
 import Json.Decode as JsonD
 import Util.Http.StatusCodes as Http
+import Util.Maybe as Maybe
 import Util.RemoteData as RemoteData
 
 
@@ -167,7 +169,14 @@ update wrap noOp wrapNotifications msg ({ auth, page, problem } as model) =
                                 Cmd.none
 
                 newModel =
-                    { model | auth = { auth | trying = False, localUser = Just loggedIn.user } }
+                    { model
+                        | auth =
+                            { auth
+                                | trying = False
+                                , localUser = Just loggedIn.user
+                                , error = Nothing
+                            }
+                    }
 
                 ( withNotifications, notificationsCmd ) =
                     Notifications.update
@@ -207,6 +216,25 @@ logInOutButton wrap { auth } =
                         ( Icon.spinner |> Icon.present |> Icon.styled [ Icon.pulse ], HtmlA.disabled True, "Log out" )
     in
     Html.button [ action ] [ Icon.view icon, Html.text text ]
+
+
+logInButton : (Msg -> msg) -> Model -> Html msg -> Html msg
+logInButton wrap auth content =
+    let
+        button =
+            case auth.localUser of
+                Nothing ->
+                    Html.button
+                        [ HtmlA.class "log-in"
+                        , Start |> Login |> wrap |> HtmlE.onClick
+                        ]
+                        [ content ]
+                        |> Just
+
+                Just _ ->
+                    Nothing
+    in
+    button |> Maybe.andThen (Maybe.whenNot auth.trying) |> Maybe.withDefault content
 
 
 viewError : Parent a -> List (Html msg)

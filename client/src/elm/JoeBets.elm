@@ -32,6 +32,7 @@ import JoeBets.Settings as Settings
 import JoeBets.Settings.Model as Settings
 import JoeBets.Store as Store
 import JoeBets.Store.KeyedItem as Store
+import JoeBets.Theme as Theme
 import JoeBets.User as User
 import JoeBets.User.Auth as Auth
 import JoeBets.User.Auth.Model as Auth
@@ -254,7 +255,7 @@ view model =
         { title, id, body } =
             case model.page of
                 Page.About ->
-                    About.view
+                    About.view AuthMsg model
 
                 Page.Feed ->
                     Feed.view FeedMsg False model
@@ -288,6 +289,7 @@ view model =
               ]
             , model.auth.localUser |> Maybe.map (User.link >> List.singleton >> Html.li [ HtmlA.class "me" ]) |> Maybe.toList
             , [ Html.li [ HtmlA.class "discord" ] [ Auth.logInOutButton AuthMsg model ]
+              , model |> Auth.viewError |> Html.div [ HtmlA.class "errors" ]
               , Html.li [ HtmlA.class "stream" ]
                     [ Html.blankA "https://www.twitch.tv"
                         [ "andersonjph" ]
@@ -307,20 +309,27 @@ view model =
                     ]
               ]
             ]
+
+        combinedBody =
+            [ [ Html.header []
+                    [ Html.h1 [ HtmlA.title "Joseph Anderson Stream Bets" ] [ Html.text "JASB" ]
+                    , Html.nav [] [ menu |> List.concat |> Html.ul [] ]
+                    ]
+              , Html.div [ HtmlA.class "page", HtmlA.id id ] body
+              , Notifications.view NotificationsMsg model
+              ]
+            , Settings.view SettingsMsg model
+            ]
     in
     { title = "JASB - " ++ title
     , body =
-        [ [ Html.header []
-                [ Html.h1 [] [ Html.text "Joseph Anderson Stream Bets" ]
-                , Html.nav [] [ menu |> List.concat |> Html.ul [] ]
-                ]
-          , Html.div [ HtmlA.class "page", HtmlA.id id ] body
-          , Notifications.view NotificationsMsg model
-          , model |> Auth.viewError |> Html.div [ HtmlA.class "errors" ]
-          ]
-        , Settings.view SettingsMsg model
-        ]
+        [ combinedBody
             |> List.concat
+            |> Html.div
+                [ HtmlA.id "jasb"
+                , model.settings.theme.value |> Theme.toClass
+                ]
+        ]
     }
 
 

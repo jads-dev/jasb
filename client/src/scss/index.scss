@@ -1,4 +1,3 @@
-@use "./colors";
 @use "./user";
 @use "./leaderboard";
 @use "./game";
@@ -7,39 +6,84 @@
 @use "./edit";
 @use "./feed";
 @use "./settings";
+@use "./colors";
 
 @import "~elm-material/src/scss/_material.scss";
 @import "~@fortawesome/fontawesome-free/css/svg-with-js.min.css";
 
 body {
-  color: colors.$on-background-primary;
-  background-color: colors.$background-primary;
+  margin: 0;
+
+  --mdc-theme-primary: var(--primary);
+  --mdc-theme-on-primary: var(--foreground);
+  --mdc-theme-secondary: var(--secondary);
+  --mdc-theme-on-secondary: var(--foreground);
+  --mdc-button-disabled-fill-color: var(--foreground);
+  --mdc-button-disabled-ink-color: var(--disabled);
+  --mdc-text-field-outlined-disabled-border-color: var(--foreground);
+  --mdc-text-field-disabled-ink-color: var(--disabled);
+  --mdc-text-field-outlined-idle-border-color: var(--foreground);
+  --mdc-text-field-outlined-hover-border-color: var(--foreground);
+  --mdc-text-field-label-ink-color: var(--foreground);
+  --mdc-text-field-ink-color: var(--foreground);
+}
+
+#jasb {
+  &.light {
+    --background: #{colors.$light};
+    --foreground: #{colors.$dark};
+  }
+  &.dark {
+    --background: #{colors.$dark};
+    --foreground: #{colors.$light};
+  }
+
+  color: var(--foreground);
+  background-color: var(--background);
 
   font-family: sans-serif;
 
-  --mdc-theme-primary: #{colors.$primary};
-  --mdc-theme-on-primary: #{colors.$on-primary};
-  --mdc-theme-secondary: #{colors.$secondary};
-  --mdc-theme-on-secondary: #{colors.$on-secondary};
-  --mdc-button-disabled-fill-color: #cccccc;
-  --mdc-button-disabled-ink-color: #555555;
-  --mdc-text-field-outlined-disabled-border-color: #cccccc;
-  --mdc-text-field-disabled-ink-color: #555555;
+  display: flex;
+
+  min-height: 100vh;
 }
 
-header h1 {
-  text-align: center;
+header {
+  display: flex;
+  flex-direction: column;
+  margin: 1em;
+
+  h1 {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 0.25em;
+
+    text-align: center;
+    font-size: 2em;
+
+    &::before {
+      display: block;
+      content: "";
+      width: 1em;
+      height: 1em;
+      background-image: url("../../assets/images/monocoin.png");
+      background-size: contain;
+    }
+  }
 }
 
 nav {
+  color: colors.$light;
+
   ul {
     padding: 0;
     list-style: none;
 
     display: flex;
-    flex-wrap: wrap;
+    flex-direction: column;
     justify-content: center;
-    align-items: center;
+    align-items: stretch;
   }
 
   li {
@@ -47,9 +91,8 @@ nav {
     button {
       margin: 0.5em;
       padding: 0.5em;
-      background-color: colors.$secondary;
-      color: colors.$on-secondary;
-      border: 1px colors.$primary;
+      background-color: var(--primary);
+      color: inherit;
       text-decoration: none;
       flex-basis: 8em;
       flex-shrink: 1;
@@ -65,19 +108,21 @@ nav {
     }
 
     &.discord {
+      button {
+        width: calc(100% - 1em);
+      }
+
       button,
       a {
         appearance: none;
         border: unset;
         font: unset;
         cursor: pointer;
-        color: colors.$on-discord;
         background-color: colors.$discord;
       }
     }
 
     &.stream a {
-      color: colors.$on-twitch;
       background-color: colors.$twitch;
     }
 
@@ -87,6 +132,11 @@ nav {
         margin-right: 0.5em;
       }
     }
+
+    &.settings {
+      color: var(--foreground);
+      align-self: center;
+    }
   }
 }
 
@@ -94,6 +144,15 @@ nav {
   display: flex;
   flex-direction: column;
   align-items: center;
+  flex-grow: 1;
+  overflow: auto;
+  max-height: calc(100vh - 2em);
+  margin: 1em 1em 1em 0;
+
+  h2 {
+    margin-top: 0;
+    border-bottom: 0.1em solid var(--primary);
+  }
 }
 
 a .external {
@@ -138,7 +197,7 @@ a .external {
 }
 
 .error {
-  color: colors.$bad;
+  color: var(--bad);
 }
 
 .permalink {
@@ -153,15 +212,15 @@ a .external {
 }
 
 a {
-  color: colors.$link-color;
+  color: var(--link-color);
 }
 
 .final-actions {
   font-size: 1.5em;
   padding: 0.25em;
   border-radius: 0.25em;
-  color: colors.$on-background-secondary;
-  background-color: colors.$background-secondary;
+  color: var(--foreground);
+  background-color: var(--background);
   align-self: center;
   list-style: none;
 

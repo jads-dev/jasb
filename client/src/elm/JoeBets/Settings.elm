@@ -4,6 +4,8 @@ module JoeBets.Settings exposing
     , view
     )
 
+import FontAwesome.Icon as Icon
+import FontAwesome.Solid as Icon
 import Html exposing (Html)
 import Html.Attributes as HtmlA
 import Html.Events as HtmlE
@@ -13,7 +15,11 @@ import JoeBets.Store as Store
 import JoeBets.Store.Codecs as Codecs
 import JoeBets.Store.Item as Item
 import JoeBets.Store.KeyedItem as Store exposing (KeyedItem)
+import JoeBets.Theme as Theme
+import Material.IconButton as IconButton
+import Material.Select as Select
 import Material.Switch as Switch
+import Util.Maybe as Maybe
 
 
 type alias Parent a =
@@ -34,6 +40,7 @@ init storeData =
         model =
             { visible = False
             , defaultFilters = Item.default Codecs.defaultFilters
+            , theme = Item.default Codecs.theme
             }
     in
     storeData |> List.filterMap fromItem |> List.foldl apply model
@@ -44,6 +51,9 @@ update msg ({ settings } as model) =
     case msg of
         SetDefaultFilters filters ->
             ( model, Store.set Codecs.defaultFilters (Just settings.defaultFilters) filters )
+
+        SetTheme theme ->
+            ( model, Store.set Codecs.theme (Just settings.theme) theme )
 
         ReceiveChange change ->
             ( { model | settings = settings |> apply change }, Cmd.none )
@@ -71,12 +81,27 @@ view wrap { settings } =
             viewFilter title description value filter =
                 Html.li [ HtmlA.title description ]
                     [ Switch.view (Html.text title) value (setFilter filter |> Just) ]
+
+            themeSelectModel =
+                { label = "Theme"
+                , idToString = Theme.toString
+                , idFromString = Theme.fromString
+                , selected = Just settings.theme.value
+                , wrap = Maybe.withDefault Theme.Auto >> SetTheme >> wrap
+                , disabled = False
+                , fullWidth = True
+                }
         in
         [ Html.div [ HtmlA.id "client-settings" ]
             [ Html.div [ HtmlA.class "background", False |> SetVisibility |> wrap |> HtmlE.onClick ] []
             , Html.div [ HtmlA.class "foreground" ]
                 [ Html.div []
-                    [ Html.h2 [] [ Html.text "Settings" ]
+                    [ Html.div [ HtmlA.class "title" ]
+                        [ Html.h2 [] [ Html.text "Settings" ]
+                        , IconButton.view (Icon.times |> Icon.viewIcon)
+                            "Close"
+                            (False |> SetVisibility |> wrap |> Just)
+                        ]
                     , Html.div [ HtmlA.class "default-filters" ]
                         [ Html.h3 [] [ Html.text "Default Filters" ]
                         , Html.p [] [ Html.text "On games you haven't set them on, what will the filters will be. Each game's filters will be remembered separately on top of this." ]
@@ -88,6 +113,11 @@ view wrap { settings } =
                             , viewFilter "Have Bet" "Bets that you have a stake in." resolvedFilters.hasBet Filters.HasBet
                             , viewFilter "Spoilers" "Bets that give serious spoilers for the game." resolvedFilters.spoilers Filters.Spoilers
                             ]
+                        ]
+                    , Html.div [ HtmlA.class "theme" ]
+                        [ Html.h3 [] [ Html.text "Theme" ]
+                        , Html.p [] [ Html.text "What theme to use for the site." ]
+                        , Theme.all |> List.map Theme.selectItem |> Select.view themeSelectModel
                         ]
                     ]
                 ]
@@ -103,3 +133,6 @@ apply change model =
     case change of
         DefaultFiltersItem item ->
             { model | defaultFilters = item }
+
+        ThemeItem item ->
+            { model | theme = item }

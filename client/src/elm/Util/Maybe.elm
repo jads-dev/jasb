@@ -5,6 +5,7 @@ module Util.Maybe exposing
     , or
     , toList
     , when
+    , whenNot
     )
 
 
@@ -25,6 +26,11 @@ when condition value =
 
     else
         Nothing
+
+
+whenNot : Bool -> a -> Maybe a
+whenNot =
+    not >> when
 
 
 ifTrue : (a -> Bool) -> a -> Maybe a

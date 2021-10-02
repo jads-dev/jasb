@@ -248,7 +248,8 @@ view wrap specificFeed { feed, bets, settings } =
                 []
 
             else
-                [ Html.p []
+                [ Html.h2 [] [ Html.text "Feed" ]
+                , Html.p []
                     [ Html.text "Potential spoilers may be blurred if you have spoilers hidden for the game. "
                     , Html.text "Click on the item to reveal spoilers in it."
                     ]

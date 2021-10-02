@@ -13,7 +13,6 @@ import JoeBets.Bet.Model as Bet exposing (Bet)
 import JoeBets.Game.Progress as Progress
 import Json.Decode as JsonD
 import Json.Decode.Pipeline as JsonD
-import String exposing (fromList)
 import Time.Date exposing (Date)
 import Util.Json.Decode as JsonD
 

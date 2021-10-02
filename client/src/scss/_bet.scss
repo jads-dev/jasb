@@ -1,10 +1,7 @@
 @use "sass:color";
-@use "./colors";
 
 #bet {
-  margin: auto;
   align-items: stretch;
-  max-width: 80em;
 
   > .game {
     margin: 0.5em 0;
@@ -12,9 +9,7 @@
 }
 
 #bets {
-  margin: auto;
   align-items: stretch;
-  max-width: 80em;
 
   > .game {
     margin: 0.5em 0;
@@ -44,8 +39,7 @@
 
       > div {
         margin: 0.25em 0.5em;
-        color: colors.$on-background-secondary;
-        background-color: colors.$background-secondary;
+        background-color: var(--secondary);
         border-radius: 0.5em;
         padding: 0.5em;
       }
@@ -79,8 +73,7 @@
 .bet {
   display: flex;
   flex-direction: column;
-  background-color: colors.$tertiary;
-  color: colors.$on-tertiary;
+  border: 0.1em solid var(--tertiary);
   padding: 1em;
   border-radius: 0.25em;
   width: 100%;
@@ -93,11 +86,8 @@
 
   position: relative;
 
-  --mdc-button-disabled-fill-color: #cccccc;
-  --mdc-button-disabled-ink-color: #555555;
-
   &.focus {
-    border: 0.1em solid colors.$primary;
+    border: 0.1em solid var(--primary);
   }
 
   > .summary {
@@ -144,7 +134,7 @@
 
   .stakes {
     height: 1.5em;
-    background-color: colors.$background-secondary;
+    background-color: var(--tertiary);
     border-radius: 0.25em;
     display: flex;
     justify-content: stretch;
@@ -152,12 +142,12 @@
 
     > span {
       position: relative;
-      background-color: colors.$secondary;
+      background-color: var(--secondary);
       transition: flex-grow 1s ease-in-out;
       border-left: 0.05em dotted #000000;
 
       &.local {
-        background-color: colors.$primary;
+        background-color: var(--primary);
       }
 
       &.highlight {
@@ -165,8 +155,8 @@
           45deg,
           #000000,
           #000000 0.05em,
-          #{colors.$secondary} 0.05em,
-          #{colors.$secondary} 0.25em
+          var(--secondary) 0.05em,
+          var(--secondary) 0.25em
         );
       }
 
@@ -193,8 +183,7 @@
         flex-direction: column;
         align-items: center;
 
-        color: colors.$on-background-secondary;
-        background-color: colors.$background-secondary;
+        background-color: var(--secondary);
         filter: drop-shadow(0 0 0.5em #000000);
 
         padding: 0.5em;
@@ -206,8 +195,8 @@
           display: flex;
           justify-content: center;
           align-items: center;
-          color: colors.$on-background-secondary;
           text-decoration: none;
+          color: inherit;
 
           > .avatar {
             margin-right: 0.5em;
@@ -240,7 +229,7 @@
           transform: translateX(-50%);
           border-top: 0.3em solid transparent;
           border-right: 0.4em solid transparent;
-          border-bottom: 0.3em solid colors.$background-secondary;
+          border-bottom: 0.3em solid var(--secondary);
           border-left: 0.4em solid transparent;
         }
       }
@@ -256,20 +245,20 @@
   }
 
   .winner {
-    --mdc-button-disabled-fill-color: #{colors.$good};
+    --mdc-button-disabled-fill-color: var(--good);
     --mdc-button-disabled-ink-color: #000000;
   }
 
   .winner .stakes {
-    border: 0.1em solid colors.$good;
+    border: 0.1em solid var(--good);
   }
 
   &.complete .winner .ratio {
-    color: colors.$good;
+    color: var(--good);
   }
 
   &.complete .ratio {
-    color: colors.$disabled;
+    color: var(--disabled);
   }
 
   > ul {
@@ -322,15 +311,10 @@
   flex-direction: column;
   align-items: center;
 
-  color: colors.$on-background-primary;
-  background-color: colors.$background-primary;
   border-radius: 0.5em;
   padding: 1em;
 
-  --mdc-text-field-outlined-idle-border-color: #{colors.$on-background-primary};
-  --mdc-text-field-outlined-hover-border-color: #{colors.$background-secondary};
-  --mdc-text-field-label-ink-color: #{colors.$on-background-primary};
-  --mdc-text-field-ink-color: #{colors.$on-background-primary};
+  background-color: var(--background);
 
   .balance {
     display: flex;
@@ -347,7 +331,7 @@
     gap: 1em;
 
     > .cancel {
-      --mdc-theme-primary: #{colors.$bad};
+      --mdc-theme-primary: var(--bad);
     }
   }
 }

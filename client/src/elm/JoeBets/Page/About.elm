@@ -4,11 +4,17 @@ import Html
 import Html.Attributes as HtmlA
 import JoeBets.Page exposing (Page)
 import JoeBets.Rules as Rules
+import JoeBets.User.Auth as Auth
+import JoeBets.User.Auth.Model as Auth
 import Util.Html as Html
 
 
-view : Page msg
-view =
+type alias Parent a =
+    { a | auth : Auth.Model }
+
+
+view : (Auth.Msg -> msg) -> Parent a -> Page msg
+view wrap { auth } =
     { title = "Joseph Anderson Stream Bets"
     , id = "about"
     , body =
@@ -18,7 +24,11 @@ view =
                 [ Html.text "This site allows you to bet (for bragging rights only, no money!) on various things to do with Joseph Anderson streams. "
                 , Html.text "It is an unofficial fan creation."
                 ]
-            , Html.p [] [ Html.text "You need to be logged in with Discord to vote." ]
+            , Html.p []
+                [ Html.text "You need to be "
+                , Auth.logInButton wrap auth (Html.text "logged in")
+                , Html.text " with Discord to vote."
+                ]
             , Html.p [ HtmlA.class "warning" ]
                 [ Html.text "Back-seating in chat to try and achieve your bet is stupid and we will ban you. Don't do it."
                 ]

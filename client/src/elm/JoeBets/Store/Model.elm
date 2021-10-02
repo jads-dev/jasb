@@ -14,6 +14,7 @@ import Util.Json.Decode as JsonD
 
 type Key
     = DefaultFilters
+    | Theme
     | GameFilters Game.Id
     | GameFavourites
 
@@ -25,6 +26,9 @@ keyDecoder =
             case String.split ":" name of
                 [ "default-filters" ] ->
                     DefaultFilters |> JsonD.succeed
+
+                [ "theme" ] ->
+                    Theme |> JsonD.succeed
 
                 [ "game-filters", game ] ->
                     game |> Game.idFromString |> GameFilters |> JsonD.succeed
@@ -45,6 +49,9 @@ keyToString =
             case key of
                 DefaultFilters ->
                     [ "default-filters" ]
+
+                Theme ->
+                    [ "theme" ]
 
                 GameFilters gameId ->
                     [ "game-filters", gameId |> Game.idToString ]

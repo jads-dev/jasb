@@ -283,6 +283,14 @@ view wrap model =
                 isLocal =
                     Just id == (model.auth.localUser |> Maybe.map .id)
 
+                title =
+                    case user |> RemoteData.toMaybe of
+                        Just u ->
+                            "“" ++ u.name ++ "”"
+
+                        Nothing ->
+                            "Profile"
+
                 body userData =
                     let
                         avatar =
@@ -356,7 +364,8 @@ view wrap model =
                             ]
 
                         contents =
-                            [ [ identity |> List.concat |> Html.div [ HtmlA.class "identity" ]
+                            [ [ Html.h2 [] [ Html.text title ]
+                              , identity |> List.concat |> Html.div [ HtmlA.class "identity" ]
                               , netWorth |> List.map netWorthEntry |> Html.ul [ HtmlA.class "net-worth" ]
                               ]
                             , betsSection
@@ -364,14 +373,6 @@ view wrap model =
                             ]
                     in
                     contents |> List.concat
-
-                title =
-                    case user |> RemoteData.toMaybe of
-                        Just u ->
-                            "“" ++ u.name ++ "”"
-
-                        Nothing ->
-                            "Profile"
             in
             { title = "User " ++ title
             , id = "user"

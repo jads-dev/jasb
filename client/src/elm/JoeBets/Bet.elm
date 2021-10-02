@@ -192,7 +192,7 @@ internalView timeContext voteAs viewType highlight hasVoted gameId gameName betI
                             "This option will pay out at this ratio if it wins."
 
                         Voting _ ->
-                            "If this option wins, a bet on it will currently pay out at this return ratio. This will change as votes come in."
+                            "If this option wins, a bet on it will currently pay out at this return ratio. This will change as more is staked in the bet."
 
                 style =
                     if votedFor then

@@ -1,14 +1,7 @@
-@use "./colors";
-
 #edit {
   display: flex;
   flex-direction: column;
   align-items: center;
-
-  --mdc-text-field-outlined-idle-border-color: #{colors.$on-background-primary};
-  --mdc-text-field-outlined-hover-border-color: #{colors.$background-secondary};
-  --mdc-text-field-label-ink-color: #{colors.$on-background-primary};
-  --mdc-text-field-ink-color: #{colors.$on-background-primary};
 
   .date-time {
     display: flex;
@@ -78,7 +71,6 @@
       flex-direction: column;
       align-items: stretch;
       flex-grow: 1;
-      background-color: colors.$background-primary;
 
       > * {
         margin: 0.3em 0;
@@ -98,7 +90,7 @@
   }
 
   .errors {
-    color: colors.$bad;
+    color: var(--bad);
   }
 }
 
@@ -127,8 +119,9 @@
     display: flex;
     flex-direction: column;
     align-items: center;
-    color: colors.$on-background-primary;
-    background-color: colors.$background-primary;
+
+    background-color: var(--background);
+
     gap: 1em;
 
     ol {

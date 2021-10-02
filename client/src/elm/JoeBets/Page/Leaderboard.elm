@@ -78,5 +78,5 @@ view _ { leaderboard } =
     in
     { title = "Leaderboard"
     , id = "leaderboard"
-    , body = leaderboard |> RemoteData.view body
+    , body = Html.h2 [] [ Html.text "Leaderboard" ] :: (leaderboard |> RemoteData.view body)
     }

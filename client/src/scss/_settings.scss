@@ -1,5 +1,4 @@
 @use "sass:color";
-@use "./colors";
 
 #client-settings {
   > .background,
@@ -24,14 +23,19 @@
   }
 
   .foreground > div {
-    color: colors.$on-background-primary;
-    background-color: colors.$background-primary;
+    background-color: var(--background);
 
     margin: 1em;
     padding: 1em;
     border-radius: 1em;
 
     pointer-events: auto;
+  }
+
+  .title {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
   }
 
   .default-filters {
@@ -42,9 +46,8 @@
       flex-wrap: wrap;
       gap: 0.5em;
       justify-content: center;
+
       > li {
-        color: colors.$on-background-secondary;
-        background-color: colors.$background-secondary;
         border-radius: 0.5em;
         padding: 0.5em;
       }
