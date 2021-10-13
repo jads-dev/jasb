@@ -1,6 +1,6 @@
 {
-  "name": "client",
-  "description": "Web client.",
+  "name": "@jads-dev/jasb-client",
+  "description": "JASB web client.",
   "version": "1.0.0",
   "private": true,
   "scripts": {

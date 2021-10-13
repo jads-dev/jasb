@@ -10,6 +10,8 @@ export interface Stake {
 
   amount: number;
   message: string | null;
+
+  payout: string | null;
 }
 
 export interface WithUser {

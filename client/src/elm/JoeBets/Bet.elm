@@ -283,12 +283,12 @@ internalView timeContext voteAs viewType highlight hasVoted gameId gameName betI
                     let
                         nameOfOption ( id, option ) =
                             if EverySet.member id winners then
-                                Just option.name
+                                Just ("“" ++ option.name ++ "”")
 
                             else
                                 Nothing
 
-                        winningOption =
+                        winningOptions =
                             bet.options
                                 |> AssocList.toList
                                 |> List.filterMap nameOfOption
@@ -296,7 +296,7 @@ internalView timeContext voteAs viewType highlight hasVoted gameId gameName betI
                                 |> List.addBeforeLast "and "
                                 |> String.concat
                     in
-                    [ Html.p [] [ Html.text "This bet is over: ", Html.text winningOption, Html.text " won." ]
+                    [ Html.p [] [ Html.text "This bet is over: ", Html.text winningOptions, Html.text " won." ]
                     , Html.p []
                         [ Html.text "A total of "
                         , Coins.view totalAmount

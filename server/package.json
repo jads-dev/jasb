@@ -1,6 +1,6 @@
 {
-  "name": "server",
-  "description": "Server.",
+  "name": "@jads-dev/jasb-server",
+  "description": "JASB Server.",
   "version": "1.0.0",
   "main": "src/ts/index.ts",
   "engines": {

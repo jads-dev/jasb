@@ -21,6 +21,20 @@ FROM node:16-alpine
 ARG NODE_ENV=production
 ENV NODE_ENV $NODE_ENV
 
+ARG BUILD_DATE
+ARG VCS_REF
+ARG VERSION=$VCS_REF-dev
+
+LABEL org.opencontainers.image.created=$BUILD_DATE
+LABEL org.opencontainers.image.url="https://github.com/jads-dev/jasb"
+LABEL org.opencontainers.image.source="https://github.com/jads-dev/jasb"
+LABEL org.opencontainers.image.version=$VERSION
+LABEL org.opencontainers.image.revision=$VCS_REF
+LABEL org.opencontainers.image.vendor="JADS Dev"
+LABEL org.opencontainers.image.licenses="AGPL-3.0+"
+LABEL org.opencontainers.image.title="JASB Server"
+LABEL org.opencontainers.image.description="Server for JASB."
+
 WORKDIR /jasb
 
 # We've already done all our NPM stuff, but node looks here for `type: "module"` which we need.

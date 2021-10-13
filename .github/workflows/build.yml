@@ -21,6 +21,10 @@ jobs:
         with:
           submodules: true
 
+      - name: Get build date/time.
+        id: date
+        run: echo "::set-output name=date::$(date -u --rfc-3339=seconds)"
+
       - name: Set up QEMU.
         id: qemu
         uses: docker/setup-qemu-action@v1.2.0
@@ -39,9 +43,10 @@ jobs:
 
       - name: Build and push
         uses: docker/bake-action@v1.4.2
+        with:
+          files: "docker-bake.hcl"
         env:
           HOST: ghcr.io
           REPO: ${{ github.repository }}
           HASH: ${{ github.sha }}
-        with:
-          files: "docker-bake.hcl"
+          BUILD_DATE: ${{ steps.date.outputs.date }}
