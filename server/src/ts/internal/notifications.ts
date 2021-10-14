@@ -30,7 +30,19 @@ export interface BetFinished {
   amount: number;
 }
 
-export type Message = Gifted | Refunded | BetFinished;
+export interface BetReverted {
+  type: "BetReverted";
+  gameId: string;
+  gameName: string;
+  betId: string;
+  betName: string;
+  optionId: string;
+  optionName: string;
+  reverted: "Complete" | "Cancelled";
+  amount: number;
+}
+
+export type Message = Gifted | Refunded | BetFinished | BetReverted;
 
 export interface Notification {
   id: number;

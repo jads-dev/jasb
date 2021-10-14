@@ -795,6 +795,35 @@ export class Store {
     });
   }
 
+  async revertCompleteBet(
+    userId: string,
+    sessionId: SecretToken,
+    gameId: string,
+    betId: string,
+    old_version: number,
+  ): Promise<(Bet & Bets.Options & Bets.Author) | undefined> {
+    return await this.inTransaction(async (client) => {
+      const results = await client.query(
+        this.betWithOptionsAndAuthorFromBets(sql`
+          SELECT
+            *
+          FROM
+            jasb.revert_complete_bet(
+              ${userId},
+              ${sessionId.uri},
+              ${this.config.auth.sessionLifetime.toString()},
+              ${old_version},
+              ${gameId},
+              ${betId}
+            )
+        `),
+      );
+      return results.rowCount > 0
+        ? (results.rows[0] as unknown as Bet & Bets.Options & Bets.Author)
+        : undefined;
+    });
+  }
+
   async cancelBet(
     userId: string,
     sessionId: SecretToken,
@@ -817,6 +846,35 @@ export class Store {
               ${gameId},
               ${betId},
               ${reason}
+            )
+        `),
+      );
+      return results.rowCount > 0
+        ? (results.rows[0] as unknown as Bet & Bets.Options & Bets.Author)
+        : undefined;
+    });
+  }
+
+  async revertCancelBet(
+    userId: string,
+    sessionId: SecretToken,
+    gameId: string,
+    betId: string,
+    old_version: number,
+  ): Promise<(Bet & Bets.Options & Bets.Author) | undefined> {
+    return await this.inTransaction(async (client) => {
+      const results = await client.query(
+        this.betWithOptionsAndAuthorFromBets(sql`
+          SELECT
+            *
+          FROM
+            jasb.revert_cancel_bet(
+              ${userId},
+              ${sessionId.uri},
+              ${this.config.auth.sessionLifetime.toString()},
+              ${old_version},
+              ${gameId},
+              ${betId}
             )
         `),
       );

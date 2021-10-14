@@ -172,6 +172,23 @@ view wrap { notifications } =
                             , Html.text "."
                             ]
                                 ++ extra
+
+                        BetRevert betReverted ->
+                            let
+                                description =
+                                    case betReverted.reverted of
+                                        Cancelled ->
+                                            Html.text "cancelled"
+
+                                        Complete ->
+                                            Html.text "completed"
+                            in
+                            [ Html.text "Previously "
+                            , viewReference betReverted
+                            , Html.text " was "
+                            , description
+                            , Html.text ", this has been reverted."
+                            ]
             in
             Html.li []
                 [ Html.p [] content

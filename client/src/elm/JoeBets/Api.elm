@@ -39,9 +39,11 @@ type BetPath
     = BetRoot
     | Edit
     | Complete
+    | RevertComplete
     | Lock
     | Unlock
     | Cancel
+    | RevertCancel
     | BetFeed
     | Option Option.Id OptionPath
 
@@ -199,6 +201,9 @@ betPathToStringList path =
         Complete ->
             [ "complete" ]
 
+        RevertComplete ->
+            [ "complete", "revert" ]
+
         Lock ->
             [ "lock" ]
 
@@ -207,6 +212,9 @@ betPathToStringList path =
 
         Cancel ->
             [ "cancel" ]
+
+        RevertCancel ->
+            [ "cancel", "revert" ]
 
         BetFeed ->
             [ "feed" ]

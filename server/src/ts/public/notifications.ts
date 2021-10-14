@@ -34,11 +34,24 @@ export interface BetFinished {
   amount: number;
 }
 
-export type Notification = Gifted | Refunded | BetFinished;
+export interface BetReverted {
+  id: number;
+  type: "BetReverted";
+  gameId: string;
+  gameName: string;
+  betId: string;
+  betName: string;
+  optionId: string;
+  optionName: string;
+  reverted: "Complete" | "Cancelled";
+  amount: number;
+}
+
+export type Notification = Gifted | Refunded | BetFinished | BetReverted;
 
 export const unknownNotification = Expect.exhaustive(
   "notification type",
-  (i: Internal.Notifications.Message) => i.type
+  (i: Internal.Notifications.Message) => i.type,
 );
 
 export const fromInternal = (internal: Internal.Notification): Notification => {
@@ -75,6 +88,19 @@ export const fromInternal = (internal: Internal.Notification): Notification => {
         optionId: notification.optionId,
         optionName: notification.optionName,
         result: notification.result,
+        amount: notification.amount,
+      };
+    case "BetReverted":
+      return {
+        id: internal.id,
+        type: "BetReverted",
+        gameId: notification.gameId,
+        gameName: notification.gameName,
+        betId: notification.betId,
+        betName: notification.betName,
+        optionId: notification.optionId,
+        optionName: notification.optionName,
+        reverted: notification.reverted,
         amount: notification.amount,
       };
     default:

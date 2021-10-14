@@ -77,6 +77,9 @@ const CompleteBetBody = Schema.strict({
 const ModifyLockStateBody = Schema.strict({
   version: Schema.Int,
 });
+const RevertBody = Schema.strict({
+  version: Schema.Int,
+});
 
 export const betsApi = (server: Server.State): Express.Router => {
   const router = Express.Router({ mergeParams: true });
@@ -196,6 +199,28 @@ export const betsApi = (server: Server.State): Express.Router => {
     }),
   );
 
+  // Revert Complete Bet
+  router.post(
+    "/complete/revert",
+    asyncHandler(async (request, response) => {
+      const sessionCookie = requireSession(request.cookies);
+      const gameId = request.params.gameId;
+      const body = Validation.body(RevertBody, request.body);
+      const bet = await server.store.revertCompleteBet(
+        sessionCookie.user,
+        sessionCookie.session,
+        gameId,
+        request.params.betId,
+        body.version,
+      );
+      if (bet === undefined) {
+        throw new WebError(StatusCodes.NOT_FOUND, "Bet not found.");
+      }
+      const result: Editor.Bets.EditableBet = Editor.Bets.fromInternal(bet);
+      response.json(result);
+    }),
+  );
+
   // Lock Bet
   router.post(
     "/lock",
@@ -256,6 +281,28 @@ export const betsApi = (server: Server.State): Express.Router => {
         request.params.betId,
         body.version,
         body.reason,
+      );
+      if (bet === undefined) {
+        throw new WebError(StatusCodes.NOT_FOUND, "Bet not found.");
+      }
+      const result: Editor.Bets.EditableBet = Editor.Bets.fromInternal(bet);
+      response.json(result);
+    }),
+  );
+
+  // Revert Cancel Bet
+  router.post(
+    "/cancel/revert",
+    asyncHandler(async (request, response) => {
+      const sessionCookie = requireSession(request.cookies);
+      const gameId = request.params.gameId;
+      const body = Validation.body(RevertBody, request.body);
+      const bet = await server.store.revertCancelBet(
+        sessionCookie.user,
+        sessionCookie.session,
+        gameId,
+        request.params.betId,
+        body.version,
       );
       if (bet === undefined) {
         throw new WebError(StatusCodes.NOT_FOUND, "Bet not found.");

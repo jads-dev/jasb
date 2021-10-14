@@ -1,5 +1,6 @@
 module JoeBets.User.Notifications.Model exposing
     ( BetResult(..)
+    , BetReverted
     , Gifted
     , GiftedReason(..)
     , Model
@@ -7,6 +8,7 @@ module JoeBets.User.Notifications.Model exposing
     , Reference
     , RefundReason(..)
     , Refunded
+    , RevertFrom(..)
     , betFinishedDecoder
     , betResultDecoder
     , decoder
@@ -172,23 +174,76 @@ betFinishedDecoder =
         |> JsonD.required "amount" JsonD.int
 
 
+type RevertFrom
+    = Cancelled
+    | Complete
+
+
+revertFromDecoder : JsonD.Decoder RevertFrom
+revertFromDecoder =
+    let
+        fromName name =
+            case name of
+                "Cancelled" ->
+                    JsonD.succeed Cancelled
+
+                "Complete" ->
+                    JsonD.succeed Complete
+
+                _ ->
+                    JsonD.unknownValue "revert type" name
+    in
+    JsonD.string |> JsonD.andThen fromName
+
+
+type alias BetReverted =
+    { id : Int
+    , gameId : Game.Id
+    , gameName : String
+    , betId : Bet.Id
+    , betName : String
+    , optionId : Option.Id
+    , optionName : String
+    , reverted : RevertFrom
+    , amount : Int
+    }
+
+
+betRevertedDecoder : JsonD.Decoder BetReverted
+betRevertedDecoder =
+    JsonD.succeed BetReverted
+        |> JsonD.required "id" JsonD.int
+        |> JsonD.required "gameId" Game.idDecoder
+        |> JsonD.required "gameName" JsonD.string
+        |> JsonD.required "betId" Bet.idDecoder
+        |> JsonD.required "betName" JsonD.string
+        |> JsonD.required "optionId" Option.idDecoder
+        |> JsonD.required "optionName" JsonD.string
+        |> JsonD.required "reverted" revertFromDecoder
+        |> JsonD.required "amount" JsonD.int
+
+
 type Notification
     = Gift Gifted
     | Refund Refunded
     | BetFinish BetFinished
+    | BetRevert BetReverted
 
 
 getId : Notification -> Int
 getId notification =
     case notification of
-        Gift gifted ->
-            gifted.id
+        Gift { id } ->
+            id
 
-        Refund refunded ->
-            refunded.id
+        Refund { id } ->
+            id
 
-        BetFinish betFinished ->
-            betFinished.id
+        BetFinish { id } ->
+            id
+
+        BetRevert { id } ->
+            id
 
 
 decoder : JsonD.Decoder Notification
@@ -204,6 +259,9 @@ decoder =
 
                 "BetFinished" ->
                     betFinishedDecoder |> JsonD.map BetFinish
+
+                "BetReverted" ->
+                    betRevertedDecoder |> JsonD.map BetRevert
 
                 _ ->
                     JsonD.unknownValue "notification" name

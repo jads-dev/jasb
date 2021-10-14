@@ -58,6 +58,15 @@ export interface Loss {
   stake: Stake;
 }
 
+export interface Revert {
+  event: "Revert";
+  game: string;
+  bet: string;
+  option: string;
+  reverted: "Complete" | "Cancelled";
+  amount: number;
+}
+
 export type Event =
   | HistoricAccount
   | CreateAccount
@@ -66,7 +75,8 @@ export type Event =
   | StakeWithdrawn
   | Refund
   | Payout
-  | Loss;
+  | Loss
+  | Revert;
 
 export interface Entry {
   id: string;

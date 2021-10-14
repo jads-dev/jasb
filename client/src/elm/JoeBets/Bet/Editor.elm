@@ -217,8 +217,46 @@ update wrap localUser msg ({ origin } as parent) model =
         Complete ->
             ( { model | contextualOverlay = { winners = EverySet.empty } |> CompleteOverlay |> Just }, Cmd.none )
 
+        RevertComplete ->
+            case model.source |> Maybe.andThen (.bet >> RemoteData.toMaybe) of
+                Just bet ->
+                    let
+                        betId =
+                            resolveId model
+
+                        request =
+                            Api.post origin
+                                { path = Api.RevertComplete |> Api.Bet betId |> Api.Game model.gameId
+                                , body = [ ( "version", JsonE.int bet.version ) ] |> JsonE.object |> Http.jsonBody
+                                , expect = Http.expectJson (Load model.gameId betId >> wrap) EditableBet.decoder
+                                }
+                    in
+                    ( model, request )
+
+                Nothing ->
+                    ( model, Cmd.none )
+
         Cancel ->
             ( { model | contextualOverlay = { reason = "" } |> CancelOverlay |> Just }, Cmd.none )
+
+        RevertCancel ->
+            case model.source |> Maybe.andThen (.bet >> RemoteData.toMaybe) of
+                Just bet ->
+                    let
+                        betId =
+                            resolveId model
+
+                        request =
+                            Api.post origin
+                                { path = Api.RevertCancel |> Api.Bet betId |> Api.Game model.gameId
+                                , body = [ ( "version", JsonE.int bet.version ) ] |> JsonE.object |> Http.jsonBody
+                                , expect = Http.expectJson (Load model.gameId betId >> wrap) EditableBet.decoder
+                                }
+                    in
+                    ( model, request )
+
+                Nothing ->
+                    ( model, Cmd.none )
 
         NewOption ->
             let
@@ -511,10 +549,26 @@ view save wrap time localUser model =
                     )
 
                 EditableBet.Complete _ ->
-                    ( "Bet complete.", [] )
+                    ( "Bet complete."
+                    , [ Button.view
+                            Button.Raised
+                            Button.Padded
+                            "Revert Complete"
+                            (Icon.undo |> Icon.viewIcon |> Just)
+                            (RevertComplete |> wrap |> Just)
+                      ]
+                    )
 
                 EditableBet.Cancelled _ ->
-                    ( "Bet cancelled.", [] )
+                    ( "Bet cancelled."
+                    , [ Button.view
+                            Button.Raised
+                            Button.Padded
+                            "Revert Cancel"
+                            (Icon.undo |> Icon.viewIcon |> Just)
+                            (RevertCancel |> wrap |> Just)
+                      ]
+                    )
 
         progressOverlay =
             case model.contextualOverlay of

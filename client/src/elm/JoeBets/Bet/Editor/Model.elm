@@ -176,7 +176,9 @@ type Msg
     | SetLocksWhen String
     | SetLocked Bool
     | Complete
+    | RevertComplete
     | Cancel
+    | RevertCancel
     | Reset
     | NewOption
     | ChangeOption String OptionChange
