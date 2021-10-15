@@ -40,6 +40,7 @@ type alias Overlay =
     { target : Target
     , amount : String
     , message : String
+    , sent : Bool
     , error : Maybe Http.Error
     }
 

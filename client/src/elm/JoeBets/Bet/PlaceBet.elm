@@ -41,6 +41,10 @@ init =
 
 update : (Msg -> msg) -> (List Change -> msg) -> String -> Time.Context -> Msg -> Parent a -> ( Parent a, Cmd msg )
 update wrap handleSuccess origin time msg model =
+    let
+        setSent sent overlay =
+            { overlay | sent = sent }
+    in
     case msg of
         Start target ->
             let
@@ -49,7 +53,7 @@ update wrap handleSuccess origin time msg model =
             in
             ( { model
                 | placeBet =
-                    Overlay target (bet |> String.fromInt) "" Nothing |> Just
+                    Overlay target (bet |> String.fromInt) "" False Nothing |> Just
               }
             , Cmd.none
             )
@@ -120,7 +124,9 @@ update wrap handleSuccess origin time msg model =
                             Http.expectJson handle JsonD.int
                         }
             in
-            ( model, model.placeBet |> Maybe.map tryPlaceBet |> Maybe.withDefault Cmd.none )
+            ( { model | placeBet = model.placeBet |> Maybe.map (setSent True) }
+            , model.placeBet |> Maybe.map tryPlaceBet |> Maybe.withDefault Cmd.none
+            )
 
         Withdraw userId ->
             let
@@ -143,12 +149,14 @@ update wrap handleSuccess origin time msg model =
                         , expect = Http.expectJson handle JsonD.int
                         }
             in
-            ( model, model.placeBet |> Maybe.map tryWithdrawBet |> Maybe.withDefault Cmd.none )
+            ( { model | placeBet = model.placeBet |> Maybe.map (setSent True) }
+            , model.placeBet |> Maybe.map tryWithdrawBet |> Maybe.withDefault Cmd.none
+            )
 
         SetError error ->
             let
                 setError overlay =
-                    { overlay | error = Just error }
+                    { overlay | error = Just error, sent = False }
             in
             ( { model | placeBet = model.placeBet |> Maybe.map setError }, Cmd.none )
 
@@ -156,7 +164,7 @@ update wrap handleSuccess origin time msg model =
 view : (Msg -> msg) -> User.WithId -> Model -> List (Html msg)
 view wrap ({ id, user } as localUser) placeBet =
     case placeBet of
-        Just { amount, target, message, error } ->
+        Just { amount, target, message, error, sent } ->
             let
                 { gameName, bet, optionId, optionName, existingBet } =
                     target
@@ -306,13 +314,13 @@ view wrap ({ id, user } as localUser) placeBet =
                                         Button.Padded
                                         "Cancel Bet"
                                         (Icon.trash |> Icon.present |> Icon.view |> Just)
-                                        (Withdraw id |> wrap |> Just)
+                                        (Withdraw id |> wrap |> Maybe.when (not sent && existingBet /= Nothing))
                                     ]
                                 , Button.view Button.Raised
                                     Button.Padded
                                     (actionName ++ " Bet")
                                     (Icon.check |> Icon.present |> Icon.view |> Just)
-                                    (submit |> Result.toMaybe)
+                                    (submit |> Result.toMaybe |> Maybe.alsoOnlyIf (not sent))
                                 ]
                             ]
                       ]

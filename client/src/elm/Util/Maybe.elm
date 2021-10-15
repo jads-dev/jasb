@@ -1,5 +1,6 @@
 module Util.Maybe exposing
-    ( ifDifferent
+    ( alsoOnlyIf
+    , ifDifferent
     , ifFalse
     , ifTrue
     , or
@@ -31,6 +32,15 @@ when condition value =
 whenNot : Bool -> a -> Maybe a
 whenNot =
     not >> when
+
+
+alsoOnlyIf : Bool -> Maybe a -> Maybe a
+alsoOnlyIf condition value =
+    if condition then
+        value
+
+    else
+        Nothing
 
 
 ifTrue : (a -> Bool) -> a -> Maybe a

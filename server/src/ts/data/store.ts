@@ -246,17 +246,6 @@ export class Store {
       this.config.auth.sessionIdSize,
     );
     return await this.inTransaction(async (client) => {
-      console.log(`
-        ${userId},
-        ${sessionId.uri},
-        ${name},
-        ${discriminator},
-        ${avatar},
-        ${accessToken},
-        ${refreshToken},
-        ${discordExpiresIn.toString()},
-        ${this.config.rules.initialBalance}
-      `);
       await client.query(sql`
         SELECT * FROM jasb.login(
           ${userId},
