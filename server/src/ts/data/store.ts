@@ -493,7 +493,8 @@ export class Store {
           jasb.bets LEFT JOIN
           jasb.options_by_bet AS options ON bets.game = options.game AND bets.id = options.bet
         WHERE
-          bets.game = ${gameId};
+          bets.game = ${gameId}
+        ORDER BY bets.created DESC;
       `);
       return results.rows as unknown as (Bet & Bets.Options)[];
     });
