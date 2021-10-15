@@ -45,6 +45,7 @@ type alias Reference a =
 
 type GiftedReason
     = AccountCreated
+    | Bankruptcy
 
 
 giftedReasonDecoder : JsonD.Decoder GiftedReason
@@ -54,6 +55,9 @@ giftedReasonDecoder =
             case name of
                 "AccountCreated" ->
                     JsonD.succeed AccountCreated
+
+                "Bankruptcy" ->
+                    JsonD.succeed Bankruptcy
 
                 _ ->
                     JsonD.unknownValue "gift reason" name

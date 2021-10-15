@@ -131,6 +131,12 @@ view wrap { notifications } =
                                     , Html.text " as a new user."
                                     ]
 
+                                Bankruptcy ->
+                                    [ Html.text "You have been gifted with "
+                                    , Coins.view amount
+                                    , Html.text " after your bankruptcy, spend wisely."
+                                    ]
+
                         Refund refund ->
                             let
                                 reason =
