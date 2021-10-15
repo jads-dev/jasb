@@ -246,49 +246,56 @@ export class Store {
       this.config.auth.sessionIdSize,
     );
     return await this.inTransaction(async (client) => {
+      console.log(`
+        ${userId},
+        ${sessionId.uri},
+        ${name},
+        ${discriminator},
+        ${avatar},
+        ${accessToken},
+        ${refreshToken},
+        ${discordExpiresIn.toString()},
+        ${this.config.rules.initialBalance}
+      `);
+      await client.query(sql`
+        SELECT * FROM jasb.login(
+          ${userId},
+          ${sessionId.uri},
+          ${name},
+          ${discriminator},
+          ${avatar},
+          ${accessToken},
+          ${refreshToken},
+          ${discordExpiresIn.toString()},
+          ${this.config.rules.initialBalance}
+        );
+      `);
       const [loginResults, notificationResults] = await Promise.all([
         client.query(sql`
-          WITH
-            session AS (
-              SELECT
-                *
-              FROM
-                jasb.login(
-                  ${userId},
-                  ${sessionId.uri},
-                  ${name},
-                  ${discriminator},
-                  ${avatar},
-                  ${accessToken},
-                  ${refreshToken},
-                  ${discordExpiresIn.toString()},
-                  ${this.config.rules.initialBalance}
-                )
-            )
-            SELECT
-              users.*,
-              session.session,
-              session.started,
-              (users.staked + users.balance) AS net_worth,
-              COALESCE(ARRAY_AGG(permissions.game) FILTER ( WHERE permissions.game IS NOT NULL ), '{}') AS moderator_for
-            FROM
-              jasb.users_with_stakes AS users LEFT JOIN
-              jasb.permissions ON users.id = permissions."user" AND manage_bets = TRUE LEFT JOIN
-              session ON users.id = session."user"
-            WHERE
-              users.id = ${userId}
-            GROUP BY (
-              users.id,
-              users.name,
-              users.discriminator,
-              users.avatar,
-              users.created,
-              users.admin,
-              users.balance,
-              users.staked,
-              session.session,
-              session.started
-            );
+          SELECT
+            users.*,
+            sessions.session,
+            sessions.started,
+            (users.staked + users.balance) AS net_worth,
+            COALESCE(ARRAY_AGG(permissions.game) FILTER ( WHERE permissions.game IS NOT NULL ), '{}') AS moderator_for
+          FROM
+            sessions LEFT JOIN
+            jasb.users_with_stakes AS users ON users.id = sessions."user" LEFT JOIN
+            jasb.permissions ON sessions."user" = permissions."user" AND manage_bets = TRUE
+          WHERE
+            sessions."user" = ${userId}
+          GROUP BY (
+            users.id,
+            users.name,
+            users.discriminator,
+            users.avatar,
+            users.created,
+            users.admin,
+            users.balance,
+            users.staked,
+            sessions.session,
+            sessions.started
+          );
         `),
         client.query(sql`
           SELECT
