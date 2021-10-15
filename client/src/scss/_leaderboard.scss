@@ -16,6 +16,7 @@
 
     > .rank {
       content: counter(leaderboard-counter);
+      color: var(--on-secondary);
       background-color: var(--secondary);
       margin-right: 0.5rem;
 

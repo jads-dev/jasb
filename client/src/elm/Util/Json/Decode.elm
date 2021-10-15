@@ -40,7 +40,7 @@ assocListFromObject keyFromString valueDecoder =
             ( keyFromString key, value )
 
         convert dict =
-            dict |> Dict.toList |> List.map wrapKey |> AssocList.fromList
+            dict |> Dict.toList |> List.map wrapKey |> List.reverse |> AssocList.fromList
     in
     dict valueDecoder |> map convert
 

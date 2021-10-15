@@ -3,6 +3,7 @@ module JoeBets.Bet.Stakes exposing (view)
 import AssocList
 import Html exposing (Html)
 import Html.Attributes as HtmlA
+import Html.Keyed as HtmlK
 import JoeBets.Bet.Stake as Stake
 import JoeBets.Bet.Stake.Model exposing (Stake)
 import JoeBets.User.Model as User
@@ -20,11 +21,13 @@ view timeContext localUserId highlight max stakes =
                 local =
                     Just by == localUserId
             in
-            Html.span
+            ( by |> User.idToString
+            , Html.span
                 [ HtmlA.classList [ ( "local", local ), ( "highlight", Just by == highlight ) ]
                 , HtmlA.style "flex-grow" stringAmount
                 ]
                 [ Stake.view timeContext by stake ]
+            )
 
         total =
             stakes |> AssocList.values |> List.map .amount |> List.sum
@@ -37,6 +40,6 @@ view timeContext localUserId highlight max stakes =
                 []
 
         barSegments =
-            (stakes |> AssocList.toList |> List.map stakeSegment) ++ [ fillerSegment ]
+            (stakes |> AssocList.toList |> List.map stakeSegment) ++ [ ( "filler", fillerSegment ) ]
     in
-    Html.div [ HtmlA.class "stakes" ] barSegments
+    HtmlK.node "div" [ HtmlA.class "stakes" ] barSegments

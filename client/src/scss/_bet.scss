@@ -39,6 +39,7 @@
 
       > div {
         margin: 0.25em 0.5em;
+        color: var(--on-secondary);
         background-color: var(--secondary);
         border-radius: 0.5em;
         padding: 0.5em;
@@ -142,6 +143,7 @@
 
     > span {
       position: relative;
+      color: var(--on-secondary);
       background-color: var(--secondary);
       transition: flex-grow 1s ease-in-out;
       border-left: 0.05em dotted #000000;
@@ -183,6 +185,7 @@
         flex-direction: column;
         align-items: center;
 
+        color: var(--on-secondary);
         background-color: var(--secondary);
         filter: drop-shadow(0 0 0.5em #000000);
 
