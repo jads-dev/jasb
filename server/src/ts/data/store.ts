@@ -632,6 +632,19 @@ export class Store {
             )
         `),
       );
+      await this.notifier.notify(async () => {
+        const nameResult = await client.query(
+          sql`SELECT name FROM jasb.games WHERE id = ${gameId};`,
+        );
+        return Notifier.newBet(
+          this.config.clientOrigin,
+          spoiler,
+          gameId,
+          nameResult.rows[0].name as string,
+          id,
+          name,
+        );
+      });
       return results.rows[0] as unknown as Bet & Bets.Options & Bets.Author;
     });
   }
@@ -786,6 +799,41 @@ export class Store {
             )
         `),
       );
+      await this.notifier.notify(async () => {
+        const detailsResult = await client.query(
+          sql`
+            SELECT 
+              games.name AS game_name, 
+              bets.name AS bet_name,
+              bets.spoiler,
+              bet_stats.winning_stakes,
+              bet_stats.total_staked,
+              TO_JSONB(COALESCE(bet_stats.top_winners, '{}')) AS top_winners,
+              bet_stats.biggest_payout
+            FROM 
+              jasb.games INNER JOIN 
+              jasb.bets ON games.id = bets.game INNER JOIN 
+              jasb.bet_stats ON games.id = bet_stats.game AND bets.id = bet_stats.id
+            WHERE 
+              games.id = ${gameId} AND 
+              bets.id = ${betId}
+          `,
+        );
+        const row = detailsResult.rows[0];
+        return Notifier.betComplete(
+          this.config.clientOrigin,
+          row.spoiler as boolean,
+          gameId,
+          row.game_name as string,
+          betId,
+          row.bet_name as string,
+          winners,
+          row.winning_stakes as number,
+          row.total_staked as number,
+          (row.top_winners as unknown as User[]).map((u) => u.id),
+          row.biggest_payout as number,
+        );
+      });
       return results.rowCount > 0
         ? (results.rows[0] as unknown as Bet & Bets.Options & Bets.Author)
         : undefined;
@@ -906,7 +954,42 @@ export class Store {
             ${message}
           ) AS new_balance;
       `);
-      return result.rows[0].new_balance as number;
+      const row = result.rows[0];
+      if (message !== null) {
+        await this.notifier.notify(async () => {
+          const detailsResult = await client.query(
+            sql`
+              SELECT 
+                games.name AS game_name, 
+                bets.name AS bet_name,
+                bets.spoiler,
+                options.name AS option_name 
+              FROM 
+                jasb.games INNER JOIN 
+                jasb.bets ON games.id = bets.game INNER JOIN 
+                jasb.options ON games.id = options.game AND bets.id = options.bet
+              WHERE 
+                games.id = ${gameId} AND 
+                bets.id = ${betId} AND
+                options.id = ${optionId};
+            `,
+          );
+          const row = detailsResult.rows[0];
+          return Notifier.newStake(
+            this.config.clientOrigin,
+            row.spoiler as boolean,
+            gameId,
+            row.game_name as string,
+            betId,
+            row.bet_name as string,
+            row.option_name as string,
+            userId as string,
+            amount as number,
+            message as string,
+          );
+        });
+      }
+      return row.new_balance as number;
     });
   }
 

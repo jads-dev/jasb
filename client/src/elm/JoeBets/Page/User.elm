@@ -359,7 +359,7 @@ view wrap model =
                         betsSection =
                             [ Html.details [ HtmlA.class "bets", TryLoadBets id |> wrap |> always |> HtmlE.onToggle ]
                                 [ Html.summary [] [ Html.h3 [] [ Html.text "Bets" ] ]
-                                , Html.div [] (RemoteData.view (viewBets model.time model.auth.localUser) bets)
+                                , Html.div [] (RemoteData.view (viewBets model.time id) bets)
                                 ]
                             ]
 
@@ -386,14 +386,11 @@ view wrap model =
             }
 
 
-viewBets : Time.Context -> Maybe User.WithId -> AssocList.Dict Game.Id Game.WithBets -> List (Html msg)
-viewBets time localUser =
+viewBets : Time.Context -> User.Id -> AssocList.Dict Game.Id Game.WithBets -> List (Html msg)
+viewBets time userId =
     let
-        localUserId =
-            localUser |> Maybe.map .id
-
         viewBet gameId game ( id, bet ) =
-            Html.li [] [ Bet.viewSummarised time Nothing localUserId gameId game.name id bet ]
+            Html.li [] [ Bet.viewSummarised time Nothing (Just userId) gameId game.name id bet ]
 
         viewGame ( id, { game, bets } ) =
             Html.li []

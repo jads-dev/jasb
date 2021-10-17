@@ -14,7 +14,7 @@ export function* zip<Items extends unknown[]>(
 
 export function partition<Item>(
   predicate: (item: Item) => boolean,
-  items: Item[]
+  items: Item[],
 ): [Item[], Item[]] {
   const trues = [];
   const falses = [];
@@ -26,6 +26,30 @@ export function partition<Item>(
     }
   }
   return [trues, falses];
+}
+
+export const map = function* <From, To = From>(
+  values: Iterable<From>,
+  map: (value: From) => To,
+): Iterable<To> {
+  for (const value of values) {
+    yield map(value);
+  }
+};
+
+export function* interleave<Item>(
+  ...sources: Iterable<Item>[]
+): Iterable<Item> {
+  const iterators = sources.map((source) => source[Symbol.iterator]());
+  while (true) {
+    for (const result of iterators.map((source) => source.next())) {
+      if (!result.done) {
+        yield result.value;
+      } else {
+        return;
+      }
+    }
+  }
 }
 
 export * as Iterables from "./iterables";
