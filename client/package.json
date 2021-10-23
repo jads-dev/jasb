@@ -21,7 +21,7 @@
     "elm-webpack-loader": "^8.0.0",
     "favicons": "^6.2.1",
     "favicons-webpack-plugin": "^5.0.1",
-    "html-loader": "^2.0.0",
+    "html-loader": "^3.0.0",
     "html-webpack-plugin": "^5.1.0",
     "mini-css-extract-plugin": "^2.1.0",
     "postcss-loader": "^6.1.0",
