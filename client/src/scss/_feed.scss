@@ -17,6 +17,8 @@
 
     > li {
       display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
       gap: 0.25em;
       align-items: center;
       font-size: 1.5em;
@@ -73,6 +75,7 @@
         align-items: center;
         gap: 0.25em;
         flex-grow: 1;
+        flex-basis: 5em;
       }
 
       > svg {

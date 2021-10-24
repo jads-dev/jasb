@@ -44,6 +44,8 @@ body {
   font-family: sans-serif;
 
   display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
 
   min-height: 100vh;
 }
@@ -51,7 +53,6 @@ body {
 header {
   display: flex;
   flex-direction: column;
-  margin: 1em;
 
   h1 {
     display: flex;
@@ -146,8 +147,9 @@ nav {
   align-items: center;
   flex-grow: 1;
   overflow: auto;
+  flex-basis: 15em;
   max-height: calc(100vh - 2em);
-  margin: 1em 1em 1em 0;
+  padding: 1em;
 
   h2 {
     margin-top: 0;
