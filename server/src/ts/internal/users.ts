@@ -6,6 +6,7 @@ export interface User {
   nickname: string | null;
   discriminator: string;
   avatar: string | null;
+  avatar_cache: string | null;
 
   created: Joda.ZonedDateTime;
   admin: boolean;
@@ -37,6 +38,7 @@ export interface Summary {
   name: string;
   discriminator: string;
   avatar: string | null;
+  avatar_cache: string | null;
 }
 
 export interface BankruptcyStats {

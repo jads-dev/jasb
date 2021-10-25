@@ -6,7 +6,7 @@
   rules: {
     initialBalance: 1000,
     maxBetWhileInDebt: 100,
-    notableStake: 500
+    notableStake: 500,
   },
 
   store: {
@@ -15,8 +15,8 @@
     source: {
       host: "data",
       user: "jasb",
-      password: "CHANGE_ME"
-    }
+      password: "CHANGE_ME",
+    },
   },
 
   auth: {
@@ -29,22 +29,48 @@
       clientId: "CHANGE_ME",
       clientSecret: "CHANGE_ME",
 
-      guild: "308515582817468420"
+      guild: "308515582817468420",
     },
   },
 
   notifier: {
     service: "Discord",
     token: "CHANGE_ME",
-    channel: "832764921615089697" // JASB
+    channel: "832764921615089697", // JASB
     // channel: "666328861985865749" // JADS
   },
 
-  objectUploader: {
+  imageUpload: {
     service: "oci",
     configPath: "oci-config.cfg",
     namespace: "CHANGE_ME",
     bucket: "CHANGE_ME",
-    baseUrl: "CHANGE_ME"
-  }
+    region: "CHANGE_ME",
+
+    name: {
+      method: "hash",
+      algorithm: "sha256",
+    },
+    cacheMaxAge: "P90D",
+    allowOverwrite: false,
+  },
+
+  avatarCache: {
+    service: "oci",
+    configPath: "oci-config.cfg",
+    namespace: "CHANGE_ME",
+    bucket: "CHANGE_ME",
+    region: "CHANGE_ME",
+
+    name: {
+      method: "hash",
+      algorithm: "sha256",
+    },
+    cacheMaxAge: "P90D",
+    allowOverwrite: false,
+
+    backgroundTaskFrequency: "PT30M",
+    cacheBatchSize: 10,
+    garbageCollectBatchSize: 10,
+  },
 }

@@ -14,7 +14,7 @@ export interface Stake {
 }
 
 export const fromInternal = (
-  internal: Internal.Stakes.WithUser
+  internal: Internal.Stakes.WithUser,
 ): [Users.Id, Stake] => [
   internal.stake.owner as Users.Id,
   {
@@ -23,6 +23,9 @@ export const fromInternal = (
       discriminator: internal.user.discriminator,
       ...(internal.user.avatar !== null
         ? { avatar: internal.user.avatar }
+        : {}),
+      ...(internal.user.avatar_cache !== null
+        ? { avatarCache: internal.user.avatar_cache }
         : {}),
     },
     at: Joda.ZonedDateTime.parse(internal.stake.made_at).toJSON(),

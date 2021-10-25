@@ -6,6 +6,7 @@ import { default as Slonik, sql } from "slonik";
 import { default as Winston } from "winston";
 
 import {
+  AvatarCache,
   Bet,
   Bets,
   Feed,
@@ -19,6 +20,7 @@ import { Config } from "../server/config";
 import { WebError } from "../server/errors";
 import { Notifier } from "../server/notifier";
 import { SecretToken } from "../util/secret-token";
+import { ObjectUploader } from "./object-upload";
 
 const postgresDateTimeFormatter = new Joda.DateTimeFormatterBuilder()
   .parseCaseInsensitive()
@@ -31,13 +33,22 @@ const postgresDateTimeFormatter = new Joda.DateTimeFormatterBuilder()
   .toFormatter(Joda.ResolverStyle.STRICT);
 
 export class Store {
-  config: Config.Server;
-  notifier: Notifier;
-  pool: Slonik.DatabasePoolType;
+  readonly logger: Winston.Logger;
+  readonly config: Config.Server;
+  readonly notifier: Notifier;
+  readonly avatarCache: ObjectUploader | undefined;
+  readonly pool: Slonik.DatabasePoolType;
 
-  private constructor(config: Config.Server, notifier: Notifier) {
+  private constructor(
+    logger: Winston.Logger,
+    config: Config.Server,
+    notifier: Notifier,
+    avatarCache: ObjectUploader | undefined,
+  ) {
+    this.logger = logger;
     this.config = config;
     this.notifier = notifier;
+    this.avatarCache = avatarCache;
     const conf = this.config.store.source;
     const passPart =
       conf.password !== undefined ? `:${conf.password.value}` : "";
@@ -72,8 +83,9 @@ export class Store {
     logger: Winston.Logger,
     config: Config.Server,
     notifier: Notifier,
+    avatarCache: ObjectUploader | undefined,
   ): Promise<Store> {
-    const store = new Store(config, notifier);
+    const store = new Store(logger, config, notifier, avatarCache);
     await store.migrate();
     return store;
   }
@@ -147,7 +159,8 @@ export class Store {
           users.created,
           users.admin,
           users.balance,
-          users.staked
+          users.staked,
+          users.avatar_cache
         );
       `);
       return results.rowCount > 0
@@ -168,6 +181,7 @@ export class Store {
           name,
           discriminator,
           avatar,
+          avatar_cache,
           created,
           admin,
           balance,
@@ -278,6 +292,7 @@ export class Store {
             users.name,
             users.discriminator,
             users.avatar,
+            users.avatar_cache,
             users.created,
             users.admin,
             users.balance,
@@ -301,11 +316,12 @@ export class Store {
             notifications.happened DESC;
         `),
       ]);
+      const user = loginResults.rows[0] as unknown as User &
+        Users.Permissions &
+        Users.BetStats &
+        Users.LoginDetail;
       return {
-        user: loginResults.rows[0] as unknown as User &
-          Users.Permissions &
-          Users.BetStats &
-          Users.LoginDetail,
+        user,
         notifications: notificationResults.rows as unknown as Notification[],
       };
     });
@@ -1164,6 +1180,82 @@ export class Store {
       `);
       return results.rows.map((row) => row.access_token as string);
     });
+  }
+
+  async avatarCacheGarbageCollection(
+    garbageCollectBatchSize: number,
+  ): Promise<string[]> {
+    return await this.withClient(async (client) => {
+      const results = await client.query(sql`
+        SELECT 
+          cached_avatars.url
+        FROM
+          jasb.cached_avatars
+        WHERE NOT EXISTS (
+          SELECT FROM jasb.users
+          WHERE cached_avatars.url = users.avatar_cache
+        ) LIMIT ${garbageCollectBatchSize};
+      `);
+      return results.rows.map((row) => row.url as string);
+    });
+  }
+
+  async avatarsToCache(
+    cacheBatchSize: number,
+  ): Promise<AvatarCache.CacheDetails[]> {
+    return await this.withClient(async (client) => {
+      const results = await client.query(sql`
+        SELECT
+          users.discriminator,
+          users.id,
+          users.avatar
+        FROM
+          jasb.users
+        WHERE
+          users.avatar_cache IS NULL
+        LIMIT ${cacheBatchSize};
+      `);
+      return results.rows as unknown as AvatarCache.CacheDetails[];
+    });
+  }
+
+  async updateCachedAvatars(
+    added: { user: string; key: AvatarCache.Key; url: string }[],
+  ): Promise<void> {
+    await this.withClient(
+      async (client) =>
+        await Promise.all([
+          client.query(sql`
+            INSERT INTO jasb.cached_avatars (url, key) 
+            SELECT DISTINCT * FROM ${sql.unnest(
+              added.map(({ key, url }) => [url, JSON.stringify(key)]),
+              ["text", "jsonb"],
+            )}
+            ON CONFLICT DO NOTHING;
+          `),
+          client.query(sql`
+            UPDATE jasb.users 
+            SET 
+              avatar_cache = added.url 
+            FROM (SELECT "user", url FROM ${sql.unnest(
+              added.map(({ user, url }) => [user, url]),
+              ["text", "text"],
+            )} AS added("user", url)) AS added 
+            WHERE 
+              users.id = added."user"
+          `),
+        ]),
+    );
+  }
+
+  async deleteCachedAvatars(deleted: string[]): Promise<void> {
+    await this.withClient(
+      async (client) =>
+        await client.query(sql`
+        DELETE FROM jasb.cached_avatars 
+        WHERE url = ANY(${sql.array(deleted, "text")});
+      `),
+    );
   }
 
   async unload(): Promise<void> {

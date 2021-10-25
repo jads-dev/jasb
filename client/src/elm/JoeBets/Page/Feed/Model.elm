@@ -40,6 +40,7 @@ type alias UserInfo =
     , name : String
     , discriminator : String
     , avatar : Maybe String
+    , avatarCache : Maybe String
     }
 
 
@@ -50,6 +51,7 @@ userInfoDecoder =
         |> JsonD.required "name" JsonD.string
         |> JsonD.required "discriminator" JsonD.string
         |> JsonD.optionalAsMaybe "avatar" JsonD.string
+        |> JsonD.optionalAsMaybe "avatarCache" JsonD.string
 
 
 type alias NewBet =

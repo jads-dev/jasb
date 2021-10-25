@@ -14,6 +14,7 @@ export interface UserInfo {
   name: string;
   discriminator: string;
   avatar?: string;
+  avatarCache?: string;
 }
 
 export interface NewBet {
@@ -52,7 +53,7 @@ export type Event = NewBet | BetComplete | NotableStake;
 
 export const unknownEvent = Expect.exhaustive(
   "feed event",
-  (i: Internal.Feed.Event) => i.type
+  (i: Internal.Feed.Event) => i.type,
 );
 
 export const fromInternal = (internal: Internal.Feed.Item): Event => {
@@ -72,7 +73,7 @@ export const fromInternal = (internal: Internal.Feed.Item): Event => {
         bet: idAndNameFromInternal(event.bet),
         spoiler: event.spoiler,
         winners: event.winners.map((w) =>
-          idAndNameFromInternal<Bets.Options.Id>(w)
+          idAndNameFromInternal<Bets.Options.Id>(w),
         ),
         highlighted: {
           winners: event.highlighted.winners.map(userInfoFromInternal),
@@ -98,7 +99,7 @@ export const fromInternal = (internal: Internal.Feed.Item): Event => {
 };
 
 const idAndNameFromInternal = <Id extends string>(
-  internal: Internal.Feed.IdAndName
+  internal: Internal.Feed.IdAndName,
 ): IdAndName<Id> => ({
   id: internal.id as Id,
   name: internal.name,
@@ -108,6 +109,9 @@ const userInfoFromInternal = (internal: Internal.Users.Summary): UserInfo => ({
   id: internal.id as Users.Id,
   name: internal.name,
   ...(internal.avatar !== null ? { avatar: internal.avatar } : {}),
+  ...(internal.avatar_cache !== null
+    ? { avatarCache: internal.avatar_cache }
+    : {}),
   discriminator: internal.discriminator,
 });
 export * as Feed from "./feed";

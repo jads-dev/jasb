@@ -19,7 +19,16 @@ type ViewMode
     | Full
 
 
-viewLink : ViewMode -> Id -> { a | name : String, discriminator : String, avatar : Maybe String } -> Html msg
+type alias UserLikeWithAvatar a =
+    { a
+        | name : String
+        , discriminator : String
+        , avatar : Maybe String
+        , avatarCache : Maybe String
+    }
+
+
+viewLink : ViewMode -> Id -> UserLikeWithAvatar a -> Html msg
 viewLink viewMode id user =
     Route.a (id |> Just |> Route.User)
         [ HtmlA.classList [ ( "user", True ), ( "permalink", True ), ( "compact", viewMode == Compact ) ] ]
@@ -38,31 +47,36 @@ viewName { name, discriminator } =
         ]
 
 
-viewAvatar : Id -> { a | name : String, discriminator : String, avatar : Maybe String } -> Html msg
-viewAvatar id { name, discriminator, avatar } =
-    let
-        discordUrl path =
-            Url.Builder.crossOrigin "https://cdn.discordapp.com" path []
+viewAvatar : Id -> UserLikeWithAvatar a -> Html msg
+viewAvatar id { name, discriminator, avatar, avatarCache } =
+    case avatarCache of
+        Just cacheSrc ->
+            Html.img [ HtmlA.src cacheSrc, HtmlA.alt name, HtmlA.class "avatar" ] []
 
-        fallbackSrc =
+        Nothing ->
             let
-                default =
-                    discriminator |> String.toInt |> Maybe.map (modBy 5) |> Maybe.withDefault 0 |> String.fromInt
+                discordUrl path =
+                    Url.Builder.crossOrigin "https://cdn.discordapp.com" path []
+
+                fallbackSrc =
+                    let
+                        default =
+                            discriminator |> String.toInt |> Maybe.map (modBy 5) |> Maybe.withDefault 0 |> String.fromInt
+                    in
+                    [ "embed", "avatars", default ++ ".png" ] |> discordUrl
+
+                src =
+                    avatar |> Maybe.map (\hash -> [ "avatars", idToString id, hash ++ ".png" ] |> discordUrl)
+
+                imgOrFallback alt image fallback attrs =
+                    case image of
+                        Just imageSrc ->
+                            Html.imgFallback { src = imageSrc, alt = name } { src = fallback, alt = Nothing } attrs
+
+                        Nothing ->
+                            Html.img ([ HtmlA.src fallback, HtmlA.alt alt ] ++ attrs) []
             in
-            [ "embed", "avatars", default ++ ".png" ] |> discordUrl
-
-        src =
-            avatar |> Maybe.map (\hash -> [ "avatars", idToString id, hash ++ ".png" ] |> discordUrl)
-
-        imgOrFallback alt image fallback attrs =
-            case image of
-                Just imageSrc ->
-                    Html.imgFallback { src = imageSrc, alt = name } { src = fallback, alt = Nothing } attrs
-
-                Nothing ->
-                    Html.img ([ HtmlA.src fallback, HtmlA.alt alt ] ++ attrs) []
-    in
-    imgOrFallback name src fallbackSrc [ HtmlA.class "avatar" ]
+            imgOrFallback name src fallbackSrc [ HtmlA.class "avatar" ]
 
 
 link : WithId -> Html msg

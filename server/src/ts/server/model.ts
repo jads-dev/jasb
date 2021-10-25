@@ -1,10 +1,10 @@
 import { default as Winston } from "winston";
 
+import { ObjectUploader } from "../data/object-upload";
 import { Store } from "../data/store";
 import { Auth } from "./auth";
 import { Config } from "./config";
 import { Notifier } from "./notifier";
-import { ObjectUploader } from "../data/object-upload";
 
 export type State = {
   config: Config.Server;
@@ -12,7 +12,8 @@ export type State = {
   store: Store;
   auth: Auth;
   notifier: Notifier;
-  objectUploader: ObjectUploader;
+  imageUpload: ObjectUploader | undefined;
+  avatarCache: ObjectUploader | undefined;
 };
 
 export * as Server from "./model";

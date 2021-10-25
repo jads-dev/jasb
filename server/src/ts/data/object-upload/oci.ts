@@ -1,47 +1,85 @@
+import { default as Crypto } from "crypto";
 import { default as OciCommon } from "oci-common";
+import { NoRetryConfigurationDetails } from "oci-common/lib/retrier";
 import { default as Oci } from "oci-objectstorage";
+import { OciError } from "oci-sdk";
 
 import { Config } from "../../server/config";
-import type { ObjectUploader } from ".";
+import { details, ObjectUploader } from ".";
 
 export class OciObjectUploader implements ObjectUploader {
-  supported = true;
   readonly config;
+  readonly details;
   readonly client;
+  readonly baseUrl;
 
   constructor(config: Config.OciObjectUpload) {
     this.config = config;
+    this.details = details(config);
     this.client = new Oci.ObjectStorageClient({
       authenticationDetailsProvider:
         new OciCommon.ConfigFileAuthenticationDetailsProvider(
-          config.configPath
+          config.configPath,
         ),
     });
+    this.baseUrl = `https://objectstorage.${config.region}.oraclecloud.com/n/${config.namespace}/b/${config.bucket}/o/`;
+  }
+
+  private url(name: string): URL {
+    return new URL(name, this.baseUrl);
   }
 
   async upload(
-    uploader: string,
-    name: string,
-    stream: Buffer,
+    originalName: string,
     contentType: string,
-    md5: string
+    data: Uint8Array,
+    metadata?: Record<string, string>,
   ): Promise<URL> {
     const manager = new Oci.UploadManager(this.client);
-    const extensions = name.split(".").slice(1).join(".");
-    const objectName = `${md5}.${extensions}`;
-    await manager.upload({
-      content: { stream },
-      singleUpload: true,
-      requestDetails: {
-        namespaceName: this.config.namespace,
-        bucketName: this.config.bucket,
-        objectName,
-        contentMD5: Buffer.from(md5, "hex").toString("base64"),
-        contentType,
-        opcMeta: { uploader },
-        ifNoneMatch: "*",
-      },
+    const name = this.details.name(originalName, data);
+    const md5 = Crypto.createHash("md5");
+    md5.update(data);
+    try {
+      await manager.upload({
+        content: { stream: data },
+        singleUpload: true,
+        requestDetails: {
+          namespaceName: this.config.namespace,
+          bucketName: this.config.bucket,
+          objectName: name,
+          contentMD5: md5.digest("base64"),
+          contentType,
+          ...(this.details.cacheControl !== undefined
+            ? { cacheControl: this.details.cacheControl }
+            : {}),
+          opcMeta: metadata,
+          ...(this.details.allowOverwrite ? {} : { ifNoneMatch: "*" }),
+          retryConfiguration: NoRetryConfigurationDetails,
+        },
+      });
+    } catch (error) {
+      if (
+        error instanceof OciError &&
+        error.serviceCode === "IfNoneMatchFailed"
+      ) {
+        return this.url(name);
+      } else {
+        throw error;
+      }
+    }
+    return this.url(name);
+  }
+
+  async delete(url: string): Promise<void> {
+    const objectName = url.split("/").at(-1);
+    if (objectName === undefined) {
+      throw new Error("Malformed URL.");
+    }
+    await this.client.deleteObject({
+      namespaceName: this.config.namespace,
+      bucketName: this.config.bucket,
+      objectName,
+      retryConfiguration: NoRetryConfigurationDetails,
     });
-    return new URL(objectName, this.config.baseUrl);
   }
 }

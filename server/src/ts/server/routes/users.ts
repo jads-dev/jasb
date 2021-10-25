@@ -3,7 +3,7 @@ import { default as asyncHandler } from "express-async-handler";
 import { StatusCodes } from "http-status-codes";
 import * as Schema from "io-ts";
 
-import { Notifications, Users, Games, Bets } from "../../public";
+import { Games, Notifications, Users } from "../../public";
 import { Validation } from "../../util/validation";
 import { WebError } from "../errors";
 import { Server } from "../model";

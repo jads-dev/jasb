@@ -6,5 +6,6 @@ export { Notification, Notifications } from "./internal/notifications";
 export { Option, Options } from "./internal/options";
 export { Stake, Stakes } from "./internal/stakes";
 export { User, Users } from "./internal/users";
+export { AvatarCache } from "./internal/avatar-cache";
 
 export * as Internal from "./internal";

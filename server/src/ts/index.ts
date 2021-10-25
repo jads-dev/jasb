@@ -11,13 +11,13 @@ import { ObjectUpload } from "./data/object-upload";
 import { Store } from "./data/store";
 import { Server } from "./server";
 import { Auth } from "./server/auth";
+import { Background } from "./server/background";
 import { Config } from "./server/config";
 import { Errors } from "./server/errors";
 import { ExitCodes } from "./server/exit-codes";
 import { Logger } from "./server/logger";
 import { DiscordNotifier, NullNotifier } from "./server/notifier";
 import { Routes } from "./server/routes";
-import { Promise } from "./util/promise";
 
 SourceMapSupport.install();
 
@@ -26,20 +26,22 @@ const init = async (config: Config.Server): Promise<Winston.Logger> =>
 
 const load = async (
   config: Config.Server,
-  logger: Winston.Logger
+  logger: Winston.Logger,
 ): Promise<Server.State> => {
   const notifier =
     config.notifier !== undefined
       ? await DiscordNotifier.create(logger, config, config.notifier)
       : new NullNotifier();
-  const store = await Store.load(logger, config, notifier);
+  const avatarCache = await ObjectUpload.init(config.avatarCache);
+  const store = await Store.load(logger, config, notifier, avatarCache);
   return {
     config,
     logger,
     store,
     auth: await Auth.init(config.auth, store),
     notifier,
-    objectUploader: await ObjectUpload.init(config.objectUploader),
+    imageUpload: await ObjectUpload.init(config.imageUpload),
+    avatarCache,
   };
 };
 
@@ -60,7 +62,7 @@ const start = async (server: Server.State): Promise<void> => {
     FileUpload({
       limits: { fileSize: 25 * 1024 * 1024, files: 1 },
       abortOnLimit: true,
-    })
+    }),
   );
 
   const cors = Cors({
@@ -76,13 +78,10 @@ const start = async (server: Server.State): Promise<void> => {
 
   await app.listen(server.config.listenOn.port, server.config.listenOn.address);
   server.logger.info(
-    `Listening on ${server.config.listenOn.address}:${server.config.listenOn.port}.`
+    `Listening on ${server.config.listenOn.address}:${server.config.listenOn.port}.`,
   );
 
-  let running = true;
-
   process.on("SIGTERM", () => {
-    running = false;
     unload(server)
       .then(() => {
         process.exit();
@@ -93,14 +92,7 @@ const start = async (server: Server.State): Promise<void> => {
       });
   });
 
-  while (running) {
-    await Promise.wait(server.config.store.garbageCollectionFrequency);
-    const garbageCollected = await server.store.garbageCollect();
-
-    server.logger.info(
-      `Garbage collected ${garbageCollected.length} expired sessions.`
-    );
-  }
+  await Background.runTasks(server);
 };
 
 async function main(): Promise<void> {

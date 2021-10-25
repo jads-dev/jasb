@@ -1,4 +1,4 @@
-export function* zip<Items extends unknown[]>(
+export const zip = function* <Items extends unknown[]>(
   ...sources: { [Index in keyof Items]: Iterable<Items[Index]> }
 ): Iterable<Items> {
   const iterators = sources.map((source) => source[Symbol.iterator]());
@@ -10,12 +10,12 @@ export function* zip<Items extends unknown[]>(
       return;
     }
   }
-}
+};
 
-export function partition<Item>(
+export const partition = <Item>(
   predicate: (item: Item) => boolean,
   items: Item[],
-): [Item[], Item[]] {
+): [Item[], Item[]] => {
   const trues = [];
   const falses = [];
   for (const item of items) {
@@ -26,7 +26,17 @@ export function partition<Item>(
     }
   }
   return [trues, falses];
-}
+};
+
+export const filterUndefined = function* <Item>(
+  items: Iterable<Item | undefined>,
+): Iterable<Item> {
+  for (const item of items) {
+    if (item !== undefined) {
+      yield item;
+    }
+  }
+};
 
 export const map = function* <From, To = From>(
   values: Iterable<From>,
@@ -37,7 +47,7 @@ export const map = function* <From, To = From>(
   }
 };
 
-export function* interleave<Item>(
+export const interleave = function* <Item>(
   ...sources: Iterable<Item>[]
 ): Iterable<Item> {
   const iterators = sources.map((source) => source[Symbol.iterator]());
@@ -50,6 +60,6 @@ export function* interleave<Item>(
       }
     }
   }
-}
+};
 
 export * as Iterables from "./iterables";

@@ -18,6 +18,7 @@ export interface User {
   name: string;
   discriminator: string;
   avatar?: string;
+  avatarCache?: string;
 
   balance: number;
   betValue: number;
@@ -36,6 +37,7 @@ export interface Summary {
   name: string;
   discriminator: string;
   avatar?: string;
+  avatar_cache?: string;
 }
 
 export interface BankruptcyStats {
@@ -62,6 +64,9 @@ export const fromInternal = (
     name: internal.name,
     discriminator: internal.discriminator,
     ...(internal.avatar !== null ? { avatar: internal.avatar } : {}),
+    ...(internal.avatar_cache !== null
+      ? { avatarCache: internal.avatar_cache }
+      : {}),
 
     balance: internal.balance,
     betValue: internal.staked,
@@ -80,6 +85,9 @@ export const summaryFromInternal = (
     name: internal.name,
     discriminator: internal.discriminator,
     ...(internal.avatar !== null ? { avatar: internal.avatar } : {}),
+    ...(internal.avatar_cache !== null
+      ? { avatarCache: internal.avatar_cache }
+      : {}),
   },
 ];
 

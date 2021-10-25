@@ -41,12 +41,35 @@ const OciObjectUpload = Schema.strict({
   configPath: Schema.string,
   namespace: Schema.string,
   bucket: Schema.string,
-  baseUrl: Schema.string,
+  region: Schema.string,
 });
 export type OciObjectUpload = Schema.TypeOf<typeof ObjectUpload>;
 
-const ObjectUpload = OciObjectUpload;
+const ObjectUploadDetails = Schema.partial({
+  name: Schema.strict({
+    method: Schema.literal("hash"),
+    algorithm: Schema.string,
+  }),
+  cacheMaxAge: Validation.Duration,
+  allowOverwrite: Schema.boolean,
+});
+export type ObjectUploadDetails = Schema.TypeOf<typeof ObjectUploadDetails>;
+
+const ObjectUpload = Schema.intersection([
+  OciObjectUpload,
+  ObjectUploadDetails,
+]);
 export type ObjectUpload = Schema.TypeOf<typeof ObjectUpload>;
+
+const AvatarCache = Schema.intersection([
+  Schema.strict({
+    backgroundTaskFrequency: Validation.Duration,
+    cacheBatchSize: Schema.Int,
+    garbageCollectBatchSize: Schema.Int,
+  }),
+  ObjectUpload,
+]);
+export type AvatarCache = Schema.TypeOf<typeof AvatarCache>;
 
 const DiscordAuth = Schema.strict({
   scopes: Schema.array(Schema.string),
@@ -84,7 +107,8 @@ const Server = Schema.intersection([
   }),
   Schema.partial({
     notifier: DiscordNotifier,
-    objectUploader: ObjectUpload,
+    imageUpload: ObjectUpload,
+    avatarCache: AvatarCache,
   }),
 ]);
 export type Server = Schema.TypeOf<typeof Server>;
@@ -112,7 +136,7 @@ function deepMerge(a: unknown, b: unknown): unknown {
 
 export async function load(
   overridePath?: string,
-  defaultPath?: string
+  defaultPath?: string,
 ): Promise<Server> {
   const configPath =
     overridePath ??
@@ -131,7 +155,7 @@ export async function load(
     if (process.env.NODE_ENV !== "development") {
       if (config.auth.sessionIdSize < 64) {
         throw new InvalidConfigError(
-          "Session ID too small, potentially vulnerable to brute force attack."
+          "Session ID too small, potentially vulnerable to brute force attack.",
         );
       }
       config.auth.discord.clientSecret.inSecureEnvironment();

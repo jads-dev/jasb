@@ -57,6 +57,7 @@ type alias User =
     { name : String
     , discriminator : String
     , avatar : Maybe String
+    , avatarCache : Maybe String
     , balance : Int
     , betValue : Int
     , created : DateTime
@@ -71,6 +72,7 @@ decoder =
         |> JsonD.required "name" JsonD.string
         |> JsonD.required "discriminator" JsonD.string
         |> JsonD.optionalAsMaybe "avatar" JsonD.string
+        |> JsonD.optionalAsMaybe "avatarCache" JsonD.string
         |> JsonD.required "balance" JsonD.int
         |> JsonD.required "betValue" JsonD.int
         |> JsonD.required "created" DateTime.decoder
@@ -93,12 +95,13 @@ type alias Summary =
     { name : String
     , discriminator : String
     , avatar : Maybe String
+    , avatarCache : Maybe String
     }
 
 
 summary : User -> Summary
-summary { name, discriminator, avatar } =
-    Summary name discriminator avatar
+summary { name, discriminator, avatar, avatarCache } =
+    Summary name discriminator avatar avatarCache
 
 
 summaryDecoder : JsonD.Decoder Summary
@@ -107,3 +110,4 @@ summaryDecoder =
         |> JsonD.required "name" JsonD.string
         |> JsonD.required "discriminator" JsonD.string
         |> JsonD.optionalAsMaybe "avatar" JsonD.string
+        |> JsonD.optionalAsMaybe "avatarCache" JsonD.string
