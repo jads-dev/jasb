@@ -47,12 +47,27 @@ body {
   flex-wrap: wrap;
   justify-content: center;
 
-  min-height: 100vh;
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+
+  overflow: auto;
+
+  padding: 1em;
+  gap: 1em;
 }
 
 header {
-  display: flex;
-  flex-direction: column;
+  > div {
+    position: sticky;
+    top: 0;
+
+    display: flex;
+    flex-direction: column;
+    gap: 1em;
+  }
 
   h1 {
     display: flex;
@@ -62,6 +77,8 @@ header {
 
     text-align: center;
     font-size: 2em;
+
+    margin: 0;
 
     &::before {
       display: block;
@@ -79,6 +96,7 @@ nav {
 
   ul {
     padding: 0;
+    margin: 0;
     list-style: none;
 
     display: flex;
@@ -95,8 +113,6 @@ nav {
       background-color: var(--primary);
       color: inherit;
       text-decoration: none;
-      flex-basis: 8em;
-      flex-shrink: 1;
 
       display: flex;
       justify-content: center;
@@ -146,10 +162,8 @@ nav {
   flex-direction: column;
   align-items: center;
   flex-grow: 1;
-  overflow: auto;
+  flex-shrink: 1;
   flex-basis: 15em;
-  max-height: calc(100vh - 2em);
-  padding: 1em;
 
   h2 {
     margin-top: 0;

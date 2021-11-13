@@ -312,8 +312,10 @@ view model =
 
         combinedBody =
             [ [ Html.header []
-                    [ Html.h1 [ HtmlA.title "Joseph Anderson Stream Bets" ] [ Html.text "JASB" ]
-                    , Html.nav [] [ menu |> List.concat |> Html.ul [] ]
+                    [ Html.div []
+                        [ Html.h1 [ HtmlA.title "Joseph Anderson Stream Bets" ] [ Html.text "JASB" ]
+                        , Html.nav [] [ menu |> List.concat |> Html.ul [] ]
+                        ]
                     ]
               , Html.div [ HtmlA.class "page", HtmlA.id id ] body
               , Notifications.view NotificationsMsg model
