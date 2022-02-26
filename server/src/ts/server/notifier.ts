@@ -2,7 +2,7 @@ import { default as Discord, TextChannel } from "discord.js";
 import { default as Winston } from "winston";
 
 import { Iterables } from "../util/iterables";
-import { Config } from "./config";
+import { Config } from "./config.js";
 
 interface DiscordMessage {
   title: string;

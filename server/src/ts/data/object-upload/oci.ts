@@ -4,8 +4,8 @@ import { NoRetryConfigurationDetails } from "oci-common/lib/retrier";
 import { default as Oci } from "oci-objectstorage";
 import { OciError } from "oci-sdk";
 
-import { Config } from "../../server/config";
-import { details, ObjectUploader } from ".";
+import { Config } from "../../server/config.js";
+import { details, ObjectUploader } from "../object-upload.js";
 
 export class OciObjectUploader implements ObjectUploader {
   readonly config;
@@ -18,9 +18,14 @@ export class OciObjectUploader implements ObjectUploader {
     this.details = details(config);
     this.client = new Oci.ObjectStorageClient({
       authenticationDetailsProvider:
-        new OciCommon.ConfigFileAuthenticationDetailsProvider(
-          config.configPath,
-        ),
+      new OciCommon.SimpleAuthenticationDetailsProvider(
+        config.tenancy,
+        config.user,
+        config.fingerprint,
+        config.privateKey.value,
+        config.passphrase?.value ?? null,
+        OciCommon.Region.fromRegionId(config.region),
+      ),
     });
     this.baseUrl = `https://objectstorage.${config.region}.oraclecloud.com/n/${config.namespace}/b/${config.bucket}/o/`;
   }

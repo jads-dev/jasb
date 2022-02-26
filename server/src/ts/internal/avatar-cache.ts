@@ -15,4 +15,4 @@ export interface UserAvatarKey extends Record<string, string> {
 
 export type Key = SharedAvatarKey | UserAvatarKey;
 
-export * as AvatarCache from "./avatar-cache";
+export * as AvatarCache from "./avatar-cache.js";

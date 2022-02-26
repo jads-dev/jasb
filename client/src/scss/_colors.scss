@@ -15,6 +15,26 @@ $bad: #ff0000;
 $disabled: #666666;
 $link-color: #2222ff;
 
+@mixin light {
+  --background: #{$light};
+  --foreground: #{$dark};
+
+  --good: #{$good};
+  --warning: #{$warning};
+  --bad: #{$bad};
+  --link-color: #{$link-color};
+}
+
+@mixin dark {
+  --background: #{$dark};
+  --foreground: #{$light};
+
+  --good: #{color.scale($good, $lightness: 35%)};
+  --warning: #{$warning};
+  --bad: #{$bad};
+  --link-color: #{color.scale($link-color, $lightness: 35%)};
+}
+
 :root {
   --primary: #{$primary};
   --secondary: #{$dark-accent};
@@ -22,22 +42,21 @@ $link-color: #2222ff;
 
   --on-secondary: #{$dark};
 
-  --background: #{$dark};
-  --foreground: #{$light};
-
-  --good: #{color.scale($good, $lightness: 35%)};
-  --warning: #{$warning};
-  --bad: #{$bad};
   --disabled: #{$disabled};
-  --link-color: #{color.scale($link-color, $lightness: 35%)};
+
+  @include dark;
 
   @media (prefers-color-scheme: light) {
-    --background: #{$light};
-    --foreground: #{$dark};
+    @include light;
+  }
+}
 
-    --good: #{$good};
-    --warning: #{$warning};
-    --bad: #{$bad};
-    --link-color: #{$link-color};
+#jasb {
+  &.dark-theme {
+    @include dark;
+  }
+
+  &.light-theme {
+    @include light;
   }
 }

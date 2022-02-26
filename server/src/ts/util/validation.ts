@@ -5,7 +5,7 @@ import * as Schema from "io-ts";
 import { PathReporter } from "io-ts/PathReporter";
 
 import { WebError } from "../server/errors";
-import { PlaceholderSecretToken, SecretToken } from "./secret-token";
+import { PlaceholderSecretToken, SecretToken } from "./secret-token.js";
 
 export const Duration = new Schema.Type<Joda.Duration, string, unknown>(
   "Duration",
@@ -19,14 +19,14 @@ export const Duration = new Schema.Type<Joda.Duration, string, unknown>(
           return Schema.failure(
             input,
             context,
-            `not a valid ISO 8601 duration: ${value}`
+            `not a valid ISO 8601 duration: ${value}`,
           );
         } else {
           throw error;
         }
       }
     })(Schema.string.validate(input, context)),
-  (value) => value.toString()
+  (value) => value.toString(),
 );
 
 export const DateTime = new Schema.Type<Joda.ZonedDateTime, string, unknown>(
@@ -42,14 +42,14 @@ export const DateTime = new Schema.Type<Joda.ZonedDateTime, string, unknown>(
           return Schema.failure(
             input,
             context,
-            `not a valid ISO 8601 date & time: ${value}`
+            `not a valid ISO 8601 date & time: ${value}`,
           );
         } else {
           throw error;
         }
       }
     })(Schema.string.validate(input, context)),
-  (value) => value.toString()
+  (value) => value.toString(),
 );
 
 export const Date = new Schema.Type<Joda.LocalDate, string, unknown>(
@@ -64,14 +64,14 @@ export const Date = new Schema.Type<Joda.LocalDate, string, unknown>(
           return Schema.failure(
             input,
             context,
-            `not a valid ISO 8601 date: ${value}`
+            `not a valid ISO 8601 date: ${value}`,
           );
         } else {
           throw error;
         }
       }
     })(Schema.string.validate(input, context)),
-  (value) => value.toString()
+  (value) => value.toString(),
 );
 
 export const SecretTokenUri = new Schema.Type<SecretToken, string, unknown>(
@@ -85,10 +85,10 @@ export const SecretTokenUri = new Schema.Type<SecretToken, string, unknown>(
         : Schema.failure(
             input,
             context,
-            `not a valid secret token URI: ${value}`
+            `not a valid secret token URI: ${value}`,
           );
     })(Schema.string.validate(input, context)),
-  (a) => a.uri
+  (a) => a.uri,
 );
 
 export const Placeholder = new Schema.Type<
@@ -105,10 +105,10 @@ export const Placeholder = new Schema.Type<
         : Schema.failure(
             input,
             context,
-            `not “${PlaceholderSecretToken.placeholderValue}”: ${value}`
+            `not “${PlaceholderSecretToken.placeholderValue}”: ${value}`,
           );
     })(Schema.string.validate(input, context)),
-  (a) => a.uri
+  (a) => a.uri,
 );
 
 export const SecretTokenOrPlaceholder = Schema.union([
@@ -129,12 +129,12 @@ export const Probability = new Schema.Type<number, number, unknown>(
         return Schema.success(value);
       }
     })(Schema.number.validate(input, context)),
-  (a) => a
+  (a) => a,
 );
 
 export function body<Parsed, Encoded>(
   schema: Schema.Type<Parsed, Encoded>,
-  body: unknown
+  body: unknown,
 ): Parsed {
   const result = schema.decode(body);
   if (Either.isRight(result)) {
@@ -142,16 +142,16 @@ export function body<Parsed, Encoded>(
   } else {
     throw new WebError(
       StatusCodes.BAD_REQUEST,
-      `Invalid request:\n${PathReporter.report(result).join("\n")}`
+      `Invalid request:\n${PathReporter.report(result).join("\n")}`,
     );
   }
 }
 
 export function maybeBody<Parsed, Encoded>(
   schema: Schema.Type<Parsed, Encoded>,
-  body: unknown
+  body: unknown,
 ): Parsed | undefined {
   const result = schema.decode(body);
   return Either.isRight(result) ? result.right : undefined;
 }
-export * as Validation from "./validation";
+export * as Validation from "./validation.js";

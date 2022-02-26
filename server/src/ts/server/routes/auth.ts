@@ -5,11 +5,11 @@ import { either as Either } from "fp-ts";
 import { StatusCodes } from "http-status-codes";
 import * as Schema from "io-ts";
 
-import { Notifications, Users } from "../../public";
-import { Validation } from "../../util/validation";
-import { Auth } from "../auth";
-import { WebError } from "../errors";
-import { Server } from "../model";
+import { Notifications, Users } from "../../public.js";
+import { Validation } from "../../util/validation.js";
+import { Auth } from "../auth.js";
+import { WebError } from "../errors.js";
+import { Server } from "../model.js";
 
 const SessionCookie = Schema.strict({
   user: Users.Id,

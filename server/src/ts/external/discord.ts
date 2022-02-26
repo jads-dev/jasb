@@ -18,4 +18,4 @@ export interface Token {
   refresh_token: string;
 }
 
-export * as Discord from "./discord";
+export * as Discord from "./discord.js";

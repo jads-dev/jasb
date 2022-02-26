@@ -1,4 +1,4 @@
-import { Users } from "./users";
+import { Users } from "./users.js";
 
 export interface Stake {
   game: string;
@@ -19,4 +19,4 @@ export interface WithUser {
   user: Users.Summary;
 }
 
-export * as Stakes from "./stakes";
+export * as Stakes from "./stakes.js";

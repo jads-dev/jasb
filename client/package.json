@@ -5,7 +5,10 @@
   "private": true,
   "scripts": {
     "build": "npx webpack",
-    "dev": "npx webpack serve --mode=development"
+    "dev": "npx webpack serve --mode=development",
+    "docker": "mkdir -p \"$(pwd)/../workaround\" && ROOT_DIR=\"$(pwd)/..\" USER_ID=$(id -u ${USER}) GROUP_ID=$(id -g ${USER}) docker compose -f ../develop.yml run --rm --service-ports --entrypoint /bin/ash client",
+    "docker:build": "mkdir -p \"$(pwd)/../workaround\" && ROOT_DIR=\"$(pwd)/..\" USER_ID=$(id -u ${USER}) GROUP_ID=$(id -g ${USER}) docker compose -f ../develop.yml run --rm client run build",
+    "docker:dev": "mkdir -p \"$(pwd)/../workaround\" && ROOT_DIR=\"$(pwd)/..\" USER_ID=$(id -u ${USER}) GROUP_ID=$(id -g ${USER}) docker compose -f ../develop.yml up --build --no-log-prefix client"
   },
   "dependencies": {
     "@fortawesome/fontawesome-free": "^5.15.2",
@@ -19,13 +22,13 @@
     "elm": "^0.19.1-5",
     "elm-hot-webpack-loader": "^1.1.8",
     "elm-webpack-loader": "^8.0.0",
-    "favicons": "^6.2.1",
-    "favicons-webpack-plugin": "^5.0.1",
+    "favicons": "^6.2.2",
+    "favicons-webpack-plugin": "^5.0.2",
     "html-loader": "^3.0.0",
     "html-webpack-plugin": "^5.1.0",
     "mini-css-extract-plugin": "^2.1.0",
     "postcss-loader": "^6.1.0",
-    "postcss-preset-env": "^6.7.0",
+    "postcss-preset-env": "^7.0.1",
     "sass": "^1.32.7",
     "sass-loader": "^12.1.0",
     "style-loader": "^3.1.0",

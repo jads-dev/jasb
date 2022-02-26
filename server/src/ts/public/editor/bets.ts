@@ -1,9 +1,9 @@
 import * as Joda from "@js-joda/core";
 
-import type { Internal } from "../../internal";
-import { Stake, Stakes } from "../bets";
-import type { Options } from "../bets/options";
-import type { Users } from "../users";
+import type { Internal } from "../../internal.js";
+import { Stake, Stakes } from "../bets.js";
+import type { Options } from "../bets/options.js";
+import type { Users } from "../users.js";
 
 export interface EditableOption {
   id: Options.Id;
@@ -82,4 +82,4 @@ export const fromInternal = (
   modified: internal.modified.toJSON(),
 });
 
-export * as Bets from "./bets";
+export * as Bets from "./bets.js";

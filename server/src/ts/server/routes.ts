@@ -4,12 +4,12 @@ import { default as asyncHandler } from "express-async-handler";
 import { StatusCodes } from "http-status-codes";
 
 import { Feed, Leaderboard } from "../public";
-import { WebError } from "./errors";
-import { Server } from "./model";
-import { ResultCache } from "./result-cache";
-import { authApi, requireSession } from "./routes/auth";
-import { gamesApi } from "./routes/games";
-import { usersApi } from "./routes/users";
+import { WebError } from "./errors.js";
+import { Server } from "./model.js";
+import { ResultCache } from "./result-cache.js";
+import { authApi, requireSession } from "./routes/auth.js";
+import { gamesApi } from "./routes/games.js";
+import { usersApi } from "./routes/users.js";
 
 export const api = (server: Server.State): Express.Router => {
   const apiRouter = Express.Router();
@@ -125,7 +125,7 @@ export const api = (server: Server.State): Express.Router => {
         const result = {
           type: "link",
           version: "1.0",
-          title: `Stream Bets: ${await titleFor(game, bet)}.`,
+          title: `Stream Bets: ${await titleFor(game ?? "", bet)}.`,
           provider_name: "JASB",
           provider_url: clientOrigin,
           thumbnail_url: `${clientOrigin}/assets/images/favicon-48x48.png`,
@@ -143,4 +143,4 @@ export const api = (server: Server.State): Express.Router => {
   return router;
 };
 
-export * as Routes from "./routes";
+export * as Routes from "./routes.js";

@@ -1,5 +1,5 @@
-import type { Internal } from "../internal";
-import { Expect } from "../util/expect";
+import type { Internal } from "../internal.js";
+import { Expect } from "../util/expect.js";
 
 export interface Gifted {
   id: number;
@@ -108,4 +108,4 @@ export const fromInternal = (internal: Internal.Notification): Notification => {
   }
 };
 
-export * as Notifications from "./notifications";
+export * as Notifications from "./notifications.js";

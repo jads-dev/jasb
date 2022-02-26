@@ -3,12 +3,14 @@ module JoeBets.Store.Codecs exposing
     , gameFavourites
     , gameFilters
     , itemDecoder
+    , layout
     , theme
     )
 
 import EverySet exposing (EverySet)
 import JoeBets.Game.Id as Game
 import JoeBets.Game.Model as Game
+import JoeBets.Layout as Layout exposing (Layout)
 import JoeBets.Page.Bets.Filters as Filters exposing (Filters)
 import JoeBets.Page.Bets.Model as Bets
 import JoeBets.Settings.Model as Settings
@@ -44,6 +46,11 @@ theme =
     Item.initial Theme Theme.decoder Theme.encode Theme.Auto
 
 
+layout : Item.Codec Layout
+layout =
+    Item.initial Layout Layout.decoder Layout.encode Layout.Auto
+
+
 itemDecoder : JsonD.Decoder KeyedItem
 itemDecoder =
     let
@@ -54,6 +61,9 @@ itemDecoder =
 
                 Theme ->
                     theme |> Item.itemDecoder |> JsonD.map (Settings.ThemeItem >> SettingsItem)
+
+                Layout ->
+                    layout |> Item.itemDecoder |> JsonD.map (Settings.LayoutItem >> SettingsItem)
 
                 GameFilters gameId ->
                     gameId |> gameFilters |> Item.itemDecoder |> JsonD.map (Bets.FiltersItem gameId >> BetsItem)

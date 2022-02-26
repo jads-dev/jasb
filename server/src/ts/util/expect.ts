@@ -7,4 +7,4 @@ export const exhaustive = <TValue>(
   );
 };
 
-export * as Expect from "./expect";
+export * as Expect from "./expect.js";

@@ -3,12 +3,12 @@ import { StatusCodes } from "http-status-codes";
 import { OciError } from "oci-sdk";
 import { default as Winston } from "winston";
 
-import { ObjectUploader } from "../../data/object-upload";
-import { AvatarCache } from "../../internal";
-import { Key } from "../../internal/avatar-cache";
-import { Iterables } from "../../util/iterables";
-import { Promises } from "../../util/promises";
-import { Server } from "../model";
+import { ObjectUploader } from "../../data/object-upload.js";
+import { AvatarCache } from "../../internal.js";
+import { Key } from "../../internal/avatar-cache.js";
+import { Iterables } from "../../util/iterables.js";
+import { Promises } from "../../util/promises.js";
+import { Server } from "../model.js";
 
 export const cacheAvatars = (server: Server.State) => {
   const config = server.config.avatarCache;
@@ -157,7 +157,7 @@ async function cache(
     if (response !== undefined) {
       const url = await avatarCache.upload(
         filename,
-        response.headers["content-type"],
+        response.headers["content-type"] ?? "",
         new Uint8Array(response.data),
         key,
       );

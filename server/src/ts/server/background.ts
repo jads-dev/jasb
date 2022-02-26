@@ -1,6 +1,6 @@
-import { Server } from "../model";
-import { cacheAvatars } from "./cache-avatars";
-import { garbageCollect } from "./garbage-collect";
+import { Server } from "./model.js";
+import { cacheAvatars } from "./background/cache-avatars.js";
+import { garbageCollect } from "./background/garbage-collect.js";
 
 export async function runTasks(server: Server.State) {
   runTaskRepeatedlyInBackground(server, "Garbage Collection", garbageCollect);
@@ -40,4 +40,4 @@ const runTaskRepeatedly = async (
   }
 };
 
-export * as Background from ".";
+export * as Background from "./background.js";

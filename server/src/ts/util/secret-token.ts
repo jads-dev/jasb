@@ -1,4 +1,4 @@
-import { secureRandomString } from "./random";
+import { secureRandomString } from "./random.js";
 
 export interface SecretTokenLike {
   value: string;

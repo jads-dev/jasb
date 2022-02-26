@@ -21,6 +21,7 @@ module.exports = (env, argv) => {
       : "production";
 
   const production = mode === "production";
+  const inDocker = process.env["JASB_DEV_ENV"] === "docker";
 
   return {
     mode: mode,
@@ -154,9 +155,15 @@ module.exports = (env, argv) => {
     devServer: {
       static: [{ directory: dist }],
       hot: true,
-      //host: "0.0.0.0",
+      host: inDocker ? "0.0.0.0" : "localhost",
+      port: 8080,
       allowedHosts: ["localhost"],
       proxy: {
+        // Forward to the server.
+        "/api/**": {
+          target: inDocker ? "http://server:8081" : "http://localhost:8081",
+          ws: true,
+        },
         // As we are an SPA, this lets us route all requests to the index.
         "**": {
           target: "http://localhost:8080",

@@ -36,13 +36,22 @@ const Store = Schema.strict({
 });
 export type Store = Schema.TypeOf<typeof Store>;
 
-const OciObjectUpload = Schema.strict({
-  service: Schema.literal("oci"),
-  configPath: Schema.string,
-  namespace: Schema.string,
-  bucket: Schema.string,
-  region: Schema.string,
-});
+const OciObjectUpload = Schema.intersection([
+  Schema.strict({
+    service: Schema.literal("oci"),
+    user: Schema.string,
+    tenancy: Schema.string,
+    fingerprint: Schema.string,
+    privateKey: Validation.SecretTokenOrPlaceholder,
+    region: Schema.string,
+
+    namespace: Schema.string,
+    bucket: Schema.string,
+  }),
+  Schema.partial({
+    passphrase: Validation.SecretTokenOrPlaceholder,
+  }),
+]);
 export type OciObjectUpload = Schema.TypeOf<typeof ObjectUpload>;
 
 const ObjectUploadDetails = Schema.partial({
@@ -210,4 +219,4 @@ export const builtIn: Server = {
   },
 };
 
-export * as Config from "./config";
+export * as Config from "./config.js";

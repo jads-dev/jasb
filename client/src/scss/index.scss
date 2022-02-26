@@ -7,6 +7,7 @@
 @use "./feed";
 @use "./settings";
 @use "./colors";
+@use "./size";
 
 @import "~elm-material/src/scss/_material.scss";
 @import "~@fortawesome/fontawesome-free/css/svg-with-js.min.css";
@@ -29,15 +30,6 @@ body {
 }
 
 #jasb {
-  &.light {
-    --background: #{colors.$light};
-    --foreground: #{colors.$dark};
-  }
-  &.dark {
-    --background: #{colors.$dark};
-    --foreground: #{colors.$light};
-  }
-
   color: var(--foreground);
   background-color: var(--background);
 
@@ -46,6 +38,7 @@ body {
   display: flex;
   flex-wrap: wrap;
   justify-content: center;
+  align-content: flex-start;
 
   position: absolute;
   top: 0;

@@ -3,11 +3,11 @@ import { default as asyncHandler } from "express-async-handler";
 import { StatusCodes } from "http-status-codes";
 import * as Schema from "io-ts";
 
-import { Games, Notifications, Users } from "../../public";
-import { Validation } from "../../util/validation";
-import { WebError } from "../errors";
-import { Server } from "../model";
-import { requireSession } from "./auth";
+import { Games, Notifications, Users } from "../../public.js";
+import { Validation } from "../../util/validation.js";
+import { WebError } from "../errors.js";
+import { Server } from "../model.js";
+import { requireSession } from "./auth.js";
 
 const PermissionsBody = Schema.intersection([
   Schema.strict({
@@ -39,7 +39,7 @@ export const usersApi = (server: Server.State): Express.Router => {
     "/:userId",
     asyncHandler(async (request, response) => {
       const id = request.params.userId;
-      const internalUser = await server.store.getUser(id);
+      const internalUser = await server.store.getUser(id ?? "");
       if (internalUser === undefined) {
         throw new WebError(StatusCodes.NOT_FOUND, "User not found.");
       }
@@ -53,7 +53,7 @@ export const usersApi = (server: Server.State): Express.Router => {
     "/:userId/bets",
     asyncHandler(async (request, response) => {
       const id = request.params.userId;
-      const games = await server.store.getUserBets(id);
+      const games = await server.store.getUserBets(id ?? "");
       const result: { id: Games.Id; game: Games.WithBets }[] = games.map(
         Games.withBetsFromInternal,
       );
@@ -100,7 +100,7 @@ export const usersApi = (server: Server.State): Express.Router => {
       await server.store.clearNotification(
         sessionCookie.user,
         sessionCookie.session,
-        notificationId,
+        notificationId ?? "",
       );
       response.status(StatusCodes.NO_CONTENT).send();
     }),
@@ -111,7 +111,7 @@ export const usersApi = (server: Server.State): Express.Router => {
     asyncHandler(async (request, response) => {
       const id = request.params.userId;
       const result = Users.bankruptcyStatsFromInternal(
-        await server.store.bankruptcyStats(id),
+        await server.store.bankruptcyStats(id ?? ""),
       );
       response.json(result);
     }),
@@ -145,7 +145,7 @@ export const usersApi = (server: Server.State): Express.Router => {
     "/:userId/permissions",
     asyncHandler(async (request, response) => {
       const permissions = await server.store.getPermissions(
-        request.params.userId,
+        request.params.userId ?? "",
       );
       const result: Users.Permissions[] = permissions.map(
         Users.permissionsFromInternal,
@@ -163,7 +163,7 @@ export const usersApi = (server: Server.State): Express.Router => {
       await server.store.setPermissions(
         sessionCookie.user,
         sessionCookie.session,
-        request.params.userId,
+        request.params.userId ?? "",
         body.game,
         body.canManageBets,
       );

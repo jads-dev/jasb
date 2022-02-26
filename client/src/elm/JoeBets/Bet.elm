@@ -214,7 +214,7 @@ internalView timeContext voteAs viewType highlight hasVoted gameId gameName betI
             in
             ( optionId |> Option.idToString
             , Html.li [ classes ]
-                [ option.image |> Maybe.map (\url -> Html.img [ HtmlA.src url ] []) |> Maybe.withDefault (Html.div [] [])
+                [ option.image |> Maybe.map (\url -> Html.img [ HtmlA.src url ] []) |> Maybe.withDefault (Html.text "")
                 , Button.view style Button.Padded name Nothing action
                 , Stakes.view timeContext (voteAs |> Maybe.map .id) highlight maxAmount stakes
                 , Html.div [ HtmlA.class "details", HtmlA.title title ]

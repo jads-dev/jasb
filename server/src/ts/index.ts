@@ -7,17 +7,17 @@ import { default as Helmet } from "helmet";
 import { default as SourceMapSupport } from "source-map-support";
 import { default as Winston } from "winston";
 
-import { ObjectUpload } from "./data/object-upload";
-import { Store } from "./data/store";
-import { Server } from "./server";
-import { Auth } from "./server/auth";
-import { Background } from "./server/background";
-import { Config } from "./server/config";
-import { Errors } from "./server/errors";
-import { ExitCodes } from "./server/exit-codes";
-import { Logger } from "./server/logger";
-import { DiscordNotifier, NullNotifier } from "./server/notifier";
-import { Routes } from "./server/routes";
+import { ObjectUpload } from "./data/object-upload.js";
+import { Store } from "./data/store.js";
+import { Server } from "./server.js";
+import { Auth } from "./server/auth.js";
+import { Background } from "./server/background.js";
+import { Config } from "./server/config.js";
+import { Errors } from "./server/errors.js";
+import { ExitCodes } from "./server/exit-codes.js";
+import { Logger } from "./server/logger.js";
+import { DiscordNotifier, NullNotifier } from "./server/notifier.js";
+import { Routes } from "./server/routes.js";
 
 SourceMapSupport.install();
 

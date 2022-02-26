@@ -1,6 +1,6 @@
 import * as Joda from "@js-joda/core";
 
-import { Stakes } from "./stakes";
+import { Stakes } from "./stakes.js";
 
 export interface Option {
   game: string;
@@ -24,4 +24,4 @@ export interface AndStakes {
   stakes: Stakes.WithUser[];
 }
 
-export * as Options from "./options";
+export * as Options from "./options.js";

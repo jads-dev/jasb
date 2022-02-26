@@ -105,15 +105,7 @@ request origin method { path, body, expect } =
 
 url : String -> Path -> String
 url origin path =
-    let
-        stringPath =
-            pathToStringList path
-    in
-    if origin |> String.startsWith "localhost" then
-        Url.Builder.crossOrigin "http://localhost:8081" ("api" :: stringPath) []
-
-    else
-        Url.Builder.crossOrigin "https://jasb.900000000.xyz" ("api" :: stringPath) []
+    Url.Builder.absolute ("api" :: pathToStringList path) []
 
 
 pathToStringList : Path -> List String

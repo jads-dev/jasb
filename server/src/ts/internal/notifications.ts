@@ -51,4 +51,4 @@ export interface Notification {
   read: boolean;
 }
 
-export * as Notifications from "./notifications";
+export * as Notifications from "./notifications.js";

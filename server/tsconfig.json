@@ -1,17 +1,27 @@
 {
+  "include": ["src/ts/**/*"],
+
   "compilerOptions": {
+    "lib": ["ES2021"],
     "module": "ES2020",
-    "target": "ES2020",
+    "target": "ES2021",
+
     "sourceMap": true,
+    "outDir": "./dist",
     "incremental": true,
     "removeComments": true,
-    "moduleResolution": "Node",
-    "noImplicitReturns": true,
-    "resolveJsonModule": true,
+    "newLine": "lf",
+
     "strict": true,
-    "outDir": "dist",
-    "allowSyntheticDefaultImports": true,
-    "skipLibCheck": true
-  },
-  "include": ["src/ts/**/*"]
+    "noImplicitReturns": true,
+    "noImplicitOverride": true,
+    "noUncheckedIndexedAccess": true,
+    "noFallthroughCasesInSwitch": true,
+    "skipLibCheck": true,
+
+    "moduleResolution": "node",
+    "resolveJsonModule": true,
+    "forceConsistentCasingInFileNames": true,
+    "allowSyntheticDefaultImports": true
+  }
 }

@@ -17,7 +17,7 @@ export class ResultCache<T> {
   async get(): Promise<T> {
     if (
       this.cache !== Uncached &&
-      this.cache.expires > Joda.ZonedDateTime.now(Joda.ZoneOffset.UTC)
+      this.cache.expires.isAfter(Joda.ZonedDateTime.now(Joda.ZoneOffset.UTC))
     ) {
       return this.cache.value;
     } else {

@@ -9,8 +9,8 @@ import { Validation } from "../../util/validation";
 import { WebError } from "../errors";
 import { Server } from "../model";
 import { ResultCache } from "../result-cache";
-import { requireSession } from "./auth";
-import { betsApi } from "./bets";
+import { requireSession } from "./auth.js";
+import { betsApi } from "./bets.js";
 
 const subsets = ["Future", "Current", "Finished"] as const;
 
@@ -37,11 +37,12 @@ export const gamesApi = (server: Server.State): Express.Router => {
     const [future, current, finished] = games.map((subset) =>
       subset.map(Games.fromInternal)
     );
-    return {
-      future,
-      current,
-      finished,
+    const library: Games.Library = {
+      future: future as Games.WithId[],
+      current: current as Games.WithId[],
+      finished: finished as Games.WithId[],
     };
+    return library;
   }, Joda.Duration.of(1, Joda.ChronoUnit.MINUTES));
 
   // Get Games.
@@ -57,7 +58,7 @@ export const gamesApi = (server: Server.State): Express.Router => {
   router.get(
     "/:gameId",
     asyncHandler(async (request, response) => {
-      const game = await server.store.getGame(request.params.gameId);
+      const game = await server.store.getGame(request.params.gameId ?? "");
       if (game === undefined) {
         throw new WebError(StatusCodes.NOT_FOUND, "Game not found.");
       }
@@ -71,9 +72,10 @@ export const gamesApi = (server: Server.State): Express.Router => {
   router.get(
     "/:gameId/bets",
     asyncHandler(async (request, response) => {
+      const gameId = request.params.gameId ?? "";
       const [game, bets] = await Promise.all([
-        server.store.getGame(request.params.gameId),
-        server.store.getBets(request.params.gameId),
+        server.store.getGame(gameId),
+        server.store.getBets(gameId),
       ]);
       if (game === undefined) {
         throw new WebError(StatusCodes.NOT_FOUND, "Game not found.");
@@ -99,7 +101,7 @@ export const gamesApi = (server: Server.State): Express.Router => {
         await server.store.addGame(
           sessionCookie.user,
           sessionCookie.session,
-          request.params.gameId,
+          request.params.gameId ?? "",
           body.name,
           body.cover,
           body.igdbId,
@@ -127,7 +129,7 @@ export const gamesApi = (server: Server.State): Express.Router => {
         sessionCookie.user,
         sessionCookie.session,
         body.version,
-        request.params.gameId,
+        request.params.gameId ?? "",
         body.name,
         body.cover,
         body.igdbId,

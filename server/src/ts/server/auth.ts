@@ -6,8 +6,8 @@ import { Store } from "../data/store";
 import { Notifications, Users } from "../public";
 import { Random } from "../util/random";
 import { SecretToken } from "../util/secret-token";
-import { Config } from "./config";
-import { WebError } from "./errors";
+import { Config } from "./config.js";
+import { WebError } from "./errors.js";
 
 export class Auth {
   static readonly sessionCookieName = "jasb-session";

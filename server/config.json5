@@ -41,11 +41,27 @@
   },
 
   imageUpload: {
+    // Oracle Cloud Infrastructure Object Storage
     service: "oci",
-    configPath: "oci-config.cfg",
-    namespace: "CHANGE_ME",
-    bucket: "CHANGE_ME",
-    region: "CHANGE_ME",
+    // OCID of the user calling the API. See https://docs.oracle.com/en-us/iaas/Content/API/Concepts/apisigningkey.htm#five
+    user: "ocid1.user.oc1..CHANGE_ME",
+    // OCID of your tenancy. See https://docs.oracle.com/en-us/iaas/Content/API/Concepts/apisigningkey.htm#five
+    tenancy: "ocid1.tenancy.oc1..CHANGE_ME",
+    // Fingerprint for the public key that was added to this user. See https://docs.oracle.com/en-us/iaas/Content/API/Concepts/apisigningkey.htm#four
+    fingerprint: "12:34:56:78:90:ab:cd:ef:12:34:56:78:90:ab:cd:ef",
+    // The private key to use. See https://docs.oracle.com/en-us/iaas/Content/API/Concepts/apisigningkey.htm#two
+    // This should be a secret token uri of the key in PEM format in full, with newlines encoded as "/n".
+    // It will start with "-----BEGIN PRIVATE KEY-----\n" and end with "\n-----END PRIVATE KEY-----\n"
+    privateKey: "CHANGE_ME",
+    // Passphrase used for the key, if it is encrypted.
+    // If it is not encrypted, do not provide a value.
+    //passphrase: "CHANGE_ME",
+    // An Oracle Cloud Infrastructure region. See https://docs.oracle.com/en-us/iaas/Content/General/Concepts/regions.htm#top
+    region: "us-ashburn-1",
+    // The namespace the bucket you want to use is in.
+    namespace: "abcdefghi",
+    // The name of the bucket you want to use.
+    bucket: "your-bucket-name",
 
     name: {
       method: "hash",
@@ -56,11 +72,27 @@
   },
 
   avatarCache: {
+    // Oracle Cloud Infrastructure Object Storage
     service: "oci",
-    configPath: "oci-config.cfg",
-    namespace: "CHANGE_ME",
-    bucket: "CHANGE_ME",
-    region: "CHANGE_ME",
+    // OCID of the user calling the API. See https://docs.oracle.com/en-us/iaas/Content/API/Concepts/apisigningkey.htm#five
+    user: "ocid1.user.oc1..CHANGE_ME",
+    // OCID of your tenancy. See https://docs.oracle.com/en-us/iaas/Content/API/Concepts/apisigningkey.htm#five
+    tenancy: "ocid1.tenancy.oc1..CHANGE_ME",
+    // Fingerprint for the public key that was added to this user. See https://docs.oracle.com/en-us/iaas/Content/API/Concepts/apisigningkey.htm#four
+    fingerprint: "12:34:56:78:90:ab:cd:ef:12:34:56:78:90:ab:cd:ef",
+    // The private key to use. See https://docs.oracle.com/en-us/iaas/Content/API/Concepts/apisigningkey.htm#two
+    // This should be a secret token uri of the key in PEM format in full, with newlines encoded as "/n".
+    // It will start with "-----BEGIN PRIVATE KEY-----\n" and end with "\n-----END PRIVATE KEY-----\n"
+    privateKey: "CHANGE_ME",
+    // Passphrase used for the key, if it is encrypted.
+    // If it is not encrypted, do not provide a value.
+    //passphrase: "CHANGE_ME",
+    // An Oracle Cloud Infrastructure region. See https://docs.oracle.com/en-us/iaas/Content/General/Concepts/regions.htm#top
+    region: "us-ashburn-1",
+    // The namespace the bucket you want to use is in.
+    namespace: "abcdefghi",
+    // The name of the bucket you want to use.
+    bucket: "your-bucket-name",
 
     name: {
       method: "hash",

@@ -44,8 +44,8 @@ toString theme =
 
 
 toClass : Theme -> Html.Attribute msg
-toClass =
-    toString >> HtmlA.class
+toClass theme =
+    (toString theme ++ "-theme") |> HtmlA.class
 
 
 encode : Theme -> JsonE.Value

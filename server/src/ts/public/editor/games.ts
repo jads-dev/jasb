@@ -1,4 +1,4 @@
-import type { Internal } from "../../internal";
+import type { Internal } from "../../internal.js";
 
 export interface EditableGame {
   name: string;
@@ -26,4 +26,4 @@ export const fromInternal = (internal: Internal.Game): EditableGame => ({
   modified: internal.modified.toJSON(),
 });
 
-export * as Games from "./games";
+export * as Games from "./games.js";

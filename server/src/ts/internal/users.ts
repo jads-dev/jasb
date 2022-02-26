@@ -55,4 +55,4 @@ export interface PerGamePermissions {
   manage_bets: boolean;
 }
 
-export * as Users from "./users";
+export * as Users from "./users.js";

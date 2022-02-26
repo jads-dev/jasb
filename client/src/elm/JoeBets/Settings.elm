@@ -9,6 +9,7 @@ import FontAwesome.Solid as Icon
 import Html exposing (Html)
 import Html.Attributes as HtmlA
 import Html.Events as HtmlE
+import JoeBets.Layout as Layout
 import JoeBets.Page.Bets.Filters as Filters
 import JoeBets.Settings.Model exposing (..)
 import JoeBets.Store as Store
@@ -41,6 +42,7 @@ init storeData =
             { visible = False
             , defaultFilters = Item.default Codecs.defaultFilters
             , theme = Item.default Codecs.theme
+            , layout = Item.default Codecs.layout
             }
     in
     storeData |> List.filterMap fromItem |> List.foldl apply model
@@ -54,6 +56,9 @@ update msg ({ settings } as model) =
 
         SetTheme theme ->
             ( model, Store.set Codecs.theme (Just settings.theme) theme )
+
+        SetLayout layout ->
+            ( model, Store.set Codecs.layout (Just settings.layout) layout )
 
         ReceiveChange change ->
             ( { model | settings = settings |> apply change }, Cmd.none )
@@ -91,6 +96,16 @@ view wrap { settings } =
                 , disabled = False
                 , fullWidth = True
                 }
+
+            layoutSelectModel =
+                { label = "Layout"
+                , idToString = Layout.toString
+                , idFromString = Layout.fromString
+                , selected = Just settings.layout.value
+                , wrap = Maybe.withDefault Layout.Auto >> SetLayout >> wrap
+                , disabled = False
+                , fullWidth = True
+                }
         in
         [ Html.div [ HtmlA.id "client-settings" ]
             [ Html.div [ HtmlA.class "background", False |> SetVisibility |> wrap |> HtmlE.onClick ] []
@@ -119,6 +134,11 @@ view wrap { settings } =
                         , Html.p [] [ Html.text "What theme to use for the site." ]
                         , Theme.all |> List.map Theme.selectItem |> Select.view themeSelectModel
                         ]
+                    , Html.div [ HtmlA.class "layout" ]
+                        [ Html.h3 [] [ Html.text "Layout" ]
+                        , Html.p [] [ Html.text "What layout to use for the site." ]
+                        , Layout.all |> List.map Layout.selectItem |> Select.view layoutSelectModel
+                        ]
                     ]
                 ]
             ]
@@ -136,3 +156,6 @@ apply change model =
 
         ThemeItem item ->
             { model | theme = item }
+
+        LayoutItem item ->
+            { model | layout = item }

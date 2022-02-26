@@ -1,4 +1,4 @@
-import { Iterables } from "./iterables";
+import { Iterables } from "./iterables.js";
 
 export function mapValues<O extends { [key: string]: V }, V, U>(
   obj: O,
@@ -16,9 +16,9 @@ export async function allPromises<O extends { [key: string]: V }, V, U>(
   f: (value: V) => Promise<U>
 ): Promise<{ [P in keyof O]: U }> {
   const values = await Promise.all(Object.values(obj).map(f));
-  return Object.fromEntries(Iterables.zip(Object.keys(obj), values)) as {
+  return Object.fromEntries(Iterables.zip(Object.keys(obj), values)) as unknown as {
     [P in keyof O]: U;
   };
 }
 
-export * as Objects from "./objects";
+export * as Objects from "./objects.js";

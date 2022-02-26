@@ -1,6 +1,6 @@
 import * as Joda from "@js-joda/core";
 
-import { Options } from "./options";
+import { Options } from "./options.js";
 
 export type Progress = "Voting" | "Locked" | "Complete" | "Cancelled";
 
@@ -36,4 +36,4 @@ export interface Author {
   author_avatar: string | null;
 }
 
-export * as Bets from "./bets";
+export * as Bets from "./bets.js";

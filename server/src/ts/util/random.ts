@@ -6,4 +6,4 @@ const randomBytes = Util.promisify(Crypto.randomBytes);
 export const secureRandomString = async (bytes: number): Promise<string> =>
   (await randomBytes(bytes)).toString("base64");
 
-export * as Random from "./random";
+export * as Random from "./random.js";

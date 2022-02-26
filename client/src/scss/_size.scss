@@ -1,0 +1,32 @@
+@mixin wide {
+  font-size: 1em;
+}
+
+@mixin narrow {
+  font-size: 0.8em;
+
+  .bet > ul > li {
+    > img,
+    > .details {
+      display: none;
+    }
+  }
+}
+
+:root {
+  @include wide;
+
+  @media only screen and (max-width: 25em) {
+    @include narrow;
+  }
+}
+
+#jasb {
+  &.wide-layout {
+    @include wide;
+  }
+
+  &.narrow-layout {
+    @include narrow;
+  }
+}

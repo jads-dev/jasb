@@ -1,11 +1,11 @@
-export { Bet, Bets } from "./internal/bets";
-export { AuditLog } from "./internal/audit-log";
-export { Feed } from "./internal/feed";
-export { Game, Games } from "./internal/games";
-export { Notification, Notifications } from "./internal/notifications";
-export { Option, Options } from "./internal/options";
-export { Stake, Stakes } from "./internal/stakes";
-export { User, Users } from "./internal/users";
-export { AvatarCache } from "./internal/avatar-cache";
+export { Bet, Bets } from "./internal/bets.js";
+export { AuditLog } from "./internal/audit-log.js";
+export { Feed } from "./internal/feed.js";
+export { Game, Games } from "./internal/games.js";
+export { Notification, Notifications } from "./internal/notifications.js";
+export { Option, Options } from "./internal/options.js";
+export { Stake, Stakes } from "./internal/stakes.js";
+export { User, Users } from "./internal/users.js";
+export { AvatarCache } from "./internal/avatar-cache.js";
 
-export * as Internal from "./internal";
+export * as Internal from "./internal.js";

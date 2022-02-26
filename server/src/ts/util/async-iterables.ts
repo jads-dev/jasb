@@ -19,4 +19,4 @@ export async function mapToArray<From, To>(
   return result;
 }
 
-export * as AsyncIterables from "./async-iterables";
+export * as AsyncIterables from "./async-iterables.js";

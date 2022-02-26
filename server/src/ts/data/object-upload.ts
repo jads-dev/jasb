@@ -1,6 +1,6 @@
 import { default as Crypto } from "crypto";
 
-import { Config } from "../../server/config";
+import { Config } from "../server/config.js";
 
 export interface UseCase {
   name: (originalName: string, data: Uint8Array) => string;
@@ -53,7 +53,7 @@ export async function init(
 ): Promise<ObjectUploader | undefined> {
   switch (config?.service) {
     case "oci": {
-      const { OciObjectUploader } = await import("./oci");
+      const { OciObjectUploader } = await import("./object-upload/oci.js");
       return new OciObjectUploader(config);
     }
 
@@ -62,4 +62,4 @@ export async function init(
   }
 }
 
-export * as ObjectUpload from ".";
+export * as ObjectUpload from "./object-upload.js";

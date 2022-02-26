@@ -8,6 +8,7 @@ import FontAwesome.Icon as Icon
 import FontAwesome.Solid as Icon
 import Html
 import Html.Attributes as HtmlA
+import JoeBets.Layout as Layout
 import JoeBets.Page.About as About
 import JoeBets.Page.Bet as Bet
 import JoeBets.Page.Bet.Model as Bet
@@ -330,6 +331,7 @@ view model =
             |> Html.div
                 [ HtmlA.id "jasb"
                 , model.settings.theme.value |> Theme.toClass
+                , model.settings.layout.value |> Layout.toClass
                 ]
         ]
     }

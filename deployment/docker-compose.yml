@@ -24,8 +24,6 @@ services:
       - data
     volumes:
       - /host/path/to/config.json5:/jasb/config.json5:ro
-      - /host/path/to/oci-config.cfg:/jasb/oci-config.cfg:ro
-      - /host/path/to/oci_api_key.pem:/jasb/oci_api_key.pem:ro
     restart: unless-stopped
 
   client:
@@ -39,7 +37,7 @@ services:
     restart: unless-stopped
 
   data:
-    image: postgres:13
+    image: postgres:14
     volumes:
       - storage-volume:/var/lib/postgresql/data
     environment:

@@ -15,6 +15,7 @@ import Util.Json.Decode as JsonD
 type Key
     = DefaultFilters
     | Theme
+    | Layout
     | GameFilters Game.Id
     | GameFavourites
 
@@ -29,6 +30,9 @@ keyDecoder =
 
                 [ "theme" ] ->
                     Theme |> JsonD.succeed
+
+                [ "layout" ] ->
+                    Layout |> JsonD.succeed
 
                 [ "game-filters", game ] ->
                     game |> Game.idFromString |> GameFilters |> JsonD.succeed
@@ -52,6 +56,9 @@ keyToString =
 
                 Theme ->
                     [ "theme" ]
+
+                Layout ->
+                    [ "layout" ]
 
                 GameFilters gameId ->
                     [ "game-filters", gameId |> Game.idToString ]

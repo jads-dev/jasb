@@ -1,4 +1,4 @@
-import { Stake } from "./stakes";
+import { Stake } from "./stakes.js";
 
 export interface HistoricAccount {
   event: "HistoricAccount";
@@ -85,4 +85,4 @@ export interface Entry {
   event: Event;
 }
 
-export * as AuditLog from "./audit-log";
+export * as AuditLog from "./audit-log.js";

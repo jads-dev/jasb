@@ -2,7 +2,7 @@ import * as Schema from "io-ts";
 
 import type { Internal } from "../../internal";
 import type { Users } from "../users";
-import { Stake, Stakes } from "./stakes";
+import { Stake, Stakes } from "./stakes.js";
 
 interface OptionIdBrand {
   readonly OptionId: unique symbol;
@@ -35,4 +35,4 @@ export const fromInternal = ({
   },
 ];
 
-export * as Options from "./options";
+export * as Options from "./options.js";

@@ -1,8 +1,8 @@
-import type { Internal } from "../internal";
-import { Expect } from "../util/expect";
-import type { Bets } from "./bets";
-import type { Games } from "./games";
-import type { Users } from "./users";
+import type { Internal } from "../internal.js";
+import { Expect } from "../util/expect.js";
+import type { Bets } from "./bets.js";
+import type { Games } from "./games.js";
+import type { Users } from "./users.js";
 
 export interface IdAndName<Id> {
   id: Id;
@@ -114,4 +114,4 @@ const userInfoFromInternal = (internal: Internal.Users.Summary): UserInfo => ({
     : {}),
   discriminator: internal.discriminator,
 });
-export * as Feed from "./feed";
+export * as Feed from "./feed.js";

@@ -2,7 +2,7 @@ import { default as Express } from "express";
 import { default as StatusCodes } from "http-status-codes";
 import { default as Winston } from "winston";
 
-import { Auth } from "./auth";
+import { Auth } from "./auth.js";
 
 export class WebError extends Error {
   status: number;
@@ -41,4 +41,4 @@ export const express: (
   }
 };
 
-export * as Errors from "./errors";
+export * as Errors from "./errors.js";

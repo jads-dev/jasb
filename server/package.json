@@ -4,7 +4,7 @@
   "version": "1.0.0",
   "main": "src/ts/index.ts",
   "engines": {
-    "node": ">=16.0.0 <17.0.0"
+    "node": ">=17.0.0 <18.0.0"
   },
   "type": "module",
   "private": true,
@@ -18,11 +18,13 @@
     "debug": "nodemon --exec \"npm run inspect\"",
     "pregenerate-secret": "npm run build",
     "generate-secret": "node --es-module-specifier-resolution=node dist/generate-secret.js",
-    "queries": "npx pgtyped -c pgtyped.json"
+    "docker": "mkdir -p \"$(pwd)/../workaround\" && ROOT_DIR=\"$(pwd)/..\" USER_ID=$(id -u ${USER}) GROUP_ID=$(id -g ${USER}) docker compose -f ../develop.yml run --rm --entrypoint /bin/ash server",
+    "docker:build": "mkdir -p \"$(pwd)/../workaround\" && ROOT_DIR=\"$(pwd)/..\" USER_ID=$(id -u ${USER}) GROUP_ID=$(id -g ${USER}) docker compose -f ../develop.yml run --rm server run build",
+    "docker:dev": "mkdir -p \"$(pwd)/../workaround\" && ROOT_DIR=\"$(pwd)/..\" USER_ID=$(id -u ${USER}) GROUP_ID=$(id -g ${USER}) docker compose -f ../develop.yml up --build --no-log-prefix server"
   },
   "dependencies": {
-    "@js-joda/core": "^4.0.0",
-    "axios": "^0.24.0",
+    "@js-joda/core": "^5.2.0",
+    "axios": "^0.26.0",
     "cookie-parser": "^1.4.5",
     "cors": "^2.8.5",
     "discord-oauth2": "^2.6.0",
@@ -32,14 +34,14 @@
     "express-fileupload": "^1.2.1",
     "express-winston": "^4.2.0",
     "fp-ts": "^2.10.5",
-    "helmet": "^4.6.0",
+    "helmet": "^5.0.2",
     "http-status-codes": "^2.1.4",
     "io-ts": "^2.2.16",
     "jose": "^4.0.4",
     "json5": "^2.2.0",
     "postgres-interval": "^4.0.0",
     "postgres-migrations": "^5.2.0",
-    "slonik": "^25.0.0",
+    "slonik": "^27.1.0",
     "source-map-support": "^0.5.20",
     "winston": "^3.3.3"
   },

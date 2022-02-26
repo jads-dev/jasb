@@ -15,12 +15,12 @@ import {
   Notification,
   User,
   Users,
-} from "../internal";
-import { Config } from "../server/config";
-import { WebError } from "../server/errors";
-import { Notifier } from "../server/notifier";
-import { SecretToken } from "../util/secret-token";
-import { ObjectUploader } from "./object-upload";
+} from "../internal.js";
+import { Config } from "../server/config.js";
+import { WebError } from "../server/errors.js";
+import { Notifier } from "../server/notifier.js";
+import { SecretToken } from "../util/secret-token.js";
+import { ObjectUploader } from "./object-upload.js";
 
 const postgresDateTimeFormatter = new Joda.DateTimeFormatterBuilder()
   .parseCaseInsensitive()
@@ -37,7 +37,7 @@ export class Store {
   readonly config: Config.Server;
   readonly notifier: Notifier;
   readonly avatarCache: ObjectUploader | undefined;
-  readonly pool: Slonik.DatabasePoolType;
+  readonly pool: Slonik.DatabasePool;
 
   private constructor(
     logger: Winston.Logger,
@@ -341,7 +341,7 @@ export class Store {
         RETURNING access_token;
       `);
       if (results.rowCount > 0) {
-        return results.rows[0].access_token as string;
+        return results.rows[0]?.access_token as string;
       } else {
         return undefined;
       }
@@ -553,8 +553,8 @@ export class Store {
   }
 
   betWithOptionsAndAuthorFromBets<T>(
-    betsSubquery: Slonik.TaggedTemplateLiteralInvocationType<T>,
-  ): Slonik.TaggedTemplateLiteralInvocationType<T> {
+    betsSubquery: Slonik.TaggedTemplateLiteralInvocation<T>,
+  ): Slonik.TaggedTemplateLiteralInvocation<T> {
     return sql`
       SELECT
         bets.game,
@@ -605,7 +605,7 @@ export class Store {
     id: string;
     name: string;
     image: string | null;
-  }): Slonik.ValueExpressionType {
+  }): Slonik.ValueExpression {
     return sql`ROW(${id}, ${name ?? null}, ${image ?? null})::AddOption`;
   }
 
@@ -656,7 +656,7 @@ export class Store {
           this.config.clientOrigin,
           spoiler,
           gameId,
-          nameResult.rows[0].name as string,
+          nameResult.rows[0]?.name as string,
           id,
           name,
         );
@@ -677,7 +677,7 @@ export class Store {
     name?: string;
     image?: string | null;
     order?: number;
-  }): Slonik.ValueExpressionType {
+  }): Slonik.ValueExpression {
     return sql`
       ROW(
         ${id}, 
@@ -836,6 +836,9 @@ export class Store {
           `,
         );
         const row = detailsResult.rows[0];
+        if (row === undefined) {
+          throw new Error("Unexpected empty result.");
+        }
         return Notifier.betComplete(
           this.config.clientOrigin,
           row.spoiler as boolean,
@@ -991,6 +994,9 @@ export class Store {
             `,
           );
           const row = detailsResult.rows[0];
+          if (row === undefined) {
+            throw new Error("Unexpected empty result.");
+          }
           return Notifier.newStake(
             this.config.clientOrigin,
             row.spoiler as boolean,
@@ -1005,7 +1011,7 @@ export class Store {
           );
         });
       }
-      return row.new_balance as number;
+      return row?.new_balance as number;
     });
   }
 
@@ -1028,7 +1034,7 @@ export class Store {
             ${optionId}
           ) AS new_balance;
       `);
-      return result.rows[0].new_balance as number;
+      return result.rows[0]?.new_balance as number;
     });
   }
 
@@ -1057,7 +1063,7 @@ export class Store {
             ${message}
           ) AS new_balance;
       `);
-      return result.rows[0].new_balance as number;
+      return result.rows[0]?.new_balance as number;
     });
   }
 
@@ -1178,7 +1184,7 @@ export class Store {
           NOW() >= (started + ${this.config.auth.sessionLifetime.toString()}::INTERVAL)
         RETURNING access_token;
       `);
-      return results.rows.map((row) => row.access_token as string);
+      return results.rows.map((row: any) => row.access_token as string);
     });
   }
 
@@ -1196,7 +1202,7 @@ export class Store {
           WHERE cached_avatars.url = users.avatar_cache
         ) LIMIT ${garbageCollectBatchSize};
       `);
-      return results.rows.map((row) => row.url as string);
+      return results.rows.map((row: any) => row.url as string);
     });
   }
 
@@ -1263,7 +1269,7 @@ export class Store {
   }
 
   private async withClient<Value>(
-    operation: (client: Slonik.DatabasePoolConnectionType) => Promise<Value>,
+    operation: (client: Slonik.DatabasePoolConnection) => Promise<Value>,
   ): Promise<Value> {
     return await Store.translatingErrors(
       async () => await this.pool.connect(operation),
@@ -1272,7 +1278,7 @@ export class Store {
 
   private async inTransaction<Value>(
     operation: (
-      client: Slonik.DatabaseTransactionConnectionType,
+      client: Slonik.DatabaseTransactionConnection,
     ) => Promise<Value>,
   ): Promise<Value> {
     return await Store.translatingErrors(

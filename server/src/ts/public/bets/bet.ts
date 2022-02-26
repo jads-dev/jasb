@@ -2,7 +2,7 @@ import * as Schema from "io-ts";
 
 import type { Internal } from "../../internal";
 import { Expect } from "../../util/expect";
-import { Option, Options } from "./options";
+import { Option, Options } from "./options.js";
 
 interface BetIdBrand {
   readonly BetId: unique symbol;

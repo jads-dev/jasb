@@ -36,4 +36,4 @@ export const fromInternal = (
   },
 ];
 
-export * as Stakes from "./stakes";
+export * as Stakes from "./stakes.js";

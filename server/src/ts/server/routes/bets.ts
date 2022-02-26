@@ -3,12 +3,12 @@ import { default as asyncHandler } from "express-async-handler";
 import { StatusCodes } from "http-status-codes";
 import * as Schema from "io-ts";
 
-import { Bets, Editor, Feed, Games } from "../../public";
-import { Options } from "../../public/bets/options";
-import { Validation } from "../../util/validation";
-import { WebError } from "../errors";
-import { Server } from "../model";
-import { requireSession } from "./auth";
+import { Bets, Editor, Feed, Games } from "../../public.js";
+import { Options } from "../../public/bets/options.js";
+import { Validation } from "../../util/validation.js";
+import { WebError } from "../errors.js";
+import { Server } from "../model.js";
+import { requireSession } from "./auth.js";
 
 const StakeBody = Schema.intersection([
   Schema.strict({
@@ -88,13 +88,15 @@ export const betsApi = (server: Server.State): Express.Router => {
   router.get(
     "/",
     asyncHandler(async (request, response) => {
-      const game = await server.store.getGame(request.params.gameId);
+      const gameId = request.params.gameId ?? "";
+      const betId = request.params.betId ?? "";
+      const game = await server.store.getGame(gameId);
       if (game === undefined) {
         throw new WebError(StatusCodes.NOT_FOUND, "Game not found.");
       }
       const bet = await server.store.getBet(
-        request.params.gameId,
-        request.params.betId,
+        gameId,
+        betId,
       );
       if (bet === undefined) {
         throw new WebError(StatusCodes.NOT_FOUND, "Bet not found.");
@@ -111,8 +113,8 @@ export const betsApi = (server: Server.State): Express.Router => {
     "/edit",
     asyncHandler(async (request, response) => {
       const bet = await server.store.getBet(
-        request.params.gameId,
-        request.params.betId,
+        request.params.gameId ?? "",
+        request.params.betId ?? "",
       );
       if (bet === undefined) {
         throw new WebError(StatusCodes.NOT_FOUND, "Bet not found.");
@@ -127,8 +129,8 @@ export const betsApi = (server: Server.State): Express.Router => {
     "/",
     asyncHandler(async (request, response) => {
       const sessionCookie = requireSession(request.cookies);
-      const gameId = request.params.gameId;
-      const betId = request.params.betId;
+      const gameId = request.params.gameId ?? "";
+      const betId = request.params.betId ?? "";
       const body = Validation.body(CreateBetBody, request.body);
       const bet = await server.store.newBet(
         sessionCookie.user,
@@ -151,8 +153,8 @@ export const betsApi = (server: Server.State): Express.Router => {
     "/",
     asyncHandler(async (request, response) => {
       const sessionCookie = requireSession(request.cookies);
-      const gameId = request.params.gameId;
-      const betId = request.params.betId;
+      const gameId = request.params.gameId ?? "";
+      const betId = request.params.betId ?? "";
       const body = Validation.body(EditBetBody, request.body);
       const bet = await server.store.editBet(
         sessionCookie.user,
@@ -181,13 +183,13 @@ export const betsApi = (server: Server.State): Express.Router => {
     "/complete",
     asyncHandler(async (request, response) => {
       const sessionCookie = requireSession(request.cookies);
-      const gameId = request.params.gameId;
+      const gameId = request.params.gameId ?? "";
       const body = Validation.body(CompleteBetBody, request.body);
       const bet = await server.store.completeBet(
         sessionCookie.user,
         sessionCookie.session,
         gameId,
-        request.params.betId,
+        request.params.betId ?? "",
         body.version,
         body.winners,
       );
@@ -204,13 +206,13 @@ export const betsApi = (server: Server.State): Express.Router => {
     "/complete/revert",
     asyncHandler(async (request, response) => {
       const sessionCookie = requireSession(request.cookies);
-      const gameId = request.params.gameId;
+      const gameId = request.params.gameId ?? "";
       const body = Validation.body(RevertBody, request.body);
       const bet = await server.store.revertCompleteBet(
         sessionCookie.user,
         sessionCookie.session,
         gameId,
-        request.params.betId,
+        request.params.betId ?? "",
         body.version,
       );
       if (bet === undefined) {
@@ -226,13 +228,13 @@ export const betsApi = (server: Server.State): Express.Router => {
     "/lock",
     asyncHandler(async (request, response) => {
       const sessionCookie = requireSession(request.cookies);
-      const gameId = request.params.gameId;
+      const gameId = request.params.gameId ?? "";
       const body = Validation.body(ModifyLockStateBody, request.body);
       const bet = await server.store.setBetLocked(
         sessionCookie.user,
         sessionCookie.session,
         gameId,
-        request.params.betId,
+        request.params.betId ?? "",
         body.version,
         true,
       );
@@ -249,13 +251,13 @@ export const betsApi = (server: Server.State): Express.Router => {
     "/unlock",
     asyncHandler(async (request, response) => {
       const sessionCookie = requireSession(request.cookies);
-      const gameId = request.params.gameId;
+      const gameId = request.params.gameId ?? "";
       const body = Validation.body(ModifyLockStateBody, request.body);
       const bet = await server.store.setBetLocked(
         sessionCookie.user,
         sessionCookie.session,
         gameId,
-        request.params.betId,
+        request.params.betId ?? "",
         body.version,
         false,
       );
@@ -272,13 +274,13 @@ export const betsApi = (server: Server.State): Express.Router => {
     "/cancel",
     asyncHandler(async (request, response) => {
       const sessionCookie = requireSession(request.cookies);
-      const gameId = request.params.gameId;
+      const gameId = request.params.gameId ?? "";
       const body = Validation.body(CancelBetBody, request.body);
       const bet = await server.store.cancelBet(
         sessionCookie.user,
         sessionCookie.session,
         gameId,
-        request.params.betId,
+        request.params.betId ?? "",
         body.version,
         body.reason,
       );
@@ -295,13 +297,13 @@ export const betsApi = (server: Server.State): Express.Router => {
     "/cancel/revert",
     asyncHandler(async (request, response) => {
       const sessionCookie = requireSession(request.cookies);
-      const gameId = request.params.gameId;
+      const gameId = request.params.gameId ?? "";
       const body = Validation.body(RevertBody, request.body);
       const bet = await server.store.revertCancelBet(
         sessionCookie.user,
         sessionCookie.session,
         gameId,
-        request.params.betId,
+        request.params.betId ?? "",
         body.version,
       );
       if (bet === undefined) {
@@ -316,8 +318,8 @@ export const betsApi = (server: Server.State): Express.Router => {
   router.get(
     "/feed",
     asyncHandler(async (request, response) => {
-      const gameId = request.params.gameId;
-      const betId = request.params.betId;
+      const gameId = request.params.gameId ?? "";
+      const betId = request.params.betId ?? "";
       const feed = await server.store.getBetFeed(gameId, betId);
       const result: Feed.Event[] = feed.map(Feed.fromInternal);
       response.json(result);
@@ -361,9 +363,9 @@ export const betsApi = (server: Server.State): Express.Router => {
       const new_balance = await server.store.newStake(
         sessionCookie.user,
         sessionCookie.session,
-        request.params.gameId,
-        request.params.betId,
-        request.params.optionId,
+        request.params.gameId ?? "",
+        request.params.betId ?? "",
+        request.params.optionId ?? "",
         amount,
         message ?? null,
       );
@@ -380,9 +382,9 @@ export const betsApi = (server: Server.State): Express.Router => {
       const new_balance = await server.store.changeStake(
         sessionCookie.user,
         sessionCookie.session,
-        request.params.gameId,
-        request.params.betId,
-        request.params.optionId,
+        request.params.gameId ?? "",
+        request.params.betId ?? "",
+        request.params.optionId ?? "",
         amount,
         message ?? null,
       );
@@ -398,9 +400,9 @@ export const betsApi = (server: Server.State): Express.Router => {
       const new_balance = await server.store.withdrawStake(
         sessionCookie.user,
         sessionCookie.session,
-        request.params.gameId,
-        request.params.betId,
-        request.params.optionId,
+        request.params.gameId ?? "",
+        request.params.betId ?? "",
+        request.params.optionId ?? "",
       );
       response.json(new_balance);
     }),

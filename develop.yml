@@ -1,0 +1,53 @@
+version: "3.9"
+
+networks:
+  frontend:
+  backend:
+
+volumes:
+  storage:
+
+services:
+  storage:
+    image: "postgres:14"
+    environment:
+      POSTGRES_USER: jasb
+      POSTGRES_PASSWORD: jasb
+      TZ: UTC
+    ports:
+      - "127.0.0.1:5432:5432/tcp" # Not needed to run, but allows you to connect to the DB with tooling locally.
+    networks:
+      - backend
+    volumes:
+      - storage:/var/lib/postgresql/data
+    restart: unless-stopped
+
+  server:
+    build:
+      context: "${ROOT_DIR?err}/workaround"
+      dockerfile: "../server/Dockerfile.dev"
+    user: "${USER_ID:?err}:${GROUP_ID:?err}"
+    tty: true
+    environment:
+      JASB_CONFIG_PATH: "config.json5;config.dev.json5"
+      #ROARR_LOG: true # Log all SQL queries, for debugging.
+    volumes:
+      - ${ROOT_DIR?err}/server:/jasb/server
+    networks:
+      - frontend
+      - backend
+    depends_on:
+      - storage
+
+  client:
+    build:
+      context: "${ROOT_DIR?err}/workaround"
+      dockerfile: "../client/Dockerfile.dev"
+    user: "${USER_ID:?err}:${GROUP_ID:?err}"
+    tty: true
+    ports:
+      - "127.0.0.1:8080:8080/tcp" # Allows you to connect to the web UI locally.
+    volumes:
+      - ${ROOT_DIR?err}/client:/jasb/client
+    networks:
+      - frontend

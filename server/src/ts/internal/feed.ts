@@ -1,6 +1,6 @@
 import * as Joda from "@js-joda/core";
 
-import { Users } from "./users";
+import { Users } from "./users.js";
 
 export interface IdAndName {
   id: string;
@@ -46,4 +46,4 @@ export interface Item {
   time: Joda.ZonedDateTime;
 }
 
-export * as Feed from "./feed";
+export * as Feed from "./feed.js";

@@ -1,3 +1,3 @@
-export * from "./server/model";
+export * from "./server/model.js";
 
-export * as Server from "./server";
+export * as Server from "./server.js";

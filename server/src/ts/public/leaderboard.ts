@@ -1,5 +1,5 @@
-import type { Internal } from "../internal";
-import { Users } from ".";
+import type { Internal } from "../internal.js";
+import { Users } from "../public.js";
 
 export interface Entry {
   id: Users.Id;
@@ -31,4 +31,4 @@ export const fromInternal = (
   netWorth: internal.net_worth,
 });
 
-export * as Leaderboard from "./leaderboard";
+export * as Leaderboard from "./leaderboard.js";

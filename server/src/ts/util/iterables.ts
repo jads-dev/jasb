@@ -62,4 +62,4 @@ export const interleave = function* <Item>(
   }
 };
 
-export * as Iterables from "./iterables";
+export * as Iterables from "./iterables.js";

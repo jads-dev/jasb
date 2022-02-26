@@ -1,7 +1,7 @@
 import * as Schema from "io-ts";
 
-import type { Internal } from "../internal";
-import type { Games } from "./games";
+import type { Internal } from "../internal.js";
+import type { Games } from "./games.js";
 
 interface UserIdBrand {
   readonly UserId: unique symbol;
@@ -115,4 +115,4 @@ export const permissionsFromInternal = ({
   canManageBets: manage_bets,
 });
 
-export * as Users from "./users";
+export * as Users from "./users.js";

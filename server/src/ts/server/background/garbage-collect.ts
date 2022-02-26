@@ -1,5 +1,5 @@
-import { Promises } from "../../util/promises";
-import { Server } from "../model";
+import { Promises } from "../../util/promises.js";
+import { Server } from "../model.js";
 
 export async function garbageCollect(server: Server.State) {
   await Promises.wait(server.config.store.garbageCollectionFrequency);

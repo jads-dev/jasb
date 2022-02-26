@@ -1,4 +1,10 @@
-FROM node:16-alpine AS base
+ARG NODE_VERSION=17
+ARG MODE=production
+ARG BUILD_DATE
+ARG VCS_REF
+ARG VERSION=${VCS_REF}-dev
+
+FROM --platform=${BUILDPLATFORM} node:${NODE_VERSION}-alpine AS base
 
 WORKDIR /jasb
 
@@ -16,20 +22,22 @@ FROM base as install
 
 RUN ["npm", "ci", "--only=production"]
 
-FROM node:16-alpine
+FROM --platform=${TARGETPLATFORM} node:${NODE_VERSION}-alpine
 
-ARG NODE_ENV=production
-ENV NODE_ENV $NODE_ENV
-
+ARG VERSION
 ARG BUILD_DATE
 ARG VCS_REF
-ARG VERSION=$VCS_REF-dev
+ARG MODE
 
-LABEL org.opencontainers.image.created=$BUILD_DATE
+ENV JASB_CONFIG_PATH "config.json5"
+ENV JASB_VERSION ${VERSION}
+ENV NODE_ENV ${MODE}
+
+LABEL org.opencontainers.image.created=${BUILD_DATE}
 LABEL org.opencontainers.image.url="https://github.com/jads-dev/jasb"
 LABEL org.opencontainers.image.source="https://github.com/jads-dev/jasb"
-LABEL org.opencontainers.image.version=$VERSION
-LABEL org.opencontainers.image.revision=$VCS_REF
+LABEL org.opencontainers.image.version=${VERSION}
+LABEL org.opencontainers.image.revision=${VCS_REF}
 LABEL org.opencontainers.image.vendor="JADS Dev"
 LABEL org.opencontainers.image.licenses="AGPL-3.0+"
 LABEL org.opencontainers.image.title="JASB Server"
@@ -46,4 +54,4 @@ COPY --from=build ["/jasb/dist", "./"]
 
 EXPOSE 8081
 USER node
-CMD ["node", "--es-module-specifier-resolution=node", "./index.js"]
+CMD ["node", "./index.js"]

@@ -53,4 +53,4 @@ export const express = (logger: Winston.Logger): Handler =>
     ignoredRoutes: ["/private-api/status", "/private-api/status/live"],
   });
 
-export * as Logger from "./logger";
+export * as Logger from "./logger.js";

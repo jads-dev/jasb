@@ -140,6 +140,7 @@
     display: flex;
     justify-content: stretch;
     align-items: stretch;
+    grid-column: stakes;
 
     > span {
       position: relative;
@@ -266,12 +267,14 @@
 
   > ul {
     list-style: none;
-    margin: 0.5em;
+    margin: 0;
     padding: 0;
 
     display: grid;
-    grid-template-columns: auto auto 1fr auto;
+    grid-template-columns: [image] auto [name] auto [stakes] minmax(5em, 1fr) [details] auto;
     align-items: center;
+
+    gap: 0.25em;
 
     > li {
       display: contents;
@@ -280,21 +283,28 @@
 
       > img {
         max-height: 3em;
-        max-width: 3em;
+        max-width: min(3em, 100%);
+
+        min-width: 0;
+        overflow: hidden;
+
+        grid-column: image;
+        justify-self: center;
       }
 
-      > div:empty {
-        margin: 0;
-      }
-
-      > * {
-        margin: 0.25em;
+      > mwc-button {
+        grid-column: name;
+        --mdc-button-horizontal-padding: 0.25em;
       }
 
       .details {
+        grid-column: details;
+
         font-size: 0.5em;
+
         display: flex;
         flex-direction: column;
+        flex-wrap: wrap;
         align-items: center;
         justify-content: center;
         gap: 0.1em;

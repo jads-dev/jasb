@@ -1,9 +1,9 @@
 import * as Schema from "io-ts";
 
-import type { Internal } from "../internal";
-import { Expect } from "../util/expect";
-import { Users } from "./users";
-import { Bets } from "./bets";
+import type { Internal } from "../internal.js";
+import { Expect } from "../util/expect.js";
+import { Users } from "./users.js";
+import { Bets } from "./bets.js";
 
 interface GameIdBrand {
   readonly GameId: unique symbol;
@@ -146,4 +146,4 @@ export const withBetsFromInternal = (
   },
 });
 
-export * as Games from "./games";
+export * as Games from "./games.js";

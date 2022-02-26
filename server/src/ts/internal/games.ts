@@ -35,4 +35,4 @@ export interface Mods {
   mods: Users.Summary[];
 }
 
-export * as Games from "./games";
+export * as Games from "./games.js";

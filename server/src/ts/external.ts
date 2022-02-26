@@ -1,3 +1,3 @@
-export { Discord } from "./external/discord";
+export { Discord } from "./external/discord.js";
 
-export * as External from "./external";
+export * as External from "./external.js";
