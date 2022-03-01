@@ -1,8 +1,8 @@
-import { default as Express } from "express";
 import { default as StatusCodes } from "http-status-codes";
-import { default as Winston } from "winston";
+import type * as Koa from "koa";
 
 import { Auth } from "./auth.js";
+import { Logging } from "./logging.js";
 
 export class WebError extends Error {
   status: number;
@@ -13,7 +13,7 @@ export class WebError extends Error {
   }
 }
 
-export const handler = (log: Winston.Logger, error: Error): number => {
+export const handler = (log: Logging.Logger, error: unknown): number => {
   if (error instanceof WebError) {
     log.warn(error.message);
     return error.status;
@@ -22,23 +22,18 @@ export const handler = (log: Winston.Logger, error: Error): number => {
   return StatusCodes.INTERNAL_SERVER_ERROR;
 };
 
-export const express: (
-  log: Winston.Logger
-) => (
-  error: Error,
-  req: Express.Request,
-  res: Express.Response,
-  next: Express.NextFunction
-) => void = (log) => (error, req, res, next) => {
-  if (res.headersSent) {
-    next(error);
-  } else {
-    const finalError = handler(log, error);
-    if (finalError === StatusCodes.UNAUTHORIZED) {
-      res.clearCookie(Auth.sessionCookieName);
+export const middleware =
+  (log: Logging.Logger): Koa.Middleware =>
+  async (ctx, next): Promise<void> => {
+    try {
+      await next();
+    } catch (error) {
+      const finalError = handler(log, error);
+      if (finalError === StatusCodes.UNAUTHORIZED) {
+        ctx.cookies.set(Auth.sessionCookieName, "");
+      }
+      ctx.status = finalError;
     }
-    res.status(finalError).send();
-  }
-};
+  };
 
 export * as Errors from "./errors.js";

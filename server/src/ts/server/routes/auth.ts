@@ -1,9 +1,10 @@
 import * as Joda from "@js-joda/core";
-import { default as Express } from "express";
-import { default as asyncHandler } from "express-async-handler";
+import { default as Router } from "@koa/router";
+import type * as Cookies from "cookies";
 import { either as Either } from "fp-ts";
 import { StatusCodes } from "http-status-codes";
 import * as Schema from "io-ts";
+import { default as Body } from "koa-body";
 
 import { Notifications, Users } from "../../public.js";
 import { Validation } from "../../util/validation.js";
@@ -21,10 +22,12 @@ const encodeSessionCookie = (data: SessionCookie): string =>
   JSON.stringify(SessionCookie.encode(data));
 
 export const decodeSessionCookie = (
-  cookies: Record<string, string>
+  cookies: Cookies,
 ): SessionCookie | undefined => {
-  const cookie = cookies[Auth.sessionCookieName];
-  if (cookie !== undefined) {
+  const maybeCookie = cookies.get(Auth.sessionCookieName);
+  if (maybeCookie !== undefined) {
+    const cookie = decodeURIComponent(maybeCookie);
+    console.log(cookie);
     const result = SessionCookie.decode(JSON.parse(cookie));
     if (Either.isRight(result)) {
       return result.right;
@@ -36,9 +39,7 @@ export const decodeSessionCookie = (
   }
 };
 
-export const requireSession = (
-  cookies: Record<string, string>
-): SessionCookie => {
+export const requireSession = (cookies: Cookies): SessionCookie => {
   const session = decodeSessionCookie(cookies);
   if (session !== undefined) {
     return session;
@@ -52,85 +53,73 @@ const DiscordLoginBody = Schema.strict({
   state: Schema.string,
 });
 
-export const authApi = (server: Server.State): Express.Router => {
-  const router = Express.Router();
+export const authApi = (server: Server.State): Router => {
+  const router = new Router();
 
   // Log In.
-  router.post(
-    "/login",
-    asyncHandler(async (request, response) => {
-      const origin = server.config.clientOrigin;
-      const oldSession = decodeSessionCookie(request.cookies);
-      if (oldSession != null) {
-        const user = await server.store.getUser(oldSession.user);
-        if (user !== undefined) {
-          const notifications = await server.store.getNotifications(
-            oldSession.user,
-            oldSession.session
-          );
-          response
-            .json({
-              user: Users.fromInternal(user),
-              notifications: notifications.map(Notifications.fromInternal),
-            })
-            .send();
-          return;
-        }
+  router.post("/login", Body(), async (ctx) => {
+    const origin = server.config.clientOrigin;
+    const oldSession = decodeSessionCookie(ctx.cookies);
+    if (oldSession != null) {
+      const user = await server.store.getUser(oldSession.user);
+      if (user !== undefined) {
+        const notifications = await server.store.getNotifications(
+          oldSession.user,
+          oldSession.session,
+        );
+        ctx.body = {
+          user: Users.fromInternal(user),
+          notifications: notifications.map(Notifications.fromInternal),
+        };
+        return;
       }
-      const body = Validation.maybeBody(DiscordLoginBody, request.body);
-      if (body === undefined) {
-        const { url, state } = await server.auth.redirect(origin);
-        response
-          .cookie(Auth.stateCookieName, state, {
-            httpOnly: true,
-            sameSite: "strict",
-            secure: process.env.NODE_ENV === "production",
-          })
-          .json({ redirect: url });
-      } else {
-        const expectedState = request.cookies[Auth.stateCookieName];
-        if (expectedState === undefined) {
-          throw new WebError(StatusCodes.BAD_REQUEST, "Missing state cookie.");
-        }
-        if (expectedState !== body.state) {
-          throw new WebError(StatusCodes.BAD_REQUEST, "Incorrect state.");
-        }
-        const { user, notifications, session, expires, isNewUser } =
-          await server.auth.login(origin, body.code);
-        response
-          .clearCookie(Auth.stateCookieName)
-          .cookie(
-            Auth.sessionCookieName,
-            encodeSessionCookie({ user: user.id, session }),
-            {
-              expires: Joda.convert(expires).toDate(),
-              httpOnly: true,
-              sameSite: "strict",
-              secure: process.env.NODE_ENV === "production",
-            }
-          )
-          .json({
-            user,
-            notifications,
-            ...(isNewUser ? { isNewUser: true } : {}),
-          })
-          .send();
+    }
+    const body = Validation.maybeBody(DiscordLoginBody, ctx.body);
+    if (body === undefined) {
+      const { url, state } = await server.auth.redirect(origin);
+      ctx.cookies.set(Auth.stateCookieName, state, {
+        httpOnly: true,
+        sameSite: "strict",
+        secure: process.env.NODE_ENV === "production",
+      });
+      ctx.redirect(url);
+      ctx.status = StatusCodes.TEMPORARY_REDIRECT;
+    } else {
+      const expectedState = ctx.cookies.get(Auth.stateCookieName);
+      if (expectedState === undefined) {
+        throw new WebError(StatusCodes.BAD_REQUEST, "Missing state cookie.");
       }
-    })
-  );
+      if (expectedState !== body.state) {
+        throw new WebError(StatusCodes.BAD_REQUEST, "Incorrect state.");
+      }
+      const { user, notifications, session, expires, isNewUser } =
+        await server.auth.login(origin, body.code);
+      ctx.cookies.set(Auth.stateCookieName, "");
+      ctx.cookies.set(
+        Auth.sessionCookieName,
+        encodeSessionCookie({ user: user.id, session }),
+        {
+          expires: Joda.convert(expires).toDate(),
+          httpOnly: true,
+          sameSite: "strict",
+          secure: process.env.NODE_ENV === "production",
+        },
+      );
+      ctx.body = {
+        user,
+        notifications,
+        ...(isNewUser ? { isNewUser: true } : {}),
+      };
+    }
+  });
 
   // Log Out.
-  router.post(
-    "/logout",
-    asyncHandler(async (request, response) => {
-      const oldSession = requireSession(request.cookies);
-      await server.auth.logout(oldSession.user, oldSession.session);
-      response
-        .clearCookie(Auth.sessionCookieName)
-        .status(StatusCodes.OK)
-        .send();
-    })
-  );
+  router.post("/logout", Body(), async (ctx) => {
+    const oldSession = requireSession(ctx.cookies);
+    await server.auth.logout(oldSession.user, oldSession.session);
+    ctx.cookies.set(Auth.sessionCookieName, "");
+    ctx.status = StatusCodes.OK;
+  });
 
   return router;
 };

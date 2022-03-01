@@ -1,9 +1,10 @@
 import * as Joda from "@js-joda/core";
-import { default as Express } from "express";
-import { default as asyncHandler } from "express-async-handler";
+import { default as Router } from "@koa/router";
+import { promises as fs } from "fs";
 import { StatusCodes } from "http-status-codes";
+import { default as Body } from "koa-body";
 
-import { Feed, Leaderboard } from "../public";
+import { Feed, Leaderboard } from "../public.js";
 import { WebError } from "./errors.js";
 import { Server } from "./model.js";
 import { ResultCache } from "./result-cache.js";
@@ -11,24 +12,25 @@ import { authApi, requireSession } from "./routes/auth.js";
 import { gamesApi } from "./routes/games.js";
 import { usersApi } from "./routes/users.js";
 
-export const api = (server: Server.State): Express.Router => {
-  const apiRouter = Express.Router();
-  apiRouter.use("/auth", authApi(server));
-  apiRouter.use("/users", usersApi(server));
-  apiRouter.use("/games", gamesApi(server));
+export const api = (server: Server.State): Router => {
+  const apiRouter = new Router();
+
+  const auth = authApi(server);
+  apiRouter.use("/auth", auth.routes(), auth.allowedMethods());
+  const users = usersApi(server);
+  apiRouter.use("/users", users.routes(), users.allowedMethods());
+  const games = gamesApi(server);
+  apiRouter.use("/games", games.routes(), games.allowedMethods());
 
   const leaderboardCache = new ResultCache<Leaderboard.Entry[]>(async () => {
     const leaderboard = await server.store.getLeaderboard();
     return leaderboard.map(Leaderboard.fromInternal);
   }, Joda.Duration.of(1, Joda.ChronoUnit.MINUTES));
 
-  apiRouter.get(
-    "/leaderboard",
-    asyncHandler(async (request, response) => {
-      const result: Leaderboard.Entry[] = await leaderboardCache.get();
-      response.json(result);
-    }),
-  );
+  apiRouter.get("/leaderboard", async (ctx) => {
+    const result: Leaderboard.Entry[] = await leaderboardCache.get();
+    ctx.body = result;
+  });
 
   const feedCache = new ResultCache<Feed.Event[]>(
     async () =>
@@ -36,46 +38,53 @@ export const api = (server: Server.State): Express.Router => {
     Joda.Duration.of(1, Joda.ChronoUnit.MINUTES),
   );
 
-  apiRouter.get(
-    "/feed",
-    asyncHandler(async (request, response) => {
-      const result: Feed.Event[] = await feedCache.get();
-      response.json(result);
-    }),
-  );
+  apiRouter.get("/feed", async (ctx) => {
+    const result: Feed.Event[] = await feedCache.get();
+    ctx.body = result;
+  });
 
   apiRouter.post(
     "/upload",
-    asyncHandler(async (request, response) => {
+    Body({
+      json: false,
+      text: false,
+      multipart: true,
+      formidable: { maxFileSize: 25 * 1024 * 1024 },
+    }),
+    async (ctx) => {
       const imageUpload = server.imageUpload;
       if (imageUpload !== undefined) {
-        const sessionCookie = requireSession(request.cookies);
+        const sessionCookie = requireSession(ctx.cookies);
         const userId = await server.store.validateAdminOrMod(
           sessionCookie.user,
           sessionCookie.session,
         );
-        const file = request.files?.file;
-        if (file === undefined || Array.isArray(file)) {
+        const files = ctx.request.files;
+        if (
+          files === undefined ||
+          (Array.isArray(files) && files.length !== 1)
+        ) {
           throw new WebError(
             StatusCodes.BAD_REQUEST,
             "Must include (single) file.",
           );
         }
-        response.json({
+        const { file } = Array.isArray(files) ? files[0] : files;
+        ctx.body = {
           url: await imageUpload.upload(
             file.name,
-            file.mimetype,
-            Uint8Array.from(file.data),
+            file.type,
+            Uint8Array.from(await fs.readFile(file.path)),
             { uploader: userId },
           ),
-        });
+        };
       } else {
         throw new WebError(
           StatusCodes.SERVICE_UNAVAILABLE,
           "No file storage available.",
         );
       }
-    }),
+    },
   );
 
   const clientOrigin = server.config.clientOrigin;
@@ -104,43 +113,34 @@ export const api = (server: Server.State): Express.Router => {
       }
     }
   };
-  apiRouter.get(
-    "/embed.json",
-    asyncHandler(async (request, response) => {
-      const url = request.query.url;
-      if (url === undefined || typeof url !== "string") {
+  apiRouter.get("/embed.json", async (ctx) => {
+    const url = ctx.query.url;
+    if (url === undefined || typeof url !== "string") {
+      throw new WebError(StatusCodes.NOT_FOUND, "No embed for this resource.");
+    } else {
+      const groups = regex.exec(url)?.groups;
+      if (groups === null || groups === undefined) {
         throw new WebError(
           StatusCodes.NOT_FOUND,
           "No embed for this resource.",
         );
-      } else {
-        const groups = regex.exec(url)?.groups;
-        if (groups === null || groups === undefined) {
-          throw new WebError(
-            StatusCodes.NOT_FOUND,
-            "No embed for this resource.",
-          );
-        }
-        const { game, bet } = groups;
-        const result = {
-          type: "link",
-          version: "1.0",
-          title: `Stream Bets: ${await titleFor(game ?? "", bet)}.`,
-          provider_name: "JASB",
-          provider_url: clientOrigin,
-          thumbnail_url: `${clientOrigin}/assets/images/favicon-48x48.png`,
-          thumbnail_width: 48,
-          thumbnail_height: 48,
-        };
-        response.json(result);
       }
-    }),
-  );
+      const { game, bet } = groups;
+      const result = {
+        type: "link",
+        version: "1.0",
+        title: `Stream Bets: ${await titleFor(game ?? "", bet)}.`,
+        provider_name: "JASB",
+        provider_url: clientOrigin,
+        thumbnail_url: `${clientOrigin}/assets/images/favicon-48x48.png`,
+        thumbnail_width: 48,
+        thumbnail_height: 48,
+      };
+      ctx.body = result;
+    }
+  });
 
-  const router = Express.Router();
-  router.use("/api", apiRouter);
-
-  return router;
+  return apiRouter;
 };
 
 export * as Routes from "./routes.js";

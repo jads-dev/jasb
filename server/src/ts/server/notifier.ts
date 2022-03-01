@@ -1,8 +1,8 @@
 import { default as Discord, TextChannel } from "discord.js";
-import { default as Winston } from "winston";
 
-import { Iterables } from "../util/iterables";
+import { Iterables } from "../util/iterables.js";
 import { Config } from "./config.js";
+import { Logging } from "./logging.js";
 
 interface DiscordMessage {
   title: string;
@@ -234,7 +234,7 @@ export class DiscordNotifier extends Notifier {
   }
 
   static async create(
-    logger: Winston.Logger,
+    logger: Logging.Logger,
     generalConfig: Config.Server,
     config: Config.DiscordNotifier,
   ): Promise<Notifier> {
@@ -267,7 +267,7 @@ export class DiscordNotifier extends Notifier {
           description: message,
           url,
           thumbnail: {
-            url: "https://jasb.900000000.xyz/assets/images/favicon-48x48.png",
+            url: `${this.generalConfig.clientOrigin}/assets/images/favicon-48x48.png`,
           },
         },
       ],

@@ -1,6 +1,6 @@
 import { default as Crypto } from "crypto";
 import { default as OciCommon } from "oci-common";
-import { NoRetryConfigurationDetails } from "oci-common/lib/retrier";
+import { NoRetryConfigurationDetails } from "oci-common/lib/retrier.js";
 import { default as Oci } from "oci-objectstorage";
 import { OciError } from "oci-sdk";
 
@@ -18,14 +18,14 @@ export class OciObjectUploader implements ObjectUploader {
     this.details = details(config);
     this.client = new Oci.ObjectStorageClient({
       authenticationDetailsProvider:
-      new OciCommon.SimpleAuthenticationDetailsProvider(
-        config.tenancy,
-        config.user,
-        config.fingerprint,
-        config.privateKey.value,
-        config.passphrase?.value ?? null,
-        OciCommon.Region.fromRegionId(config.region),
-      ),
+        new OciCommon.SimpleAuthenticationDetailsProvider(
+          config.tenancy,
+          config.user,
+          config.fingerprint,
+          config.privateKey.value,
+          config.passphrase?.value ?? null,
+          OciCommon.Region.fromRegionId(config.region),
+        ),
     });
     this.baseUrl = `https://objectstorage.${config.region}.oraclecloud.com/n/${config.namespace}/b/${config.bucket}/o/`;
   }

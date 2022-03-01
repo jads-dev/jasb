@@ -1,14 +1,14 @@
 import * as Joda from "@js-joda/core";
-import { default as Express } from "express";
-import { default as asyncHandler } from "express-async-handler";
+import { default as Router } from "@koa/router";
 import { StatusCodes } from "http-status-codes";
 import * as Schema from "io-ts";
+import { default as Body } from "koa-body";
 
-import { Bets, Games } from "../../public";
-import { Validation } from "../../util/validation";
-import { WebError } from "../errors";
-import { Server } from "../model";
-import { ResultCache } from "../result-cache";
+import { Bets, Games } from "../../public.js";
+import { Validation } from "../../util/validation.js";
+import { WebError } from "../errors.js";
+import { Server } from "../model.js";
+import { ResultCache } from "../result-cache.js";
 import { requireSession } from "./auth.js";
 import { betsApi } from "./bets.js";
 
@@ -27,15 +27,15 @@ const EditGameBody = Schema.intersection([
   Schema.strict({ version: Schema.Int }),
 ]);
 
-export const gamesApi = (server: Server.State): Express.Router => {
-  const router = Express.Router();
+export const gamesApi = (server: Server.State): Router => {
+  const router = new Router();
 
   const gamesCache = new ResultCache<Games.Library>(async () => {
     const games = await Promise.all(
-      subsets.map((subset) => server.store.getGames(subset))
+      subsets.map((subset) => server.store.getGames(subset)),
     );
     const [future, current, finished] = games.map((subset) =>
-      subset.map(Games.fromInternal)
+      subset.map(Games.fromInternal),
     );
     const library: Games.Library = {
       future: future as Games.WithId[],
@@ -46,102 +46,88 @@ export const gamesApi = (server: Server.State): Express.Router => {
   }, Joda.Duration.of(1, Joda.ChronoUnit.MINUTES));
 
   // Get Games.
-  router.get(
-    "/",
-    asyncHandler(async (request, response) => {
-      const result: Games.Library = await gamesCache.get();
-      response.json(result);
-    })
-  );
+  router.get("/", async (ctx) => {
+    const result: Games.Library = await gamesCache.get();
+    ctx.body = result;
+  });
 
   // Get Game.
-  router.get(
-    "/:gameId",
-    asyncHandler(async (request, response) => {
-      const game = await server.store.getGame(request.params.gameId ?? "");
-      if (game === undefined) {
-        throw new WebError(StatusCodes.NOT_FOUND, "Game not found.");
-      }
-      const result: Games.Game & Games.Details =
-        Games.detailedFromInternal(game).game;
-      response.json(result);
-    })
-  );
+  router.get("/:gameId", async (ctx) => {
+    const game = await server.store.getGame(ctx.params.gameId ?? "");
+    if (game === undefined) {
+      throw new WebError(StatusCodes.NOT_FOUND, "Game not found.");
+    }
+    const result: Games.Game & Games.Details =
+      Games.detailedFromInternal(game).game;
+    ctx.body = result;
+  });
 
   // Get Game with Bets.
-  router.get(
-    "/:gameId/bets",
-    asyncHandler(async (request, response) => {
-      const gameId = request.params.gameId ?? "";
-      const [game, bets] = await Promise.all([
-        server.store.getGame(gameId),
-        server.store.getBets(gameId),
-      ]);
-      if (game === undefined) {
-        throw new WebError(StatusCodes.NOT_FOUND, "Game not found.");
-      }
-      const result: {
-        game: Games.Game & Games.Details;
-        bets: { id: Bets.Id; bet: Bets.Bet }[];
-      } = {
-        game: Games.detailedFromInternal(game).game,
-        bets: bets.map(Bets.fromInternal),
-      };
-      response.json(result);
-    })
-  );
+  router.get("/:gameId/bets", async (ctx) => {
+    const gameId = ctx.params.gameId ?? "";
+    const [game, bets] = await Promise.all([
+      server.store.getGame(gameId),
+      server.store.getBets(gameId),
+    ]);
+    if (game === undefined) {
+      throw new WebError(StatusCodes.NOT_FOUND, "Game not found.");
+    }
+    const result: {
+      game: Games.Game & Games.Details;
+      bets: { id: Bets.Id; bet: Bets.Bet }[];
+    } = {
+      game: Games.detailedFromInternal(game).game,
+      bets: bets.map(Bets.fromInternal),
+    };
+    ctx.body = result;
+  });
 
   // Create Game.
-  router.put(
-    "/:gameId",
-    asyncHandler(async (request, response) => {
-      const sessionCookie = requireSession(request.cookies);
-      const body = Validation.body(CreateGameBody, request.body);
-      if (
-        await server.store.addGame(
-          sessionCookie.user,
-          sessionCookie.session,
-          request.params.gameId ?? "",
-          body.name,
-          body.cover,
-          body.igdbId,
-          body.started !== null ? body.started.toString() : null,
-          body.finished !== null ? body.finished.toString() : null
-        )
-      ) {
-        response.status(StatusCodes.OK).send();
-      } else {
-        throw new WebError(
-          StatusCodes.FORBIDDEN,
-          "Non-admin tried to perform admin task."
-        );
-      }
-    })
-  );
-
-  // Edit Game.
-  router.post(
-    "/:gameId",
-    asyncHandler(async (request, response) => {
-      const sessionCookie = requireSession(request.cookies);
-      const body = Validation.body(EditGameBody, request.body);
-      const game = await server.store.editGame(
+  router.put("/:gameId", Body(), async (ctx) => {
+    const sessionCookie = requireSession(ctx.cookies);
+    const body = Validation.body(CreateGameBody, ctx.body);
+    if (
+      await server.store.addGame(
         sessionCookie.user,
         sessionCookie.session,
-        body.version,
-        request.params.gameId ?? "",
+        ctx.params.gameId ?? "",
         body.name,
         body.cover,
         body.igdbId,
-        body.started !== null ? body.started?.toString() : null,
-        body.finished !== null ? body.finished?.toString() : null
+        body.started !== null ? body.started.toString() : null,
+        body.finished !== null ? body.finished.toString() : null,
+      )
+    ) {
+      ctx.status = StatusCodes.OK;
+    } else {
+      throw new WebError(
+        StatusCodes.FORBIDDEN,
+        "Non-admin tried to perform admin task.",
       );
-      const result: Games.Game = Games.fromInternal(game).game;
-      response.json(result);
-    })
-  );
+    }
+  });
 
-  router.use("/:gameId/bets/:betId", betsApi(server));
+  // Edit Game.
+  router.post("/:gameId", Body(), async (ctx) => {
+    const sessionCookie = requireSession(ctx.cookies);
+    const body = Validation.body(EditGameBody, ctx.body);
+    const game = await server.store.editGame(
+      sessionCookie.user,
+      sessionCookie.session,
+      body.version,
+      ctx.params.gameId ?? "",
+      body.name,
+      body.cover,
+      body.igdbId,
+      body.started !== null ? body.started?.toString() : null,
+      body.finished !== null ? body.finished?.toString() : null,
+    );
+    const result: Games.Game = Games.fromInternal(game).game;
+    ctx.body = result;
+  });
+
+  const bets = betsApi(server);
+  router.use("/:gameId/bets/:betId", bets.routes(), bets.allowedMethods());
 
   return router;
 };

@@ -1,35 +1,37 @@
 import { AxiosResponse, default as Axios } from "axios";
 import { StatusCodes } from "http-status-codes";
 import { OciError } from "oci-sdk";
-import { default as Winston } from "winston";
 
 import { ObjectUploader } from "../../data/object-upload.js";
 import { AvatarCache } from "../../internal.js";
 import { Key } from "../../internal/avatar-cache.js";
 import { Iterables } from "../../util/iterables.js";
 import { Promises } from "../../util/promises.js";
+import { Logging } from "../logging.js";
 import { Server } from "../model.js";
 
 export const cacheAvatars = (server: Server.State) => {
   const config = server.config.avatarCache;
   const avatarCache = server.avatarCache;
   if (config !== undefined && avatarCache !== undefined) {
-    return async (server: Server.State) => {
+    return async (server: Server.State, logger: Logging.Logger) => {
       await Promises.wait(config.backgroundTaskFrequency);
 
       const added = await addToCacheBatch(
         server,
+        logger,
         avatarCache,
         config.cacheBatchSize,
       );
-      server.logger.info(`Cached ${added} new avatars.`);
+      logger.info(`Cached ${added} new avatars.`);
 
       const deleted = await removeFromCacheBatch(
         server,
+        logger,
         avatarCache,
         config.garbageCollectBatchSize,
       );
-      server.logger.info(`Deleted ${deleted} unused avatars.`);
+      logger.info(`Deleted ${deleted} unused avatars.`);
     };
   } else {
     return undefined;
@@ -38,6 +40,7 @@ export const cacheAvatars = (server: Server.State) => {
 
 async function addToCacheBatch(
   server: Server.State,
+  logger: Logging.Logger,
   avatarCache: ObjectUploader,
   batchSize: number,
 ): Promise<number> {
@@ -45,9 +48,7 @@ async function addToCacheBatch(
   const added = [
     ...Iterables.filterUndefined(
       await Promise.all(
-        needsToBeCached.map((details) =>
-          cache(server.logger, avatarCache, details),
-        ),
+        needsToBeCached.map((details) => cache(logger, avatarCache, details)),
       ),
     ),
   ];
@@ -57,6 +58,7 @@ async function addToCacheBatch(
 
 async function removeFromCacheBatch(
   server: Server.State,
+  logger: Logging.Logger,
   avatarCache: ObjectUploader,
   batchSize: number,
 ): Promise<number> {
@@ -66,9 +68,7 @@ async function removeFromCacheBatch(
   const deleted = [
     ...Iterables.filterUndefined(
       await Promise.all(
-        noLongerNeeded.map((url) =>
-          deleteCached(server.logger, avatarCache, url),
-        ),
+        noLongerNeeded.map((url) => deleteCached(logger, avatarCache, url)),
       ),
     ),
   ];
@@ -102,7 +102,7 @@ function expandDetails({
 }
 
 async function deleteCached(
-  logger: Winston.Logger,
+  logger: Logging.Logger,
   avatarCache: ObjectUploader,
   url: string,
 ): Promise<string | undefined> {
@@ -146,7 +146,7 @@ async function fetch(
 }
 
 async function cache(
-  logger: Winston.Logger,
+  logger: Logging.Logger,
   avatarCache: ObjectUploader,
   details: AvatarCache.CacheDetails,
 ): Promise<{ user: string; key: AvatarCache.Key; url: string } | undefined> {

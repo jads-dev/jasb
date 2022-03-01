@@ -1,11 +1,8 @@
-import { default as BodyParser } from "body-parser";
-import { default as CookieParser } from "cookie-parser";
-import { default as Cors } from "cors";
-import { default as Express } from "express";
-import { default as FileUpload } from "express-fileupload";
-import { default as Helmet } from "helmet";
+import { default as Cors } from "@koa/cors";
+import { default as Router } from "@koa/router";
+import { default as Koa } from "koa";
+import { default as Helmet } from "koa-helmet";
 import { default as SourceMapSupport } from "source-map-support";
-import { default as Winston } from "winston";
 
 import { ObjectUpload } from "./data/object-upload.js";
 import { Store } from "./data/store.js";
@@ -15,18 +12,18 @@ import { Background } from "./server/background.js";
 import { Config } from "./server/config.js";
 import { Errors } from "./server/errors.js";
 import { ExitCodes } from "./server/exit-codes.js";
-import { Logger } from "./server/logger.js";
+import { Logging } from "./server/logging.js";
 import { DiscordNotifier, NullNotifier } from "./server/notifier.js";
 import { Routes } from "./server/routes.js";
 
 SourceMapSupport.install();
 
-const init = async (config: Config.Server): Promise<Winston.Logger> =>
-  Logger.create(config.logLevel);
+const init = async (config: Config.Server): Promise<Logging.Logger> =>
+  Logging.init(config.logging);
 
 const load = async (
   config: Config.Server,
-  logger: Winston.Logger,
+  logger: Logging.Logger,
 ): Promise<Server.State> => {
   const notifier =
     config.notifier !== undefined
@@ -50,35 +47,36 @@ const unload = async (server: Server.State): Promise<void> => {
 };
 
 const start = async (server: Server.State): Promise<void> => {
-  const app = Express();
+  const app = new Koa();
 
   app.use(Helmet());
-  app.set("trust proxy", true);
-  app.use(BodyParser.json());
-  app.use(BodyParser.raw());
-  app.use(BodyParser.text());
-  app.use(CookieParser());
-  app.use(
-    FileUpload({
-      limits: { fileSize: 25 * 1024 * 1024, files: 1 },
-      abortOnLimit: true,
-    }),
-  );
+  app.proxy = true;
 
   const cors = Cors({
     origin: server.config.clientOrigin,
     credentials: true,
   });
   app.use(cors);
-  app.options("*", cors);
 
-  app.use(Routes.api(server));
+  app.use(Logging.middleware(server.logger));
 
-  app.use(Errors.express(server.logger));
+  const root = new Router();
 
-  await app.listen(server.config.listenOn.port, server.config.listenOn.address);
-  server.logger.info(
-    `Listening on ${server.config.listenOn.address}:${server.config.listenOn.port}.`,
+  const api = Routes.api(server);
+  root.use("/api", api.routes(), api.allowedMethods());
+
+  app.use(root.routes()).use(root.allowedMethods());
+
+  app.use(Errors.middleware(server.logger));
+
+  await app.listen(
+    server.config.listenOn.port,
+    server.config.listenOn.address,
+    async () => {
+      server.logger.info(
+        `Listening on ${server.config.listenOn.address}:${server.config.listenOn.port}.`,
+      );
+    },
   );
 
   process.on("SIGTERM", () => {

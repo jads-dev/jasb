@@ -1,7 +1,7 @@
 import * as Schema from "io-ts";
 
-import type { Internal } from "../../internal";
-import { Expect } from "../../util/expect";
+import type { Internal } from "../../internal.js";
+import { Expect } from "../../util/expect.js";
 import { Option, Options } from "./options.js";
 
 interface BetIdBrand {
@@ -11,7 +11,7 @@ interface BetIdBrand {
 export const Id = Schema.brand(
   Schema.string,
   (id): id is Schema.Branded<string, BetIdBrand> => true,
-  "BetId"
+  "BetId",
 );
 export type Id = Schema.TypeOf<typeof Id>;
 
@@ -54,11 +54,11 @@ export interface WithId {
 
 export const unknownProgress = Expect.exhaustive(
   "bet progress",
-  (i: Internal.Games.Progress) => i
+  (i: Internal.Games.Progress) => i,
 );
 
 const progressFromInternal = (
-  internal: Internal.Bet & Internal.Bets.Options
+  internal: Internal.Bet & Internal.Bets.Options,
 ): Progress => {
   switch (internal.progress) {
     case "Voting":
@@ -83,7 +83,7 @@ const progressFromInternal = (
 };
 
 export const fromInternal = (
-  internal: Internal.Bet & Internal.Bets.Options
+  internal: Internal.Bet & Internal.Bets.Options,
 ): WithId => ({
   id: internal.id as Id,
   bet: {

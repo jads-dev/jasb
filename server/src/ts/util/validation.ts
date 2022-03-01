@@ -2,9 +2,9 @@ import * as Joda from "@js-joda/core";
 import { either as Either } from "fp-ts";
 import { StatusCodes } from "http-status-codes";
 import * as Schema from "io-ts";
-import { PathReporter } from "io-ts/PathReporter";
+import { default as Reporters } from "io-ts-reporters";
 
-import { WebError } from "../server/errors";
+import { WebError } from "../server/errors.js";
 import { PlaceholderSecretToken, SecretToken } from "./secret-token.js";
 
 export const Duration = new Schema.Type<Joda.Duration, string, unknown>(
@@ -142,7 +142,7 @@ export function body<Parsed, Encoded>(
   } else {
     throw new WebError(
       StatusCodes.BAD_REQUEST,
-      `Invalid request:\n${PathReporter.report(result).join("\n")}`,
+      `Invalid request:\n${Reporters.report(result).join("\n")}`,
     );
   }
 }

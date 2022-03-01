@@ -1,6 +1,7 @@
 import * as Joda from "@js-joda/core";
-import type { Internal } from "../../internal";
-import type { Users } from "../users";
+
+import type { Internal } from "../../internal.js";
+import type { Users } from "../users.js";
 
 export interface Stake {
   user: {

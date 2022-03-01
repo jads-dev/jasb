@@ -2,10 +2,10 @@ import * as Joda from "@js-joda/core";
 import { default as DiscordOAuth } from "discord-oauth2";
 import { StatusCodes } from "http-status-codes";
 
-import { Store } from "../data/store";
-import { Notifications, Users } from "../public";
-import { Random } from "../util/random";
-import { SecretToken } from "../util/secret-token";
+import { Store } from "../data/store.js";
+import { Notifications, Users } from "../public.js";
+import { Random } from "../util/random.js";
+import { SecretToken } from "../util/secret-token.js";
 import { Config } from "./config.js";
 import { WebError } from "./errors.js";
 

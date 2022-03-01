@@ -1,7 +1,7 @@
-import { default as Express } from "express";
-import { default as asyncHandler } from "express-async-handler";
+import { default as Router } from "@koa/router";
 import { StatusCodes } from "http-status-codes";
 import * as Schema from "io-ts";
+import { default as Body } from "koa-body";
 
 import { Games, Notifications, Users } from "../../public.js";
 import { Validation } from "../../util/validation.js";
@@ -19,157 +19,128 @@ const PermissionsBody = Schema.intersection([
 ]);
 type PermissionsBody = Schema.TypeOf<typeof PermissionsBody>;
 
-export const usersApi = (server: Server.State): Express.Router => {
-  const router = Express.Router();
+export const usersApi = (server: Server.State): Router => {
+  const router = new Router();
 
   // Get Logged In User.
-  router.get(
-    "/",
-    asyncHandler(async (request, response) => {
-      const sessionCookie = requireSession(request.cookies);
-      response.redirect(
-        StatusCodes.TEMPORARY_REDIRECT,
-        `/api/user/${sessionCookie.user}`,
-      );
-    }),
-  );
+  router.get("/", async (ctx) => {
+    const sessionCookie = requireSession(ctx.ctx.cookies);
+    ctx.redirect(`/api/user/${sessionCookie.user}`);
+    ctx.status = StatusCodes.TEMPORARY_REDIRECT;
+  });
 
   // Get User.
-  router.get(
-    "/:userId",
-    asyncHandler(async (request, response) => {
-      const id = request.params.userId;
-      const internalUser = await server.store.getUser(id ?? "");
-      if (internalUser === undefined) {
-        throw new WebError(StatusCodes.NOT_FOUND, "User not found.");
-      }
-      const result: Users.WithId = Users.fromInternal(internalUser);
-      response.json(result);
-    }),
-  );
+  router.get("/:userId", async (ctx) => {
+    const id = ctx.params.userId;
+    const internalUser = await server.store.getUser(id ?? "");
+    if (internalUser === undefined) {
+      throw new WebError(StatusCodes.NOT_FOUND, "User not found.");
+    }
+    const result: Users.WithId = Users.fromInternal(internalUser);
+    ctx.body = result;
+  });
 
   // Get User Bets.
-  router.get(
-    "/:userId/bets",
-    asyncHandler(async (request, response) => {
-      const id = request.params.userId;
-      const games = await server.store.getUserBets(id ?? "");
-      const result: { id: Games.Id; game: Games.WithBets }[] = games.map(
-        Games.withBetsFromInternal,
-      );
-      response.json(result);
-    }),
-  );
+  router.get("/:userId/bets", async (ctx) => {
+    const id = ctx.params.userId;
+    const games = await server.store.getUserBets(id ?? "");
+    const result: { id: Games.Id; game: Games.WithBets }[] = games.map(
+      Games.withBetsFromInternal,
+    );
+    ctx.body = result;
+  });
 
   // Get User Notifications.
-  router.get(
-    "/:userId/notifications",
-    asyncHandler(async (request, response) => {
-      const id = request.params.userId;
-      const sessionCookie = requireSession(request.cookies);
-      if (sessionCookie.user !== id) {
-        throw new WebError(
-          StatusCodes.NOT_FOUND,
-          "Can't get other user's notifications.",
-        );
-      }
-      const notifications = await server.store.getNotifications(
-        sessionCookie.user,
-        sessionCookie.session,
+  router.get("/:userId/notifications", async (ctx) => {
+    const id = ctx.params.userId;
+    const sessionCookie = requireSession(ctx.cookies);
+    if (sessionCookie.user !== id) {
+      throw new WebError(
+        StatusCodes.NOT_FOUND,
+        "Can't get other user's notifications.",
       );
-      const result: Notifications.Notification[] = notifications.map(
-        Notifications.fromInternal,
-      );
-      response.json(result);
-    }),
-  );
+    }
+    const notifications = await server.store.getNotifications(
+      sessionCookie.user,
+      sessionCookie.session,
+    );
+    const result: Notifications.Notification[] = notifications.map(
+      Notifications.fromInternal,
+    );
+    ctx.body = result;
+  });
 
   // Clear User Notification.
-  router.post(
-    "/:userId/notifications/:notificationId",
-    asyncHandler(async (request, response) => {
-      const userId = request.params.userId;
-      const notificationId = request.params.notificationId;
-      const sessionCookie = requireSession(request.cookies);
-      if (sessionCookie.user !== userId) {
-        throw new WebError(
-          StatusCodes.NOT_FOUND,
-          "Can't delete other user's notifications.",
-        );
-      }
-      await server.store.clearNotification(
-        sessionCookie.user,
-        sessionCookie.session,
-        notificationId ?? "",
+  router.post("/:userId/notifications/:notificationId", Body(), async (ctx) => {
+    const userId = ctx.params.userId;
+    const notificationId = ctx.params.notificationId;
+    const sessionCookie = requireSession(ctx.cookies);
+    if (sessionCookie.user !== userId) {
+      throw new WebError(
+        StatusCodes.NOT_FOUND,
+        "Can't delete other user's notifications.",
       );
-      response.status(StatusCodes.NO_CONTENT).send();
-    }),
-  );
+    }
+    await server.store.clearNotification(
+      sessionCookie.user,
+      sessionCookie.session,
+      notificationId ?? "",
+    );
+    ctx.status = StatusCodes.NO_CONTENT;
+  });
 
-  router.get(
-    "/:userId/bankrupt",
-    asyncHandler(async (request, response) => {
-      const id = request.params.userId;
-      const result = Users.bankruptcyStatsFromInternal(
-        await server.store.bankruptcyStats(id ?? ""),
-      );
-      response.json(result);
-    }),
-  );
+  router.get("/:userId/bankrupt", async (ctx) => {
+    const id = ctx.params.userId;
+    const result = Users.bankruptcyStatsFromInternal(
+      await server.store.bankruptcyStats(id ?? ""),
+    );
+    ctx.body = result;
+  });
 
   // Bankrupt User.
-  router.post(
-    "/:userId/bankrupt",
-    asyncHandler(async (request, response) => {
-      const id = request.params.userId;
-      const sessionCookie = requireSession(request.cookies);
-      if (sessionCookie.user !== id) {
-        throw new WebError(
-          StatusCodes.NOT_FOUND,
-          "You can't make other players bankrupt.",
-        );
-      }
-      await server.store.bankrupt(sessionCookie.user, sessionCookie.session);
-      const internalUser = await server.store.getUser(id);
-      if (internalUser === undefined) {
-        throw new WebError(StatusCodes.NOT_FOUND, "User not found.");
-      }
-      const result: { id: Users.Id; user: Users.User } =
-        Users.fromInternal(internalUser);
-      response.json(result);
-    }),
-  );
+  router.post("/:userId/bankrupt", Body(), async (ctx) => {
+    const id = ctx.params.userId;
+    const sessionCookie = requireSession(ctx.cookies);
+    if (sessionCookie.user !== id) {
+      throw new WebError(
+        StatusCodes.NOT_FOUND,
+        "You can't make other players bankrupt.",
+      );
+    }
+    await server.store.bankrupt(sessionCookie.user, sessionCookie.session);
+    const internalUser = await server.store.getUser(id);
+    if (internalUser === undefined) {
+      throw new WebError(StatusCodes.NOT_FOUND, "User not found.");
+    }
+    const result: { id: Users.Id; user: Users.User } =
+      Users.fromInternal(internalUser);
+    ctx.body = result;
+  });
 
   // Get User Permissions.
-  router.get(
-    "/:userId/permissions",
-    asyncHandler(async (request, response) => {
-      const permissions = await server.store.getPermissions(
-        request.params.userId ?? "",
-      );
-      const result: Users.Permissions[] = permissions.map(
-        Users.permissionsFromInternal,
-      );
-      response.json(result);
-    }),
-  );
+  router.get("/:userId/permissions", async (ctx) => {
+    const permissions = await server.store.getPermissions(
+      ctx.params.userId ?? "",
+    );
+    const result: Users.Permissions[] = permissions.map(
+      Users.permissionsFromInternal,
+    );
+    ctx.body = result;
+  });
 
   // Set User Permissions.
-  router.post(
-    "/:userId/permissions",
-    asyncHandler(async (request, response) => {
-      const sessionCookie = requireSession(request.cookies);
-      const body = Validation.body(PermissionsBody, request.body);
-      await server.store.setPermissions(
-        sessionCookie.user,
-        sessionCookie.session,
-        request.params.userId ?? "",
-        body.game,
-        body.canManageBets,
-      );
-      response.status(StatusCodes.NO_CONTENT).send();
-    }),
-  );
+  router.post("/:userId/permissions", Body(), async (ctx) => {
+    const sessionCookie = requireSession(ctx.cookies);
+    const body = Validation.body(PermissionsBody, ctx.body);
+    await server.store.setPermissions(
+      sessionCookie.user,
+      sessionCookie.session,
+      ctx.params.userId ?? "",
+      body.game,
+      body.canManageBets,
+    );
+    ctx.status = StatusCodes.NO_CONTENT;
+  });
 
   return router;
 };

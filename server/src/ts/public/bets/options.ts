@@ -1,7 +1,7 @@
 import * as Schema from "io-ts";
 
-import type { Internal } from "../../internal";
-import type { Users } from "../users";
+import type { Internal } from "../../internal.js";
+import type { Users } from "../users.js";
 import { Stake, Stakes } from "./stakes.js";
 
 interface OptionIdBrand {
@@ -11,7 +11,7 @@ interface OptionIdBrand {
 export const Id = Schema.brand(
   Schema.string,
   (id): id is Schema.Branded<string, OptionIdBrand> => true,
-  "OptionId"
+  "OptionId",
 );
 export type Id = Schema.TypeOf<typeof Id>;
 

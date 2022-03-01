@@ -2,11 +2,11 @@ import * as Joda from "@js-joda/core";
 import { either as Either } from "fp-ts";
 import { promises as fs } from "fs";
 import * as Schema from "io-ts";
-import { PathReporter } from "io-ts/PathReporter";
+import { default as Reporters } from "io-ts-reporters";
 import { default as JSON5 } from "json5";
 
-import { PlaceholderSecretToken } from "../util/secret-token";
-import { Validation } from "../util/validation";
+import { PlaceholderSecretToken } from "../util/secret-token.js";
+import { Validation } from "../util/validation.js";
 
 export class InvalidConfigError extends Error {
   public constructor(message: string) {
@@ -104,9 +104,23 @@ const DiscordNotifier = Schema.strict({
 });
 export type DiscordNotifier = Schema.TypeOf<typeof DiscordNotifier>;
 
+const LogLevel = Schema.keyof({
+  trace: null,
+  debug: null,
+  info: null,
+  warn: null,
+  error: null,
+  fatal: null,
+});
+
+const Logging = Schema.strict({
+  level: LogLevel,
+});
+export type Logging = Schema.TypeOf<typeof Logging>;
+
 const Server = Schema.intersection([
   Schema.strict({
-    logLevel: Schema.string,
+    logging: Logging,
     listenOn: Schema.strict({ port: Schema.Int, address: Schema.string }),
     clientOrigin: Schema.string,
 
@@ -173,12 +187,14 @@ export async function load(
     }
     return config;
   } else {
-    throw new InvalidConfigError(PathReporter.report(result).join("\n"));
+    throw new InvalidConfigError(Reporters.report(result).join("\n"));
   }
 }
 
 export const builtIn: Server = {
-  logLevel: process.env.NODE_ENV === "development" ? "debug" : "error",
+  logging: {
+    level: process.env.NODE_ENV === "development" ? "debug" : "error",
+  },
   listenOn: {
     port: 8081 as Schema.Int,
     address: process.env.NODE_ENV === "development" ? "127.0.0.1" : "0.0.0.0",

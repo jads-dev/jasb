@@ -1,6 +1,6 @@
 import * as Joda from "@js-joda/core";
 
-import { Users, Bets } from "../internal";
+import { Bets, Users } from "../internal.js";
 
 export type Progress = "Future" | "Current" | "Finished";
 

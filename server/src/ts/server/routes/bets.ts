@@ -1,7 +1,7 @@
-import { default as Express } from "express";
-import { default as asyncHandler } from "express-async-handler";
+import { default as Router } from "@koa/router";
 import { StatusCodes } from "http-status-codes";
 import * as Schema from "io-ts";
+import { default as Body } from "koa-body";
 
 import { Bets, Editor, Feed, Games } from "../../public.js";
 import { Options } from "../../public/bets/options.js";
@@ -81,250 +81,214 @@ const RevertBody = Schema.strict({
   version: Schema.Int,
 });
 
-export const betsApi = (server: Server.State): Express.Router => {
-  const router = Express.Router({ mergeParams: true });
+export const betsApi = (server: Server.State): Router => {
+  const router = new Router();
 
   // Get Bet.
-  router.get(
-    "/",
-    asyncHandler(async (request, response) => {
-      const gameId = request.params.gameId ?? "";
-      const betId = request.params.betId ?? "";
-      const game = await server.store.getGame(gameId);
-      if (game === undefined) {
-        throw new WebError(StatusCodes.NOT_FOUND, "Game not found.");
-      }
-      const bet = await server.store.getBet(
-        gameId,
-        betId,
-      );
-      if (bet === undefined) {
-        throw new WebError(StatusCodes.NOT_FOUND, "Bet not found.");
-      }
-      const result: { game: Games.Game; bet: Bets.Bet } = {
-        game: Games.fromInternal(game).game,
-        bet: Bets.fromInternal(bet).bet,
-      };
-      response.json(result);
-    }),
-  );
+  router.get("/", async (ctx) => {
+    const gameId = ctx.params.gameId ?? "";
+    const betId = ctx.params.betId ?? "";
+    const game = await server.store.getGame(gameId);
+    if (game === undefined) {
+      throw new WebError(StatusCodes.NOT_FOUND, "Game not found.");
+    }
+    const bet = await server.store.getBet(gameId, betId);
+    if (bet === undefined) {
+      throw new WebError(StatusCodes.NOT_FOUND, "Bet not found.");
+    }
+    const result: { game: Games.Game; bet: Bets.Bet } = {
+      game: Games.fromInternal(game).game,
+      bet: Bets.fromInternal(bet).bet,
+    };
+    ctx.body = result;
+  });
 
-  router.get(
-    "/edit",
-    asyncHandler(async (request, response) => {
-      const bet = await server.store.getBet(
-        request.params.gameId ?? "",
-        request.params.betId ?? "",
-      );
-      if (bet === undefined) {
-        throw new WebError(StatusCodes.NOT_FOUND, "Bet not found.");
-      }
-      const result: Editor.Bets.EditableBet = Editor.Bets.fromInternal(bet);
-      response.json(result);
-    }),
-  );
+  router.get("/edit", async (ctx) => {
+    const bet = await server.store.getBet(
+      ctx.params.gameId ?? "",
+      ctx.params.betId ?? "",
+    );
+    if (bet === undefined) {
+      throw new WebError(StatusCodes.NOT_FOUND, "Bet not found.");
+    }
+    const result: Editor.Bets.EditableBet = Editor.Bets.fromInternal(bet);
+    ctx.body = result;
+  });
 
   // Create Bet
-  router.put(
-    "/",
-    asyncHandler(async (request, response) => {
-      const sessionCookie = requireSession(request.cookies);
-      const gameId = request.params.gameId ?? "";
-      const betId = request.params.betId ?? "";
-      const body = Validation.body(CreateBetBody, request.body);
-      const bet = await server.store.newBet(
-        sessionCookie.user,
-        sessionCookie.session,
-        gameId,
-        betId,
-        body.name,
-        body.description,
-        body.spoiler,
-        body.locksWhen,
-        body.addOptions,
-      );
-      const result: Editor.Bets.EditableBet = Editor.Bets.fromInternal(bet);
-      response.json(result);
-    }),
-  );
+  router.put("/", Body(), async (ctx) => {
+    const sessionCookie = requireSession(ctx.cookies);
+    const gameId = ctx.params.gameId ?? "";
+    const betId = ctx.params.betId ?? "";
+    const body = Validation.body(CreateBetBody, ctx.body);
+    const bet = await server.store.newBet(
+      sessionCookie.user,
+      sessionCookie.session,
+      gameId,
+      betId,
+      body.name,
+      body.description,
+      body.spoiler,
+      body.locksWhen,
+      body.addOptions,
+    );
+    const result: Editor.Bets.EditableBet = Editor.Bets.fromInternal(bet);
+    ctx.body = result;
+  });
 
   // Edit Bet
-  router.post(
-    "/",
-    asyncHandler(async (request, response) => {
-      const sessionCookie = requireSession(request.cookies);
-      const gameId = request.params.gameId ?? "";
-      const betId = request.params.betId ?? "";
-      const body = Validation.body(EditBetBody, request.body);
-      const bet = await server.store.editBet(
-        sessionCookie.user,
-        sessionCookie.session,
-        gameId,
-        betId,
-        body.version,
-        body.name,
-        body.description,
-        body.spoiler,
-        body.locksWhen,
-        body.removeOptions,
-        body.editOptions,
-        body.addOptions,
-      );
-      if (bet === undefined) {
-        throw new WebError(StatusCodes.NOT_FOUND, "Bet not found.");
-      }
-      const result: Editor.Bets.EditableBet = Editor.Bets.fromInternal(bet);
-      response.json(result);
-    }),
-  );
+  router.post("/", Body(), async (ctx) => {
+    const sessionCookie = requireSession(ctx.cookies);
+    const gameId = ctx.params.gameId ?? "";
+    const betId = ctx.params.betId ?? "";
+    const body = Validation.body(EditBetBody, ctx.body);
+    const bet = await server.store.editBet(
+      sessionCookie.user,
+      sessionCookie.session,
+      gameId,
+      betId,
+      body.version,
+      body.name,
+      body.description,
+      body.spoiler,
+      body.locksWhen,
+      body.removeOptions,
+      body.editOptions,
+      body.addOptions,
+    );
+    if (bet === undefined) {
+      throw new WebError(StatusCodes.NOT_FOUND, "Bet not found.");
+    }
+    const result: Editor.Bets.EditableBet = Editor.Bets.fromInternal(bet);
+    ctx.body = result;
+  });
 
   // Complete Bet
-  router.post(
-    "/complete",
-    asyncHandler(async (request, response) => {
-      const sessionCookie = requireSession(request.cookies);
-      const gameId = request.params.gameId ?? "";
-      const body = Validation.body(CompleteBetBody, request.body);
-      const bet = await server.store.completeBet(
-        sessionCookie.user,
-        sessionCookie.session,
-        gameId,
-        request.params.betId ?? "",
-        body.version,
-        body.winners,
-      );
-      if (bet === undefined) {
-        throw new WebError(StatusCodes.NOT_FOUND, "Bet not found.");
-      }
-      const result: Editor.Bets.EditableBet = Editor.Bets.fromInternal(bet);
-      response.json(result);
-    }),
-  );
+  router.post("/complete", Body(), async (ctx) => {
+    const sessionCookie = requireSession(ctx.cookies);
+    const gameId = ctx.params.gameId ?? "";
+    const body = Validation.body(CompleteBetBody, ctx.body);
+    const bet = await server.store.completeBet(
+      sessionCookie.user,
+      sessionCookie.session,
+      gameId,
+      ctx.params.betId ?? "",
+      body.version,
+      body.winners,
+    );
+    if (bet === undefined) {
+      throw new WebError(StatusCodes.NOT_FOUND, "Bet not found.");
+    }
+    const result: Editor.Bets.EditableBet = Editor.Bets.fromInternal(bet);
+    ctx.body = result;
+  });
 
   // Revert Complete Bet
-  router.post(
-    "/complete/revert",
-    asyncHandler(async (request, response) => {
-      const sessionCookie = requireSession(request.cookies);
-      const gameId = request.params.gameId ?? "";
-      const body = Validation.body(RevertBody, request.body);
-      const bet = await server.store.revertCompleteBet(
-        sessionCookie.user,
-        sessionCookie.session,
-        gameId,
-        request.params.betId ?? "",
-        body.version,
-      );
-      if (bet === undefined) {
-        throw new WebError(StatusCodes.NOT_FOUND, "Bet not found.");
-      }
-      const result: Editor.Bets.EditableBet = Editor.Bets.fromInternal(bet);
-      response.json(result);
-    }),
-  );
+  router.post("/complete/revert", Body(), async (ctx) => {
+    const sessionCookie = requireSession(ctx.cookies);
+    const gameId = ctx.params.gameId ?? "";
+    const body = Validation.body(RevertBody, ctx.body);
+    const bet = await server.store.revertCompleteBet(
+      sessionCookie.user,
+      sessionCookie.session,
+      gameId,
+      ctx.params.betId ?? "",
+      body.version,
+    );
+    if (bet === undefined) {
+      throw new WebError(StatusCodes.NOT_FOUND, "Bet not found.");
+    }
+    const result: Editor.Bets.EditableBet = Editor.Bets.fromInternal(bet);
+    ctx.body = result;
+  });
 
   // Lock Bet
-  router.post(
-    "/lock",
-    asyncHandler(async (request, response) => {
-      const sessionCookie = requireSession(request.cookies);
-      const gameId = request.params.gameId ?? "";
-      const body = Validation.body(ModifyLockStateBody, request.body);
-      const bet = await server.store.setBetLocked(
-        sessionCookie.user,
-        sessionCookie.session,
-        gameId,
-        request.params.betId ?? "",
-        body.version,
-        true,
-      );
-      if (bet === undefined) {
-        throw new WebError(StatusCodes.NOT_FOUND, "Bet not found.");
-      }
-      const result: Editor.Bets.EditableBet = Editor.Bets.fromInternal(bet);
-      response.json(result);
-    }),
-  );
+  router.post("/lock", Body(), async (ctx) => {
+    const sessionCookie = requireSession(ctx.cookies);
+    const gameId = ctx.params.gameId ?? "";
+    const body = Validation.body(ModifyLockStateBody, ctx.body);
+    const bet = await server.store.setBetLocked(
+      sessionCookie.user,
+      sessionCookie.session,
+      gameId,
+      ctx.params.betId ?? "",
+      body.version,
+      true,
+    );
+    if (bet === undefined) {
+      throw new WebError(StatusCodes.NOT_FOUND, "Bet not found.");
+    }
+    const result: Editor.Bets.EditableBet = Editor.Bets.fromInternal(bet);
+    ctx.body = result;
+  });
 
   // Unlock Bet
-  router.post(
-    "/unlock",
-    asyncHandler(async (request, response) => {
-      const sessionCookie = requireSession(request.cookies);
-      const gameId = request.params.gameId ?? "";
-      const body = Validation.body(ModifyLockStateBody, request.body);
-      const bet = await server.store.setBetLocked(
-        sessionCookie.user,
-        sessionCookie.session,
-        gameId,
-        request.params.betId ?? "",
-        body.version,
-        false,
-      );
-      if (bet === undefined) {
-        throw new WebError(StatusCodes.NOT_FOUND, "Bet not found.");
-      }
-      const result: Editor.Bets.EditableBet = Editor.Bets.fromInternal(bet);
-      response.json(result);
-    }),
-  );
+  router.post("/unlock", Body(), async (ctx) => {
+    const sessionCookie = requireSession(ctx.cookies);
+    const gameId = ctx.params.gameId ?? "";
+    const body = Validation.body(ModifyLockStateBody, ctx.body);
+    const bet = await server.store.setBetLocked(
+      sessionCookie.user,
+      sessionCookie.session,
+      gameId,
+      ctx.params.betId ?? "",
+      body.version,
+      false,
+    );
+    if (bet === undefined) {
+      throw new WebError(StatusCodes.NOT_FOUND, "Bet not found.");
+    }
+    const result: Editor.Bets.EditableBet = Editor.Bets.fromInternal(bet);
+    ctx.body = result;
+  });
 
   // Cancel Bet
-  router.post(
-    "/cancel",
-    asyncHandler(async (request, response) => {
-      const sessionCookie = requireSession(request.cookies);
-      const gameId = request.params.gameId ?? "";
-      const body = Validation.body(CancelBetBody, request.body);
-      const bet = await server.store.cancelBet(
-        sessionCookie.user,
-        sessionCookie.session,
-        gameId,
-        request.params.betId ?? "",
-        body.version,
-        body.reason,
-      );
-      if (bet === undefined) {
-        throw new WebError(StatusCodes.NOT_FOUND, "Bet not found.");
-      }
-      const result: Editor.Bets.EditableBet = Editor.Bets.fromInternal(bet);
-      response.json(result);
-    }),
-  );
+  router.post("/cancel", Body(), async (ctx) => {
+    const sessionCookie = requireSession(ctx.cookies);
+    const gameId = ctx.params.gameId ?? "";
+    const body = Validation.body(CancelBetBody, ctx.body);
+    const bet = await server.store.cancelBet(
+      sessionCookie.user,
+      sessionCookie.session,
+      gameId,
+      ctx.params.betId ?? "",
+      body.version,
+      body.reason,
+    );
+    if (bet === undefined) {
+      throw new WebError(StatusCodes.NOT_FOUND, "Bet not found.");
+    }
+    const result: Editor.Bets.EditableBet = Editor.Bets.fromInternal(bet);
+    ctx.body = result;
+  });
 
   // Revert Cancel Bet
-  router.post(
-    "/cancel/revert",
-    asyncHandler(async (request, response) => {
-      const sessionCookie = requireSession(request.cookies);
-      const gameId = request.params.gameId ?? "";
-      const body = Validation.body(RevertBody, request.body);
-      const bet = await server.store.revertCancelBet(
-        sessionCookie.user,
-        sessionCookie.session,
-        gameId,
-        request.params.betId ?? "",
-        body.version,
-      );
-      if (bet === undefined) {
-        throw new WebError(StatusCodes.NOT_FOUND, "Bet not found.");
-      }
-      const result: Editor.Bets.EditableBet = Editor.Bets.fromInternal(bet);
-      response.json(result);
-    }),
-  );
+  router.post("/cancel/revert", Body(), async (ctx) => {
+    const sessionCookie = requireSession(ctx.cookies);
+    const gameId = ctx.params.gameId ?? "";
+    const body = Validation.body(RevertBody, ctx.body);
+    const bet = await server.store.revertCancelBet(
+      sessionCookie.user,
+      sessionCookie.session,
+      gameId,
+      ctx.params.betId ?? "",
+      body.version,
+    );
+    if (bet === undefined) {
+      throw new WebError(StatusCodes.NOT_FOUND, "Bet not found.");
+    }
+    const result: Editor.Bets.EditableBet = Editor.Bets.fromInternal(bet);
+    ctx.body = result;
+  });
 
   // Get Bet Feed
-  router.get(
-    "/feed",
-    asyncHandler(async (request, response) => {
-      const gameId = request.params.gameId ?? "";
-      const betId = request.params.betId ?? "";
-      const feed = await server.store.getBetFeed(gameId, betId);
-      const result: Feed.Event[] = feed.map(Feed.fromInternal);
-      response.json(result);
-    }),
-  );
+  router.get("/feed", async (ctx) => {
+    const gameId = ctx.params.gameId ?? "";
+    const betId = ctx.params.betId ?? "";
+    const feed = await server.store.getBetFeed(gameId, betId);
+    const result: Feed.Event[] = feed.map(Feed.fromInternal);
+    ctx.body = result;
+  });
 
   function validateStakeBody(body: unknown): StakeBody {
     const stakeBody = Validation.body(StakeBody, body);
@@ -355,58 +319,49 @@ export const betsApi = (server: Server.State): Express.Router => {
   }
 
   // Place Stake.
-  router.put(
-    "/options/:optionId/stake",
-    asyncHandler(async (request, response) => {
-      const sessionCookie = requireSession(request.cookies);
-      const { amount, message } = validateStakeBody(request.body);
-      const new_balance = await server.store.newStake(
-        sessionCookie.user,
-        sessionCookie.session,
-        request.params.gameId ?? "",
-        request.params.betId ?? "",
-        request.params.optionId ?? "",
-        amount,
-        message ?? null,
-      );
-      response.json(new_balance);
-    }),
-  );
+  router.put("/options/:optionId/stake", Body(), async (ctx) => {
+    const sessionCookie = requireSession(ctx.cookies);
+    const { amount, message } = validateStakeBody(ctx.body);
+    const new_balance = await server.store.newStake(
+      sessionCookie.user,
+      sessionCookie.session,
+      ctx.params.gameId ?? "",
+      ctx.params.betId ?? "",
+      ctx.params.optionId ?? "",
+      amount,
+      message ?? null,
+    );
+    ctx.body = new_balance;
+  });
 
   // Edit Stake.
-  router.post(
-    "/options/:optionId/stake",
-    asyncHandler(async (request, response) => {
-      const sessionCookie = requireSession(request.cookies);
-      const { amount, message } = validateStakeBody(request.body);
-      const new_balance = await server.store.changeStake(
-        sessionCookie.user,
-        sessionCookie.session,
-        request.params.gameId ?? "",
-        request.params.betId ?? "",
-        request.params.optionId ?? "",
-        amount,
-        message ?? null,
-      );
-      response.json(new_balance);
-    }),
-  );
+  router.post("/options/:optionId/stake", Body(), async (ctx) => {
+    const sessionCookie = requireSession(ctx.cookies);
+    const { amount, message } = validateStakeBody(ctx.body);
+    const new_balance = await server.store.changeStake(
+      sessionCookie.user,
+      sessionCookie.session,
+      ctx.params.gameId ?? "",
+      ctx.params.betId ?? "",
+      ctx.params.optionId ?? "",
+      amount,
+      message ?? null,
+    );
+    ctx.body = new_balance;
+  });
 
   // Withdraw Stake.
-  router.delete(
-    "/options/:optionId/stake",
-    asyncHandler(async (request, response) => {
-      const sessionCookie = requireSession(request.cookies);
-      const new_balance = await server.store.withdrawStake(
-        sessionCookie.user,
-        sessionCookie.session,
-        request.params.gameId ?? "",
-        request.params.betId ?? "",
-        request.params.optionId ?? "",
-      );
-      response.json(new_balance);
-    }),
-  );
+  router.delete("/options/:optionId/stake", Body(), async (ctx) => {
+    const sessionCookie = requireSession(ctx.cookies);
+    const new_balance = await server.store.withdrawStake(
+      sessionCookie.user,
+      sessionCookie.session,
+      ctx.params.gameId ?? "",
+      ctx.params.betId ?? "",
+      ctx.params.optionId ?? "",
+    );
+    ctx.body = new_balance;
+  });
 
   return router;
 };

@@ -3,7 +3,6 @@ import { StatusCodes } from "http-status-codes";
 import parseInterval from "postgres-interval";
 import { migrate } from "postgres-migrations";
 import { default as Slonik, sql } from "slonik";
-import { default as Winston } from "winston";
 
 import {
   AvatarCache,
@@ -18,6 +17,7 @@ import {
 } from "../internal.js";
 import { Config } from "../server/config.js";
 import { WebError } from "../server/errors.js";
+import { Logging } from "../server/logging.js";
 import { Notifier } from "../server/notifier.js";
 import { SecretToken } from "../util/secret-token.js";
 import { ObjectUploader } from "./object-upload.js";
@@ -33,19 +33,22 @@ const postgresDateTimeFormatter = new Joda.DateTimeFormatterBuilder()
   .toFormatter(Joda.ResolverStyle.STRICT);
 
 export class Store {
-  readonly logger: Winston.Logger;
+  readonly logger: Logging.Logger;
   readonly config: Config.Server;
   readonly notifier: Notifier;
   readonly avatarCache: ObjectUploader | undefined;
   readonly pool: Slonik.DatabasePool;
 
   private constructor(
-    logger: Winston.Logger,
+    logger: Logging.Logger,
     config: Config.Server,
     notifier: Notifier,
     avatarCache: ObjectUploader | undefined,
   ) {
-    this.logger = logger;
+    this.logger = logger.child({
+      system: "store",
+      store: "postgres",
+    });
     this.config = config;
     this.notifier = notifier;
     this.avatarCache = avatarCache;
@@ -80,7 +83,7 @@ export class Store {
   }
 
   public static async load(
-    logger: Winston.Logger,
+    logger: Logging.Logger,
     config: Config.Server,
     notifier: Notifier,
     avatarCache: ObjectUploader | undefined,
@@ -1277,9 +1280,7 @@ export class Store {
   }
 
   private async inTransaction<Value>(
-    operation: (
-      client: Slonik.DatabaseTransactionConnection,
-    ) => Promise<Value>,
+    operation: (client: Slonik.DatabaseTransactionConnection) => Promise<Value>,
   ): Promise<Value> {
     return await Store.translatingErrors(
       async () => await this.pool.transaction(operation),
