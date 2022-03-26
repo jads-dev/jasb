@@ -84,7 +84,6 @@ module.exports = (env, argv) => {
           test: /\.elm$/,
           exclude: [/elm-stuff/, /node_modules/],
           use: [
-            ...(production ? ["elm-hot-webpack-loader"] : []),
             {
               loader: "elm-webpack-loader",
               options: {

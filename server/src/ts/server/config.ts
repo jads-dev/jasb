@@ -2,7 +2,7 @@ import * as Joda from "@js-joda/core";
 import { either as Either } from "fp-ts";
 import { promises as fs } from "fs";
 import * as Schema from "io-ts";
-import { default as Reporters } from "io-ts-reporters";
+import { formatValidationErrors } from "io-ts-reporters";
 import { default as JSON5 } from "json5";
 
 import { PlaceholderSecretToken } from "../util/secret-token.js";
@@ -22,11 +22,16 @@ const Rules = Schema.strict({
 export type Rules = Schema.TypeOf<typeof Rules>;
 
 const PostgresData = Schema.partial({
-  user: Schema.string,
-  database: Schema.string,
-  password: Validation.SecretTokenOrPlaceholder,
-  port: Schema.Int,
   host: Schema.string,
+  port: Schema.Int,
+  database: Schema.string,
+  user: Schema.string,
+  password: Validation.SecretTokenOrPlaceholder,
+  ssl: Schema.keyof({
+    disable: null,
+    "no-verify": null,
+    require: null,
+  }),
 });
 export type PostgresData = Schema.TypeOf<typeof PostgresData>;
 
@@ -187,7 +192,9 @@ export async function load(
     }
     return config;
   } else {
-    throw new InvalidConfigError(Reporters.report(result).join("\n"));
+    throw new InvalidConfigError(
+      formatValidationErrors(result.left).join("\n"),
+    );
   }
 }
 

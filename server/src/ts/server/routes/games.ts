@@ -85,7 +85,7 @@ export const gamesApi = (server: Server.State): Router => {
   // Create Game.
   router.put("/:gameId", Body(), async (ctx) => {
     const sessionCookie = requireSession(ctx.cookies);
-    const body = Validation.body(CreateGameBody, ctx.body);
+    const body = Validation.body(CreateGameBody, ctx.request.body);
     if (
       await server.store.addGame(
         sessionCookie.user,
@@ -110,7 +110,7 @@ export const gamesApi = (server: Server.State): Router => {
   // Edit Game.
   router.post("/:gameId", Body(), async (ctx) => {
     const sessionCookie = requireSession(ctx.cookies);
-    const body = Validation.body(EditGameBody, ctx.body);
+    const body = Validation.body(EditGameBody, ctx.request.body);
     const game = await server.store.editGame(
       sessionCookie.user,
       sessionCookie.session,

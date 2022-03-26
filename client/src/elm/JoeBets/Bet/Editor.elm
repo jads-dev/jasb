@@ -339,7 +339,7 @@ update wrap localUser msg ({ origin } as parent) model =
                                         |> AssocList.map newIndex
                                         |> AssocList.toList
                                         |> List.sortBy Tuple.second
-                                        |> List.indexedMap (\o ( id, _ ) -> ( id, o ))
+                                        |> List.indexedMap (\o ( id, _ ) -> ( id, o + 1 ))
                                         |> AssocList.fromList
 
                                 replaceOrder id option =
@@ -356,7 +356,7 @@ update wrap localUser msg ({ origin } as parent) model =
                             model.options
                                 |> AssocList.remove internalId
                                 |> AssocList.sortBy (\_ o -> o.order)
-                                |> AssocList.indexedMap (\i _ o -> { o | order = i })
+                                |> AssocList.indexedMap (\i _ o -> { o | order = i + 1 })
                     in
                     ( { model | options = newOptions }, Cmd.none )
 

@@ -36,14 +36,14 @@ export interface EditableBet {
   modified: string;
 }
 
-const optionFromInternal = (
-  { option, stakes }: Internal.Options.AndStakes,
-  index: number
-): EditableOption => ({
+const optionFromInternal = ({
+  option,
+  stakes,
+}: Internal.Options.AndStakes): EditableOption => ({
   id: option.id as Options.Id,
   name: option.name,
   ...(option.image !== null ? { image: option.image } : {}),
-  order: index,
+  order: option.order,
   ...(option.won ? { won: true } : {}),
 
   stakes: Object.fromEntries(stakes.map(Stakes.fromInternal)),
@@ -54,7 +54,7 @@ const optionFromInternal = (
 });
 
 export const fromInternal = (
-  internal: Internal.Bet & Internal.Bets.Options & Internal.Bets.Author
+  internal: Internal.Bet & Internal.Bets.Options & Internal.Bets.Author,
 ): EditableBet => ({
   name: internal.name,
   description: internal.description,

@@ -1,5 +1,6 @@
 import * as Joda from "@js-joda/core";
 import { StatusCodes } from "http-status-codes";
+import { default as Pg } from "pg";
 import parseInterval from "postgres-interval";
 import { migrate } from "postgres-migrations";
 import { default as Slonik, sql } from "slonik";
@@ -39,6 +40,25 @@ export class Store {
   readonly avatarCache: ObjectUploader | undefined;
   readonly pool: Slonik.DatabasePool;
 
+  private static connectionString({
+    host,
+    port,
+    database,
+    user,
+    password,
+    ssl,
+  }: Config.PostgresData): string {
+    return Slonik.stringifyDsn({
+      applicationName: "jasb",
+      host: host,
+      port: port,
+      databaseName: database,
+      username: user,
+      password: password?.value,
+      sslMode: ssl,
+    });
+  }
+
   private constructor(
     logger: Logging.Logger,
     config: Config.Server,
@@ -52,15 +72,8 @@ export class Store {
     this.config = config;
     this.notifier = notifier;
     this.avatarCache = avatarCache;
-    const conf = this.config.store.source;
-    const passPart =
-      conf.password !== undefined ? `:${conf.password.value}` : "";
-    const userPart = conf.user !== undefined ? `${conf.user}${passPart}@` : "";
-    const hostPart = conf.host !== undefined ? `${conf.host}` : "";
-    const portPart = conf.port !== undefined ? `:${conf.port}` : "";
-    const dbPart = conf.database !== undefined ? `/${conf.database}` : "";
     this.pool = Slonik.createPool(
-      `postgresql://${userPart}${hostPart}${portPart}${dbPart}`,
+      Store.connectionString(this.config.store.source),
       {
         typeParsers: [
           {
@@ -89,23 +102,21 @@ export class Store {
     avatarCache: ObjectUploader | undefined,
   ): Promise<Store> {
     const store = new Store(logger, config, notifier, avatarCache);
-    await store.migrate();
+    await store.migrate(store.logger);
     return store;
   }
 
-  private async migrate(): Promise<void> {
-    const conf = this.config.store.source;
-    const user = conf.user ?? "postgres";
-    await migrate(
-      {
-        user,
-        password: conf.password?.value ?? "",
-        host: conf.host ?? "localhost",
-        port: conf.port ?? 5432,
-        database: conf.database ?? user,
-      },
-      "./src/sql/migrations",
+  private async migrate(logger: Logging.Logger): Promise<void> {
+    const client = new Pg.Client(
+      Store.connectionString(this.config.store.source),
     );
+    await client.connect();
+    const migrationLogger = logger.child({
+      task: "migration",
+    });
+    await migrate({ client }, "./src/sql/migrations", {
+      logger: (msg) => migrationLogger.info(msg),
+    });
   }
 
   async validateAdminOrMod(

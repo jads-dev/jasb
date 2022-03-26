@@ -120,7 +120,7 @@ export const betsApi = (server: Server.State): Router => {
     const sessionCookie = requireSession(ctx.cookies);
     const gameId = ctx.params.gameId ?? "";
     const betId = ctx.params.betId ?? "";
-    const body = Validation.body(CreateBetBody, ctx.body);
+    const body = Validation.body(CreateBetBody, ctx.request.body);
     const bet = await server.store.newBet(
       sessionCookie.user,
       sessionCookie.session,
@@ -141,7 +141,7 @@ export const betsApi = (server: Server.State): Router => {
     const sessionCookie = requireSession(ctx.cookies);
     const gameId = ctx.params.gameId ?? "";
     const betId = ctx.params.betId ?? "";
-    const body = Validation.body(EditBetBody, ctx.body);
+    const body = Validation.body(EditBetBody, ctx.request.body);
     const bet = await server.store.editBet(
       sessionCookie.user,
       sessionCookie.session,
@@ -167,7 +167,7 @@ export const betsApi = (server: Server.State): Router => {
   router.post("/complete", Body(), async (ctx) => {
     const sessionCookie = requireSession(ctx.cookies);
     const gameId = ctx.params.gameId ?? "";
-    const body = Validation.body(CompleteBetBody, ctx.body);
+    const body = Validation.body(CompleteBetBody, ctx.request.body);
     const bet = await server.store.completeBet(
       sessionCookie.user,
       sessionCookie.session,
@@ -187,7 +187,7 @@ export const betsApi = (server: Server.State): Router => {
   router.post("/complete/revert", Body(), async (ctx) => {
     const sessionCookie = requireSession(ctx.cookies);
     const gameId = ctx.params.gameId ?? "";
-    const body = Validation.body(RevertBody, ctx.body);
+    const body = Validation.body(RevertBody, ctx.request.body);
     const bet = await server.store.revertCompleteBet(
       sessionCookie.user,
       sessionCookie.session,
@@ -206,7 +206,7 @@ export const betsApi = (server: Server.State): Router => {
   router.post("/lock", Body(), async (ctx) => {
     const sessionCookie = requireSession(ctx.cookies);
     const gameId = ctx.params.gameId ?? "";
-    const body = Validation.body(ModifyLockStateBody, ctx.body);
+    const body = Validation.body(ModifyLockStateBody, ctx.request.body);
     const bet = await server.store.setBetLocked(
       sessionCookie.user,
       sessionCookie.session,
@@ -226,7 +226,7 @@ export const betsApi = (server: Server.State): Router => {
   router.post("/unlock", Body(), async (ctx) => {
     const sessionCookie = requireSession(ctx.cookies);
     const gameId = ctx.params.gameId ?? "";
-    const body = Validation.body(ModifyLockStateBody, ctx.body);
+    const body = Validation.body(ModifyLockStateBody, ctx.request.body);
     const bet = await server.store.setBetLocked(
       sessionCookie.user,
       sessionCookie.session,
@@ -246,7 +246,7 @@ export const betsApi = (server: Server.State): Router => {
   router.post("/cancel", Body(), async (ctx) => {
     const sessionCookie = requireSession(ctx.cookies);
     const gameId = ctx.params.gameId ?? "";
-    const body = Validation.body(CancelBetBody, ctx.body);
+    const body = Validation.body(CancelBetBody, ctx.request.body);
     const bet = await server.store.cancelBet(
       sessionCookie.user,
       sessionCookie.session,
@@ -266,7 +266,7 @@ export const betsApi = (server: Server.State): Router => {
   router.post("/cancel/revert", Body(), async (ctx) => {
     const sessionCookie = requireSession(ctx.cookies);
     const gameId = ctx.params.gameId ?? "";
-    const body = Validation.body(RevertBody, ctx.body);
+    const body = Validation.body(RevertBody, ctx.request.body);
     const bet = await server.store.revertCancelBet(
       sessionCookie.user,
       sessionCookie.session,
@@ -321,7 +321,7 @@ export const betsApi = (server: Server.State): Router => {
   // Place Stake.
   router.put("/options/:optionId/stake", Body(), async (ctx) => {
     const sessionCookie = requireSession(ctx.cookies);
-    const { amount, message } = validateStakeBody(ctx.body);
+    const { amount, message } = validateStakeBody(ctx.request.body);
     const new_balance = await server.store.newStake(
       sessionCookie.user,
       sessionCookie.session,
@@ -337,7 +337,7 @@ export const betsApi = (server: Server.State): Router => {
   // Edit Stake.
   router.post("/options/:optionId/stake", Body(), async (ctx) => {
     const sessionCookie = requireSession(ctx.cookies);
-    const { amount, message } = validateStakeBody(ctx.body);
+    const { amount, message } = validateStakeBody(ctx.request.body);
     const new_balance = await server.store.changeStake(
       sessionCookie.user,
       sessionCookie.session,

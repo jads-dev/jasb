@@ -2,7 +2,7 @@ import * as Joda from "@js-joda/core";
 import { either as Either } from "fp-ts";
 import { StatusCodes } from "http-status-codes";
 import * as Schema from "io-ts";
-import { default as Reporters } from "io-ts-reporters";
+import { formatValidationErrors } from "io-ts-reporters";
 
 import { WebError } from "../server/errors.js";
 import { PlaceholderSecretToken, SecretToken } from "./secret-token.js";
@@ -142,7 +142,7 @@ export function body<Parsed, Encoded>(
   } else {
     throw new WebError(
       StatusCodes.BAD_REQUEST,
-      `Invalid request:\n${Reporters.report(result).join("\n")}`,
+      `Invalid request:\n${formatValidationErrors(result.left).join("\n")}`,
     );
   }
 }

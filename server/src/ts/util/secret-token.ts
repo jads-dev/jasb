@@ -1,3 +1,5 @@
+import * as Util from "util";
+
 import { secureRandomString } from "./random.js";
 
 export interface SecretTokenLike {
@@ -41,6 +43,14 @@ export class SecretToken implements SecretTokenLike {
   public static async secureRandom(bytes: number): Promise<SecretToken> {
     return SecretToken.fromValue(await secureRandomString(bytes));
   }
+
+  public [Util.inspect.custom](): string {
+    return this.toString();
+  }
+
+  public toString(): string {
+    return "[Secret Token]";
+  }
 }
 
 export class PlaceholderSecretToken implements SecretTokenLike {
@@ -59,7 +69,15 @@ export class PlaceholderSecretToken implements SecretTokenLike {
 
   public inSecureEnvironment(): void {
     throw new Error(
-      `Attempted to use placeholder secret token (“${PlaceholderSecretToken.placeholderValue}”) outside development environment.`
+      `Attempted to use placeholder secret token (“${PlaceholderSecretToken.placeholderValue}”) outside development environment.`,
     );
+  }
+
+  public [Util.inspect.custom](): string {
+    return this.toString();
+  }
+
+  public toString(): string {
+    return "[Placeholder Secret Token]";
   }
 }

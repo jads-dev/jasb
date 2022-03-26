@@ -11,14 +11,14 @@
   "scripts": {
     "build": "npx tsc",
     "prestart": "npm run build",
-    "start": "node dist/index.js  | bunyan -o short",
+    "start": "node dist/index.js | bunyan -o short",
     "preinspect": "npm run build",
     "inspect": "node --inspect-brk dist/index.js | bunyan -o short",
     "dev": "nodemon --exec \"npm run start\"",
     "debug": "nodemon --exec \"npm run inspect\"",
     "pregenerate-secret": "npm run build",
     "generate-secret": "node --es-module-specifier-resolution=node dist/generate-secret.js",
-    "docker": "mkdir -p \"$(pwd)/../workaround\" && ROOT_DIR=\"$(pwd)/..\" USER_ID=$(id -u ${USER}) GROUP_ID=$(id -g ${USER}) docker compose -f ../develop.yml run --rm --entrypoint /bin/ash server",
+    "docker": "mkdir -p \"$(pwd)/../workaround\" && ROOT_DIR=\"$(pwd)/..\" USER_ID=$(id -u ${USER}) GROUP_ID=$(id -g ${USER}) docker compose -f ../develop.yml run --tty --rm --entrypoint /bin/ash server",
     "docker:build": "mkdir -p \"$(pwd)/../workaround\" && ROOT_DIR=\"$(pwd)/..\" USER_ID=$(id -u ${USER}) GROUP_ID=$(id -g ${USER}) docker compose -f ../develop.yml run --rm server run build",
     "docker:dev": "mkdir -p \"$(pwd)/../workaround\" && ROOT_DIR=\"$(pwd)/..\" USER_ID=$(id -u ${USER}) GROUP_ID=$(id -g ${USER}) docker compose -f ../develop.yml up --build --no-log-prefix server"
   },
@@ -36,12 +36,12 @@
     "jose": "^4.0.4",
     "json5": "^2.2.0",
     "koa": "^2.13.4",
-    "koa-body": "^4.2.0",
+    "koa-body": "^5.0.0",
     "koa-bunyan-logger": "^2.1.0",
     "koa-helmet": "^6.1.0",
     "postgres-interval": "^4.0.0",
     "postgres-migrations": "^5.2.0",
-    "slonik": "^27.1.0",
+    "slonik": "^28.1.0",
     "source-map-support": "^0.5.20"
   },
   "devDependencies": {

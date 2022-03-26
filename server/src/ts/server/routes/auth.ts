@@ -27,7 +27,6 @@ export const decodeSessionCookie = (
   const maybeCookie = cookies.get(Auth.sessionCookieName);
   if (maybeCookie !== undefined) {
     const cookie = decodeURIComponent(maybeCookie);
-    console.log(cookie);
     const result = SessionCookie.decode(JSON.parse(cookie));
     if (Either.isRight(result)) {
       return result.right;
@@ -74,7 +73,7 @@ export const authApi = (server: Server.State): Router => {
         return;
       }
     }
-    const body = Validation.maybeBody(DiscordLoginBody, ctx.body);
+    const body = Validation.maybeBody(DiscordLoginBody, ctx.request.body);
     if (body === undefined) {
       const { url, state } = await server.auth.redirect(origin);
       ctx.cookies.set(Auth.stateCookieName, state, {
@@ -82,8 +81,8 @@ export const authApi = (server: Server.State): Router => {
         sameSite: "strict",
         secure: process.env.NODE_ENV === "production",
       });
-      ctx.redirect(url);
-      ctx.status = StatusCodes.TEMPORARY_REDIRECT;
+      ctx.body = { redirect: url };
+      return;
     } else {
       const expectedState = ctx.cookies.get(Auth.stateCookieName);
       if (expectedState === undefined) {

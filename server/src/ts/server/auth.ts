@@ -21,7 +21,7 @@ export class Auth {
     this.config = config;
     this.store = store;
     this.oauth = new DiscordOAuth({
-      version: "",
+      version: "v8",
       clientId: config.discord.clientId,
       clientSecret: config.discord.clientSecret.value,
     });

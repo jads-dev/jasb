@@ -27,7 +27,6 @@ services:
       context: "${ROOT_DIR?err}/workaround"
       dockerfile: "../server/Dockerfile.dev"
     user: "${USER_ID:?err}:${GROUP_ID:?err}"
-    tty: true
     environment:
       JASB_CONFIG_PATH: "config.json5;config.dev.json5"
       #ROARR_LOG: true # Log all SQL queries, for debugging.
@@ -44,7 +43,6 @@ services:
       context: "${ROOT_DIR?err}/workaround"
       dockerfile: "../client/Dockerfile.dev"
     user: "${USER_ID:?err}:${GROUP_ID:?err}"
-    tty: true
     ports:
       - "127.0.0.1:8080:8080/tcp" # Allows you to connect to the web UI locally.
     volumes:

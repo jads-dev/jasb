@@ -131,7 +131,7 @@ export const usersApi = (server: Server.State): Router => {
   // Set User Permissions.
   router.post("/:userId/permissions", Body(), async (ctx) => {
     const sessionCookie = requireSession(ctx.cookies);
-    const body = Validation.body(PermissionsBody, ctx.body);
+    const body = Validation.body(PermissionsBody, ctx.request.body);
     await server.store.setPermissions(
       sessionCookie.user,
       sessionCookie.session,
