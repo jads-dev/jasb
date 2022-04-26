@@ -5,8 +5,9 @@
 
   rules: {
     initialBalance: 1000,
-    maxBetWhileInDebt: 100,
+    maxStakeWhileInDebt: 100,
     notableStake: 500,
+    minStake: 25,
   },
 
   store: {

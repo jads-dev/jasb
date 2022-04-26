@@ -1,6 +1,7 @@
 module JoeBets.Rules exposing
     ( initialBalance
-    , maxBetWhileInDebt
+    , maxStakeWhileInDebt
+    , minStake
     , notableStake
     )
 
@@ -10,11 +11,16 @@ initialBalance =
     1000
 
 
-maxBetWhileInDebt : Int
-maxBetWhileInDebt =
+maxStakeWhileInDebt : Int
+maxStakeWhileInDebt =
     100
 
 
 notableStake : Int
 notableStake =
     500
+
+
+minStake : Int
+minStake =
+    25

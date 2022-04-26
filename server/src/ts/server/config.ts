@@ -16,8 +16,9 @@ export class InvalidConfigError extends Error {
 
 const Rules = Schema.strict({
   initialBalance: Schema.Int,
-  maxBetWhileInDebt: Schema.Int,
+  maxStakeWhileInDebt: Schema.Int,
   notableStake: Schema.Int,
+  minStake: Schema.Int,
 });
 export type Rules = Schema.TypeOf<typeof Rules>;
 
@@ -213,8 +214,9 @@ export const builtIn: Server = {
 
   rules: {
     initialBalance: 1000 as Schema.Int,
-    maxBetWhileInDebt: 100 as Schema.Int,
+    maxStakeWhileInDebt: 100 as Schema.Int,
     notableStake: 500 as Schema.Int,
+    minStake: 25 as Schema.Int,
   },
 
   store: {

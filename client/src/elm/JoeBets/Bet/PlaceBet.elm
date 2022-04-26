@@ -49,7 +49,7 @@ update wrap handleSuccess origin time msg model =
         Start target ->
             let
                 bet =
-                    target.existingBet |> Maybe.withDefault Rules.maxBetWhileInDebt
+                    target.existingBet |> Maybe.withDefault Rules.maxStakeWhileInDebt
             in
             ( { model
                 | placeBet =
@@ -231,18 +231,23 @@ view wrap ({ id, user } as localUser) placeBet =
                             else if betAmount == 0 then
                                 Err "You cannot place a zero value bet, but you can cancel the bet."
 
-                            else if betAmount < 0 then
-                                Err "You cannot make negative bets."
+                            else if betAmount < Rules.minStake then
+                                [ "You can't place bets of less than "
+                                , Rules.minStake |> String.fromInt
+                                , "."
+                                ]
+                                    |> String.concat
+                                    |> Err
 
                             else if toPay <= user.balance then
                                 place
 
-                            else if betAmount <= Rules.maxBetWhileInDebt then
+                            else if betAmount <= Rules.maxStakeWhileInDebt then
                                 place
 
                             else
                                 [ "You can't place bets of more than "
-                                , Rules.maxBetWhileInDebt |> String.fromInt
+                                , Rules.maxStakeWhileInDebt |> String.fromInt
                                 , " if it leaves you with a negative balance."
                                 ]
                                     |> String.concat
@@ -297,7 +302,7 @@ view wrap ({ id, user } as localUser) placeBet =
                             (ChangeAmount >> wrap |> Just)
                             [ HtmlA.attribute "outlined" ""
                             , 0 |> String.fromInt |> HtmlA.min
-                            , max (user.balance + (existingBet |> Maybe.withDefault 0)) Rules.maxBetWhileInDebt |> String.fromInt |> HtmlA.max
+                            , max (user.balance + (existingBet |> Maybe.withDefault 0)) Rules.maxStakeWhileInDebt |> String.fromInt |> HtmlA.max
                             ]
                       , errorMessage
                       ]

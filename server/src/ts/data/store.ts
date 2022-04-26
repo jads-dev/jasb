@@ -975,8 +975,9 @@ export class Store {
       const result = await client.query(sql`
         SELECT
           jasb.new_stake(
+            ${this.config.rules.minStake},
             ${this.config.rules.notableStake},
-            ${this.config.rules.maxBetWhileInDebt},
+            ${this.config.rules.maxStakeWhileInDebt},
             ${userId},
             ${sessionId.uri},
             ${this.config.auth.sessionLifetime.toString()},
@@ -1065,8 +1066,9 @@ export class Store {
       const result = await client.query(sql`
         SELECT
           jasb.change_stake(
+            ${this.config.rules.minStake},
             ${this.config.rules.notableStake},
-            ${this.config.rules.maxBetWhileInDebt},
+            ${this.config.rules.maxStakeWhileInDebt},
             ${userId},
             ${sessionId.uri},
             ${this.config.auth.sessionLifetime.toString()},
