@@ -87,59 +87,6 @@ export const api = (server: Server.State): Router => {
     },
   );
 
-  const clientOrigin = server.config.clientOrigin;
-  const regex = new RegExp(
-    clientOrigin.replace(/[.*+?^${}()|[\]]/g, "\\$&") +
-      "/games/(?<game>[^/]+)(?:/(?<bet>[^/]+)/?)?",
-  );
-  const titleFor = async (
-    gameId: string,
-    betId: string | undefined,
-  ): Promise<string> => {
-    const names = await server.store.getTile(gameId, betId ?? null);
-    if (names === undefined) {
-      throw new WebError(StatusCodes.NOT_FOUND, "No such game.");
-    } else {
-      const gameName = names.game_name;
-      const betName = names.bet_name;
-      if (betId !== undefined) {
-        if (betName === null) {
-          throw new WebError(StatusCodes.NOT_FOUND, "No such bet.");
-        } else {
-          return `“${betName}” bet for ${gameName}`;
-        }
-      } else {
-        return `Bets for ${gameName}`;
-      }
-    }
-  };
-  apiRouter.get("/embed.json", async (ctx) => {
-    const url = ctx.query.url;
-    if (url === undefined || typeof url !== "string") {
-      throw new WebError(StatusCodes.NOT_FOUND, "No embed for this resource.");
-    } else {
-      const groups = regex.exec(url)?.groups;
-      if (groups === null || groups === undefined) {
-        throw new WebError(
-          StatusCodes.NOT_FOUND,
-          "No embed for this resource.",
-        );
-      }
-      const { game, bet } = groups;
-      const result = {
-        type: "link",
-        version: "1.0",
-        title: `Stream Bets: ${await titleFor(game ?? "", bet)}.`,
-        provider_name: "JASB",
-        provider_url: clientOrigin,
-        thumbnail_url: `${clientOrigin}/assets/images/favicon-48x48.png`,
-        thumbnail_width: 48,
-        thumbnail_height: 48,
-      };
-      ctx.body = result;
-    }
-  });
-
   return apiRouter;
 };
 
