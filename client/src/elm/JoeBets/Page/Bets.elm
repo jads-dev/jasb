@@ -16,6 +16,7 @@ import Html.Keyed as HtmlK
 import Http
 import JoeBets.Api as Api
 import JoeBets.Bet as Bet
+import JoeBets.Bet.Editor.EditableBet as EditableBet
 import JoeBets.Bet.Model as Bet
 import JoeBets.Bet.PlaceBet as PlaceBet
 import JoeBets.Bet.PlaceBet.Model as PlaceBet
@@ -35,6 +36,8 @@ import JoeBets.Store.Item as Item
 import JoeBets.Store.KeyedItem as Store exposing (KeyedItem)
 import JoeBets.User.Auth as User
 import JoeBets.User.Auth.Model as Auth
+import Json.Encode as JsonE
+import Material.Button as Button
 import Material.IconButton as IconButton
 import Material.Switch as Switch
 import Time.Model as Time
@@ -69,6 +72,7 @@ init storeData =
             , placeBet = PlaceBet.init
             , filters = AssocList.empty
             , favourites = Item.default Codecs.gameFavourites
+            , lockStatus = Nothing
             }
     in
     storeData |> List.filterMap fromItem |> List.foldl apply model
@@ -220,6 +224,88 @@ update wrap msg ({ bets, origin, time } as model) =
         ReceiveStoreChange change ->
             ( { model | bets = apply change bets }, Cmd.none )
 
+        LockBets lockBetsMsg ->
+            case lockBetsMsg of
+                Open ->
+                    let
+                        result game =
+                            ( { model | bets = { bets | lockStatus = Just RemoteData.Missing } }
+                            , Api.get origin
+                                { path = Api.Game game.id Api.LockStatus
+                                , expect = Http.expectJson (LockBetsData >> LockBets >> wrap) lockStatusDecoder
+                                }
+                            )
+                    in
+                    bets.gameBets |> Maybe.map result |> Maybe.withDefault ( model, Cmd.none )
+
+                LockBetsData data ->
+                    ( { model | bets = { bets | lockStatus = Just (RemoteData.load data) } }, Cmd.none )
+
+                Change gameTarget betTarget locked ->
+                    let
+                        request =
+                            case bets.lockStatus |> Maybe.andThen RemoteData.toMaybe |> Maybe.andThen (AssocList.get betTarget) of
+                                Just lockStatus ->
+                                    let
+                                        action =
+                                            if locked then
+                                                Api.Lock
+
+                                            else
+                                                Api.Unlock
+
+                                        fromResponse response =
+                                            case response of
+                                                Ok editableBet ->
+                                                    Changed gameTarget betTarget editableBet
+
+                                                Err error ->
+                                                    Error error
+                                    in
+                                    Api.post origin
+                                        { path = action |> Api.Bet betTarget |> Api.Game gameTarget
+                                        , body = [ ( "version", JsonE.int lockStatus.version ) ] |> JsonE.object |> Http.jsonBody
+                                        , expect = Http.expectJson (fromResponse >> LockBets >> wrap) EditableBet.decoder
+                                        }
+
+                                Nothing ->
+                                    Cmd.none
+                    in
+                    ( model, request )
+
+                Changed gameTarget betTarget updatedBet ->
+                    let
+                        set _ =
+                            Just
+                                { name = updatedBet.name
+                                , locksWhen = updatedBet.locksWhen
+                                , locked = updatedBet.progress == EditableBet.Locked
+                                , version = updatedBet.version
+                                }
+
+                        lockStatus =
+                            bets.lockStatus |> Maybe.map (RemoteData.map (AssocList.update betTarget set))
+
+                        localUser =
+                            model.auth.localUser |> Maybe.map .id
+                    in
+                    ( { model | bets = { bets | lockStatus = lockStatus } }, Cmd.none )
+
+                Error _ ->
+                    ( model, Cmd.none )
+
+                Close ->
+                    let
+                        newModel =
+                            { model | bets = { bets | lockStatus = Nothing } }
+                    in
+                    case bets.gameBets of
+                        Just { id, subset } ->
+                            load wrap id subset newModel
+
+                        Nothing ->
+                            ( newModel, Cmd.none )
+
 
 viewActiveFilters : (Msg -> msg) -> Subset -> Filters.Resolved -> Filters -> List (Html msg) -> Html msg
 viewActiveFilters wrap subset filters gameFilters shownAmount =
@@ -335,7 +421,14 @@ view wrap model =
                                     if model.auth.localUser |> Auth.isMod id then
                                         [ Route.a (Edit.Bet id Edit.New |> Route.Edit)
                                             []
-                                            [ Icon.plus |> Icon.present |> Icon.view, Html.text " Add Bet" ]
+                                            [ Icon.plus |> Icon.present |> Icon.view
+                                            , Html.text " Add Bet"
+                                            ]
+                                        , Button.view Button.Standard
+                                            Button.Dense
+                                            "Lock Bets"
+                                            (Icon.lock |> Icon.present |> Icon.view |> Just)
+                                            (LockBets Open |> wrap |> Just)
                                         ]
 
                                     else
@@ -386,15 +479,55 @@ view wrap model =
 
                 Nothing ->
                     RemoteData.Missing
+
+        lockStatusWithGameId ls gameBets =
+            RemoteData.view (viewLockStatus wrap gameBets.id) ls
     in
     { title = "Bets for “" ++ gameName ++ "”"
     , id = "bets"
     , body =
         [ remoteData |> RemoteData.view body
         , model.auth.localUser |> Maybe.map placeBetView |> Maybe.withDefault []
+        , Maybe.map2 lockStatusWithGameId model.bets.lockStatus model.bets.gameBets |> Maybe.withDefault []
         ]
             |> List.concat
     }
+
+
+viewLockStatus : (Msg -> msg) -> Game.Id -> AssocList.Dict Bet.Id LockStatus -> List (Html msg)
+viewLockStatus wrap gameId lockStatus =
+    let
+        linkify name betId =
+            Route.a (Route.Bet gameId betId)
+                [ HtmlA.class "permalink" ]
+                [ Html.text name
+                , Icon.link |> Icon.present |> Icon.view
+                ]
+
+        viewBet ( id, { name, locksWhen, locked } ) =
+            Html.li []
+                [ Html.span [ HtmlA.class "name" ] [ linkify name id ]
+                , Html.span [ HtmlA.class "locks-when" ] [ Html.text locksWhen ]
+                , Html.span [ HtmlA.class "locked" ] [ Switch.view (Html.text "") locked (Change gameId id >> LockBets >> wrap |> Just) ]
+                ]
+
+        header =
+            Html.li [ HtmlA.class "header" ]
+                [ Html.span [ HtmlA.class "name" ] [ Html.text "Name" ]
+                , Html.span [ HtmlA.class "locks-when" ] [ Html.text "Locks When" ]
+                , Html.span [ HtmlA.class "locked" ] [ Html.text "Locked" ]
+                ]
+
+        bets =
+            lockStatus |> AssocList.toList |> List.map viewBet
+    in
+    [ Html.div [ HtmlA.class "overlay" ]
+        [ Html.div [ HtmlA.id "lock-manager" ]
+            [ header :: bets |> Html.ol []
+            , Button.view Button.Standard Button.Padded "Close" (Icon.times |> Icon.present |> Icon.view |> Just) (LockBets Close |> wrap |> Just)
+            ]
+        ]
+    ]
 
 
 apply : StoreChange -> Model -> Model

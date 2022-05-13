@@ -530,6 +530,26 @@ export class Store {
     });
   }
 
+  async getBetsLockStatus(gameId: string): Promise<Bets.LockStatus[]> {
+    return await this.withClient(async (client) => {
+      const results = await client.query(sql`
+        SELECT
+          bets.id,
+          bets.name,
+          bets.locks_when,
+          bets.progress = 'Locked'::BetProgress as locked,
+          bets.version
+        FROM
+          jasb.bets
+        WHERE
+          bets.game = ${gameId} AND
+          (bets.progress = 'Voting'::BetProgress OR bets.progress = 'Locked'::BetProgress)
+        ORDER BY bets.created DESC;
+      `);
+      return results.rows as unknown as Bets.LockStatus[];
+    });
+  }
+
   async getUserBets(userId: string): Promise<(Game & Games.EmbeddedBets)[]> {
     return await this.withClient(async (client) => {
       const results = await client.query(sql`

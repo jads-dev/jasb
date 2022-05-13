@@ -55,6 +55,7 @@ type OptionPath
 type GamePath
     = GameRoot
     | Bets
+    | LockStatus
     | Bet Bets.Id BetPath
     | Suggestions
 
@@ -104,7 +105,7 @@ request origin method { path, body, expect } =
 
 
 url : String -> Path -> String
-url origin path =
+url _ path =
     Url.Builder.absolute ("api" :: pathToStringList path) []
 
 
@@ -173,6 +174,9 @@ gamePathToStringList path =
 
         Bets ->
             [ "bets" ]
+
+        LockStatus ->
+            [ "bets", "lock" ]
 
         Bet id betPath ->
             "bets" :: Bets.idToString id :: betPathToStringList betPath

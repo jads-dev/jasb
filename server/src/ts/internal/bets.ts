@@ -36,4 +36,12 @@ export interface Author {
   author_avatar: string | null;
 }
 
+export interface LockStatus {
+  id: string;
+  name: string;
+  locks_when: string;
+  locked: boolean;
+  version: number;
+}
+
 export * as Bets from "./bets.js";

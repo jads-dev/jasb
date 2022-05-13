@@ -82,6 +82,16 @@ export const gamesApi = (server: Server.State): Router => {
     ctx.body = result;
   });
 
+  // Get lock status of bets.
+  router.get("/:gameId/bets/lock", async (ctx) => {
+    const gameId = ctx.params.gameId ?? "";
+    const betsLockStatus = await server.store.getBetsLockStatus(gameId);
+    const result: Bets.LockStatus[] = betsLockStatus.map(
+      Bets.lockStatusFromInternal,
+    );
+    ctx.body = result;
+  });
+
   // Create Game.
   router.put("/:gameId", Body(), async (ctx) => {
     const sessionCookie = requireSession(ctx.cookies);

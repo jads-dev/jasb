@@ -362,6 +362,25 @@ update wrap localUser msg ({ origin } as parent) model =
 
         ResolveOverlay commit ->
             let
+                makeChangeRequest path body ({ gameId, source } as m) =
+                    case source |> Maybe.andThen (.bet >> RemoteData.toMaybe) of
+                        Just bet ->
+                            let
+                                betId =
+                                    resolveId m
+
+                                request =
+                                    Api.post origin
+                                        { path = path |> Api.Bet betId |> Api.Game gameId
+                                        , body = body bet |> Http.jsonBody
+                                        , expect = Http.expectJson (Load gameId betId >> wrap) EditableBet.decoder
+                                        }
+                            in
+                            request
+
+                        Nothing ->
+                            Cmd.none
+
                 cmd =
                     if commit then
                         case model.contextualOverlay of
@@ -375,8 +394,7 @@ update wrap localUser msg ({ origin } as parent) model =
                                             { version = bet.version, reason = reason }
                                                 |> encodeCancelAction
                                     in
-                                    makeChangeRequest wrap
-                                        origin
+                                    makeChangeRequest
                                         Api.Cancel
                                         body
                                         model
@@ -391,8 +409,7 @@ update wrap localUser msg ({ origin } as parent) model =
                                             { version = bet.version, winners = winners }
                                                 |> encodeCompleteAction
                                     in
-                                    makeChangeRequest wrap
-                                        origin
+                                    makeChangeRequest
                                         Api.Complete
                                         body
                                         model
@@ -771,26 +788,6 @@ viewOption wrap ( internalId, { id, name, image, order } ) =
                 ]
     in
     ( internalId, content )
-
-
-makeChangeRequest wrap origin path body ({ gameId, source } as model) =
-    case source |> Maybe.andThen (.bet >> RemoteData.toMaybe) of
-        Just bet ->
-            let
-                betId =
-                    resolveId model
-
-                request =
-                    Api.post origin
-                        { path = path |> Api.Bet betId |> Api.Game gameId
-                        , body = body bet |> Http.jsonBody
-                        , expect = Http.expectJson (Load gameId betId >> wrap) EditableBet.decoder
-                        }
-            in
-            request
-
-        Nothing ->
-            Cmd.none
 
 
 imageUploaderModel : Uploader.Model

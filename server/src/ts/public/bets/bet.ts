@@ -52,6 +52,14 @@ export interface WithId {
   bet: Bet;
 }
 
+export interface LockStatus {
+  id: Id;
+  name: string;
+  locksWhen: string;
+  locked: boolean;
+  version: number;
+}
+
 export const unknownProgress = Expect.exhaustive(
   "bet progress",
   (i: Internal.Games.Progress) => i,
@@ -99,4 +107,14 @@ export const fromInternal = (
       return { id, option };
     }),
   },
+});
+
+export const lockStatusFromInternal = (
+  internal: Internal.Bets.LockStatus,
+): LockStatus => ({
+  id: internal.id as Id,
+  name: internal.name,
+  locksWhen: internal.locks_when,
+  locked: internal.locked,
+  version: internal.version,
 });
