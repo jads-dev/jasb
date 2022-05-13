@@ -1,4 +1,5 @@
-import { AxiosResponse, default as Axios } from "axios";
+import type { AxiosResponse } from "axios";
+import { default as Axios } from "axios";
 import { StatusCodes } from "http-status-codes";
 import { OciError } from "oci-sdk";
 
