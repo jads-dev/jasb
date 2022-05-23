@@ -62,6 +62,6 @@
     ]
   },
   "optionalDependencies": {
-    "oci-sdk": "^2.3.1"
+    "oci-sdk": "^2.27.0"
   }
 }
