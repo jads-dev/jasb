@@ -3,7 +3,6 @@
 const path = require("path");
 const sass = require("sass");
 const HtmlWebpackPlugin = require("html-webpack-plugin");
-const FaviconsWebpackPlugin = require("favicons-webpack-plugin");
 const TerserPlugin = require("terser-webpack-plugin");
 const CompressionPlugin = require("compression-webpack-plugin");
 const MiniCssExtractPlugin = require("mini-css-extract-plugin");
@@ -110,24 +109,6 @@ module.exports = (env, argv) => {
         filename: "index.html",
         inject: "body",
         test: /\.html$/,
-      }),
-      new FaviconsWebpackPlugin({
-        logo: path.join(assets, "images", "monocoin.png"),
-        prefix: "assets/images/",
-        favicons: {
-          lang: "en",
-          start_url: "/",
-          icons: {
-            android: false,
-            appleIcon: false,
-            appleStartup: false,
-            coast: false,
-            favicons: true,
-            firefox: false,
-            windows: false,
-            yandex: false,
-          },
-        },
       }),
       ...(production
         ? [
