@@ -3,7 +3,7 @@ module Util.Html exposing
     , imgFallback
     )
 
-import FontAwesome.Icon as Icon
+import FontAwesome as Icon
 import FontAwesome.Solid as Icon
 import Html as Html exposing (Html)
 import Html.Attributes as HtmlA
@@ -14,7 +14,7 @@ import Util.Maybe as Maybe
 blankA : String -> List String -> List (Html msg) -> Html msg
 blankA origin path content =
     Html.a [ Url.Builder.crossOrigin origin path [] |> HtmlA.href, HtmlA.target "_blank", HtmlA.rel "noopener" ]
-        (content ++ [ Html.span [ HtmlA.class "external" ] [ Icon.externalLinkAlt |> Icon.viewIcon ] ])
+        (content ++ [ Html.span [ HtmlA.class "external" ] [ Icon.externalLinkAlt |> Icon.view ] ])
 
 
 imgFallback : { src : String, alt : String } -> { src : String, alt : Maybe String } -> List (Html.Attribute msg) -> Html msg

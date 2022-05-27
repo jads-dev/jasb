@@ -7,7 +7,7 @@ module JoeBets.Page.Feed exposing
 
 import AssocList
 import EverySet
-import FontAwesome.Icon as Icon
+import FontAwesome as Icon
 import FontAwesome.Solid as Icon
 import Html
 import Html.Attributes as HtmlA
@@ -150,7 +150,7 @@ view wrap specificFeed { feed, bets, settings } =
             case event of
                 NB { game, bet, spoiler } ->
                     itemRender spoiler
-                        (Icon.plusCircle |> Icon.present)
+                        Icon.plusCircle
                         [ Html.p []
                             [ Html.text "New bet available on “"
                             , Route.a (Route.Bets Bets.Active game.id) [] [ Html.text game.name ]
@@ -210,7 +210,7 @@ view wrap specificFeed { feed, bets, settings } =
                                 |> List.addBeforeLast (Html.text "and ")
                     in
                     itemRender spoiler
-                        (Icon.checkCircle |> Icon.present)
+                        Icon.checkCircle
                         [ Html.p []
                             [ Html.text "The bet “"
                             , Route.a (Route.Bet game.id bet.id) [ potentialSpoiler ] [ Html.text bet.name ]
@@ -225,7 +225,7 @@ view wrap specificFeed { feed, bets, settings } =
 
                 NS { game, bet, spoiler, option, user, message, stake } ->
                     itemRender spoiler
-                        (Icon.exclamationCircle |> Icon.present)
+                        Icon.exclamationCircle
                         [ Html.p []
                             [ Html.text "Big bet of "
                             , stake |> Coins.view

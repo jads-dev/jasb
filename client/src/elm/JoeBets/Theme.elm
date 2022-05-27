@@ -9,7 +9,7 @@ module JoeBets.Theme exposing
     , toString
     )
 
-import FontAwesome.Icon as Icon
+import FontAwesome as Icon
 import FontAwesome.Solid as Icon
 import Html
 import Html.Attributes as HtmlA
@@ -96,7 +96,7 @@ selectItem theme =
                     ( Icon.sun, "Light", "Dark text on a light background." )
     in
     { id = theme
-    , icon = icon |> Icon.viewIcon |> Just
+    , icon = icon |> Icon.view |> Just
     , primary = [ Html.text name ]
     , secondary = [ Html.text "(", Html.text description, Html.text ")" ] |> Just
     , meta = Nothing

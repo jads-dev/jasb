@@ -3,7 +3,13 @@ import { StatusCodes } from "http-status-codes";
 import { default as Pg } from "pg";
 import parseInterval from "postgres-interval";
 import { migrate } from "postgres-migrations";
-import { default as Slonik, sql } from "slonik";
+import {
+  default as Slonik,
+  QueryResultRow,
+  sql,
+  SqlTaggedTemplate,
+  TaggedTemplateLiteralInvocation,
+} from "slonik";
 
 import {
   AvatarCache,
@@ -400,6 +406,7 @@ export class Store {
           games.added,
           games.started,
           games.finished,
+          games."order",
           games.version,
           games.modified,
           games.progress,
@@ -423,6 +430,19 @@ export class Store {
     });
   }
 
+  getSort(
+    subset: Games.Progress,
+  ): TaggedTemplateLiteralInvocation<QueryResultRow> {
+    switch (subset) {
+      case "Future":
+        return sql`games."order" ASC NULLS LAST`;
+      case "Current":
+        return sql`games.started ASC`;
+      case "Finished":
+        return sql`games.finished DESC`;
+    }
+  }
+
   async getGames(subset: Games.Progress): Promise<(Game & Games.BetStats)[]> {
     return await this.withClient(async (client) => {
       const results = await client.query(sql`
@@ -434,13 +454,8 @@ export class Store {
           jasb.game_bet_stats ON game = id
         WHERE
           progress = ${subset}
-        ORDER BY (
-          CASE
-            WHEN ${subset} = 'Future'::gameprogress THEN games.added
-            WHEN ${subset} = 'Current'::gameprogress THEN games.started
-            WHEN ${subset} = 'Finished'::gameprogress THEN games.finished
-          END
-        );
+        ORDER BY
+          ${this.getSort(subset)}, games.added ASC;
       `);
 
       return results.rows as unknown as (Game & Games.BetStats)[];
@@ -456,6 +471,7 @@ export class Store {
     igdbId: string,
     started: string | null,
     finished: string | null,
+    order: number | null,
   ): Promise<Game> {
     return await this.withClient(async (client) => {
       const result = await client.query(sql`
@@ -471,7 +487,8 @@ export class Store {
             ${cover},
             ${igdbId},
             ${started},
-            ${finished}
+            ${finished},
+            ${order}
           );
       `);
       return result.rows[0] as unknown as Game;
@@ -488,6 +505,7 @@ export class Store {
     igdbId?: string,
     started?: string | null,
     finished?: string | null,
+    order?: number | null,
   ): Promise<Game & Games.BetStats> {
     return await this.withClient(async (client) => {
       const results = await client.query(sql`
@@ -506,7 +524,9 @@ export class Store {
             ${started ?? null},
             ${started === null},
             ${finished ?? null},
-            ${finished === null}
+            ${finished === null},
+            ${order ?? null},
+            ${order === null}
           );
       `);
       return results.rows[0] as unknown as Game & Games.BetStats;

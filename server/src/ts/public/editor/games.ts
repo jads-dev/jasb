@@ -6,6 +6,7 @@ export interface EditableGame {
   igdbId: string;
   started?: string;
   finished?: string;
+  order?: number;
 
   version: number;
   added: string;
@@ -20,6 +21,7 @@ export const fromInternal = (internal: Internal.Game): EditableGame => ({
   ...(internal.finished !== null
     ? { finished: internal.finished.toJSON() }
     : {}),
+  ...(internal.order !== null ? { order: internal.order } : {}),
 
   version: internal.version,
   added: internal.added.toJSON(),

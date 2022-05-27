@@ -7,7 +7,7 @@ module JoeBets.Game.Editor exposing
     , view
     )
 
-import FontAwesome.Icon as Icon
+import FontAwesome as Icon
 import FontAwesome.Solid as Icon
 import Html exposing (Html)
 import Html.Attributes as HtmlA
@@ -51,6 +51,7 @@ empty maybeGameId =
     , bets = 0
     , start = ""
     , finish = ""
+    , order = Nothing
     }
 
 
@@ -70,6 +71,7 @@ diff model =
         (ifDifferent .igdbId .igdbId)
         (ifDifferent (.progress >> Game.start) (.start >> Date.fromIso))
         (ifDifferent (.progress >> Game.finish) (.finish >> Date.fromIso))
+        (ifDifferent .order .order)
 
 
 load : String -> (Msg -> msg) -> Maybe Game.Id -> ( Model, Cmd msg )
@@ -119,6 +121,7 @@ fromGame id game =
     , bets = game.bets
     , start = startDate |> Maybe.map Date.toIso |> Maybe.withDefault ""
     , finish = finishDate |> Maybe.map Date.toIso |> Maybe.withDefault ""
+    , order = game.order
     }
 
 
@@ -174,6 +177,17 @@ update wrap msg parent model =
         ChangeFinish finish ->
             ( { model | finish = finish }, Cmd.none )
 
+        ChangeOrder stringOrder ->
+            let
+                order =
+                    if String.isEmpty stringOrder then
+                        Nothing
+
+                    else
+                        String.toInt stringOrder
+            in
+            ( { model | order = order }, Cmd.none )
+
 
 toGame : Model -> ( Game.Id, Game )
 toGame model =
@@ -203,7 +217,7 @@ toGame model =
     ( model.source
         |> Maybe.map Tuple.first
         |> Maybe.withDefault (model.name |> Url.slugify |> Game.idFromString)
-    , Game version model.name coverUrl model.igdbId model.bets progress
+    , Game version model.name coverUrl model.igdbId model.bets progress model.order
     )
 
 
@@ -316,6 +330,11 @@ view save wrap wrapBets parent model =
                         (ChangeFinish >> wrap |> Just)
                         [ HtmlA.attribute "outlined" "" ]
                     , Validator.view finishValidator model
+                    , textField "Order"
+                        TextField.Number
+                        (model.order |> Maybe.map String.fromInt |> Maybe.withDefault "")
+                        (ChangeOrder >> wrap |> Just)
+                        []
                     ]
                 , Html.div [ HtmlA.class "preview" ] preview
                 ]
@@ -323,12 +342,12 @@ view save wrap wrapBets parent model =
                 [ Button.view Button.Standard
                     Button.Padded
                     "Reset"
-                    (Icon.undo |> Icon.present |> Icon.view |> Just)
+                    (Icon.undo |> Icon.view |> Just)
                     (Reset |> wrap |> Just)
                 , Button.view Button.Raised
                     Button.Padded
                     "Save"
-                    (Icon.save |> Icon.present |> Icon.view |> Just)
+                    (Icon.save |> Icon.view |> Just)
                     (save |> Validator.whenValid validator model)
                 ]
             ]

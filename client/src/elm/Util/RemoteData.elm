@@ -8,8 +8,8 @@ module Util.RemoteData exposing
     , view
     )
 
+import FontAwesome as Icon
 import FontAwesome.Attributes as Icon
-import FontAwesome.Icon as Icon
 import FontAwesome.Solid as Icon
 import Html exposing (Html)
 import Html.Attributes as HtmlA
@@ -67,7 +67,7 @@ view viewValue remoteData =
     case remoteData of
         Missing ->
             [ Html.div [ HtmlA.class "loading" ]
-                [ Icon.spinner |> Icon.present |> Icon.styled [ Icon.pulse ] |> Icon.view ]
+                [ Icon.spinner |> Icon.styled [ Icon.spinPulse ] |> Icon.view ]
             ]
 
         Loaded value ->

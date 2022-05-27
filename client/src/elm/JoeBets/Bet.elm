@@ -7,7 +7,7 @@ module JoeBets.Bet exposing
 
 import AssocList
 import EverySet
-import FontAwesome.Icon as Icon
+import FontAwesome as Icon
 import FontAwesome.Solid as Icon
 import Html exposing (Html)
 import Html.Attributes as HtmlA
@@ -219,7 +219,7 @@ internalView timeContext voteAs viewType highlight hasVoted gameId gameName betI
                 , Stakes.view timeContext (voteAs |> Maybe.map .id) highlight maxAmount stakes
                 , Html.div [ HtmlA.class "details", HtmlA.title title ]
                     [ Html.span [ HtmlA.class "people" ]
-                        [ Icon.user |> Icon.present |> Icon.view
+                        [ Icon.user |> Icon.view
                         , stakeCount |> String.fromInt |> Html.text
                         ]
                     , totalStake |> Coins.view
@@ -235,21 +235,21 @@ internalView timeContext voteAs viewType highlight hasVoted gameId gameName betI
         ( class, icon, progressDescription ) =
             case bet.progress of
                 Voting { locksWhen } ->
-                    ( "voting", Icon.voteYea |> Icon.present, "The bet is open until " ++ locksWhen ++ ", you can place bets." )
+                    ( "voting", Icon.voteYea, "The bet is open until " ++ locksWhen ++ ", you can place bets." )
 
                 Locked _ ->
-                    ( "locked", Icon.lock |> Icon.present, "The bet is locked, awaiting the result, you can no longer place bets." )
+                    ( "locked", Icon.lock, "The bet is locked, awaiting the result, you can no longer place bets." )
 
                 Complete _ ->
-                    ( "complete", Icon.check |> Icon.present, "The bet is finished, you can no longer place bets." )
+                    ( "complete", Icon.check, "The bet is finished, you can no longer place bets." )
 
                 Cancelled { reason } ->
-                    ( "cancelled", Icon.times |> Icon.present, "The bet has been cancelled because " ++ reason ++ ", and all bets refunded." )
+                    ( "cancelled", Icon.times, "The bet has been cancelled because " ++ reason ++ ", and all bets refunded." )
 
         votedDetail =
             if hasVoted then
                 [ Html.span [ HtmlA.class "voted", HtmlA.title "You have placed a bet." ]
-                    [ Icon.userCheck |> Icon.present |> Icon.view ]
+                    [ Icon.userCheck |> Icon.view ]
                 ]
 
             else
@@ -312,7 +312,7 @@ internalView timeContext voteAs viewType highlight hasVoted gameId gameName betI
         adminContent =
             if voteAs |> Auth.isMod gameId then
                 [ Html.div [ HtmlA.class "admin-controls" ]
-                    [ Route.a (betId |> Edit.Edit |> Edit.Bet gameId |> Route.Edit) [] [ Icon.pen |> Icon.present |> Icon.view ]
+                    [ Route.a (betId |> Edit.Edit |> Edit.Bet gameId |> Route.Edit) [] [ Icon.pen |> Icon.view ]
                     ]
                 ]
 
@@ -335,7 +335,7 @@ internalView timeContext voteAs viewType highlight hasVoted gameId gameName betI
                             [ HtmlA.class "permalink" ]
                             [ Html.h3 [ HtmlA.classList [ ( "potential-spoiler", bet.spoiler ) ] ]
                                 [ Html.text bet.name
-                                , Icon.link |> Icon.present |> Icon.view
+                                , Icon.link |> Icon.view
                                 ]
                             ]
                         , details |> List.concat |> Html.div [ HtmlA.class "details" ]

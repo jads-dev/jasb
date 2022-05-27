@@ -7,7 +7,7 @@ module JoeBets.Page.User exposing
 
 import AssocList
 import Browser.Navigation as Navigation
-import FontAwesome.Icon as Icon
+import FontAwesome as Icon
 import FontAwesome.Solid as Icon
 import Html exposing (Html)
 import Html.Attributes as HtmlA
@@ -312,7 +312,7 @@ view wrap model =
                                         [ Button.view Button.Raised
                                             Button.Padded
                                             "Edit Permissions"
-                                            (Icon.userCog |> Icon.present |> Icon.view |> Just)
+                                            (Icon.userCog |> Icon.view |> Just)
                                             (TogglePermissionsOverlay True |> wrap |> Just)
                                         ]
                                   ]
@@ -330,7 +330,7 @@ view wrap model =
                                         , Button.view Button.Raised
                                             Button.Padded
                                             "Go Bankrupt"
-                                            (Icon.recycle |> Icon.present |> Icon.view |> Just)
+                                            (Icon.recycle |> Icon.view |> Just)
                                             (ToggleBankruptcyOverlay True |> wrap |> Just)
                                         ]
                                   ]
@@ -441,14 +441,14 @@ viewBankruptcyOverlay wrap { sureToggle, stats } =
                 [ Button.view Button.Standard
                     Button.Padded
                     "Cancel"
-                    (Icon.times |> Icon.present |> Icon.view |> Just)
+                    (Icon.times |> Icon.view |> Just)
                     (ToggleBankruptcyOverlay False |> wrap |> Just)
                 , Html.div [ HtmlA.class "dangerous" ]
                     [ Button.view
                         Button.Raised
                         Button.Padded
                         "Go Bankrupt"
-                        (Icon.recycle |> Icon.present |> Icon.view |> Just)
+                        (Icon.recycle |> Icon.view |> Just)
                         (GoBankrupt |> wrap |> Maybe.when sureToggle)
                     ]
                 ]
@@ -476,7 +476,7 @@ viewPermissionsOverlay wrap userId overlay =
             [ Button.view Button.Standard
                 Button.Padded
                 "Close"
-                (Icon.times |> Icon.present |> Icon.view |> Just)
+                (Icon.times |> Icon.view |> Just)
                 (TogglePermissionsOverlay False |> wrap |> Just)
             ]
     in

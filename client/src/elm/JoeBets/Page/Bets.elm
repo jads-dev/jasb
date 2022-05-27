@@ -8,7 +8,7 @@ module JoeBets.Page.Bets exposing
 import AssocList
 import Browser.Navigation as Navigation
 import EverySet
-import FontAwesome.Icon as Icon
+import FontAwesome as Icon
 import FontAwesome.Solid as Icon
 import Html exposing (Html)
 import Html.Attributes as HtmlA
@@ -343,9 +343,9 @@ viewActiveFilters wrap subset filters gameFilters shownAmount =
             Html.div [ HtmlA.title description ]
                 [ Switch.view (Html.text title) value (SetFilter filter >> wrap |> Just) ]
     in
-    [ [ Html.span [] ((Icon.filter |> Icon.present |> Icon.view) :: shownAmount) ]
+    [ [ Html.span [] ((Icon.filter |> Icon.view) :: shownAmount) ]
     , active |> List.map viewFilter
-    , [ IconButton.view (Icon.backspace |> Icon.present |> Icon.view)
+    , [ IconButton.view (Icon.backspace |> Icon.view)
             "Reset filters to default."
             (ClearFilters |> wrap |> Maybe.when (gameFilters |> Filters.any))
       ]
@@ -409,7 +409,7 @@ view wrap model =
                                         []
                                         --[ Route.a (Route.Bets Suggestions id)
                                         --    []
-                                        --    [ Icon.voteYea |> Icon.present |> Icon.view
+                                        --    [ Icon.voteYea |> Icon.view
                                         --    , Html.text " View/Make Bet Suggestions"
                                         --    ]
                                         --]
@@ -421,13 +421,13 @@ view wrap model =
                                     if model.auth.localUser |> Auth.isMod id then
                                         [ Route.a (Edit.Bet id Edit.New |> Route.Edit)
                                             []
-                                            [ Icon.plus |> Icon.present |> Icon.view
+                                            [ Icon.plus |> Icon.view
                                             , Html.text " Add Bet"
                                             ]
                                         , Button.view Button.Standard
                                             Button.Dense
                                             "Lock Bets"
-                                            (Icon.lock |> Icon.present |> Icon.view |> Just)
+                                            (Icon.lock |> Icon.view |> Just)
                                             (LockBets Open |> wrap |> Just)
                                         ]
 
@@ -442,7 +442,7 @@ view wrap model =
                                     if model.auth.localUser /= Nothing then
                                         [ Route.a (Edit.Bet id Edit.Suggest |> Route.Edit)
                                             []
-                                            [ Icon.voteYea |> Icon.present |> Icon.view
+                                            [ Icon.voteYea |> Icon.view
                                             , Html.text " Make Bet Suggestion"
                                             ]
                                         ]
@@ -458,7 +458,7 @@ view wrap model =
                 shownBets |> HtmlK.ul [ HtmlA.class "bet-list" ]
 
               else
-                Html.p [ HtmlA.class "empty" ] [ Icon.ghost |> Icon.present |> Icon.view, Html.text "No matching bets." ]
+                Html.p [ HtmlA.class "empty" ] [ Icon.ghost |> Icon.view, Html.text "No matching bets." ]
             , Html.ul [ HtmlA.class "final-actions" ]
                 (actions |> List.concat |> List.map (List.singleton >> Html.li []))
             ]
@@ -501,7 +501,7 @@ viewLockStatus wrap gameId lockStatus =
             Route.a (Route.Bet gameId betId)
                 [ HtmlA.class "permalink" ]
                 [ Html.text name
-                , Icon.link |> Icon.present |> Icon.view
+                , Icon.link |> Icon.view
                 ]
 
         viewBet ( id, { name, locksWhen, locked } ) =
@@ -524,7 +524,7 @@ viewLockStatus wrap gameId lockStatus =
     [ Html.div [ HtmlA.class "overlay" ]
         [ Html.div [ HtmlA.id "lock-manager" ]
             [ header :: bets |> Html.ol []
-            , Button.view Button.Standard Button.Padded "Close" (Icon.times |> Icon.present |> Icon.view |> Just) (LockBets Close |> wrap |> Just)
+            , Button.view Button.Standard Button.Padded "Close" (Icon.times |> Icon.view |> Just) (LockBets Close |> wrap |> Just)
             ]
         ]
     ]

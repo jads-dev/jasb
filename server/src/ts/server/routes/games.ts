@@ -20,6 +20,7 @@ const GameBody = {
   igdbId: Schema.string,
   started: Schema.union([Validation.Date, Schema.null]),
   finished: Schema.union([Validation.Date, Schema.null]),
+  order: Schema.union([Schema.Int, Schema.null]),
 };
 const CreateGameBody = Schema.strict(GameBody);
 const EditGameBody = Schema.intersection([
@@ -106,6 +107,7 @@ export const gamesApi = (server: Server.State): Router => {
         body.igdbId,
         body.started !== null ? body.started.toString() : null,
         body.finished !== null ? body.finished.toString() : null,
+        body.order,
       )
     ) {
       ctx.status = StatusCodes.OK;
@@ -131,6 +133,7 @@ export const gamesApi = (server: Server.State): Router => {
       body.igdbId,
       body.started !== null ? body.started?.toString() : null,
       body.finished !== null ? body.finished?.toString() : null,
+      body.order,
     );
     const result: Games.Game = Games.fromInternal(game).game;
     ctx.body = result;

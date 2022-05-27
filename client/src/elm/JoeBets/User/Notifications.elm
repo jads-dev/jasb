@@ -8,7 +8,7 @@ module JoeBets.User.Notifications exposing
     )
 
 import Browser.Events as Browser
-import FontAwesome.Icon as Icon
+import FontAwesome as Icon
 import FontAwesome.Solid as Icon
 import Html exposing (Html)
 import Html.Attributes as HtmlA
@@ -198,7 +198,7 @@ view wrap { notifications } =
             in
             Html.li []
                 [ Html.p [] content
-                , IconButton.view (Icon.envelopeOpen |> Icon.present |> Icon.view)
+                , IconButton.view (Icon.envelopeOpen |> Icon.view)
                     "Mark As Read"
                     (notification |> getId |> SetRead |> wrap |> Just)
                 ]

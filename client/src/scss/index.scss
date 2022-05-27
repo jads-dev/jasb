@@ -9,8 +9,8 @@
 @use "./colors";
 @use "./size";
 
-@import "~elm-material/src/scss/_material.scss";
-@import "~@fortawesome/fontawesome-free/css/svg-with-js.min.css";
+@import "elm-material/src/scss/_material.scss";
+@import "@fortawesome/fontawesome-svg-core/styles.css";
 
 body {
   margin: 0;

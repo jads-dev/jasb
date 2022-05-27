@@ -2,7 +2,7 @@ module JoeBets.Game exposing (view)
 
 import AssocList
 import EverySet
-import FontAwesome.Icon as Icon
+import FontAwesome as Icon
 import FontAwesome.Regular as OutlineIcon
 import FontAwesome.Solid as Icon
 import Html exposing (Html)
@@ -47,7 +47,7 @@ view wrap { favourites } time localUser id { name, cover, bets, progress } detai
                     [ HtmlA.class "user permalink" ]
                     [ User.viewAvatar userId user
                     , Html.text user.name
-                    , Icon.link |> Icon.present |> Icon.view
+                    , Icon.link |> Icon.view
                     ]
                 ]
 
@@ -77,7 +77,7 @@ view wrap { favourites } time localUser id { name, cover, bets, progress } detai
                         [ HtmlA.class "permalink" ]
                         [ Html.h2
                             [ HtmlA.class "title" ]
-                            [ Html.text name, Icon.link |> Icon.present |> Icon.view ]
+                            [ Html.text name, Icon.link |> Icon.view ]
                         ]
                     , [ stakedDetails
                       , [ Html.span [ HtmlA.class "bet-count" ]
@@ -101,7 +101,7 @@ view wrap { favourites } time localUser id { name, cover, bets, progress } detai
         adminContent =
             if localUser |> Auth.isMod id then
                 [ Html.div [ HtmlA.class "admin-controls" ]
-                    [ Route.a (id |> Just |> Edit.Game |> Route.Edit) [] [ Icon.pen |> Icon.present |> Icon.view ]
+                    [ Route.a (id |> Just |> Edit.Game |> Route.Edit) [] [ Icon.pen |> Icon.view ]
                     ]
                 ]
 
@@ -121,7 +121,7 @@ view wrap { favourites } time localUser id { name, cover, bets, progress } detai
                         ( OutlineIcon.star, True )
             in
             Html.div [ HtmlA.class "favourite-control" ]
-                [ IconButton.view (icon |> Icon.present |> Icon.view)
+                [ IconButton.view (icon |> Icon.view)
                     "Favourite"
                     (action |> Bets.SetFavourite id |> wrap |> Just)
                 ]

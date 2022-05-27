@@ -5,7 +5,7 @@ module JoeBets.Bet.PlaceBet exposing
     )
 
 import AssocList
-import FontAwesome.Icon as Icon
+import FontAwesome as Icon
 import FontAwesome.Solid as Icon
 import Html exposing (Html)
 import Html.Attributes as HtmlA
@@ -311,20 +311,20 @@ view wrap ({ id, user } as localUser) placeBet =
                             [ Button.view Button.Standard
                                 Button.Padded
                                 "Back"
-                                (Icon.times |> Icon.present |> Icon.view |> Just)
+                                (Icon.times |> Icon.view |> Just)
                                 (Cancel |> wrap |> Just)
                             , Html.div [ HtmlA.class "actions" ]
                                 [ Html.span [ HtmlA.class "cancel" ]
                                     [ Button.view Button.Raised
                                         Button.Padded
                                         "Cancel Bet"
-                                        (Icon.trash |> Icon.present |> Icon.view |> Just)
+                                        (Icon.trash |> Icon.view |> Just)
                                         (Withdraw id |> wrap |> Maybe.when (not sent && existingBet /= Nothing))
                                     ]
                                 , Button.view Button.Raised
                                     Button.Padded
                                     (actionName ++ " Bet")
-                                    (Icon.check |> Icon.present |> Icon.view |> Just)
+                                    (Icon.check |> Icon.view |> Just)
                                     (submit |> Result.toMaybe |> Maybe.alsoOnlyIf (not sent))
                                 ]
                             ]

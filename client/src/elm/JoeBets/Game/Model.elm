@@ -76,6 +76,7 @@ type alias Game =
     , igdbId : String
     , bets : Int
     , progress : Progress
+    , order : Maybe Int
     }
 
 
@@ -88,6 +89,7 @@ decoder =
         |> JsonD.required "igdbId" JsonD.string
         |> JsonD.required "bets" JsonD.int
         |> JsonD.required "progress" progressDecoder
+        |> JsonD.optionalAsMaybe "order" JsonD.int
 
 
 type alias WithBets =
@@ -107,6 +109,7 @@ withBetsDecoder =
                 |> JsonD.required "igdbId" JsonD.string
                 |> JsonD.hardcoded bets
                 |> JsonD.required "progress" progressDecoder
+                |> JsonD.optionalAsMaybe "order" JsonD.int
 
         betsDecoder =
             JsonD.assocListFromList (JsonD.field "id" Bet.idDecoder) (JsonD.field "bet" Bet.decoder)

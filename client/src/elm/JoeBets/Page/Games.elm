@@ -7,7 +7,7 @@ module JoeBets.Page.Games exposing
 
 import AssocList
 import EverySet
-import FontAwesome.Icon as Icon
+import FontAwesome as Icon
 import FontAwesome.Solid as Icon
 import Html
 import Html.Attributes as HtmlA
@@ -84,7 +84,7 @@ view wrap wrapBets { auth, time, games, bets } =
                     if Auth.isAdmin auth.localUser then
                         [ Route.a (Edit.Game Nothing |> Route.Edit)
                             []
-                            [ Icon.plus |> Icon.present |> Icon.view, Html.text " Add Game" ]
+                            [ Icon.plus |> Icon.view, Html.text " Add Game" ]
                         ]
 
                     else

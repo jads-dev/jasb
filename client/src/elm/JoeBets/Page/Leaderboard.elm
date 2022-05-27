@@ -6,7 +6,7 @@ module JoeBets.Page.Leaderboard exposing
     )
 
 import AssocList
-import FontAwesome.Icon as Icon
+import FontAwesome as Icon
 import FontAwesome.Solid as Icon
 import Html
 import Html.Attributes as HtmlA
@@ -71,7 +71,7 @@ view _ { leaderboard } =
                         ]
             in
             if entries |> AssocList.isEmpty then
-                [ Icon.ghost |> Icon.present |> Icon.view ]
+                [ Icon.ghost |> Icon.view ]
 
             else
                 [ Html.ol [ HtmlA.class "leaderboard" ] (entries |> AssocList.toList |> List.map viewEntry) ]

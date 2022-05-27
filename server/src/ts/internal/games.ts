@@ -13,6 +13,7 @@ export interface Game {
   progress: Progress;
   started: Joda.LocalDate | null;
   finished: Joda.LocalDate | null;
+  order: number | null;
 
   added: Joda.ZonedDateTime;
   version: number;

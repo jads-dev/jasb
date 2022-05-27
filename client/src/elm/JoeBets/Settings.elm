@@ -4,7 +4,7 @@ module JoeBets.Settings exposing
     , view
     )
 
-import FontAwesome.Icon as Icon
+import FontAwesome as Icon
 import FontAwesome.Solid as Icon
 import Html exposing (Html)
 import Html.Attributes as HtmlA
@@ -113,7 +113,7 @@ view wrap { settings } =
                 [ Html.div []
                     [ Html.div [ HtmlA.class "title" ]
                         [ Html.h2 [] [ Html.text "Settings" ]
-                        , IconButton.view (Icon.times |> Icon.viewIcon)
+                        , IconButton.view (Icon.times |> Icon.view)
                             "Close"
                             (False |> SetVisibility |> wrap |> Just)
                         ]

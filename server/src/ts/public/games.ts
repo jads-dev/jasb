@@ -2,8 +2,8 @@ import * as Schema from "io-ts";
 
 import type { Internal } from "../internal.js";
 import { Expect } from "../util/expect.js";
-import { Users } from "./users.js";
 import { Bets } from "./bets.js";
+import { Users } from "./users.js";
 
 interface GameIdBrand {
   readonly GameId: unique symbol;
@@ -42,6 +42,7 @@ export interface Game {
   bets: number;
 
   progress: Progress;
+  order?: number;
 }
 
 export type WithBets = Omit<Game, "bets"> & {
@@ -105,6 +106,7 @@ export const fromInternal = (
     bets: internal.bets,
 
     progress: progressFromInternal(internal),
+    ...(internal.order !== null ? { order: internal.order } : {}),
   },
 });
 
@@ -122,6 +124,7 @@ export const detailedFromInternal = (
     igdbId: internal.igdb_id,
 
     progress: progressFromInternal(internal),
+    ...(internal.order !== null ? { order: internal.order } : {}),
 
     bets: internal.bets,
     staked: internal.staked,

@@ -13,8 +13,8 @@ module JoeBets.Editing.Uploader exposing
 
 import File exposing (File)
 import File.Select as Select
+import FontAwesome as Icon
 import FontAwesome.Attributes as Icon
-import FontAwesome.Icon as Icon
 import FontAwesome.Solid as Icon
 import Html exposing (Html)
 import Html.Attributes as HtmlA
@@ -136,9 +136,8 @@ view wrap { label } { url, state } =
 
         uploadIcon =
             Icon.upload
-                |> Icon.present
                 |> ifNotBusy
-                |> Maybe.withDefault (Icon.spinner |> Icon.present |> Icon.styled [ Icon.pulse ])
+                |> Maybe.withDefault (Icon.spinner |> Icon.styled [ Icon.spinPulse ])
                 |> Icon.view
 
         error =

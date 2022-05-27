@@ -3,8 +3,8 @@ module JoeBets exposing (main)
 import Browser
 import Browser.Events as Browser
 import Browser.Navigation as Navigation
+import FontAwesome as Icon
 import FontAwesome.Brands as Icon
-import FontAwesome.Icon as Icon
 import FontAwesome.Solid as Icon
 import Html
 import Html.Attributes as HtmlA
@@ -283,10 +283,10 @@ view model =
                     Problem.view model
 
         menu =
-            [ [ Html.li [] [ Route.a Route.About [] [ Icon.questionCircle |> Icon.viewIcon, Html.text "About" ] ]
-              , Html.li [] [ Route.a Route.Feed [] [ Icon.stream |> Icon.viewIcon, Html.text "Feed" ] ]
-              , Html.li [] [ Route.a Route.Games [] [ Icon.dice |> Icon.viewIcon, Html.text "Bets" ] ]
-              , Html.li [] [ Route.a Route.Leaderboard [] [ Icon.crown |> Icon.viewIcon, Html.text "Leaderboard" ] ]
+            [ [ Html.li [] [ Route.a Route.About [] [ Icon.questionCircle |> Icon.view, Html.text "About" ] ]
+              , Html.li [] [ Route.a Route.Feed [] [ Icon.stream |> Icon.view, Html.text "Feed" ] ]
+              , Html.li [] [ Route.a Route.Games [] [ Icon.dice |> Icon.view, Html.text "Bets" ] ]
+              , Html.li [] [ Route.a Route.Leaderboard [] [ Icon.crown |> Icon.view, Html.text "Leaderboard" ] ]
               ]
             , model.auth.localUser |> Maybe.map (User.link >> List.singleton >> Html.li [ HtmlA.class "me" ]) |> Maybe.toList
             , [ Html.li [ HtmlA.class "discord" ] [ Auth.logInOutButton AuthMsg model ]
@@ -294,17 +294,17 @@ view model =
               , Html.li [ HtmlA.class "stream" ]
                     [ Html.blankA "https://www.twitch.tv"
                         [ "andersonjph" ]
-                        [ Icon.twitch |> Icon.viewIcon, Html.text "The Stream" ]
+                        [ Icon.twitch |> Icon.view, Html.text "The Stream" ]
                     ]
               , Html.li [ HtmlA.class "discord" ]
                     [ Html.blankA "https://discord.gg"
                         [ "tJjNP4QRvV" ]
-                        [ Icon.discord |> Icon.viewIcon
+                        [ Icon.discord |> Icon.view
                         , Html.text "Notifications"
                         ]
                     ]
               , Html.li [ HtmlA.class "settings" ]
-                    [ IconButton.view (Icon.cog |> Icon.viewIcon)
+                    [ IconButton.view (Icon.cog |> Icon.view)
                         "Settings"
                         (True |> Settings.SetVisibility |> SettingsMsg |> Just)
                     ]

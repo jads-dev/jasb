@@ -10,9 +10,9 @@ module JoeBets.User.Auth exposing
 
 import Browser.Events as Browser
 import Browser.Navigation as Navigation
+import FontAwesome as Icon
 import FontAwesome.Attributes as Icon
 import FontAwesome.Brands as Icon
-import FontAwesome.Icon as Icon
 import FontAwesome.Solid as Icon
 import Html exposing (Html)
 import Html.Attributes as HtmlA
@@ -203,17 +203,17 @@ logInOutButton wrap { auth } =
             case auth.localUser of
                 Nothing ->
                     if not auth.trying then
-                        ( Icon.discord |> Icon.present, Start |> Login |> wrap |> HtmlE.onClick, "Log in" )
+                        ( Icon.discord, Start |> Login |> wrap |> HtmlE.onClick, "Log in" )
 
                     else
-                        ( Icon.spinner |> Icon.present |> Icon.styled [ Icon.pulse ], HtmlA.disabled True, "Log in" )
+                        ( Icon.spinner |> Icon.styled [ Icon.spinPulse ], HtmlA.disabled True, "Log in" )
 
                 Just _ ->
                     if not auth.trying then
-                        ( Icon.signOutAlt |> Icon.present, Logout |> wrap |> HtmlE.onClick, "Log out" )
+                        ( Icon.signOutAlt, Logout |> wrap |> HtmlE.onClick, "Log out" )
 
                     else
-                        ( Icon.spinner |> Icon.present |> Icon.styled [ Icon.pulse ], HtmlA.disabled True, "Log out" )
+                        ( Icon.spinner |> Icon.styled [ Icon.spinPulse ], HtmlA.disabled True, "Log out" )
     in
     Html.button [ action ] [ Icon.view icon, Html.text text ]
 

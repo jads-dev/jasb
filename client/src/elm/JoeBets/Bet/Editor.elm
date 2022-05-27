@@ -8,7 +8,7 @@ module JoeBets.Bet.Editor exposing
 
 import AssocList
 import EverySet as EverySet
-import FontAwesome.Icon as Icon
+import FontAwesome as Icon
 import FontAwesome.Solid as Icon
 import Html exposing (Html)
 import Html.Attributes as HtmlA
@@ -530,7 +530,7 @@ view save wrap time localUser model =
                 [ Button.view Button.Raised
                     Button.Padded
                     "Cancel & Refund Bet"
-                    (Icon.ban |> Icon.viewIcon |> Just)
+                    (Icon.ban |> Icon.view |> Just)
                     (Cancel |> wrap |> Just)
                 ]
 
@@ -542,7 +542,7 @@ view save wrap time localUser model =
                             Button.Raised
                             Button.Padded
                             "Lock Bet"
-                            (Icon.lock |> Icon.viewIcon |> Just)
+                            (Icon.lock |> Icon.view |> Just)
                             (SetLocked True |> wrap |> Just)
                       , cancel
                       ]
@@ -554,12 +554,12 @@ view save wrap time localUser model =
                             Button.Raised
                             Button.Padded
                             "Unlock Bet"
-                            (Icon.unlock |> Icon.viewIcon |> Just)
+                            (Icon.unlock |> Icon.view |> Just)
                             (SetLocked False |> wrap |> Just)
                       , Button.view Button.Raised
                             Button.Padded
                             "Declare Winner(s) For Bet"
-                            (Icon.check |> Icon.viewIcon |> Just)
+                            (Icon.check |> Icon.view |> Just)
                             (Complete |> wrap |> Just)
                       , cancel
                       ]
@@ -571,7 +571,7 @@ view save wrap time localUser model =
                             Button.Raised
                             Button.Padded
                             "Revert Complete"
-                            (Icon.undo |> Icon.viewIcon |> Just)
+                            (Icon.undo |> Icon.view |> Just)
                             (RevertComplete |> wrap |> Just)
                       ]
                     )
@@ -582,7 +582,7 @@ view save wrap time localUser model =
                             Button.Raised
                             Button.Padded
                             "Revert Cancel"
-                            (Icon.undo |> Icon.viewIcon |> Just)
+                            (Icon.undo |> Icon.view |> Just)
                             (RevertCancel |> wrap |> Just)
                       ]
                     )
@@ -636,14 +636,14 @@ view save wrap time localUser model =
                                 [ Button.view Button.Standard
                                     Button.Padded
                                     "Cancel"
-                                    (Icon.times |> Icon.present |> Icon.view |> Just)
+                                    (Icon.times |> Icon.view |> Just)
                                     (ResolveOverlay False |> wrap |> Just)
                                 , Html.div [ HtmlA.classList [ ( "dangerous", actionDetails.dangerous ) ] ]
                                     [ Button.view
                                         Button.Raised
                                         Button.Padded
                                         actionDetails.title
-                                        (actionDetails.icon |> Icon.present |> Icon.view |> Just)
+                                        (actionDetails.icon |> Icon.view |> Just)
                                         (ResolveOverlay True |> wrap |> Maybe.when valid)
                                     ]
                                 ]
@@ -703,7 +703,7 @@ view save wrap time localUser model =
                 [ Button.view Button.Standard
                     Button.Padded
                     "Add"
-                    (Icon.plus |> Icon.present |> Icon.view |> Just)
+                    (Icon.plus |> Icon.view |> Just)
                     (NewOption |> wrap |> Just)
                 ]
             , Validator.view optionsValidator model
@@ -711,12 +711,12 @@ view save wrap time localUser model =
                 [ Button.view Button.Standard
                     Button.Padded
                     "Reset"
-                    (Icon.undo |> Icon.present |> Icon.view |> Just)
+                    (Icon.undo |> Icon.view |> Just)
                     (Reset |> wrap |> Just)
                 , Button.view Button.Raised
                     Button.Padded
                     "Save"
-                    (Icon.save |> Icon.present |> Icon.view |> Just)
+                    (Icon.save |> Icon.view |> Just)
                     (save |> Validator.whenValid validator model)
                 ]
             ]
@@ -771,15 +771,15 @@ viewOption wrap ( internalId, { id, name, image, order } ) =
         content =
             Html.li [ HtmlA.class "option-editor" ]
                 [ Html.div [ HtmlA.class "order" ]
-                    [ IconButton.view (Icon.arrowUp |> Icon.present |> Icon.view) "Move Up" (order - 1 |> String.fromInt |> SetOptionOrder |> wrapChangeOption |> Just)
+                    [ IconButton.view (Icon.arrowUp |> Icon.view) "Move Up" (order - 1 |> String.fromInt |> SetOptionOrder |> wrapChangeOption |> Just)
                     , textField "Order" TextField.Number (String.fromInt order) (SetOptionOrder >> wrapChangeOption |> Just) []
-                    , IconButton.view (Icon.arrowDown |> Icon.present |> Icon.view) "Move Down" (order + 1 |> String.fromInt |> SetOptionOrder |> wrapChangeOption |> Just)
+                    , IconButton.view (Icon.arrowDown |> Icon.view) "Move Down" (order + 1 |> String.fromInt |> SetOptionOrder |> wrapChangeOption |> Just)
                     ]
                 , Html.div [ HtmlA.class "details" ]
                     [ Html.div [ HtmlA.class "inline" ]
                         [ Html.span [ HtmlA.class "fullwidth" ]
                             [ Slug.view Option.idFromString Option.idToString (SetOptionId >> wrapChangeOption) name id ]
-                        , IconButton.view (Icon.trash |> Icon.present |> Icon.view) "Delete" (DeleteOption |> wrapChangeOption |> Just)
+                        , IconButton.view (Icon.trash |> Icon.view) "Delete" (DeleteOption |> wrapChangeOption |> Just)
                         ]
                     , textField "Name" TextField.Text name (SetOptionName >> wrapChangeOption |> Just) [ HtmlA.required True ]
                     , Validator.view optionNameValidator name
