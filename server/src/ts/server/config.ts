@@ -124,7 +124,7 @@ const Logging = Schema.strict({
 });
 export type Logging = Schema.TypeOf<typeof Logging>;
 
-const Server = Schema.intersection([
+export const Server = Schema.intersection([
   Schema.strict({
     logging: Logging,
     listenOn: Schema.strict({ port: Schema.Int, address: Schema.string }),

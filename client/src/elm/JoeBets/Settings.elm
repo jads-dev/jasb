@@ -95,6 +95,7 @@ view wrap { settings } =
                 , wrap = Maybe.withDefault Theme.Auto >> SetTheme >> wrap
                 , disabled = False
                 , fullWidth = True
+                , attrs = []
                 }
 
             layoutSelectModel =
@@ -105,6 +106,7 @@ view wrap { settings } =
                 , wrap = Maybe.withDefault Layout.Auto >> SetLayout >> wrap
                 , disabled = False
                 , fullWidth = True
+                , attrs = []
                 }
         in
         [ Html.div [ HtmlA.id "client-settings" ]

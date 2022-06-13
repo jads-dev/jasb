@@ -93,7 +93,7 @@ export const authApi = (server: Server.State): Router => {
       }
       const { user, notifications, session, expires, isNewUser } =
         await server.auth.login(origin, body.code);
-      ctx.cookies.set(Auth.stateCookieName, "");
+      ctx.cookies.set(Auth.stateCookieName, null);
       ctx.cookies.set(
         Auth.sessionCookieName,
         encodeSessionCookie({ user: user.id, session }),
