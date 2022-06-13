@@ -1,5 +1,3 @@
-version: "3.9"
-
 networks:
   frontend:
   backend:
@@ -24,14 +22,13 @@ services:
 
   server:
     build:
-      context: "${ROOT_DIR?err}/workaround"
-      dockerfile: "../server/Dockerfile.dev"
+      context: "server/dev"
     user: "${USER_ID:?err}:${GROUP_ID:?err}"
     environment:
       JASB_CONFIG_PATH: "config.json5;config.dev.json5"
       #ROARR_LOG: true # Log all SQL queries, for debugging.
     volumes:
-      - ${ROOT_DIR?err}/server:/jasb/server
+      - ./server:/jasb/server
     networks:
       - frontend
       - backend
@@ -40,12 +37,11 @@ services:
 
   client:
     build:
-      context: "${ROOT_DIR?err}/workaround"
-      dockerfile: "../client/Dockerfile.dev"
+      context: "client/dev"
     user: "${USER_ID:?err}:${GROUP_ID:?err}"
     ports:
       - "127.0.0.1:8080:8080/tcp" # Allows you to connect to the web UI locally.
     volumes:
-      - ${ROOT_DIR?err}/client:/jasb/client
+      - ./client:/jasb/client
     networks:
       - frontend
