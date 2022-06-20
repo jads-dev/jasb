@@ -22,7 +22,7 @@
     "cssnano": "^5.1.5",
     "elm": "^0.19.1-5",
     "elm-webpack-loader": "^8.0.0",
-    "html-loader": "^3.1.0",
+    "html-loader": "^3.1.2",
     "html-webpack-plugin": "^5.5.0",
     "mini-css-extract-plugin": "^2.6.0",
     "postcss-loader": "^7.0.0",
