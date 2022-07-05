@@ -98,6 +98,7 @@ const DiscordAuth = Schema.strict({
 const Auth = Schema.strict({
   sessionLifetime: Validation.Duration,
   sessionIdSize: Schema.Int,
+  stateValidityDuration: Validation.Duration,
 
   discord: DiscordAuth,
 });
@@ -232,6 +233,7 @@ export const builtIn: Server = {
   auth: {
     sessionLifetime: Joda.Duration.of(7, Joda.ChronoUnit.DAYS),
     sessionIdSize: 64 as Schema.Int,
+    stateValidityDuration: Joda.Duration.of(5, Joda.ChronoUnit.MINUTES),
 
     discord: {
       scopes: ["identify", "guilds"],

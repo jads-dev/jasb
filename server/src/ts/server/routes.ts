@@ -5,6 +5,7 @@ import { StatusCodes } from "http-status-codes";
 import { default as Body } from "koa-body";
 
 import { Feed, Leaderboard } from "../public.js";
+import { Arrays } from "../util/arrays.js";
 import { WebError } from "./errors.js";
 import { Server } from "./model.js";
 import { ResultCache } from "./result-cache.js";
@@ -59,22 +60,25 @@ export const api = (server: Server.State): Router => {
           sessionCookie.user,
           sessionCookie.session,
         );
-        const files = ctx.request.files;
-        if (
-          files === undefined ||
-          (Array.isArray(files) && files.length !== 1)
-        ) {
+        const files = Arrays.singletonOrArray(ctx.request.files?.["file"]);
+        const [file] = files;
+        if (files.length > 1 || file === undefined) {
           throw new WebError(
             StatusCodes.BAD_REQUEST,
-            "Must include (single) file.",
+            "Must include a single file.",
           );
         }
-        const { file } = Array.isArray(files) ? files[0] : files;
+        if (file.mimetype === null) {
+          throw new WebError(
+            StatusCodes.BAD_REQUEST,
+            "File type not provided.",
+          );
+        }
         ctx.body = {
           url: await imageUpload.upload(
-            file.name,
-            file.type,
-            Uint8Array.from(await fs.readFile(file.path)),
+            file.originalFilename ?? file.newFilename,
+            file.mimetype,
+            Uint8Array.from(await fs.readFile(file.filepath)),
             { uploader: userId },
           ),
         };

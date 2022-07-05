@@ -23,6 +23,7 @@
   auth: {
     sessionLifetime: "P7D",
     sessionIdSize: 64,
+    stateValidityDuration: "P5M",
 
     discord: {
       scopes: ["identify", "guilds"],

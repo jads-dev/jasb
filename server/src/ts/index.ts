@@ -48,9 +48,9 @@ const unload = async (server: Server.State): Promise<void> => {
 
 const start = async (server: Server.State): Promise<void> => {
   const app = new Koa();
+  app.proxy = true;
 
   app.use(Helmet());
-  app.proxy = true;
 
   const cors = Cors({
     origin: server.config.clientOrigin,

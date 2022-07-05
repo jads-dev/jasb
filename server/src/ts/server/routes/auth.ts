@@ -77,6 +77,7 @@ export const authApi = (server: Server.State): Router => {
     if (body === undefined) {
       const { url, state } = await server.auth.redirect(origin);
       ctx.cookies.set(Auth.stateCookieName, state, {
+        maxAge: server.config.auth.stateValidityDuration.toMillis(),
         httpOnly: true,
         sameSite: "strict",
         secure: process.env.NODE_ENV === "production",
