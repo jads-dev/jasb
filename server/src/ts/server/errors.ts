@@ -30,7 +30,7 @@ export const middleware =
     } catch (error) {
       const finalError = handler(log, error);
       if (finalError === StatusCodes.UNAUTHORIZED) {
-        ctx.cookies.set(Auth.sessionCookieName, "");
+        ctx.cookies.set(Auth.sessionCookieName, null, { signed: true });
       }
       ctx.status = finalError;
     }

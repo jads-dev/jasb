@@ -1,5 +1,6 @@
 import { default as Cors } from "@koa/cors";
 import { default as Router } from "@koa/router";
+import { default as KeyGrip } from "keygrip";
 import { default as Koa } from "koa";
 import { default as Helmet } from "koa-helmet";
 import { default as SourceMapSupport } from "source-map-support";
@@ -57,6 +58,13 @@ const start = async (server: Server.State): Promise<void> => {
     credentials: true,
   });
   app.use(cors);
+
+  const { secret, oldSecrets, hmacAlgorithm } = server.config.security.cookies;
+  app.keys = new KeyGrip(
+    [secret.value, ...oldSecrets.map((s) => s.value)],
+    hmacAlgorithm,
+    "base64url",
+  );
 
   app.use(Logging.middleware(server.logger));
 

@@ -125,11 +125,21 @@ const Logging = Schema.strict({
 });
 export type Logging = Schema.TypeOf<typeof Logging>;
 
+const Security = Schema.strict({
+  cookies: Schema.strict({
+    secret: Validation.SecretTokenOrPlaceholder,
+    oldSecrets: Schema.array(Validation.SecretTokenOrPlaceholder),
+    hmacAlgorithm: Schema.string,
+  }),
+});
+export type Security = Schema.TypeOf<typeof Security>;
+
 export const Server = Schema.intersection([
   Schema.strict({
     logging: Logging,
     listenOn: Schema.strict({ port: Schema.Int, address: Schema.string }),
     clientOrigin: Schema.string,
+    security: Security,
 
     rules: Rules,
     store: Store,
@@ -188,6 +198,10 @@ export async function load(
           "Session ID too small, potentially vulnerable to brute force attack.",
         );
       }
+      config.security.cookies.secret.inSecureEnvironment();
+      config.security.cookies.oldSecrets.map((secret) =>
+        secret.inSecureEnvironment(),
+      );
       config.auth.discord.clientSecret.inSecureEnvironment();
       config.store.source.password?.inSecureEnvironment();
       config.notifier?.token?.inSecureEnvironment();
@@ -212,6 +226,14 @@ export const builtIn: Server = {
     process.env.NODE_ENV === "development"
       ? "http://localhost:8080"
       : "https://jasb.900000000.xyz",
+
+  security: {
+    cookies: {
+      secret: new PlaceholderSecretToken(),
+      oldSecrets: [],
+      hmacAlgorithm: "sha256",
+    },
+  },
 
   rules: {
     initialBalance: 1000 as Schema.Int,

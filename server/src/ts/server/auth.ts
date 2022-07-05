@@ -10,8 +10,11 @@ import { Config } from "./config.js";
 import { WebError } from "./errors.js";
 
 export class Auth {
-  static readonly sessionCookieName = "jasb-session";
-  static readonly stateCookieName = "jasb-state";
+  static readonly secure = process.env["NODE_ENV"] !== "development";
+  static readonly sessionCookieName = `${
+    Auth.secure ? "__Host-" : ""
+  }jasb-session`;
+  static readonly stateCookieName = `${Auth.secure ? "__Host-" : ""}jasb-state`;
 
   config: Config.Auth;
   store: Store;

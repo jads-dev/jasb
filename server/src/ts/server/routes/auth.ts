@@ -24,7 +24,7 @@ const encodeSessionCookie = (data: SessionCookie): string =>
 export const decodeSessionCookie = (
   cookies: Cookies,
 ): SessionCookie | undefined => {
-  const maybeCookie = cookies.get(Auth.sessionCookieName);
+  const maybeCookie = cookies.get(Auth.sessionCookieName, { signed: true });
   if (maybeCookie !== undefined) {
     const cookie = decodeURIComponent(maybeCookie);
     const result = SessionCookie.decode(JSON.parse(cookie));
@@ -80,12 +80,15 @@ export const authApi = (server: Server.State): Router => {
         maxAge: server.config.auth.stateValidityDuration.toMillis(),
         httpOnly: true,
         sameSite: "strict",
-        secure: process.env.NODE_ENV === "production",
+        secure: Auth.secure,
+        signed: true,
       });
       ctx.body = { redirect: url };
       return;
     } else {
-      const expectedState = ctx.cookies.get(Auth.stateCookieName);
+      const expectedState = ctx.cookies.get(Auth.stateCookieName, {
+        signed: true,
+      });
       if (expectedState === undefined) {
         throw new WebError(StatusCodes.BAD_REQUEST, "Missing state cookie.");
       }
@@ -94,7 +97,7 @@ export const authApi = (server: Server.State): Router => {
       }
       const { user, notifications, session, expires, isNewUser } =
         await server.auth.login(origin, body.code);
-      ctx.cookies.set(Auth.stateCookieName, null);
+      ctx.cookies.set(Auth.stateCookieName, null, { signed: true });
       ctx.cookies.set(
         Auth.sessionCookieName,
         encodeSessionCookie({ user: user.id, session }),
@@ -102,7 +105,8 @@ export const authApi = (server: Server.State): Router => {
           expires: Joda.convert(expires).toDate(),
           httpOnly: true,
           sameSite: "strict",
-          secure: process.env.NODE_ENV === "production",
+          secure: Auth.secure,
+          signed: true,
         },
       );
       ctx.body = {
@@ -117,7 +121,7 @@ export const authApi = (server: Server.State): Router => {
   router.post("/logout", Body(), async (ctx) => {
     const oldSession = requireSession(ctx.cookies);
     await server.auth.logout(oldSession.user, oldSession.session);
-    ctx.cookies.set(Auth.sessionCookieName, "");
+    ctx.cookies.set(Auth.sessionCookieName, null, { signed: true });
     ctx.status = StatusCodes.OK;
   });
 

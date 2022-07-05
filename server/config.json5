@@ -3,6 +3,14 @@
   listenOn: { port: 8081, address: "0.0.0.0" },
   clientOrigin: "https://jasb.900000000.xyz",
 
+  security: {
+    cookies: {
+      secret: "CHANGE_ME",
+      oldSecrets: [],
+      hmacAlgorithm: "sha256",
+    },
+  },
+
   rules: {
     initialBalance: 1000,
     maxStakeWhileInDebt: 100,
@@ -23,7 +31,7 @@
   auth: {
     sessionLifetime: "P7D",
     sessionIdSize: 64,
-    stateValidityDuration: "P5M",
+    stateValidityDuration: "PT5M",
 
     discord: {
       scopes: ["identify", "guilds"],
