@@ -11,7 +11,7 @@
     "docker:dev": "USER_ID=$(id -u ${USER}) GROUP_ID=$(id -g ${USER}) docker compose -f ../develop-compose.yaml up --build client"
   },
   "dependencies": {
-    "@fortawesome/fontawesome-svg-core": "^6.1.1",
+    "@fortawesome/fontawesome-svg-core": "^6.1.2",
     "elm-material": "file:./elm-material",
     "lit": "^2.2.1"
   },
