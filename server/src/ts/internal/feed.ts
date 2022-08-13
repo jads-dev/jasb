@@ -1,49 +1,72 @@
-import * as Joda from "@js-joda/core";
+import { z } from "zod";
 
+import { zonedDateTime } from "./types.js";
 import { Users } from "./users.js";
 
-export interface IdAndName {
-  id: string;
-  name: string;
-}
+export const IdAndName = z
+  .object({
+    id: z.string(),
+    name: z.string(),
+  })
+  .strict();
+export type IdAndName = z.infer<typeof IdAndName>;
 
-export interface NewBet {
-  type: "NewBet";
-  game: IdAndName;
-  bet: IdAndName;
-  spoiler: boolean;
-}
+export const NewBet = z
+  .object({
+    type: z.literal("NewBet"),
+    game: IdAndName,
+    bet: IdAndName,
+    spoiler: z.boolean(),
+  })
+  .strict();
+export type NewBet = z.infer<typeof NewBet>;
 
-export interface BetComplete {
-  type: "BetComplete";
-  game: IdAndName;
-  bet: IdAndName;
-  spoiler: boolean;
-  winners: IdAndName[];
-  highlighted: {
-    winners: Users.Summary[];
-    amount: number;
-  };
-  totalReturn: number;
-  winningStakes: number;
-}
+export const BetComplete = z
+  .object({
+    type: z.literal("BetComplete"),
+    game: IdAndName,
+    bet: IdAndName,
+    spoiler: z.boolean(),
+    winners: z.array(IdAndName),
+    highlighted: z
+      .object({
+        winners: z.array(Users.User),
+        amount: z.number().int().positive(),
+      })
+      .strict(),
+    totalReturn: z.number().int().positive(),
+    winningStakes: z.number().int().positive(),
+  })
+  .strict();
+export type BetComplete = z.infer<typeof BetComplete>;
 
-export interface NotableStake {
-  type: "NotableStake";
-  game: IdAndName;
-  bet: IdAndName;
-  spoiler: boolean;
-  option: IdAndName;
-  user: Users.Summary;
-  message: string;
-  stake: number;
-}
+export const NotableStake = z
+  .object({
+    type: z.literal("NotableStake"),
+    game: IdAndName,
+    bet: IdAndName,
+    spoiler: z.boolean(),
+    option: IdAndName,
+    user: Users.Summary,
+    message: z.string(),
+    stake: z.number().int().positive(),
+  })
+  .strict();
+export type NotableStake = z.infer<typeof NotableStake>;
 
-export type Event = NewBet | BetComplete | NotableStake;
+export const Event = z.discriminatedUnion("type", [
+  NewBet,
+  BetComplete,
+  NotableStake,
+]);
+export type Event = z.infer<typeof Event>;
 
-export interface Item {
-  item: Event;
-  time: Joda.ZonedDateTime;
-}
+export const Item = z
+  .object({
+    item: Event,
+    time: zonedDateTime,
+  })
+  .strict();
+export type Item = z.infer<typeof Item>;
 
 export * as Feed from "./feed.js";

@@ -1,39 +1,63 @@
-import * as Joda from "@js-joda/core";
+import { z } from "zod";
 
 import { Bets, Users } from "../internal.js";
+import { localDate, zonedDateTime } from "./types.js";
 
-export type Progress = "Future" | "Current" | "Finished";
+export const Progress = z.enum(["Future", "Current", "Finished"]);
+export type Progress = z.infer<typeof Progress>;
 
-export interface Game {
-  id: string;
-  name: string;
-  cover: string;
-  igdb_id: string;
+export const Game = z
+  .object({
+    id: z.string(),
+    name: z.string(),
+    cover: z.string(),
+    igdb_id: z.string(),
 
-  progress: Progress;
-  started: Joda.LocalDate | null;
-  finished: Joda.LocalDate | null;
-  order: number | null;
+    progress: Progress,
+    started: localDate.nullable(),
+    finished: localDate.nullable(),
+    order: z.number().int().nullable(),
 
-  added: Joda.ZonedDateTime;
-  version: number;
-  modified: Joda.ZonedDateTime;
-}
+    added: zonedDateTime,
+    version: z.number().int().nonnegative(),
+    modified: zonedDateTime,
+  })
+  .strict();
+export type Game = z.infer<typeof Game>;
 
-export interface BetStats {
-  bets: number;
-}
+export const BetStats = z
+  .object({
+    bets: z.number().int().nonnegative(),
+  })
+  .strict();
+export type BetStats = z.infer<typeof BetStats>;
 
-export interface EmbeddedBets {
-  bets: (Bets.Bet & Bets.Options)[];
-}
+export const EmbeddedBets = z
+  .object({
+    bets: z.array(Bets.Bet.merge(Bets.WithOptions)),
+  })
+  .strict();
+export type EmbeddedBets = z.infer<typeof EmbeddedBets>;
 
-export interface StakeStats {
-  staked: number;
-}
+export const StakeStats = z
+  .object({
+    staked: z.number().int().nonnegative(),
+  })
+  .strict();
+export type StakeStats = z.infer<typeof StakeStats>;
 
-export interface Mods {
-  mods: Users.Summary[];
-}
+export const Mods = z
+  .object({
+    mods: z.array(Users.User),
+  })
+  .strict();
+export type Mods = z.infer<typeof Mods>;
+
+export const Name = z
+  .object({
+    name: z.string(),
+  })
+  .strict();
+export type Name = z.infer<typeof Name>;
 
 export * as Games from "./games.js";

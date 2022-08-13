@@ -1,6 +1,6 @@
 import { default as Crypto } from "crypto";
 
-import { Config } from "../server/config.js";
+import type { Config } from "../server/config.js";
 
 export interface UseCase {
   name: (originalName: string, data: Uint8Array) => string;

@@ -1,27 +1,31 @@
 {
+  "$schema": "https://json.schemastore.org/tsconfig",
+
   "include": ["src/ts/**/*"],
 
   "compilerOptions": {
-    "lib": ["ES2021"],
-    "module": "ES2020",
-    "target": "ES2021",
+    "lib": ["es2022"],
+    "module": "nodenext",
+    "target": "es2022",
+    "moduleResolution": "nodenext",
 
     "sourceMap": true,
-    "outDir": "./dist",
-    "incremental": true,
+    "rootDir": "src/ts",
+    "outDir": "dist",
     "removeComments": true,
     "newLine": "lf",
 
     "strict": true,
-    "noImplicitReturns": true,
-    "noImplicitOverride": true,
-    "noUncheckedIndexedAccess": true,
-    "noFallthroughCasesInSwitch": true,
+    "esModuleInterop": true,
     "skipLibCheck": true,
-
-    "moduleResolution": "node",
-    "resolveJsonModule": true,
     "forceConsistentCasingInFileNames": true,
-    "allowSyntheticDefaultImports": true
+    "allowUnusedLabels": false,
+    "noFallthroughCasesInSwitch": true,
+    "noImplicitOverride": true,
+    "noImplicitReturns": true,
+    "noPropertyAccessFromIndexSignature": true,
+    "noUncheckedIndexedAccess": true,
+    "importsNotUsedAsValues": "error",
+    "checkJs": true
   }
 }

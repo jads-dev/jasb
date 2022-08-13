@@ -1,7 +1,7 @@
 import { cacheAvatars } from "./background/cache-avatars.js";
 import { garbageCollect } from "./background/garbage-collect.js";
-import { Logging } from "./logging.js";
-import { Server } from "./model.js";
+import type { Logging } from "./logging.js";
+import type { Server } from "./model.js";
 
 export async function runTasks(server: Server.State) {
   const logger = server.logger.child({

@@ -1,25 +1,34 @@
+import { z } from "zod";
+
 import { Stakes } from "./stakes.js";
+import { zonedDateTime } from "./types.js";
 
-export interface Option {
-  game: string;
-  bet: string;
-  id: string;
+export const Option = z
+  .object({
+    game: z.string(),
+    bet: z.string(),
+    id: z.string(),
 
-  name: string;
-  image: string | null;
+    name: z.string(),
+    image: z.string().nullable(),
 
-  order: number;
+    order: z.number().int(),
 
-  won: boolean;
+    won: z.boolean(),
 
-  version: number;
-  created: string; // We get this in a JSON blob, so no automatic parsing.
-  modified: string; // We get this in a JSON blob, so no automatic parsing.
-}
+    version: z.number().int().nonnegative(),
+    created: zonedDateTime,
+    modified: zonedDateTime,
+  })
+  .strict();
+export type Option = z.infer<typeof Option>;
 
-export interface AndStakes {
-  option: Option;
-  stakes: Stakes.WithUser[];
-}
+export const AndStakes = z
+  .object({
+    option: Option,
+    stakes: z.array(Stakes.WithUser),
+  })
+  .strict();
+export type AndStakes = z.infer<typeof AndStakes>;
 
 export * as Options from "./options.js";

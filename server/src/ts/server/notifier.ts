@@ -1,8 +1,8 @@
 import { default as Discord, TextChannel } from "discord.js";
 
 import { Iterables } from "../util/iterables.js";
-import { Config } from "./config.js";
-import { Logging } from "./logging.js";
+import type { Config } from "./config.js";
+import type { Logging } from "./logging.js";
 
 interface DiscordMessage {
   title: string;
@@ -229,7 +229,7 @@ export class DiscordNotifier extends Notifier {
     super();
     this.generalConfig = generalConfig;
     this.config = config;
-    const intents = new Discord.Intents();
+    const intents = new Discord.IntentsBitField();
     this.client = new Discord.Client({ intents });
   }
 

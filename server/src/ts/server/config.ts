@@ -192,7 +192,7 @@ export async function load(
   const result = Server.decode(current);
   if (Either.isRight(result)) {
     const config = result.right;
-    if (process.env.NODE_ENV !== "development") {
+    if (process.env["NODE_ENV"] !== "development") {
       if (config.auth.sessionIdSize < 64) {
         throw new InvalidConfigError(
           "Session ID too small, potentially vulnerable to brute force attack.",
@@ -216,14 +216,15 @@ export async function load(
 
 export const builtIn: Server = {
   logging: {
-    level: process.env.NODE_ENV === "development" ? "debug" : "error",
+    level: process.env["NODE_ENV"] === "development" ? "debug" : "error",
   },
   listenOn: {
     port: 8081 as Schema.Int,
-    address: process.env.NODE_ENV === "development" ? "127.0.0.1" : "0.0.0.0",
+    address:
+      process.env["NODE_ENV"] === "development" ? "127.0.0.1" : "0.0.0.0",
   },
   clientOrigin:
-    process.env.NODE_ENV === "development"
+    process.env["NODE_ENV"] === "development"
       ? "http://localhost:8080"
       : "https://jasb.900000000.xyz",
 

@@ -1,6 +1,6 @@
 import { Promises } from "../../util/promises.js";
-import { Logging } from "../logging.js";
-import { Server } from "../model.js";
+import type { Logging } from "../logging.js";
+import type { Server } from "../model.js";
 
 export async function garbageCollect(
   server: Server.State,

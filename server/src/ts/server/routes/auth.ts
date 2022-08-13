@@ -10,7 +10,7 @@ import { Notifications, Users } from "../../public.js";
 import { Validation } from "../../util/validation.js";
 import { Auth } from "../auth.js";
 import { WebError } from "../errors.js";
-import { Server } from "../model.js";
+import type { Server } from "../model.js";
 
 const SessionCookie = Schema.strict({
   user: Users.Id,
@@ -95,8 +95,10 @@ export const authApi = (server: Server.State): Router => {
       if (expectedState !== body.state) {
         throw new WebError(StatusCodes.BAD_REQUEST, "Incorrect state.");
       }
-      const { user, notifications, session, expires, isNewUser } =
-        await server.auth.login(origin, body.code);
+      const { user, notifications, session, expires } = await server.auth.login(
+        origin,
+        body.code,
+      );
       ctx.cookies.set(Auth.stateCookieName, null, { signed: true });
       ctx.cookies.set(
         Auth.sessionCookieName,
@@ -112,7 +114,6 @@ export const authApi = (server: Server.State): Router => {
       ctx.body = {
         user,
         notifications,
-        ...(isNewUser ? { isNewUser: true } : {}),
       };
     }
   });

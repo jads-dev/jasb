@@ -57,7 +57,7 @@ export class PlaceholderSecretToken implements SecretTokenLike {
   public static readonly placeholderValue = "CHANGE_ME";
 
   public get value(): typeof PlaceholderSecretToken.placeholderValue {
-    if (process.env.NODE_ENV !== "development") {
+    if (process.env["NODE_ENV"] !== "development") {
       this.inSecureEnvironment();
     }
     return PlaceholderSecretToken.placeholderValue;

@@ -3,13 +3,13 @@ import { default as Axios } from "axios";
 import { StatusCodes } from "http-status-codes";
 import { OciError } from "oci-sdk";
 
-import { ObjectUploader } from "../../data/object-upload.js";
-import { AvatarCache } from "../../internal.js";
-import { Key } from "../../internal/avatar-cache.js";
+import type { ObjectUploader } from "../../data/object-upload.js";
+import type { AvatarCache } from "../../internal.js";
+import type { Key } from "../../internal/avatar-cache.js";
 import { Iterables } from "../../util/iterables.js";
 import { Promises } from "../../util/promises.js";
-import { Logging } from "../logging.js";
-import { Server } from "../model.js";
+import type { Logging } from "../logging.js";
+import type { Server } from "../model.js";
 
 export const cacheAvatars = (server: Server.State) => {
   const config = server.config.avatarCache;

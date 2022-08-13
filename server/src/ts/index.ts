@@ -7,7 +7,7 @@ import { default as SourceMapSupport } from "source-map-support";
 
 import { ObjectUpload } from "./data/object-upload.js";
 import { Store } from "./data/store.js";
-import { Server } from "./server.js";
+import type { Server } from "./server.js";
 import { Auth } from "./server/auth.js";
 import { Background } from "./server/background.js";
 import { Config } from "./server/config.js";
@@ -66,6 +66,7 @@ const start = async (server: Server.State): Promise<void> => {
     "base64url",
   );
 
+  app.use(Errors.middleware(server.logger));
   app.use(Logging.middleware(server.logger));
 
   const root = new Router();
@@ -75,9 +76,7 @@ const start = async (server: Server.State): Promise<void> => {
 
   app.use(root.routes()).use(root.allowedMethods());
 
-  app.use(Errors.middleware(server.logger));
-
-  await app.listen(
+  app.listen(
     server.config.listenOn.port,
     server.config.listenOn.address,
     async () => {

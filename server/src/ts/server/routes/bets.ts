@@ -7,7 +7,7 @@ import { Bets, Editor, Feed, Games } from "../../public.js";
 import { Options } from "../../public/bets/options.js";
 import { Validation } from "../../util/validation.js";
 import { WebError } from "../errors.js";
-import { Server } from "../model.js";
+import type { Server } from "../model.js";
 import { requireSession } from "./auth.js";
 
 const StakeBody = Schema.intersection([
@@ -86,8 +86,8 @@ export const betsApi = (server: Server.State): Router => {
 
   // Get Bet.
   router.get("/", async (ctx) => {
-    const gameId = ctx.params.gameId ?? "";
-    const betId = ctx.params.betId ?? "";
+    const gameId = ctx.params["gameId"] ?? "";
+    const betId = ctx.params["betId"] ?? "";
     const game = await server.store.getGame(gameId);
     if (game === undefined) {
       throw new WebError(StatusCodes.NOT_FOUND, "Game not found.");
@@ -105,8 +105,8 @@ export const betsApi = (server: Server.State): Router => {
 
   router.get("/edit", async (ctx) => {
     const bet = await server.store.getBet(
-      ctx.params.gameId ?? "",
-      ctx.params.betId ?? "",
+      ctx.params["gameId"] ?? "",
+      ctx.params["betId"] ?? "",
     );
     if (bet === undefined) {
       throw new WebError(StatusCodes.NOT_FOUND, "Bet not found.");
@@ -118,8 +118,8 @@ export const betsApi = (server: Server.State): Router => {
   // Create Bet
   router.put("/", Body(), async (ctx) => {
     const sessionCookie = requireSession(ctx.cookies);
-    const gameId = ctx.params.gameId ?? "";
-    const betId = ctx.params.betId ?? "";
+    const gameId = ctx.params["gameId"] ?? "";
+    const betId = ctx.params["betId"] ?? "";
     const body = Validation.body(CreateBetBody, ctx.request.body);
     const bet = await server.store.newBet(
       sessionCookie.user,
@@ -139,8 +139,8 @@ export const betsApi = (server: Server.State): Router => {
   // Edit Bet
   router.post("/", Body(), async (ctx) => {
     const sessionCookie = requireSession(ctx.cookies);
-    const gameId = ctx.params.gameId ?? "";
-    const betId = ctx.params.betId ?? "";
+    const gameId = ctx.params["gameId"] ?? "";
+    const betId = ctx.params["betId"] ?? "";
     const body = Validation.body(EditBetBody, ctx.request.body);
     const bet = await server.store.editBet(
       sessionCookie.user,
@@ -166,13 +166,13 @@ export const betsApi = (server: Server.State): Router => {
   // Complete Bet
   router.post("/complete", Body(), async (ctx) => {
     const sessionCookie = requireSession(ctx.cookies);
-    const gameId = ctx.params.gameId ?? "";
+    const gameId = ctx.params["gameId"] ?? "";
     const body = Validation.body(CompleteBetBody, ctx.request.body);
     const bet = await server.store.completeBet(
       sessionCookie.user,
       sessionCookie.session,
       gameId,
-      ctx.params.betId ?? "",
+      ctx.params["betId"] ?? "",
       body.version,
       body.winners,
     );
@@ -186,13 +186,13 @@ export const betsApi = (server: Server.State): Router => {
   // Revert Complete Bet
   router.post("/complete/revert", Body(), async (ctx) => {
     const sessionCookie = requireSession(ctx.cookies);
-    const gameId = ctx.params.gameId ?? "";
+    const gameId = ctx.params["gameId"] ?? "";
     const body = Validation.body(RevertBody, ctx.request.body);
     const bet = await server.store.revertCompleteBet(
       sessionCookie.user,
       sessionCookie.session,
       gameId,
-      ctx.params.betId ?? "",
+      ctx.params["betId"] ?? "",
       body.version,
     );
     if (bet === undefined) {
@@ -205,13 +205,13 @@ export const betsApi = (server: Server.State): Router => {
   // Lock Bet
   router.post("/lock", Body(), async (ctx) => {
     const sessionCookie = requireSession(ctx.cookies);
-    const gameId = ctx.params.gameId ?? "";
+    const gameId = ctx.params["gameId"] ?? "";
     const body = Validation.body(ModifyLockStateBody, ctx.request.body);
     const bet = await server.store.setBetLocked(
       sessionCookie.user,
       sessionCookie.session,
       gameId,
-      ctx.params.betId ?? "",
+      ctx.params["betId"] ?? "",
       body.version,
       true,
     );
@@ -225,13 +225,13 @@ export const betsApi = (server: Server.State): Router => {
   // Unlock Bet
   router.post("/unlock", Body(), async (ctx) => {
     const sessionCookie = requireSession(ctx.cookies);
-    const gameId = ctx.params.gameId ?? "";
+    const gameId = ctx.params["gameId"] ?? "";
     const body = Validation.body(ModifyLockStateBody, ctx.request.body);
     const bet = await server.store.setBetLocked(
       sessionCookie.user,
       sessionCookie.session,
       gameId,
-      ctx.params.betId ?? "",
+      ctx.params["betId"] ?? "",
       body.version,
       false,
     );
@@ -245,13 +245,13 @@ export const betsApi = (server: Server.State): Router => {
   // Cancel Bet
   router.post("/cancel", Body(), async (ctx) => {
     const sessionCookie = requireSession(ctx.cookies);
-    const gameId = ctx.params.gameId ?? "";
+    const gameId = ctx.params["gameId"] ?? "";
     const body = Validation.body(CancelBetBody, ctx.request.body);
     const bet = await server.store.cancelBet(
       sessionCookie.user,
       sessionCookie.session,
       gameId,
-      ctx.params.betId ?? "",
+      ctx.params["betId"] ?? "",
       body.version,
       body.reason,
     );
@@ -265,13 +265,13 @@ export const betsApi = (server: Server.State): Router => {
   // Revert Cancel Bet
   router.post("/cancel/revert", Body(), async (ctx) => {
     const sessionCookie = requireSession(ctx.cookies);
-    const gameId = ctx.params.gameId ?? "";
+    const gameId = ctx.params["gameId"] ?? "";
     const body = Validation.body(RevertBody, ctx.request.body);
     const bet = await server.store.revertCancelBet(
       sessionCookie.user,
       sessionCookie.session,
       gameId,
-      ctx.params.betId ?? "",
+      ctx.params["betId"] ?? "",
       body.version,
     );
     if (bet === undefined) {
@@ -283,8 +283,8 @@ export const betsApi = (server: Server.State): Router => {
 
   // Get Bet Feed
   router.get("/feed", async (ctx) => {
-    const gameId = ctx.params.gameId ?? "";
-    const betId = ctx.params.betId ?? "";
+    const gameId = ctx.params["gameId"] ?? "";
+    const betId = ctx.params["betId"] ?? "";
     const feed = await server.store.getBetFeed(gameId, betId);
     const result: Feed.Event[] = feed.map(Feed.fromInternal);
     ctx.body = result;
@@ -325,9 +325,9 @@ export const betsApi = (server: Server.State): Router => {
     const new_balance = await server.store.newStake(
       sessionCookie.user,
       sessionCookie.session,
-      ctx.params.gameId ?? "",
-      ctx.params.betId ?? "",
-      ctx.params.optionId ?? "",
+      ctx.params["gameId"] ?? "",
+      ctx.params["betId"] ?? "",
+      ctx.params["optionId"] ?? "",
       amount,
       message ?? null,
     );
@@ -341,9 +341,9 @@ export const betsApi = (server: Server.State): Router => {
     const new_balance = await server.store.changeStake(
       sessionCookie.user,
       sessionCookie.session,
-      ctx.params.gameId ?? "",
-      ctx.params.betId ?? "",
-      ctx.params.optionId ?? "",
+      ctx.params["gameId"] ?? "",
+      ctx.params["betId"] ?? "",
+      ctx.params["optionId"] ?? "",
       amount,
       message ?? null,
     );
@@ -356,9 +356,9 @@ export const betsApi = (server: Server.State): Router => {
     const new_balance = await server.store.withdrawStake(
       sessionCookie.user,
       sessionCookie.session,
-      ctx.params.gameId ?? "",
-      ctx.params.betId ?? "",
-      ctx.params.optionId ?? "",
+      ctx.params["gameId"] ?? "",
+      ctx.params["betId"] ?? "",
+      ctx.params["optionId"] ?? "",
     );
     ctx.body = new_balance;
   });

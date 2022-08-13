@@ -4,7 +4,7 @@ import { NoRetryConfigurationDetails } from "oci-common/lib/retrier.js";
 import { default as Oci } from "oci-objectstorage";
 import { OciError } from "oci-sdk";
 
-import { Config } from "../../server/config.js";
+import type { Config } from "../../server/config.js";
 import { details, ObjectUploader } from "../object-upload.js";
 
 export class OciObjectUploader implements ObjectUploader {

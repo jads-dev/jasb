@@ -1,47 +1,64 @@
-import * as Joda from "@js-joda/core";
+import { z } from "zod";
 
 import { Options } from "./options.js";
+import { zonedDateTime } from "./types.js";
 
-export type Progress = "Voting" | "Locked" | "Complete" | "Cancelled";
+export const Progress = z.enum(["Voting", "Locked", "Complete", "Cancelled"]);
+export type Progress = z.infer<typeof Progress>;
 
-export interface Bet {
-  game: string;
-  id: string;
-  name: string;
-  description: string;
-  spoiler: boolean;
+export const Bet = z
+  .object({
+    game: z.string(),
+    id: z.string(),
+    name: z.string(),
+    description: z.string(),
+    spoiler: z.boolean(),
 
-  locks_when: string;
-  progress: Progress;
-  cancelled_reason: string;
-  resolved: Joda.ZonedDateTime | null;
+    locks_when: z.string(),
+    progress: Progress,
+    cancelled_reason: z.string().nullable(),
+    resolved: zonedDateTime.nullable(),
 
-  by: string;
-  created: Joda.ZonedDateTime;
-  version: number;
-  modified: Joda.ZonedDateTime;
-}
+    by: z.string(),
+    created: zonedDateTime,
+    version: z.number().int().nonnegative(),
+    modified: zonedDateTime,
+  })
+  .strict();
+export type Bet = z.infer<typeof Bet>;
 
-export interface GameSummary {
-  game_name: string;
-}
+export const GameSummary = z
+  .object({
+    game_name: z.string(),
+  })
+  .strict();
+export type GameSummary = z.infer<typeof GameSummary>;
 
-export interface Options {
-  options: Options.AndStakes[];
-}
+export const WithOptions = z
+  .object({
+    options: z.array(Options.AndStakes),
+  })
+  .strict();
+export type WithOptions = z.infer<typeof WithOptions>;
 
-export interface Author {
-  author_name: string;
-  author_discriminator: string;
-  author_avatar: string | null;
-}
+export const Author = z
+  .object({
+    author_name: z.string(),
+    author_discriminator: z.string(),
+    author_avatar: z.string().nullable(),
+  })
+  .strict();
+export type Author = z.infer<typeof Author>;
 
-export interface LockStatus {
-  id: string;
-  name: string;
-  locks_when: string;
-  locked: boolean;
-  version: number;
-}
+export const LockStatus = z
+  .object({
+    id: z.string(),
+    name: z.string(),
+    locks_when: z.string(),
+    locked: z.boolean(),
+    version: z.number().int().nonnegative(),
+  })
+  .strict();
+export type LockStatus = z.infer<typeof LockStatus>;
 
 export * as Bets from "./bets.js";

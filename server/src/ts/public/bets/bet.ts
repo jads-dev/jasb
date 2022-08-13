@@ -66,7 +66,7 @@ export const unknownProgress = Expect.exhaustive(
 );
 
 const progressFromInternal = (
-  internal: Internal.Bet & Internal.Bets.Options,
+  internal: Internal.Bet & Internal.Bets.WithOptions,
 ): Progress => {
   switch (internal.progress) {
     case "Voting":
@@ -83,7 +83,7 @@ const progressFromInternal = (
     }
 
     case "Cancelled":
-      return { state: "Cancelled", reason: internal.cancelled_reason };
+      return { state: "Cancelled", reason: internal.cancelled_reason ?? "" };
 
     default:
       return unknownProgress(internal.progress);
@@ -91,7 +91,7 @@ const progressFromInternal = (
 };
 
 export const fromInternal = (
-  internal: Internal.Bet & Internal.Bets.Options,
+  internal: Internal.Bet & Internal.Bets.WithOptions,
 ): WithId => ({
   id: internal.id as Id,
   bet: {

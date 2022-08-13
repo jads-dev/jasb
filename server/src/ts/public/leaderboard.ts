@@ -1,5 +1,5 @@
 import type { Internal } from "../internal.js";
-import { Users } from "../public.js";
+import type { Users } from "../public.js";
 
 export interface Entry {
   id: Users.Id;

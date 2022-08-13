@@ -1,5 +1,3 @@
-import * as Joda from "@js-joda/core";
-
 import type { Internal } from "../../internal.js";
 import type { Users } from "../users.js";
 
@@ -29,7 +27,7 @@ export const fromInternal = (
         ? { avatarCache: internal.user.avatar_cache }
         : {}),
     },
-    at: Joda.ZonedDateTime.parse(internal.stake.made_at).toJSON(),
+    at: internal.stake.made_at.toJSON(),
     amount: internal.stake.amount,
     ...(internal.stake.message !== null
       ? { message: internal.stake.message }

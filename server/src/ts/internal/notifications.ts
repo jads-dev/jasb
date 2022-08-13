@@ -1,54 +1,71 @@
-import * as Joda from "@js-joda/core";
+import { z } from "zod";
 
-export interface Gifted {
-  type: "Gifted";
-  amount: number;
-  reason: "AccountCreated" | "Bankruptcy";
-}
+import { zonedDateTime } from "./types.js";
 
-export interface Refunded {
-  type: "Refunded";
-  gameId: string;
-  gameName: string;
-  betId: string;
-  betName: string;
-  optionId: string;
-  optionName: string;
-  reason: "OptionRemoved" | "BetCancelled";
-  amount: number;
-}
+export const Gifted = z
+  .object({
+    type: z.literal("Gifted"),
+    amount: z.number().int().positive(),
+    reason: z.enum(["AccountCreated", "Bankruptcy"]),
+  })
+  .strict();
+export type Gifted = z.infer<typeof Gifted>;
 
-export interface BetFinished {
-  type: "BetFinished";
-  gameId: string;
-  gameName: string;
-  betId: string;
-  betName: string;
-  optionId: string;
-  optionName: string;
-  result: "Win" | "Loss";
-  amount: number;
-}
+const optionReference = z.object({
+  gameId: z.string(),
+  gameName: z.string(),
+  betId: z.string(),
+  betName: z.string(),
+  optionId: z.string(),
+  optionName: z.string(),
+});
 
-export interface BetReverted {
-  type: "BetReverted";
-  gameId: string;
-  gameName: string;
-  betId: string;
-  betName: string;
-  optionId: string;
-  optionName: string;
-  reverted: "Complete" | "Cancelled";
-  amount: number;
-}
+export const Refunded = z
+  .object({
+    type: z.literal("Refunded"),
+    reason: z.enum(["OptionRemoved", "BetCancelled"]),
+    amount: z.number().int().positive(),
+  })
+  .merge(optionReference)
+  .strict();
+export type Refunded = z.infer<typeof Refunded>;
 
-export type Message = Gifted | Refunded | BetFinished | BetReverted;
+export const BetFinished = z
+  .object({
+    type: z.literal("BetFinished"),
+    result: z.enum(["Win", "Loss"]),
+    amount: z.number().int(),
+  })
+  .merge(optionReference)
+  .strict();
+export type BetFinished = z.infer<typeof BetFinished>;
 
-export interface Notification {
-  id: number;
-  notification: Message;
-  at: Joda.ZonedDateTime;
-  read: boolean;
-}
+export const BetReverted = z
+  .object({
+    type: z.literal("BetReverted"),
+    reverted: z.enum(["Complete", "Cancelled"]),
+    amount: z.number().int(),
+  })
+  .merge(optionReference)
+  .strict();
+export type BetReverted = z.infer<typeof BetReverted>;
+
+export const Message = z.discriminatedUnion("type", [
+  Gifted,
+  Refunded,
+  BetFinished,
+  BetReverted,
+]);
+export type Message = z.infer<typeof Message>;
+
+export const Notification = z
+  .object({
+    id: z.number().int(),
+    notification: Message,
+    happened: zonedDateTime,
+    read: z.boolean(),
+  })
+  .strict();
+export type Notification = z.infer<typeof Notification>;
 
 export * as Notifications from "./notifications.js";

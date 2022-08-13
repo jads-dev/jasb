@@ -7,7 +7,7 @@ import { default as Body } from "koa-body";
 import { Bets, Games } from "../../public.js";
 import { Validation } from "../../util/validation.js";
 import { WebError } from "../errors.js";
-import { Server } from "../model.js";
+import type { Server } from "../model.js";
 import { ResultCache } from "../result-cache.js";
 import { requireSession } from "./auth.js";
 import { betsApi } from "./bets.js";
@@ -54,7 +54,7 @@ export const gamesApi = (server: Server.State): Router => {
 
   // Get Game.
   router.get("/:gameId", async (ctx) => {
-    const game = await server.store.getGame(ctx.params.gameId ?? "");
+    const game = await server.store.getGame(ctx.params["gameId"] ?? "");
     if (game === undefined) {
       throw new WebError(StatusCodes.NOT_FOUND, "Game not found.");
     }
@@ -65,7 +65,7 @@ export const gamesApi = (server: Server.State): Router => {
 
   // Get Game with Bets.
   router.get("/:gameId/bets", async (ctx) => {
-    const gameId = ctx.params.gameId ?? "";
+    const gameId = ctx.params["gameId"] ?? "";
     const [game, bets] = await Promise.all([
       server.store.getGame(gameId),
       server.store.getBets(gameId),
@@ -85,7 +85,7 @@ export const gamesApi = (server: Server.State): Router => {
 
   // Get lock status of bets.
   router.get("/:gameId/bets/lock", async (ctx) => {
-    const gameId = ctx.params.gameId ?? "";
+    const gameId = ctx.params["gameId"] ?? "";
     const betsLockStatus = await server.store.getBetsLockStatus(gameId);
     const result: Bets.LockStatus[] = betsLockStatus.map(
       Bets.lockStatusFromInternal,
@@ -101,7 +101,7 @@ export const gamesApi = (server: Server.State): Router => {
       await server.store.addGame(
         sessionCookie.user,
         sessionCookie.session,
-        ctx.params.gameId ?? "",
+        ctx.params["gameId"] ?? "",
         body.name,
         body.cover,
         body.igdbId,
@@ -127,7 +127,7 @@ export const gamesApi = (server: Server.State): Router => {
       sessionCookie.user,
       sessionCookie.session,
       body.version,
-      ctx.params.gameId ?? "",
+      ctx.params["gameId"] ?? "",
       body.name,
       body.cover,
       body.igdbId,

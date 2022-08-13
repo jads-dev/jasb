@@ -2,7 +2,7 @@ import * as Bunyan from "bunyan";
 import type * as Koa from "koa";
 import { default as KoaBunyan } from "koa-bunyan-logger";
 
-import { Config } from "./config.js";
+import type { Config } from "./config.js";
 
 export type Logger = Bunyan;
 

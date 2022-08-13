@@ -6,7 +6,7 @@ import { default as Body } from "koa-body";
 import { Games, Notifications, Users } from "../../public.js";
 import { Validation } from "../../util/validation.js";
 import { WebError } from "../errors.js";
-import { Server } from "../model.js";
+import type { Server } from "../model.js";
 import { requireSession } from "./auth.js";
 
 const PermissionsBody = Schema.intersection([
@@ -24,14 +24,14 @@ export const usersApi = (server: Server.State): Router => {
 
   // Get Logged In User.
   router.get("/", async (ctx) => {
-    const sessionCookie = requireSession(ctx.ctx.cookies);
+    const sessionCookie = requireSession(ctx["ctx"].cookies);
     ctx.redirect(`/api/user/${sessionCookie.user}`);
     ctx.status = StatusCodes.TEMPORARY_REDIRECT;
   });
 
   // Get User.
   router.get("/:userId", async (ctx) => {
-    const id = ctx.params.userId;
+    const id = ctx.params["userId"];
     const internalUser = await server.store.getUser(id ?? "");
     if (internalUser === undefined) {
       throw new WebError(StatusCodes.NOT_FOUND, "User not found.");
@@ -42,7 +42,7 @@ export const usersApi = (server: Server.State): Router => {
 
   // Get User Bets.
   router.get("/:userId/bets", async (ctx) => {
-    const id = ctx.params.userId;
+    const id = ctx.params["userId"];
     const games = await server.store.getUserBets(id ?? "");
     const result: { id: Games.Id; game: Games.WithBets }[] = games.map(
       Games.withBetsFromInternal,
@@ -52,7 +52,7 @@ export const usersApi = (server: Server.State): Router => {
 
   // Get User Notifications.
   router.get("/:userId/notifications", async (ctx) => {
-    const id = ctx.params.userId;
+    const id = ctx.params["userId"];
     const sessionCookie = requireSession(ctx.cookies);
     if (sessionCookie.user !== id) {
       throw new WebError(
@@ -72,8 +72,8 @@ export const usersApi = (server: Server.State): Router => {
 
   // Clear User Notification.
   router.post("/:userId/notifications/:notificationId", Body(), async (ctx) => {
-    const userId = ctx.params.userId;
-    const notificationId = ctx.params.notificationId;
+    const userId = ctx.params["userId"];
+    const notificationId = ctx.params["notificationId"];
     const sessionCookie = requireSession(ctx.cookies);
     if (sessionCookie.user !== userId) {
       throw new WebError(
@@ -90,7 +90,7 @@ export const usersApi = (server: Server.State): Router => {
   });
 
   router.get("/:userId/bankrupt", async (ctx) => {
-    const id = ctx.params.userId;
+    const id = ctx.params["userId"];
     const result = Users.bankruptcyStatsFromInternal(
       await server.store.bankruptcyStats(id ?? ""),
     );
@@ -99,7 +99,7 @@ export const usersApi = (server: Server.State): Router => {
 
   // Bankrupt User.
   router.post("/:userId/bankrupt", Body(), async (ctx) => {
-    const id = ctx.params.userId;
+    const id = ctx.params["userId"];
     const sessionCookie = requireSession(ctx.cookies);
     if (sessionCookie.user !== id) {
       throw new WebError(
@@ -120,7 +120,7 @@ export const usersApi = (server: Server.State): Router => {
   // Get User Permissions.
   router.get("/:userId/permissions", async (ctx) => {
     const permissions = await server.store.getPermissions(
-      ctx.params.userId ?? "",
+      ctx.params["userId"] ?? "",
     );
     const result: Users.Permissions[] = permissions.map(
       Users.permissionsFromInternal,
@@ -135,7 +135,7 @@ export const usersApi = (server: Server.State): Router => {
     await server.store.setPermissions(
       sessionCookie.user,
       sessionCookie.session,
-      ctx.params.userId ?? "",
+      ctx.params["userId"] ?? "",
       body.game,
       body.canManageBets,
     );

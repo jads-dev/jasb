@@ -1,88 +1,123 @@
+import { z } from "zod";
+
 import { Stake } from "./stakes.js";
+import { zonedDateTime } from "./types.js";
 
-export interface HistoricAccount {
-  event: "HistoricAccount";
-  balance: number;
-  betValue: number;
-}
+export const HistoricAccount = z
+  .object({
+    event: z.literal("HistoricAccount"),
+    balance: z.number().int(),
+    betValue: z.number().int(),
+  })
+  .strict();
+export type HistoricAccount = z.infer<typeof HistoricAccount>;
 
-export interface CreateAccount {
-  event: "CreateAccount";
-  balance: number;
-}
+export const CreateAccount = z
+  .object({
+    event: z.literal("CreateAccount"),
+    balance: z.number().int().positive(),
+  })
+  .strict();
+export type CreateAccount = z.infer<typeof CreateAccount>;
 
-export interface Bankruptcy {
-  event: "Bankruptcy";
-  balance: number;
-}
+export const Bankruptcy = z
+  .object({
+    event: z.literal("Bankruptcy"),
+    balance: z.number().int().positive(),
+  })
+  .strict();
+export type Bankruptcy = z.infer<typeof Bankruptcy>;
 
-export interface StakeCommitted {
-  event: "StakeCommitted";
-  game: string;
-  bet: string;
-  option: string;
-  stake: Stake;
-}
+export const StakeCommitted = z
+  .object({
+    event: z.literal("StakeCommitted"),
+    game: z.string(),
+    bet: z.string(),
+    option: z.string(),
+    stake: Stake,
+  })
+  .strict();
+export type StakeCommitted = z.infer<typeof StakeCommitted>;
 
-export interface StakeWithdrawn {
-  event: "StakeWithdrawn";
-  game: string;
-  bet: string;
-  option: string;
-  amount: number;
-}
+export const StakeWithdrawn = z
+  .object({
+    event: z.literal("StakeWithdrawn"),
+    game: z.string(),
+    bet: z.string(),
+    option: z.string(),
+    amount: z.number().int().positive(),
+  })
+  .strict();
+export type StakeWithdrawn = z.infer<typeof StakeWithdrawn>;
 
-export interface Refund {
-  event: "Refund";
-  game: string;
-  bet: string;
-  option: string;
-  optionName: string;
-  stake: Stake;
-}
+export const Refund = z
+  .object({
+    event: z.literal("Refund"),
+    game: z.string(),
+    bet: z.string(),
+    option: z.string(),
+    optionName: z.string(),
+    stake: Stake,
+  })
+  .strict();
+export type Refund = z.infer<typeof Refund>;
 
-export interface Payout {
-  event: "Payout";
-  game: string;
-  bet: string;
-  option: string;
-  stake: Stake;
-  winnings: number;
-}
+export const Payout = z
+  .object({
+    event: z.literal("Payout"),
+    game: z.string(),
+    bet: z.string(),
+    option: z.string(),
+    stake: Stake,
+    winnings: z.number().int().positive(),
+  })
+  .strict();
+export type Payout = z.infer<typeof Payout>;
 
-export interface Loss {
-  event: "Loss";
-  game: string;
-  bet: string;
-  option: string;
-  stake: Stake;
-}
+export const Loss = z
+  .object({
+    event: z.literal("Loss"),
+    game: z.string(),
+    bet: z.string(),
+    option: z.string(),
+    stake: z.number().int().positive(),
+  })
+  .strict();
+export type Loss = z.infer<typeof Loss>;
 
-export interface Revert {
-  event: "Revert";
-  game: string;
-  bet: string;
-  option: string;
-  reverted: "Complete" | "Cancelled";
-  amount: number;
-}
+export const Revert = z
+  .object({
+    event: z.literal("Revert"),
+    game: z.string(),
+    bet: z.string(),
+    option: z.string(),
+    reverted: z.enum(["Complete", "Cancelled"]),
+    amount: z.number().int().positive(),
+  })
+  .strict();
+export type Revert = z.infer<typeof Revert>;
 
-export type Event =
-  | HistoricAccount
-  | CreateAccount
-  | Bankruptcy
-  | StakeCommitted
-  | StakeWithdrawn
-  | Refund
-  | Payout
-  | Loss
-  | Revert;
+export const Event = z.discriminatedUnion("event", [
+  HistoricAccount,
+  CreateAccount,
+  Bankruptcy,
+  StakeCommitted,
+  StakeWithdrawn,
+  Refund,
+  Payout,
+  Loss,
+  Revert,
+]);
+export type Event = z.infer<typeof Event>;
 
-export interface Entry {
-  id: string;
-  user: string;
-  happened: string;
-  event: Event;
-}
+export const Entry = z
+  .object({
+    id: z.string(),
+    user: z.string(),
+    happened: zonedDateTime,
+    event: Event,
+  })
+  .strict();
+export type Entry = z.infer<typeof Entry>;
 
 export * as AuditLog from "./audit-log.js";

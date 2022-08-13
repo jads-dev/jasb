@@ -1,5 +1,3 @@
-import * as Joda from "@js-joda/core";
-
 import type { Internal } from "../../internal.js";
 import { Stake, Stakes } from "../bets.js";
 import type { Options } from "../bets/options.js";
@@ -49,12 +47,12 @@ const optionFromInternal = ({
   stakes: Object.fromEntries(stakes.map(Stakes.fromInternal)),
 
   version: option.version,
-  created: Joda.ZonedDateTime.parse(option.created).toJSON(),
-  modified: Joda.ZonedDateTime.parse(option.modified).toJSON(),
+  created: option.created.toJSON(),
+  modified: option.modified.toJSON(),
 });
 
 export const fromInternal = (
-  internal: Internal.Bet & Internal.Bets.Options & Internal.Bets.Author,
+  internal: Internal.Bet & Internal.Bets.WithOptions & Internal.Bets.Author,
 ): EditableBet => ({
   name: internal.name,
   description: internal.description,

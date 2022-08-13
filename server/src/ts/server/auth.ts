@@ -2,11 +2,11 @@ import * as Joda from "@js-joda/core";
 import { default as DiscordOAuth } from "discord-oauth2";
 import { StatusCodes } from "http-status-codes";
 
-import { Store } from "../data/store.js";
+import type { Store } from "../data/store.js";
 import { Notifications, Users } from "../public.js";
 import { Random } from "../util/random.js";
 import { SecretToken } from "../util/secret-token.js";
-import { Config } from "./config.js";
+import type { Config } from "./config.js";
 import { WebError } from "./errors.js";
 
 export class Auth {
@@ -53,7 +53,6 @@ export class Auth {
   ): Promise<{
     user: Users.WithId;
     notifications: Notifications.Notification[];
-    isNewUser: boolean;
     session: SecretToken;
     expires: Joda.ZonedDateTime;
   }> {
@@ -93,7 +92,6 @@ export class Auth {
     return {
       user,
       notifications,
-      isNewUser: login.user.is_new_user,
       session,
       expires: login.user.started.plus(this.config.sessionLifetime),
     };

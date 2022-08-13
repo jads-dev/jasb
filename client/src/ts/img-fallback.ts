@@ -1,5 +1,6 @@
 import { css, html, LitElement } from "lit";
-import { customElement, property } from "lit/decorators.js";
+import { customElement } from "lit/decorators/custom-element.js";
+import { property } from "lit/decorators/property.js";
 
 @customElement("img-fallback")
 // eslint-disable-next-line @typescript-eslint/no-unused-vars

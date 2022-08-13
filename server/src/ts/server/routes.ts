@@ -7,7 +7,7 @@ import { default as Body } from "koa-body";
 import { Feed, Leaderboard } from "../public.js";
 import { Arrays } from "../util/arrays.js";
 import { WebError } from "./errors.js";
-import { Server } from "./model.js";
+import type { Server } from "./model.js";
 import { ResultCache } from "./result-cache.js";
 import { authApi, requireSession } from "./routes/auth.js";
 import { gamesApi } from "./routes/games.js";

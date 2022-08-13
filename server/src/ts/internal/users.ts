@@ -1,58 +1,87 @@
-import * as Joda from "@js-joda/core";
+import { z } from "zod";
 
-export interface User {
-  id: string;
-  name: string;
-  nickname: string | null;
-  discriminator: string;
-  avatar: string | null;
-  avatar_cache: string | null;
+import { zonedDateTime } from "./types.js";
 
-  created: Joda.ZonedDateTime;
-  admin: boolean;
+export const User = z
+  .object({
+    id: z.string(),
+    name: z.string(),
+    discriminator: z.string().length(4),
+    avatar: z.string().nullable(),
+    avatar_cache: z.string().url().nullable(),
 
-  balance: number;
-}
+    created: zonedDateTime,
+    admin: z.boolean(),
 
-export interface BetStats {
-  staked: number;
-  net_worth: number;
-}
+    balance: z.number().int(),
+  })
+  .strict();
+export type User = z.infer<typeof User>;
 
-export interface Leaderboard {
-  rank: number;
-}
+export const BetStats = z
+  .object({
+    staked: z.number().int(),
+    net_worth: z.number().int(),
+  })
+  .strict();
+export type BetStats = z.infer<typeof BetStats>;
 
-export interface Permissions {
-  moderator_for: string[];
-}
+export const Leaderboard = z
+  .object({
+    rank: z.number().int().nonnegative(),
+  })
+  .strict();
+export type Leaderboard = z.infer<typeof Leaderboard>;
 
-export interface LoginDetail {
-  session: string;
-  started: Joda.ZonedDateTime;
-  is_new_user: boolean;
-}
+export const Permissions = z
+  .object({
+    moderator_for: z.array(z.string()),
+  })
+  .strict();
+export type Permissions = z.infer<typeof Permissions>;
 
-export interface Summary {
-  id: string;
-  name: string;
-  discriminator: string;
-  avatar: string | null;
-  avatar_cache: string | null;
-}
+export const LoginDetail = z
+  .object({
+    session: z.string(),
+    started: zonedDateTime,
+  })
+  .strict();
+export type LoginDetail = z.infer<typeof LoginDetail>;
 
-export interface BankruptcyStats {
-  amount_lost: number;
-  stakes_lost: number;
-  locked_amount_lost: number;
-  locked_stakes_lost: number;
-  balance_after: number;
-}
+export const Summary = User.pick({
+  id: true,
+  name: true,
+  discriminator: true,
+  avatar: true,
+  avatar_cache: true,
+});
+export type Summary = z.infer<typeof Summary>;
 
-export interface PerGamePermissions {
-  game_id: string;
-  game_name: string;
-  manage_bets: boolean;
-}
+export const BankruptcyStats = z
+  .object({
+    amount_lost: z.number().int(),
+    stakes_lost: z.number().int(),
+    locked_amount_lost: z.number().int(),
+    locked_stakes_lost: z.number().int(),
+    balance_after: z.number().int(),
+  })
+  .strict();
+export type BankruptcyStats = z.infer<typeof BankruptcyStats>;
+
+export const PerGamePermissions = z
+  .object({
+    game_id: z.string(),
+    game_name: z.string(),
+    manage_bets: z.boolean(),
+  })
+  .strict();
+export type PerGamePermissions = z.infer<typeof PerGamePermissions>;
+
+export const AccessToken = z
+  .object({
+    access_token: z.string(),
+  })
+  .strict();
+export type AccessToken = z.infer<typeof AccessToken>;
 
 export * as Users from "./users.js";

@@ -1,43 +1,25 @@
-import * as Joda from "@js-joda/core";
+import type * as Joda from "@js-joda/core";
 import { StatusCodes } from "http-status-codes";
 import { default as Pg } from "pg";
-import parseInterval from "postgres-interval";
 import { migrate } from "postgres-migrations";
-import {
-  default as Slonik,
-  QueryResultRow,
-  sql,
-  SqlTaggedTemplate,
-  TaggedTemplateLiteralInvocation,
-} from "slonik";
+import { default as Slonik } from "slonik";
 
 import {
   AvatarCache,
-  Bet,
   Bets,
+  ExternalNotifier,
   Feed,
-  Game,
   Games,
-  Notification,
-  User,
+  Notifications,
+  Stakes,
   Users,
 } from "../internal.js";
-import { Config } from "../server/config.js";
+import type { Config } from "../server/config.js";
 import { WebError } from "../server/errors.js";
-import { Logging } from "../server/logging.js";
+import type { Logging } from "../server/logging.js";
 import { Notifier } from "../server/notifier.js";
 import { SecretToken } from "../util/secret-token.js";
-import { ObjectUploader } from "./object-upload.js";
-
-const postgresDateTimeFormatter = new Joda.DateTimeFormatterBuilder()
-  .parseCaseInsensitive()
-  .append(Joda.DateTimeFormatter.ISO_LOCAL_DATE)
-  .appendLiteral(" ")
-  .append(Joda.DateTimeFormatter.ISO_LOCAL_TIME)
-  .optionalStart()
-  .appendOffset("+HH", "Z")
-  .optionalEnd()
-  .toFormatter(Joda.ResolverStyle.STRICT);
+import type { ObjectUploader } from "./object-upload.js";
 
 export class Store {
   readonly logger: Logging.Logger;
@@ -70,35 +52,13 @@ export class Store {
     config: Config.Server,
     notifier: Notifier,
     avatarCache: ObjectUploader | undefined,
+    pool: Slonik.DatabasePool,
   ) {
-    this.logger = logger.child({
-      system: "store",
-      store: "postgres",
-    });
+    this.logger = logger;
     this.config = config;
     this.notifier = notifier;
     this.avatarCache = avatarCache;
-    this.pool = Slonik.createPool(
-      Store.connectionString(this.config.store.source),
-      {
-        typeParsers: [
-          {
-            name: "date",
-            parse: Joda.LocalDate.parse,
-          },
-          { name: "int8", parse: (v) => Number.parseInt(v, 10) },
-          {
-            name: "interval",
-            parse: (v) => Joda.Duration.parse(parseInterval(v).toISOString()),
-          },
-          {
-            name: "timestamptz",
-            parse: (v) =>
-              Joda.ZonedDateTime.parse(v, postgresDateTimeFormatter),
-          },
-        ],
-      },
-    );
+    this.pool = pool;
   }
 
   public static async load(
@@ -107,17 +67,31 @@ export class Store {
     notifier: Notifier,
     avatarCache: ObjectUploader | undefined,
   ): Promise<Store> {
-    const store = new Store(logger, config, notifier, avatarCache);
-    await store.migrate(store.logger);
+    const store = new Store(
+      logger.child({
+        system: "store",
+        store: "postgres",
+      }),
+      config,
+      notifier,
+      avatarCache,
+      await Slonik.createPool(Store.connectionString(config.store.source), {
+        typeParsers: [
+          { name: "int8", parse: (v) => Number.parseInt(v, 10) },
+          { name: "timestamptz", parse: (v) => v },
+        ],
+      }),
+    );
+    await store.migrate();
     return store;
   }
 
-  private async migrate(logger: Logging.Logger): Promise<void> {
+  private async migrate(): Promise<void> {
     const client = new Pg.Client(
       Store.connectionString(this.config.store.source),
     );
     await client.connect();
-    const migrationLogger = logger.child({
+    const migrationLogger = this.logger.child({
       task: "migration",
     });
     await migrate({ client }, "./src/sql/migrations", {
@@ -130,6 +104,7 @@ export class Store {
     sessionId: SecretToken,
   ): Promise<string> {
     return await this.withClient(async (client) => {
+      const sql = Slonik.sql;
       await client.query(sql`
         SELECT
           *
@@ -147,9 +122,10 @@ export class Store {
   async getUser(
     id: string,
     sessionId?: SecretToken,
-  ): Promise<(User & Users.Permissions & Users.BetStats) | undefined> {
+  ): Promise<(Users.User & Users.Permissions & Users.BetStats) | undefined> {
     return await this.withClient(async (client) => {
       if (sessionId !== undefined) {
+        const sql = Slonik.sql;
         await client.query(sql`
           SELECT
             *
@@ -161,7 +137,10 @@ export class Store {
             );
         `);
       }
-      const results = await client.query(sql`
+      const sql = Slonik.sql.type(
+        Users.User.merge(Users.Permissions).merge(Users.BetStats),
+      );
+      const result = await client.maybeOne(sql`
         SELECT
           users.*,
           (users.staked + users.balance) AS net_worth,
@@ -183,18 +162,17 @@ export class Store {
           users.avatar_cache
         );
       `);
-      return results.rowCount > 0
-        ? (results.rows[0] as unknown as User &
-            Users.Permissions &
-            Users.BetStats)
-        : undefined;
+      return result ?? undefined;
     });
   }
 
   async getLeaderboard(): Promise<
-    (User & Users.BetStats & Users.Leaderboard)[]
+    readonly (Users.User & Users.BetStats & Users.Leaderboard)[]
   > {
     return await this.withClient(async (client) => {
+      const sql = Slonik.sql.type(
+        Users.User.merge(Users.Leaderboard).merge(Users.BetStats),
+      );
       const results = await client.query(sql`
         SELECT
           id,
@@ -215,15 +193,14 @@ export class Store {
         ORDER BY rank
         LIMIT 100;
       `);
-      return results.rows as unknown as (User &
-        Users.BetStats &
-        Users.Leaderboard)[];
+      return results.rows;
     });
   }
 
   async bankruptcyStats(userId: string): Promise<Users.BankruptcyStats> {
     return await this.withClient(async (client) => {
-      const result = await client.query(sql`
+      const sql = Slonik.sql.type(Users.BankruptcyStats);
+      return await client.one(sql`
         SELECT
           COALESCE(SUM(stakes.amount), 0) AS amount_lost,
           COALESCE(COUNT(*), 0) AS stakes_lost,
@@ -237,13 +214,13 @@ export class Store {
           stakes.owner = ${userId} AND 
           is_active(bets.progress)
       `);
-      return result.rows[0] as unknown as Users.BankruptcyStats;
     });
   }
 
-  async bankrupt(userId: string, sessionId: SecretToken): Promise<User> {
+  async bankrupt(userId: string, sessionId: SecretToken): Promise<Users.User> {
     return await this.inTransaction(async (client) => {
-      const result = await client.query(sql`
+      const sql = Slonik.sql.type(Users.User);
+      return await client.one(sql`
         SELECT
           id,
           name,
@@ -260,7 +237,6 @@ export class Store {
             ${this.config.rules.initialBalance}
           );
       `);
-      return result.rows[0] as unknown as User;
     });
   }
 
@@ -273,28 +249,20 @@ export class Store {
     refreshToken: string,
     discordExpiresIn: Joda.Duration,
   ): Promise<{
-    user: User & Users.Permissions & Users.BetStats & Users.LoginDetail;
-    notifications: Notification[];
+    user: Users.User & Users.Permissions & Users.BetStats & Users.LoginDetail;
+    notifications: readonly Notifications.Notification[];
   }> {
     const sessionId = await SecretToken.secureRandom(
       this.config.auth.sessionIdSize,
     );
     return await this.inTransaction(async (client) => {
-      await client.query(sql`
-        SELECT * FROM jasb.login(
-          ${userId},
-          ${sessionId.uri},
-          ${name},
-          ${discriminator},
-          ${avatar},
-          ${accessToken},
-          ${refreshToken},
-          ${discordExpiresIn.toString()},
-          ${this.config.rules.initialBalance}
+      const login = async () => {
+        const sql = Slonik.sql.type(
+          Users.User.merge(Users.Permissions)
+            .merge(Users.BetStats)
+            .merge(Users.LoginDetail),
         );
-      `);
-      const [loginResults, notificationResults] = await Promise.all([
-        client.query(sql`
+        return await client.one(sql`
           SELECT
             users.*,
             sessions.session,
@@ -302,11 +270,19 @@ export class Store {
             (users.staked + users.balance) AS net_worth,
             COALESCE(ARRAY_AGG(permissions.game) FILTER ( WHERE permissions.game IS NOT NULL ), '{}') AS moderator_for
           FROM
-            sessions LEFT JOIN
+            (SELECT * FROM jasb.login(
+              ${userId},
+              ${sessionId.uri},
+              ${name},
+              ${discriminator},
+              ${avatar},
+              ${accessToken},
+              ${refreshToken},
+              ${discordExpiresIn.toString()},
+              ${this.config.rules.initialBalance}
+            )) as sessions LEFT JOIN
             jasb.users_with_stakes AS users ON users.id = sessions."user" LEFT JOIN
             jasb.permissions ON sessions."user" = permissions."user" AND manage_bets = TRUE
-          WHERE
-            sessions."user" = ${userId}
           GROUP BY (
             users.id,
             users.name,
@@ -320,8 +296,11 @@ export class Store {
             sessions.session,
             sessions.started
           );
-        `),
-        client.query(sql`
+        `);
+      };
+      const notification = async () => {
+        const sql = Slonik.sql.type(Notifications.Notification);
+        return await client.query(sql`
           SELECT
             id,
             TO_JSON(happened) AS happened,
@@ -334,15 +313,15 @@ export class Store {
             read = FALSE
           ORDER BY 
             notifications.happened DESC;
-        `),
+        `);
+      };
+      const [loginResults, notificationResults] = await Promise.all([
+        login(),
+        notification(),
       ]);
-      const user = loginResults.rows[0] as unknown as User &
-        Users.Permissions &
-        Users.BetStats &
-        Users.LoginDetail;
       return {
-        user,
-        notifications: notificationResults.rows as unknown as Notification[],
+        user: loginResults,
+        notifications: notificationResults.rows,
       };
     });
   }
@@ -352,7 +331,8 @@ export class Store {
     session: SecretToken,
   ): Promise<string | undefined> {
     return await this.withClient(async (client) => {
-      const results = await client.query(sql`
+      const sql = Slonik.sql.type(Users.AccessToken);
+      const result = await client.maybeOne(sql`
         DELETE FROM
           jasb.sessions
         WHERE
@@ -360,91 +340,69 @@ export class Store {
           session = ${session.uri}
         RETURNING access_token;
       `);
-      if (results.rowCount > 0) {
-        return results.rows[0]?.access_token as string;
-      } else {
-        return undefined;
-      }
-    });
-  }
-
-  async getTile(
-    gameId: string,
-    betId: string | null,
-  ): Promise<{ game_name: string; bet_name: string | null } | undefined> {
-    return await this.withClient(async (client) => {
-      const results = await client.query(sql`
-        SELECT
-          games.name AS game_name,
-          bets.name AS bet_name
-        FROM
-          jasb.games LEFT JOIN 
-          jasb.bets ON games.id = bets.game
-        WHERE
-          games.id = ${gameId} AND 
-          (bets.id = ${betId} OR bets.id IS NULL)
-        LIMIT 1;
-      `);
-      return results.rowCount > 0
-        ? (results.rows[0] as { game_name: string; bet_name: string | null })
-        : undefined;
+      return result?.access_token;
     });
   }
 
   async getGame(
     id: string,
   ): Promise<
-    (Game & Games.BetStats & Games.StakeStats & Games.Mods) | undefined
+    (Games.Game & Games.BetStats & Games.StakeStats & Games.Mods) | undefined
   > {
     return await this.withClient(async (client) => {
-      const results = await client.query(sql`
-        SELECT
-          games.id,
-          games.name,
-          games.cover,
-          games.igdb_id,
-          games.added,
-          games.started,
-          games.finished,
-          games."order",
-          games.version,
-          games.modified,
-          games.progress,
-          COALESCE(bets.bets, 0) AS bets,
-          COALESCE(stakes.staked, 0) AS staked,
-          TO_JSON(mods.mods) AS mods
-        FROM
-          jasb.games LEFT JOIN 
-          jasb.game_bet_stats AS bets ON games.id = bets.game LEFT JOIN 
-          jasb.game_stake_stats AS stakes ON games.id = stakes.game LEFT JOIN 
-          jasb.game_mods AS mods ON games.id = mods.game
-        WHERE
-          id = ${id};
-      `);
-      return results.rowCount > 0
-        ? (results.rows[0] as unknown as Game &
-            Games.BetStats &
-            Games.StakeStats &
-            Games.Mods)
-        : undefined;
+      const sql = Slonik.sql.type(
+        Games.Game.merge(Games.BetStats)
+          .merge(Games.StakeStats)
+          .merge(Games.Mods),
+      );
+      return (
+        (await client.maybeOne(sql`
+          SELECT
+            games.id,
+            games.name,
+            games.cover,
+            games.igdb_id,
+            games.added,
+            games.started,
+            games.finished,
+            games."order",
+            games.version,
+            games.modified,
+            games.progress,
+            COALESCE(bets.bets, 0) AS bets,
+            COALESCE(stakes.staked, 0) AS staked,
+            TO_JSON(mods.mods) AS mods
+          FROM
+            jasb.games LEFT JOIN 
+            jasb.game_bet_stats AS bets ON games.id = bets.game LEFT JOIN 
+            jasb.game_stake_stats AS stakes ON games.id = stakes.game LEFT JOIN 
+            jasb.game_mods AS mods ON games.id = mods.game
+          WHERE
+            id = ${id};
+        `)) ?? undefined
+      );
     });
   }
 
   getSort(
     subset: Games.Progress,
-  ): TaggedTemplateLiteralInvocation<QueryResultRow> {
+  ): Slonik.TaggedTemplateLiteralInvocation<Slonik.QueryResultRow> {
+    const sqlFragment = Slonik.sql;
     switch (subset) {
       case "Future":
-        return sql`games."order" ASC NULLS LAST`;
+        return sqlFragment`games."order" ASC NULLS LAST`;
       case "Current":
-        return sql`games.started ASC`;
+        return sqlFragment`games.started ASC`;
       case "Finished":
-        return sql`games.finished DESC`;
+        return sqlFragment`games.finished DESC`;
     }
   }
 
-  async getGames(subset: Games.Progress): Promise<(Game & Games.BetStats)[]> {
+  async getGames(
+    subset: Games.Progress,
+  ): Promise<readonly (Games.Game & Games.BetStats)[]> {
     return await this.withClient(async (client) => {
+      const sql = Slonik.sql.type(Games.Game.merge(Games.BetStats));
       const results = await client.query(sql`
         SELECT
           games.*,
@@ -457,8 +415,7 @@ export class Store {
         ORDER BY
           ${this.getSort(subset)}, games.added ASC;
       `);
-
-      return results.rows as unknown as (Game & Games.BetStats)[];
+      return results.rows;
     });
   }
 
@@ -472,9 +429,10 @@ export class Store {
     started: string | null,
     finished: string | null,
     order: number | null,
-  ): Promise<Game> {
+  ): Promise<Games.Game> {
     return await this.withClient(async (client) => {
-      const result = await client.query(sql`
+      const sql = Slonik.sql.type(Games.Game);
+      return await client.one(sql`
         SELECT
           *
         FROM
@@ -491,7 +449,6 @@ export class Store {
             ${order}
           );
       `);
-      return result.rows[0] as unknown as Game;
     });
   }
 
@@ -506,9 +463,10 @@ export class Store {
     started?: string | null,
     finished?: string | null,
     order?: number | null,
-  ): Promise<Game & Games.BetStats> {
+  ): Promise<Games.Game & Games.BetStats> {
     return await this.withClient(async (client) => {
-      const results = await client.query(sql`
+      const sql = Slonik.sql.type(Games.Game.merge(Games.BetStats));
+      return await client.one(sql`
         SELECT
           *
         FROM
@@ -529,12 +487,14 @@ export class Store {
             ${order === null}
           );
       `);
-      return results.rows[0] as unknown as Game & Games.BetStats;
     });
   }
 
-  async getBets(gameId: string): Promise<(Bet & Bets.Options)[]> {
+  async getBets(
+    gameId: string,
+  ): Promise<readonly (Bets.Bet & Bets.WithOptions)[]> {
     return await this.withClient(async (client) => {
+      const sql = Slonik.sql.type(Bets.Bet.merge(Bets.WithOptions));
       const results = await client.query(sql`
         SELECT
           bets.*,
@@ -546,12 +506,13 @@ export class Store {
           bets.game = ${gameId}
         ORDER BY bets.created DESC;
       `);
-      return results.rows as unknown as (Bet & Bets.Options)[];
+      return results.rows;
     });
   }
 
-  async getBetsLockStatus(gameId: string): Promise<Bets.LockStatus[]> {
+  async getBetsLockStatus(gameId: string): Promise<readonly Bets.LockStatus[]> {
     return await this.withClient(async (client) => {
+      const sql = Slonik.sql.type(Bets.LockStatus);
       const results = await client.query(sql`
         SELECT
           bets.id,
@@ -566,12 +527,15 @@ export class Store {
           (bets.progress = 'Voting'::BetProgress OR bets.progress = 'Locked'::BetProgress)
         ORDER BY bets.created DESC;
       `);
-      return results.rows as unknown as Bets.LockStatus[];
+      return results.rows;
     });
   }
 
-  async getUserBets(userId: string): Promise<(Game & Games.EmbeddedBets)[]> {
+  async getUserBets(
+    userId: string,
+  ): Promise<readonly (Games.Game & Games.EmbeddedBets)[]> {
     return await this.withClient(async (client) => {
+      const sql = Slonik.sql.type(Games.Game.merge(Games.EmbeddedBets));
       const results = await client.query(sql`
         WITH
           bets AS (
@@ -602,13 +566,18 @@ export class Store {
           GROUP BY games.id
           ORDER BY MAX(bets.last_stake_made_at) DESC;
       `);
-      return results.rows as unknown as (Game & Games.EmbeddedBets)[];
+      return results.rows;
     });
   }
 
   betWithOptionsAndAuthorFromBets<T>(
     betsSubquery: Slonik.TaggedTemplateLiteralInvocation<T>,
-  ): Slonik.TaggedTemplateLiteralInvocation<T> {
+  ): Slonik.TaggedTemplateLiteralInvocation<
+    Bets.Bet & Bets.WithOptions & Bets.Author
+  > {
+    const sql = Slonik.sql.type(
+      Bets.Bet.merge(Bets.WithOptions).merge(Bets.Author),
+    );
     return sql`
       SELECT
         bets.game,
@@ -638,16 +607,16 @@ export class Store {
   async getBet(
     gameId: string,
     betId: string,
-  ): Promise<(Bet & Bets.Options & Bets.Author) | undefined> {
+  ): Promise<(Bets.Bet & Bets.WithOptions & Bets.Author) | undefined> {
     return await this.withClient(async (client) => {
-      const results = await client.query(
-        this.betWithOptionsAndAuthorFromBets(sql`
+      const sqlFragment = Slonik.sql;
+      return (
+        (await client.maybeOne(
+          this.betWithOptionsAndAuthorFromBets(sqlFragment`
           SELECT * FROM jasb.bets WHERE bets.game = ${gameId} AND bets.id = ${betId}
         `),
+        )) ?? undefined
       );
-      return results.rowCount > 0
-        ? (results.rows[0] as unknown as Bet & Bets.Options & Bets.Author)
-        : undefined;
     });
   }
 
@@ -660,7 +629,10 @@ export class Store {
     name: string;
     image: string | null;
   }): Slonik.ValueExpression {
-    return sql`ROW(${id}, ${name ?? null}, ${image ?? null})::AddOption`;
+    const sqlFragment = Slonik.sql;
+    return sqlFragment`ROW(${id}, ${name ?? null}, ${
+      image ?? null
+    })::AddOption`;
   }
 
   async newBet(
@@ -677,14 +649,18 @@ export class Store {
       name: string;
       image: string | null;
     }[],
-  ): Promise<Bet & Bets.Options & Bets.Author> {
+  ): Promise<Bets.Bet & Bets.WithOptions & Bets.Author> {
+    const sqlFragment = Slonik.sql;
     const optionsArray =
       options !== undefined
-        ? sql`ARRAY[${sql.join(options.map(this.toAddOptionRow), sql`, `)}]`
+        ? sqlFragment`ARRAY[${sqlFragment.join(
+            options.map(this.toAddOptionRow),
+            sqlFragment`, `,
+          )}]`
         : null;
     return await this.inTransaction(async (client) => {
-      const results = await client.query(
-        this.betWithOptionsAndAuthorFromBets(sql`
+      const result = await client.one(
+        this.betWithOptionsAndAuthorFromBets(sqlFragment`
           SELECT
             *
           FROM
@@ -703,19 +679,20 @@ export class Store {
         `),
       );
       await this.notifier.notify(async () => {
-        const nameResult = await client.query(
+        const sql = Slonik.sql.type(Games.Name);
+        const nameResult = await client.one(
           sql`SELECT name FROM jasb.games WHERE id = ${gameId};`,
         );
         return Notifier.newBet(
           this.config.clientOrigin,
           spoiler,
           gameId,
-          nameResult.rows[0]?.name as string,
+          nameResult.name,
           id,
           name,
         );
       });
-      return results.rows[0] as unknown as Bet & Bets.Options & Bets.Author;
+      return result;
     });
   }
 
@@ -732,7 +709,8 @@ export class Store {
     image?: string | null;
     order?: number;
   }): Slonik.ValueExpression {
-    return sql`
+    const sqlFragment = Slonik.sql;
+    return sqlFragment`
       ROW(
         ${id}, 
         ${version ?? null}, 
@@ -768,21 +746,26 @@ export class Store {
       image: string | null;
       order: number;
     }[],
-  ): Promise<(Bet & Bets.Options & Bets.Author) | undefined> {
+  ): Promise<(Bets.Bet & Bets.WithOptions & Bets.Author) | undefined> {
+    const sqlFragment = Slonik.sql;
     const editArray =
       editOptions !== undefined
-        ? sql`ARRAY[${sql.join(
+        ? sqlFragment`ARRAY[${sqlFragment.join(
             editOptions.map(this.toEditOptionRow),
-            sql`, `,
+            sqlFragment`, `,
           )}]`
         : null;
     const addArray =
       addOptions !== undefined
-        ? sql`ARRAY[${sql.join(addOptions.map(this.toEditOptionRow), sql`, `)}]`
+        ? sqlFragment`ARRAY[${sqlFragment.join(
+            addOptions.map(this.toEditOptionRow),
+            sqlFragment`, `,
+          )}]`
         : null;
     return await this.inTransaction(async (client) => {
-      const results = await client.query(
-        this.betWithOptionsAndAuthorFromBets(sql`
+      return (
+        (await client.maybeOne(
+          this.betWithOptionsAndAuthorFromBets(sqlFragment`
           SELECT
             *
           FROM
@@ -799,17 +782,15 @@ export class Store {
               ${locksWhen ?? null},
               ${
                 removeOptions !== undefined
-                  ? sql.array(removeOptions, "text")
+                  ? sqlFragment.array(removeOptions, "text")
                   : null
               },
               ${editArray},
               ${addArray}
             )
         `),
+        )) ?? undefined
       );
-      return results.rowCount > 0
-        ? (results.rows[0] as unknown as Bet & Bets.Options & Bets.Author)
-        : undefined;
     });
   }
 
@@ -820,10 +801,12 @@ export class Store {
     id: string,
     old_version: number,
     locked: boolean,
-  ): Promise<(Bet & Bets.Options & Bets.Author) | undefined> {
+  ): Promise<(Bets.Bet & Bets.WithOptions & Bets.Author) | undefined> {
     return await this.withClient(async (client) => {
-      const results = await client.query(
-        this.betWithOptionsAndAuthorFromBets(sql`
+      const sqlFragment = Slonik.sql;
+      return (
+        (await client.maybeOne(
+          this.betWithOptionsAndAuthorFromBets(sqlFragment`
           SELECT
             *
           FROM
@@ -837,10 +820,8 @@ export class Store {
               ${locked}
             )
         `),
+        )) ?? undefined
       );
-      return results.rowCount > 0
-        ? (results.rows[0] as unknown as Bet & Bets.Options & Bets.Author)
-        : undefined;
     });
   }
 
@@ -851,10 +832,11 @@ export class Store {
     betId: string,
     old_version: number,
     winners: string[],
-  ): Promise<(Bet & Bets.Options & Bets.Author) | undefined> {
+  ): Promise<(Bets.Bet & Bets.WithOptions & Bets.Author) | undefined> {
     return await this.inTransaction(async (client) => {
-      const results = await client.query(
-        this.betWithOptionsAndAuthorFromBets(sql`
+      const sqlFragment = Slonik.sql;
+      const result = await client.maybeOne(
+        this.betWithOptionsAndAuthorFromBets(sqlFragment`
           SELECT
             *
           FROM
@@ -865,12 +847,13 @@ export class Store {
               ${old_version},
               ${gameId},
               ${betId},
-              ${sql.array(winners, "text")}
+              ${sqlFragment.array(winners, "text")}
             )
         `),
       );
       await this.notifier.notify(async () => {
-        const detailsResult = await client.query(
+        const sql = Slonik.sql.type(ExternalNotifier.BetComplete);
+        const row = await client.one(
           sql`
             SELECT 
               games.name AS game_name, 
@@ -889,27 +872,21 @@ export class Store {
               bets.id = ${betId}
           `,
         );
-        const row = detailsResult.rows[0];
-        if (row === undefined) {
-          throw new Error("Unexpected empty result.");
-        }
         return Notifier.betComplete(
           this.config.clientOrigin,
-          row.spoiler as boolean,
+          row.spoiler,
           gameId,
-          row.game_name as string,
+          row.game_name,
           betId,
-          row.bet_name as string,
+          row.bet_name,
           winners,
-          row.winning_stakes as number,
-          row.total_staked as number,
-          (row.top_winners as unknown as User[]).map((u) => u.id),
-          row.biggest_payout as number,
+          row.winning_stakes,
+          row.total_staked,
+          row.top_winners.map((u) => u.id),
+          row.biggest_payout,
         );
       });
-      return results.rowCount > 0
-        ? (results.rows[0] as unknown as Bet & Bets.Options & Bets.Author)
-        : undefined;
+      return result ?? undefined;
     });
   }
 
@@ -919,10 +896,12 @@ export class Store {
     gameId: string,
     betId: string,
     old_version: number,
-  ): Promise<(Bet & Bets.Options & Bets.Author) | undefined> {
+  ): Promise<(Bets.Bet & Bets.WithOptions & Bets.Author) | undefined> {
     return await this.inTransaction(async (client) => {
-      const results = await client.query(
-        this.betWithOptionsAndAuthorFromBets(sql`
+      const sqlFragment = Slonik.sql;
+      return (
+        (await client.maybeOne(
+          this.betWithOptionsAndAuthorFromBets(sqlFragment`
           SELECT
             *
           FROM
@@ -935,10 +914,8 @@ export class Store {
               ${betId}
             )
         `),
+        )) ?? undefined
       );
-      return results.rowCount > 0
-        ? (results.rows[0] as unknown as Bet & Bets.Options & Bets.Author)
-        : undefined;
     });
   }
 
@@ -949,10 +926,12 @@ export class Store {
     betId: string,
     old_version: number,
     reason: string,
-  ): Promise<(Bet & Bets.Options & Bets.Author) | undefined> {
+  ): Promise<(Bets.Bet & Bets.WithOptions & Bets.Author) | undefined> {
     return await this.inTransaction(async (client) => {
-      const results = await client.query(
-        this.betWithOptionsAndAuthorFromBets(sql`
+      const sqlFragment = Slonik.sql;
+      return (
+        (await client.maybeOne(
+          this.betWithOptionsAndAuthorFromBets(sqlFragment`
           SELECT
             *
           FROM
@@ -966,10 +945,8 @@ export class Store {
               ${reason}
             )
         `),
+        )) ?? undefined
       );
-      return results.rowCount > 0
-        ? (results.rows[0] as unknown as Bet & Bets.Options & Bets.Author)
-        : undefined;
     });
   }
 
@@ -979,10 +956,12 @@ export class Store {
     gameId: string,
     betId: string,
     old_version: number,
-  ): Promise<(Bet & Bets.Options & Bets.Author) | undefined> {
+  ): Promise<(Bets.Bet & Bets.WithOptions & Bets.Author) | undefined> {
     return await this.inTransaction(async (client) => {
-      const results = await client.query(
-        this.betWithOptionsAndAuthorFromBets(sql`
+      const sqlFragment = Slonik.sql;
+      return (
+        (await client.maybeOne(
+          this.betWithOptionsAndAuthorFromBets(sqlFragment`
           SELECT
             *
           FROM
@@ -995,10 +974,8 @@ export class Store {
               ${betId}
             )
         `),
+        )) ?? undefined
       );
-      return results.rowCount > 0
-        ? (results.rows[0] as unknown as Bet & Bets.Options & Bets.Author)
-        : undefined;
     });
   }
 
@@ -1012,7 +989,8 @@ export class Store {
     message: string | null,
   ): Promise<number> {
     return await this.inTransaction(async (client) => {
-      const result = await client.query(sql`
+      const sql = Slonik.sql.type(Stakes.NewBalance);
+      const row = await client.one(sql`
         SELECT
           jasb.new_stake(
             ${this.config.rules.minStake},
@@ -1028,10 +1006,10 @@ export class Store {
             ${message}
           ) AS new_balance;
       `);
-      const row = result.rows[0];
       if (message !== null) {
         await this.notifier.notify(async () => {
-          const detailsResult = await client.query(
+          const sql = Slonik.sql.type(ExternalNotifier.NewStake);
+          const row = await client.one(
             sql`
               SELECT 
                 games.name AS game_name, 
@@ -1048,25 +1026,21 @@ export class Store {
                 options.id = ${optionId};
             `,
           );
-          const row = detailsResult.rows[0];
-          if (row === undefined) {
-            throw new Error("Unexpected empty result.");
-          }
           return Notifier.newStake(
             this.config.clientOrigin,
-            row.spoiler as boolean,
+            row.spoiler,
             gameId,
-            row.game_name as string,
+            row.game_name,
             betId,
-            row.bet_name as string,
-            row.option_name as string,
-            userId as string,
-            amount as number,
-            message as string,
+            row.bet_name,
+            row.option_name,
+            userId,
+            amount,
+            message,
           );
         });
       }
-      return row?.new_balance as number;
+      return row.new_balance;
     });
   }
 
@@ -1078,7 +1052,8 @@ export class Store {
     optionId: string,
   ): Promise<number> {
     return await this.inTransaction(async (client) => {
-      const result = await client.query(sql`
+      const sql = Slonik.sql.type(Stakes.NewBalance);
+      const result = await client.one(sql`
         SELECT
           jasb.withdraw_stake(
             ${userId},
@@ -1089,7 +1064,7 @@ export class Store {
             ${optionId}
           ) AS new_balance;
       `);
-      return result.rows[0]?.new_balance as number;
+      return result.new_balance;
     });
   }
 
@@ -1103,7 +1078,8 @@ export class Store {
     message: string | null,
   ): Promise<number> {
     return await this.inTransaction(async (client) => {
-      const result = await client.query(sql`
+      const sql = Slonik.sql.type(Stakes.NewBalance);
+      const result = await client.one(sql`
         SELECT
           jasb.change_stake(
             ${this.config.rules.minStake},
@@ -1119,7 +1095,7 @@ export class Store {
             ${message}
           ) AS new_balance;
       `);
-      return result.rows[0]?.new_balance as number;
+      return result.new_balance;
     });
   }
 
@@ -1127,8 +1103,9 @@ export class Store {
     userId: string,
     sessionId: SecretToken,
     includeRead = false,
-  ): Promise<Notification[]> {
+  ): Promise<readonly Notifications.Notification[]> {
     return await this.withClient(async (client) => {
+      const sql = Slonik.sql.type(Notifications.Notification);
       const results = await client.query(sql`
         SELECT
           id,
@@ -1143,7 +1120,7 @@ export class Store {
             ${includeRead}
           );
       `);
-      return results.rows as unknown as Notification[];
+      return results.rows;
     });
   }
 
@@ -1153,7 +1130,7 @@ export class Store {
     id: string,
   ): Promise<void> {
     return await this.withClient(async (client) => {
-      await client.query(sql`
+      await client.query(Slonik.sql`
         SELECT
           *
         FROM
@@ -1167,20 +1144,25 @@ export class Store {
     });
   }
 
-  async getFeed(): Promise<Feed.Item[]> {
+  async getFeed(): Promise<readonly Feed.Item[]> {
     return await this.withClient(async (client) => {
+      const sql = Slonik.sql.type(Feed.Item);
       const results = await client.query(sql`
-        SELECT item FROM jasb.feed ORDER BY time DESC LIMIT 100;
+        SELECT item, time FROM jasb.feed ORDER BY time DESC LIMIT 100;
       `);
-      return results.rows as unknown as Feed.Item[];
+      return results.rows;
     });
   }
 
-  async getBetFeed(gameId: string, betId: string): Promise<Feed.Item[]> {
+  async getBetFeed(
+    gameId: string,
+    betId: string,
+  ): Promise<readonly Feed.Item[]> {
     return await this.withClient(async (client) => {
+      const sql = Slonik.sql.type(Feed.Item);
       const results = await client.query(sql`
         SELECT
-          item
+          item, time
         FROM
           jasb.feed
         WHERE
@@ -1188,12 +1170,15 @@ export class Store {
           bet = ${betId}
         ORDER BY time DESC
       `);
-      return results.rows as unknown as Feed.Item[];
+      return results.rows;
     });
   }
 
-  async getPermissions(userId: string): Promise<Users.PerGamePermissions[]> {
+  async getPermissions(
+    userId: string,
+  ): Promise<readonly Users.PerGamePermissions[]> {
     return await this.withClient(async (client) => {
+      const sql = Slonik.sql.type(Users.PerGamePermissions);
       const results = await client.query(sql`
         SELECT
           games.id AS game_id,
@@ -1203,7 +1188,7 @@ export class Store {
           jasb.games LEFT JOIN
           jasb.per_game_permissions ON "user" = ${userId} AND games.id = per_game_permissions.game;
       `);
-      return results.rows as unknown as Users.PerGamePermissions[];
+      return results.rows;
     });
   }
 
@@ -1215,7 +1200,7 @@ export class Store {
     manage_bets: boolean | undefined,
   ): Promise<void> {
     await this.withClient(async (client) => {
-      await client.query(sql`
+      await client.query(Slonik.sql`
         SELECT
           *
         FROM
@@ -1233,6 +1218,7 @@ export class Store {
 
   async garbageCollect(): Promise<string[]> {
     return await this.withClient(async (client) => {
+      const sql = Slonik.sql.type(Users.AccessToken);
       const results = await client.query(sql`
         DELETE FROM
           jasb.sessions
@@ -1240,7 +1226,7 @@ export class Store {
           NOW() >= (started + ${this.config.auth.sessionLifetime.toString()}::INTERVAL)
         RETURNING access_token;
       `);
-      return results.rows.map((row: any) => row.access_token as string);
+      return results.rows.map((row) => row.access_token);
     });
   }
 
@@ -1248,6 +1234,7 @@ export class Store {
     garbageCollectBatchSize: number,
   ): Promise<string[]> {
     return await this.withClient(async (client) => {
+      const sql = Slonik.sql.type(AvatarCache.Url);
       const results = await client.query(sql`
         SELECT 
           cached_avatars.url
@@ -1258,14 +1245,15 @@ export class Store {
           WHERE cached_avatars.url = users.avatar_cache
         ) LIMIT ${garbageCollectBatchSize};
       `);
-      return results.rows.map((row: any) => row.url as string);
+      return results.rows.map((row) => row.url);
     });
   }
 
   async avatarsToCache(
     cacheBatchSize: number,
-  ): Promise<AvatarCache.CacheDetails[]> {
+  ): Promise<readonly AvatarCache.CacheDetails[]> {
     return await this.withClient(async (client) => {
+      const sql = Slonik.sql.type(AvatarCache.CacheDetails);
       const results = await client.query(sql`
         SELECT
           users.discriminator,
@@ -1277,13 +1265,14 @@ export class Store {
           users.avatar_cache IS NULL
         LIMIT ${cacheBatchSize};
       `);
-      return results.rows as unknown as AvatarCache.CacheDetails[];
+      return results.rows;
     });
   }
 
   async updateCachedAvatars(
     added: { user: string; key: AvatarCache.Key; url: string }[],
   ): Promise<void> {
+    const sql = Slonik.sql;
     await this.withClient(
       async (client) =>
         await Promise.all([
@@ -1311,6 +1300,7 @@ export class Store {
   }
 
   async deleteCachedAvatars(deleted: string[]): Promise<void> {
+    const sql = Slonik.sql;
     await this.withClient(
       async (client) =>
         await client.query(sql`
