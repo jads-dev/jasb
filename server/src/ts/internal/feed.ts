@@ -31,11 +31,11 @@ export const BetComplete = z
     highlighted: z
       .object({
         winners: z.array(Users.User),
-        amount: z.number().int().positive(),
+        amount: z.number().int().nonnegative(),
       })
       .strict(),
-    totalReturn: z.number().int().positive(),
-    winningStakes: z.number().int().positive(),
+    totalReturn: z.number().int().nonnegative(),
+    winningStakes: z.number().int().nonnegative(),
   })
   .strict();
 export type BetComplete = z.infer<typeof BetComplete>;
