@@ -13,7 +13,7 @@
   "dependencies": {
     "@fortawesome/fontawesome-svg-core": "^6.1.1",
     "elm-material": "file:./elm-material",
-    "lit": "^2.2.1"
+    "lit": "^2.4.1"
   },
   "devDependencies": {
     "ajv": "^8.11.0",
