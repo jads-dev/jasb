@@ -5,18 +5,22 @@
 @mixin narrow {
   font-size: 0.8em;
 
+  header {
+    position: relative;
+  }
+
   .bet > ul > li {
     > img,
-    > .details {
+    > .stats {
       display: none;
     }
   }
 }
 
-:root {
+#jasb {
   @include wide;
 
-  @media only screen and (max-width: 25em) {
+  @media only screen and (max-width: 30rem) {
     @include narrow;
   }
 }

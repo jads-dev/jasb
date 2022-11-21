@@ -273,7 +273,7 @@ update wrap msg ({ bets, origin, time } as model) =
                     in
                     ( model, request )
 
-                Changed gameTarget betTarget updatedBet ->
+                Changed _ betTarget updatedBet ->
                     let
                         set _ =
                             Just
@@ -285,9 +285,6 @@ update wrap msg ({ bets, origin, time } as model) =
 
                         lockStatus =
                             bets.lockStatus |> Maybe.map (RemoteData.map (AssocList.update betTarget set))
-
-                        localUser =
-                            model.auth.localUser |> Maybe.map .id
                     in
                     ( { model | bets = { bets | lockStatus = lockStatus } }, Cmd.none )
 
@@ -343,15 +340,15 @@ viewActiveFilters wrap subset filters gameFilters shownAmount =
             Html.div [ HtmlA.title description ]
                 [ Switch.view (Html.text title) value (SetFilter filter >> wrap |> Just) ]
     in
-    [ [ Html.span [] ((Icon.filter |> Icon.view) :: shownAmount) ]
-    , active |> List.map viewFilter
-    , [ IconButton.view (Icon.backspace |> Icon.view)
-            "Reset filters to default."
-            (ClearFilters |> wrap |> Maybe.when (gameFilters |> Filters.any))
-      ]
-    ]
-        |> List.concat
-        |> Html.div [ HtmlA.class "filter" ]
+    Html.div [ HtmlA.class "filters" ]
+        [ Html.div [ HtmlA.class "title" ]
+            [ Html.span [] ((Icon.filter |> Icon.view) :: Html.text " Filter bets " :: shownAmount)
+            , IconButton.view (Icon.backspace |> Icon.view)
+                "Reset filters to default."
+                (ClearFilters |> wrap |> Maybe.when (gameFilters |> Filters.any))
+            ]
+        , active |> List.map viewFilter |> Html.div [ HtmlA.class "filter" ]
+        ]
 
 
 view : (Msg -> msg) -> Parent a -> Page msg
@@ -394,10 +391,11 @@ view wrap model =
                     bets |> AssocList.toList |> List.filterMap viewBet
 
                 shownAmount =
-                    [ shownBets |> List.length |> String.fromInt |> Html.text
+                    [ Html.text "("
+                    , shownBets |> List.length |> String.fromInt |> Html.text
                     , Html.text "/"
                     , bets |> AssocList.size |> String.fromInt |> Html.text
-                    , Html.text " shown."
+                    , Html.text " shown)."
                     ]
 
                 actions =
@@ -452,7 +450,10 @@ view wrap model =
                             in
                             [ suggest ]
             in
-            [ Game.view wrap model.bets model.time model.auth.localUser id game (Just details)
+            [ Html.div [ HtmlA.class "game-detail" ]
+                [ Game.view wrap model.bets model.time model.auth.localUser id game (Just details)
+                , Game.viewMods details
+                ]
             , Html.div [ HtmlA.class "controls" ] [ viewActiveFilters wrap subset filters gameFilters shownAmount ]
             , if shownBets |> List.isEmpty |> not then
                 shownBets |> HtmlK.ul [ HtmlA.class "bet-list" ]

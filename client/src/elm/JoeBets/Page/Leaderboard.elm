@@ -61,12 +61,12 @@ view _ { leaderboard } =
             let
                 viewEntry ( id, { discriminator, name, netWorth, rank } as entry ) =
                     Html.li []
-                        [ Html.span [ HtmlA.class "rank" ] [ rank |> String.fromInt |> Html.text ]
-                        , Route.a (id |> Just |> Route.User)
+                        [ Route.a (id |> Just |> Route.User)
                             []
-                            [ User.viewAvatar id entry
-                            , User.viewName entry
-                            , Coins.view netWorth
+                            [ Html.div [ HtmlA.class "rank" ] [ Html.span [] [ rank |> String.fromInt |> Html.text ] ]
+                            , Html.div [ HtmlA.class "user-avatar" ] [ User.viewAvatar id entry ]
+                            , Html.div [ HtmlA.class "user-name" ] [ User.viewName entry ]
+                            , Html.div [ HtmlA.class "net-worth" ] [ Coins.view netWorth ]
                             ]
                         ]
             in

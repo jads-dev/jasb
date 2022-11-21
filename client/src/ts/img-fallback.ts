@@ -12,6 +12,9 @@ class ImgFallback extends LitElement {
   alt?: string;
 
   @property()
+  loading?: string;
+
+  @property()
   ["fallback-src"]?: string;
 
   @property()
@@ -50,6 +53,7 @@ class ImgFallback extends LitElement {
     return html`<img
       src="${this.activeSrc}"
       alt="${this.activeAlt}"
+      loading="${this.loading}"
       @error="${this.switchToFallback}"
     />`;
   }

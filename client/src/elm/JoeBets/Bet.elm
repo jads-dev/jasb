@@ -8,6 +8,7 @@ module JoeBets.Bet exposing
 import AssocList
 import EverySet
 import FontAwesome as Icon
+import FontAwesome.Regular as IconRegular
 import FontAwesome.Solid as Icon
 import Html exposing (Html)
 import Html.Attributes as HtmlA
@@ -26,7 +27,7 @@ import JoeBets.Page.Edit.Model as Edit
 import JoeBets.Route as Route
 import JoeBets.User.Auth.Model as Auth
 import JoeBets.User.Model as User exposing (User)
-import Material.Button as Button
+import Material.IconButton as IconButton
 import Time.Model as Time
 import Util.List as List
 import Util.Maybe as Maybe
@@ -34,6 +35,11 @@ import Util.Maybe as Maybe
 
 type alias VoteAs msg =
     Maybe { id : User.Id, user : User, wrap : PlaceBet.Msg -> msg }
+
+
+extractUserWithId : { a | id : User.Id, user : User } -> User.WithId
+extractUserWithId { id, user } =
+    { id = id, user = user }
 
 
 voteAsFromAuth : (PlaceBet.Msg -> msg) -> Auth.Model -> VoteAs msg
@@ -194,12 +200,12 @@ internalView timeContext voteAs viewType highlight hasVoted gameId gameName betI
                         Voting _ ->
                             "If this option wins, a bet on it will currently pay out at this return ratio. This will change as more is staked in the bet."
 
-                style =
+                ( betDescription, betIcon ) =
                     if votedFor then
-                        Button.Unelevated
+                        ( "Change Bet", IconRegular.squareCheck )
 
                     else
-                        Button.Raised
+                        ( "Place Bet", IconRegular.square )
 
                 people =
                     if stakeCount == 1 then
@@ -215,9 +221,12 @@ internalView timeContext voteAs viewType highlight hasVoted gameId gameName betI
             ( optionId |> Option.idToString
             , Html.li [ classes ]
                 [ option.image |> Maybe.map (\url -> Html.img [ HtmlA.src url ] []) |> Maybe.withDefault (Html.text "")
-                , Button.view style Button.Padded name Nothing action
-                , Stakes.view timeContext (voteAs |> Maybe.map .id) highlight maxAmount stakes
-                , Html.div [ HtmlA.class "details", HtmlA.title title ]
+                , Html.div [ HtmlA.class "details" ]
+                    [ Html.span [ HtmlA.class "name" ] [ Html.text name ]
+                    , Html.span [ HtmlA.class "button" ] [ IconButton.view (Icon.view betIcon) betDescription action ]
+                    , Stakes.view timeContext (voteAs |> Maybe.map extractUserWithId) highlight maxAmount stakes
+                    ]
+                , Html.div [ HtmlA.class "stats", HtmlA.title title ]
                     [ Html.span [ HtmlA.class "people" ]
                         [ Icon.user |> Icon.view
                         , stakeCount |> String.fromInt |> Html.text
@@ -235,7 +244,7 @@ internalView timeContext voteAs viewType highlight hasVoted gameId gameName betI
         ( class, icon, progressDescription ) =
             case bet.progress of
                 Voting { locksWhen } ->
-                    ( "voting", Icon.voteYea, "The bet is open until " ++ locksWhen ++ ", you can place bets." )
+                    ( "voting", Icon.voteYea, "The bet is open. You can place bets until " ++ locksWhen ++ "." )
 
                 Locked _ ->
                     ( "locked", Icon.lock, "The bet is locked, awaiting the result, you can no longer place bets." )
@@ -270,7 +279,7 @@ internalView timeContext voteAs viewType highlight hasVoted gameId gameName betI
                     [ Html.p []
                         [ Html.text "You can place bets, or modify your bet, until "
                         , Html.text locksWhen
-                        , Html.text "."
+                        , Html.text ". Click the square by the option you think will win to place a bet, or to edit/refund an existing bet."
                         ]
                     ]
 

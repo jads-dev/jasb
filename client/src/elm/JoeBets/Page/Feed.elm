@@ -138,13 +138,13 @@ view wrap specificFeed { feed, bets, settings } =
                     Route.a (user.id |> Just |> Route.User)
                         [ HtmlA.class "user permalink" ]
                         [ User.viewAvatar user.id user
-                        , Html.text user.name
+                        , Html.span [ HtmlA.class "name" ] [ Html.text user.name ]
                         ]
 
                 itemRender isSpoiler icon contents =
                     Html.li (spoilerAttr isSpoiler)
-                        [ icon |> Icon.view
-                        , Html.div [] contents
+                        [ Html.div [] contents
+                        , icon |> Icon.view
                         ]
             in
             case event of
@@ -239,7 +239,7 @@ view wrap specificFeed { feed, bets, settings } =
                             ]
                         , Html.div [ HtmlA.class "message" ]
                             [ viewUser user
-                            , Html.blockquote [ potentialSpoiler ] [ Html.text message ]
+                            , Html.q [ potentialSpoiler ] [ Html.text message ]
                             ]
                         ]
 

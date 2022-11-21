@@ -28,32 +28,30 @@
 
       p {
         margin: 0;
-        text-align: center;
       }
 
       .user {
-        display: inline-flex;
-        align-items: baseline;
-
         .avatar {
           margin-right: 0.15em;
-          width: 1em;
-          height: 1em;
+          height: auto;
+          width: auto;
+          max-width: 1em;
+          max-height: 1em;
+          border-radius: 1em;
+          aspect-ratio: 1/1;
         }
       }
 
       .message {
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        gap: 0.5em;
+        align-self: stretch;
+        text-align: center;
 
-        .user:after {
+        .user::after {
           display: inline;
-          content: ":";
+          content: ": ";
         }
 
-        blockquote {
+        q {
           margin: 0;
           white-space: normal;
           word-wrap: break-word;

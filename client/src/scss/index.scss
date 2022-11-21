@@ -16,21 +16,21 @@ body {
   margin: 0;
 
   --mdc-theme-primary: var(--primary);
-  --mdc-theme-on-primary: var(--foreground);
+  --mdc-theme-on-primary: var(--on-primary);
   --mdc-theme-secondary: var(--secondary);
-  --mdc-theme-on-secondary: var(--foreground);
-  --mdc-button-disabled-fill-color: var(--foreground);
+  --mdc-theme-on-secondary: var(--on-secondary);
+  --mdc-button-disabled-fill-color: var(--on-disabled);
   --mdc-button-disabled-ink-color: var(--disabled);
-  --mdc-text-field-outlined-disabled-border-color: var(--foreground);
+  --mdc-text-field-outlined-disabled-border-color: var(--on-disabled);
   --mdc-text-field-disabled-ink-color: var(--disabled);
-  --mdc-text-field-outlined-idle-border-color: var(--foreground);
-  --mdc-text-field-outlined-hover-border-color: var(--foreground);
-  --mdc-text-field-label-ink-color: var(--foreground);
-  --mdc-text-field-ink-color: var(--foreground);
+  --mdc-text-field-outlined-idle-border-color: var(--on-background);
+  --mdc-text-field-outlined-hover-border-color: var(--on-background);
+  --mdc-text-field-label-ink-color: var(--on-background);
+  --mdc-text-field-ink-color: var(--on-background);
 }
 
 #jasb {
-  color: var(--foreground);
+  color: var(--on-background);
   background-color: var(--background);
 
   font-family: sans-serif;
@@ -40,35 +40,39 @@ body {
   justify-content: center;
   align-content: flex-start;
 
-  position: absolute;
-  top: 0;
-  right: 0;
-  bottom: 0;
-  left: 0;
+  height: 100vh;
+  width: 100vw;
+  box-sizing: border-box;
 
   overflow: auto;
 
-  padding: 1em;
-  gap: 1em;
+  padding: 0 0 1em 0;
 }
 
 header {
-  > div {
-    position: sticky;
-    top: 0;
+  position: sticky;
+  top: 0;
+  padding: 1em;
+  width: 100%;
+  background-color: var(--background);
+  z-index: 20;
 
+  > div {
     display: flex;
-    flex-direction: column;
+    flex-direction: row;
+    justify-content: flex-end;
+    flex-wrap: wrap;
     gap: 1em;
   }
 
   h1 {
+    flex-grow: 200;
+
     display: flex;
-    justify-content: center;
+    justify-content: left;
     align-items: center;
     gap: 0.25em;
 
-    text-align: center;
     font-size: 2em;
 
     margin: 0;
@@ -86,6 +90,7 @@ header {
 
 nav {
   color: colors.$light;
+  flex-grow: 1;
 
   ul {
     padding: 0;
@@ -93,7 +98,8 @@ nav {
     list-style: none;
 
     display: flex;
-    flex-direction: column;
+    flex-direction: row;
+    flex-wrap: wrap;
     justify-content: center;
     align-items: stretch;
   }
@@ -144,7 +150,7 @@ nav {
     }
 
     &.settings {
-      color: var(--foreground);
+      color: var(--on-background);
       align-self: center;
     }
   }
@@ -157,6 +163,7 @@ nav {
   flex-grow: 1;
   flex-shrink: 1;
   flex-basis: 15em;
+  padding: 0 1em;
 
   h2 {
     margin-top: 0;
@@ -197,8 +204,13 @@ a .external {
       align-self: stretch;
 
       display: flex;
+      flex-wrap: wrap-reverse;
       justify-content: space-between;
       align-items: center;
+
+      > * {
+        margin: 0.5em;
+      }
     }
   }
 
@@ -228,7 +240,7 @@ a {
   font-size: 1.5em;
   padding: 0.25em;
   border-radius: 0.25em;
-  color: var(--foreground);
+  color: var(--on-background);
   background-color: var(--background);
   align-self: center;
   list-style: none;
@@ -256,5 +268,14 @@ a {
 
   a {
     color: inherit;
+  }
+}
+
+label {
+  display: inline-flex;
+  flex-direction: row-reverse;
+
+  mwc-switch {
+    margin: 0 0 0 0.25em;
   }
 }

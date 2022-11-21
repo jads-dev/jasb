@@ -1,4 +1,7 @@
-module JoeBets.Game exposing (view)
+module JoeBets.Game exposing
+    ( view
+    , viewMods
+    )
 
 import AssocList
 import EverySet
@@ -23,6 +26,25 @@ import Time.Model as Time
 import Util.String as String
 
 
+viewMods : Game.Details -> Html msg
+viewMods { mods } =
+    let
+        renderMod ( userId, user ) =
+            Html.li [] [ User.viewLink User.Full userId user ]
+
+        modsContent =
+            if AssocList.isEmpty mods then
+                [ Html.span [] [ Html.text "No bet managers for this game." ]
+                ]
+
+            else
+                [ Html.span [] [ Html.text "Bet managers for this game:" ]
+                , mods |> AssocList.toList |> List.map renderMod |> Html.ul []
+                ]
+    in
+    Html.span [ HtmlA.class "bet-managers" ] modsContent
+
+
 view : (Bets.Msg -> msg) -> Bets.Model -> Time.Context -> Maybe User.WithId -> Game.Id -> Game -> Maybe Game.Details -> Html msg
 view wrap { favourites } time localUser id { name, cover, bets, progress } details =
     let
@@ -41,61 +63,36 @@ view wrap { favourites } time localUser id { name, cover, bets, progress } detai
                     ]
                         |> List.concat
 
-        renderMod ( userId, user ) =
-            Html.li []
-                [ Route.a (userId |> Just |> Route.User)
-                    [ HtmlA.class "user permalink" ]
-                    [ User.viewAvatar userId user
-                    , Html.text user.name
-                    , Icon.link |> Icon.view
-                    ]
-                ]
+        renderDetails { staked } =
+            [ Html.span [ HtmlA.class "total-staked" ] [ staked |> Coins.view, Html.text " bet in " ] ]
 
-        renderDetails { mods, staked } =
-            let
-                modsContent =
-                    if AssocList.isEmpty mods then
-                        [ Html.span [] [ Html.text "No bet managers." ]
-                        ]
-
-                    else
-                        [ Html.span [] [ Html.text "Bet managers:" ]
-                        , mods |> AssocList.toList |> List.map renderMod |> Html.ul []
-                        ]
-            in
-            ( [ Html.span [ HtmlA.class "mods" ] modsContent ]
-            , [ Html.span [ HtmlA.class "total-staked" ] [ staked |> Coins.view, Html.text " bet in " ] ]
-            )
-
-        ( modDetails, stakedDetails ) =
-            details |> Maybe.map renderDetails |> Maybe.withDefault ( [], [] )
+        stakedDetails =
+            details |> Maybe.map renderDetails |> Maybe.withDefault []
 
         normalContent =
-            [ [ Route.a (Route.Bets Bets.Active id) [] [ Html.img [ HtmlA.class "cover", HtmlA.src cover ] [] ]
-              , Html.div [ HtmlA.class "details" ]
-                    [ Route.a (Route.Bets Bets.Active id)
-                        [ HtmlA.class "permalink" ]
-                        [ Html.h2
-                            [ HtmlA.class "title" ]
-                            [ Html.text name, Icon.link |> Icon.view ]
-                        ]
-                    , [ stakedDetails
-                      , [ Html.span [ HtmlA.class "bet-count" ]
-                            [ bets |> String.fromInt |> Html.text
-                            , Html.text " bet"
-                            , bets |> String.plural |> Html.text
-                            , Html.text "."
-                            ]
-                        ]
-                      ]
-                        |> List.concat
-                        |> Html.span []
-                    , Html.span
-                        [ HtmlA.class "progress" ]
-                        progressView
+            [ Route.a (Route.Bets Bets.Active id) [] [ Html.img [ HtmlA.class "cover", HtmlA.src cover ] [] ]
+            , Html.div [ HtmlA.class "details" ]
+                [ Route.a (Route.Bets Bets.Active id)
+                    [ HtmlA.class "permalink" ]
+                    [ Html.h2
+                        [ HtmlA.class "title" ]
+                        [ Html.text name, Icon.link |> Icon.view ]
                     ]
-              ]
-            , modDetails
+                , [ stakedDetails
+                  , [ Html.span [ HtmlA.class "bet-count" ]
+                        [ bets |> String.fromInt |> Html.text
+                        , Html.text " bet"
+                        , bets |> String.plural |> Html.text
+                        , Html.text "."
+                        ]
+                    ]
+                  ]
+                    |> List.concat
+                    |> Html.span []
+                , Html.span
+                    [ HtmlA.class "progress" ]
+                    progressView
+                ]
             ]
 
         adminContent =
@@ -129,6 +126,8 @@ view wrap { favourites } time localUser id { name, cover, bets, progress } detai
         interactions =
             [ Html.div [ HtmlA.class "interactions" ] (favouriteControl :: adminContent) ]
     in
-    [ List.concat normalContent, interactions ]
-        |> List.concat
-        |> Html.div [ HtmlA.classList [ ( "game", True ), ( "favourite", isFavourite ) ] ]
+    [ (normalContent ++ interactions) |> Html.div [] ]
+        |> Html.div
+            [ HtmlA.classList [ ( "game", True ), ( "favourite", isFavourite ) ]
+            , HtmlA.attribute "style" ("--cover: url(" ++ cover ++ ")")
+            ]

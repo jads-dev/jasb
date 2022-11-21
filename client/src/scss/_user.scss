@@ -2,9 +2,9 @@
 @use "./notifications";
 
 .avatar {
-  width: 2.5em;
-  height: 2.5em;
-  border-radius: 2.5em;
+  width: 1em;
+  height: 1em;
+  border-radius: 1em;
 }
 
 .name {
@@ -57,6 +57,7 @@
 
     .avatar {
       margin-right: 0.5rem;
+      font-size: 2em;
     }
 
     .local-user-indicator {
@@ -212,7 +213,7 @@
   align-self: stretch;
 
   .hide-spoilers .potential-spoiler {
-    text-shadow: 0 0 0.75em var(--foreground);
+    text-shadow: 0 0 0.75em var(--on-background);
   }
 }
 

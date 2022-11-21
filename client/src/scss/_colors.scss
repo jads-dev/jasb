@@ -1,10 +1,15 @@
 @use "sass:color";
 
 $primary: #ad1818;
+$on-primary: #ffffff;
 $dark: #28262e;
+$on-dark: #f2f2f0;
 $dark-accent: #d77d39;
+$on-dark-accent: #000000;
 $light: #f2f2f0;
+$on-light: #28262e;
 $light-accent: #797677;
+$on-light-accent: #000000;
 
 $discord: #7289da;
 $twitch: #9146ff;
@@ -13,11 +18,12 @@ $good: #6a8440;
 $warning: #e77408;
 $bad: #ff0000;
 $disabled: #666666;
+$on-disabled: #ffffff;
 $link-color: #2222ff;
 
 @mixin light {
   --background: #{$light};
-  --foreground: #{$dark};
+  --on-background: #{$on-light};
 
   --good: #{$good};
   --warning: #{$warning};
@@ -27,7 +33,7 @@ $link-color: #2222ff;
 
 @mixin dark {
   --background: #{$dark};
-  --foreground: #{$light};
+  --on-background: #{$on-dark};
 
   --good: #{color.scale($good, $lightness: 35%)};
   --warning: #{$warning};
@@ -37,12 +43,14 @@ $link-color: #2222ff;
 
 :root {
   --primary: #{$primary};
+  --on-primary: #{$on-primary};
   --secondary: #{$dark-accent};
+  --on-secondary: #{$on-dark-accent};
   --tertiary: #{$light-accent};
-
-  --on-secondary: #{$dark};
+  --on-tertiary: #{$on-light-accent};
 
   --disabled: #{$disabled};
+  --on-disabled: #{$on-disabled};
 
   @include dark;
 

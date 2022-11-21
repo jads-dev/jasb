@@ -9,6 +9,7 @@ module JoeBets.User exposing
 import Html exposing (Html)
 import Html.Attributes as HtmlA
 import JoeBets.Route as Route
+import JoeBets.User.Auth.Model exposing (RedirectOrLoggedIn(..))
 import JoeBets.User.Model exposing (..)
 import Url.Builder
 import Util.Html as Html
@@ -48,10 +49,21 @@ viewName { name, discriminator } =
 
 
 viewAvatar : Id -> UserLikeWithAvatar a -> Html msg
-viewAvatar id { name, discriminator, avatar, avatarCache } =
+viewAvatar id { discriminator, avatar, avatarCache } =
+    let
+        sharedAttrs =
+            [ HtmlA.attribute "loading" "lazy"
+            , HtmlA.class "avatar"
+            ]
+    in
     case avatarCache of
         Just cacheSrc ->
-            Html.img [ HtmlA.src cacheSrc, HtmlA.alt name, HtmlA.class "avatar" ] []
+            Html.img
+                (HtmlA.src cacheSrc
+                    :: HtmlA.alt ""
+                    :: sharedAttrs
+                )
+                []
 
         Nothing ->
             let
@@ -71,12 +83,12 @@ viewAvatar id { name, discriminator, avatar, avatarCache } =
                 imgOrFallback alt image fallback attrs =
                     case image of
                         Just imageSrc ->
-                            Html.imgFallback { src = imageSrc, alt = name } { src = fallback, alt = Nothing } attrs
+                            Html.imgFallback { src = imageSrc, alt = alt } { src = fallback, alt = Nothing } attrs
 
                         Nothing ->
-                            Html.img ([ HtmlA.src fallback, HtmlA.alt alt ] ++ attrs) []
+                            Html.img (HtmlA.src fallback :: HtmlA.alt alt :: attrs) []
             in
-            imgOrFallback name src fallbackSrc [ HtmlA.class "avatar" ]
+            imgOrFallback "" src fallbackSrc sharedAttrs
 
 
 link : WithId -> Html msg
