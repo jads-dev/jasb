@@ -1,7 +1,7 @@
 import { default as Router } from "@koa/router";
 import { StatusCodes } from "http-status-codes";
 import * as Schema from "io-ts";
-import { default as Body } from "koa-body";
+import { koaBody as Body } from "koa-body";
 
 import { Games, Notifications, Users } from "../../public.js";
 import { Validation } from "../../util/validation.js";

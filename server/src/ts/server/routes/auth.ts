@@ -4,7 +4,7 @@ import type * as Cookies from "cookies";
 import { either as Either } from "fp-ts";
 import { StatusCodes } from "http-status-codes";
 import * as Schema from "io-ts";
-import { default as Body } from "koa-body";
+import { koaBody as Body } from "koa-body";
 
 import { Notifications, Users } from "../../public.js";
 import { Validation } from "../../util/validation.js";

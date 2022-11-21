@@ -2,7 +2,7 @@ import * as Joda from "@js-joda/core";
 import { default as Router } from "@koa/router";
 import { promises as fs } from "fs";
 import { StatusCodes } from "http-status-codes";
-import { default as Body } from "koa-body";
+import { koaBody as Body } from "koa-body";
 
 import { Feed, Leaderboard } from "../public.js";
 import { Arrays } from "../util/arrays.js";
