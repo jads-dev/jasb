@@ -6,23 +6,24 @@
 
   .game {
     flex-grow: 999;
+    max-width: 35em;
   }
 
   > .game-detail {
     display: flex;
     flex-wrap: wrap;
     align-items: center;
+    justify-content: center;
     gap: 0.5em;
 
     > .bet-managers {
       flex-grow: 1;
+      max-width: 25em;
     }
   }
 }
 
 #bets {
-  gap: 1em;
-
   > .controls {
     display: flex;
     flex-wrap: wrap;

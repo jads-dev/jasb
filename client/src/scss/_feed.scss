@@ -1,7 +1,15 @@
 @use "sass:color";
 
+#feed {
+  padding-bottom: 1em;
+}
+
 #feed,
 .feed {
+  > * {
+    max-width: 50em;
+  }
+
   > p {
     text-align: center;
   }
@@ -9,6 +17,7 @@
   > ol {
     list-style: none;
     padding: 0;
+    margin: 0 auto;
 
     display: flex;
     flex-direction: column;
@@ -28,6 +37,7 @@
 
       p {
         margin: 0;
+        text-align: center;
       }
 
       .user {
@@ -71,7 +81,7 @@
       > div {
         display: flex;
         flex-direction: column;
-        align-items: center;
+        align-items: stretch;
         gap: 0.25em;
         flex-grow: 1;
         flex-basis: 5em;

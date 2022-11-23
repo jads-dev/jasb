@@ -18,9 +18,9 @@ view wrap { auth } =
     { title = "Joseph Anderson Stream Bets"
     , id = "about"
     , body =
-        [ Html.div [ HtmlA.class "about" ]
-            [ Html.h2 [] [ Html.text "About" ]
-            , Html.p []
+        [ Html.h2 [] [ Html.text "About" ]
+        , Html.div []
+            [ Html.p []
                 [ Html.text "This site allows you to bet (for bragging rights only, no money!) on various things to do with Joseph Anderson streams. "
                 , Html.text "It is an unofficial fan creation."
                 ]

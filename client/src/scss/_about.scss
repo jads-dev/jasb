@@ -1,4 +1,7 @@
-.about {
-  max-width: 60em;
-  margin: 0 auto;
+#about > div {
+  max-width: 50em;
+
+  p {
+    margin-top: 0;
+  }
 }

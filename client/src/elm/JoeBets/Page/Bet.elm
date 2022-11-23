@@ -186,7 +186,8 @@ view wrap wrapBets model =
             [ Html.div [ HtmlA.class "feed" ] feedPage.body ]
 
         body { gameId, betId, game, bet } =
-            [ [ Game.view wrapBets model.bets model.time model.auth.localUser gameId game Nothing
+            [ [ Html.div [ HtmlA.class "game-detail" ]
+                    [ Game.view wrapBets model.bets model.time model.auth.localUser gameId game Nothing ]
               , Bet.view model.time (Bet.voteAsFromAuth (PlaceBetMsg >> wrap) model.auth) gameId game.name betId bet
               ]
             , model.auth.localUser |> Maybe.map placeBetView |> Maybe.withDefault []

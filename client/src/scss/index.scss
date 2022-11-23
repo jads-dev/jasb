@@ -164,10 +164,15 @@ nav {
   flex-shrink: 1;
   flex-basis: 15em;
   padding: 0 1em;
+  gap: 1em;
 
   h2 {
-    margin-top: 0;
     border-bottom: 0.1em solid var(--primary);
+    margin: 0;
+  }
+
+  > p {
+    margin: 0;
   }
 }
 
