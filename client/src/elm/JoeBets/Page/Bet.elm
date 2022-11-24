@@ -83,6 +83,9 @@ update wrap msg ({ bet, settings, origin, bets, time } as model) =
     let
         updateRemoteData gameId betId change m =
             let
+                b =
+                    m.bet
+
                 updateIfMatching data =
                     if data.gameId == gameId && data.betId == betId then
                         { data | gameAndBet = data.gameAndBet |> change }
@@ -90,7 +93,7 @@ update wrap msg ({ bet, settings, origin, bets, time } as model) =
                     else
                         data
             in
-            { m | bet = { bet | data = bet.data |> Maybe.map updateIfMatching } }
+            { m | bet = { b | data = b.data |> Maybe.map updateIfMatching } }
     in
     case msg of
         Load gameId betId gameAndBet ->

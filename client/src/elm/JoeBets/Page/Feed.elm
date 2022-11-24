@@ -124,12 +124,14 @@ view wrap specificFeed { feed, bets, settings } =
                         NS { game } ->
                             game.id
 
-                spoilerAttr spoiler =
+                spoilerAttrs spoiler =
                     if not specificFeed && spoiler && not spoilerRevealed && not (showSpoilersForGame gameId) then
-                        [ HtmlA.class "hide-spoilers", RevealSpoilers index |> wrap |> HtmlE.onClick ]
+                        ( [ HtmlA.attribute "aria-hidden" "true" ]
+                        , [ HtmlA.class "hide-spoilers", RevealSpoilers index |> wrap |> HtmlE.onClick ]
+                        )
 
                     else
-                        []
+                        ( [], [] )
 
                 potentialSpoiler =
                     HtmlA.class "potential-spoiler"
@@ -142,8 +144,12 @@ view wrap specificFeed { feed, bets, settings } =
                         ]
 
                 itemRender isSpoiler icon contents =
-                    Html.li (spoilerAttr isSpoiler)
-                        [ Html.div [] contents
+                    let
+                        ( divAttrs, liAttrs ) =
+                            spoilerAttrs isSpoiler
+                    in
+                    Html.li liAttrs
+                        [ Html.div divAttrs contents
                         , icon |> Icon.view
                         ]
             in

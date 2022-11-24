@@ -104,7 +104,7 @@ nav {
     align-items: stretch;
   }
 
-  li {
+  > ul > li {
     a,
     button {
       margin: 0.5em;
@@ -117,10 +117,10 @@ nav {
       justify-content: center;
       align-items: center;
       font-family: sans-serif;
-    }
 
-    svg {
-      margin-right: 0.25em;
+      > svg {
+        margin-right: 0.25em;
+      }
     }
 
     &.discord {
@@ -135,11 +135,13 @@ nav {
         font: unset;
         cursor: pointer;
         background-color: colors.$discord;
+        color: colors.$on-discord;
       }
     }
 
     &.stream a {
       background-color: colors.$twitch;
+      color: colors.$on-twitch;
     }
 
     &.me {
@@ -261,8 +263,13 @@ a {
 
 .interactions {
   position: absolute;
-  top: 0.5em;
-  right: 0.5em;
+  top: 0em;
+  right: 0em;
+
+  background-color: colors.$primary;
+  color: colors.$on-primary;
+
+  padding: 0.25em;
 
   display: flex;
   align-items: center;
@@ -273,6 +280,10 @@ a {
 
   a {
     color: inherit;
+  }
+
+  &:empty {
+    display: none;
   }
 }
 

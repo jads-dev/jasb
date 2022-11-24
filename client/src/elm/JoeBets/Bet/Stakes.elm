@@ -28,6 +28,7 @@ view timeContext localUser highlight max stakes =
                 [ HtmlA.classList
                     [ ( "local", local )
                     , ( "highlight", Just by == highlight )
+                    , ( "placeholder", stake.amount == 0 )
                     ]
                 , HtmlA.style "flex-grow" stringAmount
                 ]

@@ -70,14 +70,16 @@ view wrap { favourites } time localUser id { name, cover, bets, progress } detai
             details |> Maybe.map renderDetails |> Maybe.withDefault []
 
         normalContent =
-            [ Route.a (Route.Bets Bets.Active id) [] [ Html.img [ HtmlA.class "cover", HtmlA.src cover ] [] ]
+            [ Html.img
+                [ HtmlA.class "cover"
+                , HtmlA.src cover
+                , HtmlA.alt ""
+                ]
+                []
             , Html.div [ HtmlA.class "details" ]
-                [ Route.a (Route.Bets Bets.Active id)
-                    [ HtmlA.class "permalink" ]
-                    [ Html.h2
-                        [ HtmlA.class "title" ]
-                        [ Html.text name, Icon.link |> Icon.view ]
-                    ]
+                [ Html.h2
+                    [ HtmlA.class "title permalink" ]
+                    [ Html.text name, Icon.link |> Icon.view ]
                 , [ stakedDetails
                   , [ Html.span [ HtmlA.class "bet-count" ]
                         [ bets |> String.fromInt |> Html.text
@@ -124,9 +126,11 @@ view wrap { favourites } time localUser id { name, cover, bets, progress } detai
                 ]
 
         interactions =
-            [ Html.div [ HtmlA.class "interactions" ] (favouriteControl :: adminContent) ]
+            Html.div [ HtmlA.class "interactions" ] (favouriteControl :: adminContent)
     in
-    [ (normalContent ++ interactions) |> Html.div [] ]
+    [ Route.a (Route.Bets Bets.Active id) [] [ normalContent |> Html.div [] ]
+    , interactions
+    ]
         |> Html.div
             [ HtmlA.classList [ ( "game", True ), ( "favourite", isFavourite ) ]
             , HtmlA.attribute "style" ("--cover: url(" ++ cover ++ ")")

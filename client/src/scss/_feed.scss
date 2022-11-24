@@ -111,24 +111,20 @@
       45deg,
       var(--warning),
       var(--warning) 0.25em,
-      color.scale(#666666, $alpha: -70%) 0.25em,
-      color.scale(#666666, $alpha: -70%) 2em
+      #00000000 0.25em,
+      #00000000 2em
     );
   }
 
   &::after {
-    display: flex;
-    align-items: flex-end;
-    justify-content: flex-end;
     content: "Click to reveal spoiler.";
     position: absolute;
     top: 0;
     right: 0;
-    bottom: 0;
-    left: 0;
     z-index: 11;
     pointer-events: none;
     color: var(--bad);
+    background-color: rgba(0, 0, 0, 0.8);
     font-size: 0.75em;
     padding: 0.5em;
   }
