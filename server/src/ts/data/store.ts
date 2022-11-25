@@ -59,9 +59,8 @@ const typedSql = Slonik.createSqlTag({
     user_permissions_stats: Users.User.merge(Users.Permissions).merge(
       Users.BetStats,
     ),
-    login: Users.User.merge(Users.Permissions)
-      .merge(Users.BetStats)
-      .merge(Users.LoginDetail),
+    session: Users.LoginDetail,
+    login: Users.User.merge(Users.Permissions).merge(Users.BetStats),
     leaderboard: Users.User.merge(Users.Leaderboard).merge(Users.BetStats),
     bankruptcy_stats: Users.BankruptcyStats,
     notification: Notifications.Notification,
@@ -320,29 +319,32 @@ export class Store {
       this.config.auth.sessionIdSize,
     );
     return await this.inTransaction(async (client) => {
+      const createSession = async () => {
+        const sql = typedSql("session");
+        return await client.one(sql`SELECT session, started FROM jasb.login(
+          ${userId},
+          ${sessionId.uri},
+          ${name},
+          ${discriminator},
+          ${avatar},
+          ${accessToken},
+          ${refreshToken},
+          ${discordExpiresIn.toString()},
+          ${this.config.rules.initialBalance}
+        )`);
+      };
       const login = async () => {
+        const session = await createSession();
         const sql = typedSql("login");
-        return await client.one(sql`
+        const user = await client.one(sql`
           SELECT
             users.*,
-            sessions.session,
-            sessions.started,
             (users.staked + users.balance) AS net_worth,
             COALESCE(ARRAY_AGG(permissions.game) FILTER ( WHERE permissions.game IS NOT NULL ), '{}') AS moderator_for
           FROM
-            (SELECT * FROM jasb.login(
-              ${userId},
-              ${sessionId.uri},
-              ${name},
-              ${discriminator},
-              ${avatar},
-              ${accessToken},
-              ${refreshToken},
-              ${discordExpiresIn.toString()},
-              ${this.config.rules.initialBalance}
-            )) as sessions LEFT JOIN
-            jasb.users_with_stakes AS users ON users.id = sessions."user" LEFT JOIN
-            jasb.permissions ON sessions."user" = permissions."user" AND manage_bets = TRUE
+            jasb.users_with_stakes AS users LEFT JOIN
+            jasb.permissions ON users.id = permissions."user" AND manage_bets = TRUE
+          WHERE users.id = ${userId}
           GROUP BY (
             users.id,
             users.name,
@@ -352,11 +354,10 @@ export class Store {
             users.created,
             users.admin,
             users.balance,
-            users.staked,
-            sessions.session,
-            sessions.started
-          );
+            users.staked
+          )
         `);
+        return { ...user, ...session };
       };
       const notification = async () => {
         const sql = typedSql("notification");

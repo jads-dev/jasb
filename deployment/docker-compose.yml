@@ -21,7 +21,7 @@ services:
       - backend
       - frontend
     depends_on:
-      - data
+      - storage
     volumes:
       - /host/path/to/config.json5:/jasb/config.json5:ro
     restart: unless-stopped
@@ -36,8 +36,8 @@ services:
       - server
     restart: unless-stopped
 
-  data:
-    image: postgres:14
+  storage:
+    image: postgres:15
     volumes:
       - storage-volume:/var/lib/postgresql/data
     environment:

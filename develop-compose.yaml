@@ -7,7 +7,7 @@ volumes:
 
 services:
   storage:
-    image: "postgres:14"
+    image: "postgres:15"
     environment:
       POSTGRES_USER: jasb
       POSTGRES_PASSWORD: jasb
