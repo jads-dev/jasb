@@ -16,8 +16,8 @@
     color: var(--on-background);
 
     &:nth-child(2n + 1) {
-      background-color: var(--tertiary);
-      color: var(--on-tertiary);
+      background-color: var(--secondary-background);
+      color: var(--on-secondary-background);
     }
 
     > a {

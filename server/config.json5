@@ -22,7 +22,7 @@
     garbageCollectionFrequency: "PT1H",
 
     source: {
-      host: "data",
+      host: "storage",
       user: "jasb",
       password: "CHANGE_ME",
     },

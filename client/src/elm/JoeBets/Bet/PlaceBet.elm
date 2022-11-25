@@ -278,6 +278,30 @@ view wrap ({ id, user } as localUser) placeBet =
                         Nothing ->
                             ( "Place", "Placing" )
 
+                actions =
+                    let
+                        cancelButton =
+                            if not sent && existingBet /= Nothing then
+                                [ Html.span [ HtmlA.class "cancel" ]
+                                    [ Button.view Button.Raised
+                                        Button.Padded
+                                        "Delete Bet"
+                                        (Icon.trash |> Icon.view |> Just)
+                                        (Withdraw id |> wrap |> Just)
+                                    ]
+                                ]
+
+                            else
+                                []
+                    in
+                    cancelButton
+                        ++ [ Button.view Button.Raised
+                                Button.Padded
+                                (actionName ++ " Bet")
+                                (Icon.check |> Icon.view |> Just)
+                                (submit |> Result.toMaybe |> Maybe.alsoOnlyIf (not sent))
+                           ]
+
                 contents =
                     [ [ Html.p []
                             [ Html.text description
@@ -313,20 +337,7 @@ view wrap ({ id, user } as localUser) placeBet =
                                 "Back"
                                 (Icon.times |> Icon.view |> Just)
                                 (Cancel |> wrap |> Just)
-                            , Html.div [ HtmlA.class "actions" ]
-                                [ Html.span [ HtmlA.class "cancel" ]
-                                    [ Button.view Button.Raised
-                                        Button.Padded
-                                        "Cancel Bet"
-                                        (Icon.trash |> Icon.view |> Just)
-                                        (Withdraw id |> wrap |> Maybe.when (not sent && existingBet /= Nothing))
-                                    ]
-                                , Button.view Button.Raised
-                                    Button.Padded
-                                    (actionName ++ " Bet")
-                                    (Icon.check |> Icon.view |> Just)
-                                    (submit |> Result.toMaybe |> Maybe.alsoOnlyIf (not sent))
-                                ]
+                            , Html.div [ HtmlA.class "actions" ] actions
                             ]
                       ]
                     ]

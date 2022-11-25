@@ -27,6 +27,9 @@ $link-color: #2222ff;
   --background: #{$light};
   --on-background: #{$on-light};
 
+  --secondary-background: #{color.scale($light, $lightness: -15%)};
+  --on-secondary-background: #{$on-light};
+
   --good: #{$good};
   --warning: #{$warning};
   --bad: #{$bad};
@@ -36,6 +39,9 @@ $link-color: #2222ff;
 @mixin dark {
   --background: #{$dark};
   --on-background: #{$on-dark};
+
+  --secondary-background: #{color.scale($dark, $lightness: 15%)};
+  --on-secondary-background: #{$on-dark};
 
   --good: #{color.scale($good, $lightness: 35%)};
   --warning: #{$warning};
