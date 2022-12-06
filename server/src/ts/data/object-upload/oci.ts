@@ -1,6 +1,5 @@
 import { default as Crypto } from "crypto";
 import { default as OciCommon } from "oci-common";
-import { NoRetryConfigurationDetails } from "oci-common/lib/retrier.js";
 import { default as Oci } from "oci-objectstorage";
 import { OciError } from "oci-sdk";
 
@@ -16,17 +15,24 @@ export class OciObjectUploader implements ObjectUploader {
   constructor(config: Config.OciObjectUpload) {
     this.config = config;
     this.details = details(config);
-    this.client = new Oci.ObjectStorageClient({
-      authenticationDetailsProvider:
-        new OciCommon.SimpleAuthenticationDetailsProvider(
-          config.tenancy,
-          config.user,
-          config.fingerprint,
-          config.privateKey.value,
-          config.passphrase?.value ?? null,
-          OciCommon.Region.fromRegionId(config.region),
-        ),
-    });
+    this.client = new Oci.ObjectStorageClient(
+      {
+        authenticationDetailsProvider:
+          new OciCommon.SimpleAuthenticationDetailsProvider(
+            config.tenancy,
+            config.user,
+            config.fingerprint,
+            config.privateKey.value,
+            config.passphrase?.value ?? null,
+            OciCommon.Region.fromRegionId(config.region),
+          ),
+      },
+      {
+        retryConfiguration: {
+          terminationStrategy: new OciCommon.MaxAttemptsTerminationStrategy(1),
+        },
+      },
+    );
     this.baseUrl = `https://objectstorage.${config.region}.oraclecloud.com/n/${config.namespace}/b/${config.bucket}/o/`;
   }
 
@@ -40,27 +46,23 @@ export class OciObjectUploader implements ObjectUploader {
     data: Uint8Array,
     metadata?: Record<string, string>,
   ): Promise<URL> {
-    const manager = new Oci.UploadManager(this.client);
     const name = this.details.name(originalName, data);
     const md5 = Crypto.createHash("md5");
     md5.update(data);
     try {
-      await manager.upload({
-        content: { stream: data },
-        singleUpload: true,
-        requestDetails: {
-          namespaceName: this.config.namespace,
-          bucketName: this.config.bucket,
-          objectName: name,
-          contentMD5: md5.digest("base64"),
-          contentType,
-          ...(this.details.cacheControl !== undefined
-            ? { cacheControl: this.details.cacheControl }
-            : {}),
-          opcMeta: metadata,
-          ...(this.details.allowOverwrite ? {} : { ifNoneMatch: "*" }),
-          retryConfiguration: NoRetryConfigurationDetails,
-        },
+      await this.client.putObject({
+        putObjectBody: data,
+        contentLength: data.byteLength,
+        namespaceName: this.config.namespace,
+        bucketName: this.config.bucket,
+        objectName: name,
+        contentMD5: md5.digest("base64"),
+        contentType,
+        ...(this.details.cacheControl !== undefined
+          ? { cacheControl: this.details.cacheControl }
+          : {}),
+        opcMeta: metadata,
+        ...(this.details.allowOverwrite ? {} : { ifNoneMatch: "*" }),
       });
     } catch (error) {
       if (
@@ -84,7 +86,6 @@ export class OciObjectUploader implements ObjectUploader {
       namespaceName: this.config.namespace,
       bucketName: this.config.bucket,
       objectName,
-      retryConfiguration: NoRetryConfigurationDetails,
     });
   }
 }
