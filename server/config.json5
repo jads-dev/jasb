@@ -11,6 +11,11 @@
     },
   },
 
+  performance: {
+    gamesCacheDuration: "PT1M",
+    leaderboardCacheDuration: "PT1M",
+  },
+
   rules: {
     initialBalance: 1000,
     maxStakeWhileInDebt: 100,

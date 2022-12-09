@@ -134,12 +134,19 @@ const Security = Schema.strict({
 });
 export type Security = Schema.TypeOf<typeof Security>;
 
+const Performance = Schema.strict({
+  gamesCacheDuration: Validation.Duration,
+  leaderboardCacheDuration: Validation.Duration,
+});
+export type Performance = Schema.TypeOf<typeof Performance>;
+
 export const Server = Schema.intersection([
   Schema.strict({
     logging: Logging,
     listenOn: Schema.strict({ port: Schema.Int, address: Schema.string }),
     clientOrigin: Schema.string,
     security: Security,
+    performance: Performance,
 
     rules: Rules,
     store: Store,
@@ -234,6 +241,11 @@ export const builtIn: Server = {
       oldSecrets: [],
       hmacAlgorithm: "sha256",
     },
+  },
+
+  performance: {
+    gamesCacheDuration: Joda.Duration.of(1, Joda.ChronoUnit.MINUTES),
+    leaderboardCacheDuration: Joda.Duration.of(1, Joda.ChronoUnit.MINUTES),
   },
 
   rules: {

@@ -10,13 +10,22 @@ export interface Entry {
   avatar_cache?: string;
 
   rank: number;
+}
+
+export interface NetWorth {
   netWorth: number;
 }
 
-export const fromInternal = (
-  internal: Internal.User &
-    Internal.Users.BetStats &
-    Internal.Users.Leaderboard,
+export type NetWorthEntry = Entry & NetWorth;
+
+export interface Debt {
+  debt: number;
+}
+
+export type DebtEntry = Entry & Debt;
+
+const baseFromInternal = (
+  internal: Internal.User & Internal.Users.Leaderboard,
 ): Entry => ({
   id: internal.id as Users.Id,
 
@@ -28,7 +37,22 @@ export const fromInternal = (
     : {}),
 
   rank: internal.rank,
+});
+
+export const netWorthEntryFromInternal = (
+  internal: Internal.User &
+    Internal.Users.BetStats &
+    Internal.Users.Leaderboard,
+): NetWorthEntry => ({
+  ...baseFromInternal(internal),
   netWorth: internal.net_worth,
+});
+
+export const debtEntryFromInternal = (
+  internal: Internal.User & Internal.Users.Leaderboard,
+): DebtEntry => ({
+  ...baseFromInternal(internal),
+  debt: internal.balance,
 });
 
 export * as Leaderboard from "./leaderboard.js";

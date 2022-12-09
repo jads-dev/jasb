@@ -17,6 +17,7 @@ import JoeBets.Bet.Model as Bets
 import JoeBets.Bet.Option as Option
 import JoeBets.Game.Id as Game
 import JoeBets.Game.Model as Game
+import JoeBets.Page.Leaderboard.Route as Leaderboard
 import JoeBets.User.Model as User
 import Url.Builder
 import Util.Maybe as Maybe
@@ -66,7 +67,7 @@ type Path
     | User User.Id UserPath
     | Games
     | Game Game.Id GamePath
-    | Leaderboard
+    | Leaderboard Leaderboard.Board
     | Feed
     | Upload
 
@@ -127,8 +128,8 @@ pathToStringList path =
         Game id gamesPath ->
             "games" :: Game.idToString id :: gamePathToStringList gamesPath
 
-        Leaderboard ->
-            [ "leaderboard" ]
+        Leaderboard board ->
+            [ "leaderboard", Leaderboard.boardToString board ]
 
         Feed ->
             [ "feed" ]

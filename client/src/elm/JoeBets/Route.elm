@@ -15,6 +15,7 @@ import JoeBets.Game.Id as Game
 import JoeBets.Game.Model as Game
 import JoeBets.Page.Bets.Model as Bets
 import JoeBets.Page.Edit.Model as Edit
+import JoeBets.Page.Leaderboard.Route as Leaderboard
 import JoeBets.User.Auth.Model as Auth
 import JoeBets.User.Model as User
 import Url exposing (Url)
@@ -31,7 +32,7 @@ type Route
     | Bets Bets.Subset Game.Id
     | Bet Game.Id Bet.Id
     | Games
-    | Leaderboard
+    | Leaderboard Leaderboard.Board
     | Edit Edit.Target
     | Problem String
 
@@ -76,8 +77,11 @@ toUrlWithGivenRoot root route =
                 Games ->
                     ( [ "games" ], [], Nothing )
 
-                Leaderboard ->
-                    ( [ "leaderboard" ], [], Nothing )
+                Leaderboard board ->
+                    ( [ "leaderboard", Leaderboard.boardToString board ]
+                    , []
+                    , Nothing
+                    )
 
                 Edit target ->
                     case target of
@@ -109,6 +113,12 @@ toUrlWithGivenRoot root route =
 fromUrl : Url -> Route
 fromUrl url =
     let
+        boardParser board =
+            board
+                |> Leaderboard.boardToString
+                >> Parser.s
+                >> Parser.map (Leaderboard board)
+
         parser =
             Parser.oneOf
                 [ Parser.s "user" </> User.idParser |> Parser.map (Just >> User)
@@ -122,7 +132,9 @@ fromUrl url =
                 , Parser.s "games" </> Game.idParser </> Parser.s "edit" |> Parser.map (Just >> Edit.Game >> Edit)
                 , Parser.s "games" </> Game.idParser </> Bet.idParser |> Parser.map Bet
                 , Parser.s "games" </> Game.idParser </> Bet.idParser </> Parser.s "edit" |> Parser.map (\g b -> Edit.Bet g (Edit.Edit b) |> Edit)
-                , Parser.s "leaderboard" |> Parser.map Leaderboard
+                , Parser.s "leaderboard" |> Parser.map (Leaderboard Leaderboard.NetWorth)
+                , Parser.s "leaderboard" </> boardParser Leaderboard.NetWorth
+                , Parser.s "leaderboard" </> boardParser Leaderboard.Debt
                 , Parser.s "feed" |> Parser.map Feed
                 , Parser.s "auth" <?> Auth.codeAndStateParser |> Parser.map Auth
                 , Parser.top |> Parser.map About

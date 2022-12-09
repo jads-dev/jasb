@@ -61,7 +61,10 @@ const typedSql = Slonik.createSqlTag({
     ),
     session: Users.LoginDetail,
     login: Users.User.merge(Users.Permissions).merge(Users.BetStats),
-    leaderboard: Users.User.merge(Users.Leaderboard).merge(Users.BetStats),
+    netWorthLeaderboard: Users.User.merge(Users.Leaderboard).merge(
+      Users.BetStats,
+    ),
+    debtLeaderboard: Users.User.merge(Users.Leaderboard),
     bankruptcy_stats: Users.BankruptcyStats,
     notification: Notifications.Notification,
     access_token: Users.AccessToken,
@@ -231,11 +234,11 @@ export class Store {
     });
   }
 
-  async getLeaderboard(): Promise<
+  async getNetWorthLeaderboard(): Promise<
     readonly (Users.User & Users.BetStats & Users.Leaderboard)[]
   > {
     return await this.withClient(async (client) => {
-      const sql = typedSql("leaderboard");
+      const sql = typedSql("netWorthLeaderboard");
       const results = await client.query(sql`
         SELECT
           id,
@@ -254,6 +257,35 @@ export class Store {
         WHERE
           net_worth > ${this.config.rules.initialBalance}
         ORDER BY rank
+        LIMIT 100;
+      `);
+      return results.rows;
+    });
+  }
+
+  async getDebtLeaderboard(): Promise<
+    readonly (Users.User & Users.Leaderboard)[]
+  > {
+    return await this.withClient(async (client) => {
+      const sql = typedSql("debtLeaderboard");
+      const results = await client.query(sql`
+        SELECT
+          id,
+          name,
+          discriminator,
+          avatar,
+          avatar_cache,
+          created,
+          admin,
+          balance,
+          RANK() OVER (
+            ORDER BY balance ASC
+          ) rank
+        FROM 
+          jasb.users
+        WHERE
+          balance < 0
+        ORDER BY balance ASC
         LIMIT 100;
       `);
       return results.rows;

@@ -4,13 +4,14 @@ import { promises as fs } from "fs";
 import { StatusCodes } from "http-status-codes";
 import { koaBody as Body } from "koa-body";
 
-import { Feed, Leaderboard } from "../public.js";
+import { Feed } from "../public.js";
 import { Arrays } from "../util/arrays.js";
 import { WebError } from "./errors.js";
 import type { Server } from "./model.js";
 import { ResultCache } from "./result-cache.js";
 import { authApi, requireSession } from "./routes/auth.js";
 import { gamesApi } from "./routes/games.js";
+import { leaderboardApi } from "./routes/leaderboard.js";
 import { usersApi } from "./routes/users.js";
 
 export const api = (server: Server.State): Router => {
@@ -22,16 +23,12 @@ export const api = (server: Server.State): Router => {
   apiRouter.use("/users", users.routes(), users.allowedMethods());
   const games = gamesApi(server);
   apiRouter.use("/games", games.routes(), games.allowedMethods());
-
-  const leaderboardCache = new ResultCache<Leaderboard.Entry[]>(async () => {
-    const leaderboard = await server.store.getLeaderboard();
-    return leaderboard.map(Leaderboard.fromInternal);
-  }, Joda.Duration.of(1, Joda.ChronoUnit.MINUTES));
-
-  apiRouter.get("/leaderboard", async (ctx) => {
-    const result: Leaderboard.Entry[] = await leaderboardCache.get();
-    ctx.body = result;
-  });
+  const leaderboard = leaderboardApi(server);
+  apiRouter.use(
+    "/leaderboard",
+    leaderboard.routes(),
+    leaderboard.allowedMethods(),
+  );
 
   const feedCache = new ResultCache<Feed.Event[]>(
     async () =>

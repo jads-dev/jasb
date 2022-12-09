@@ -23,6 +23,7 @@ import JoeBets.Page.Games as Games
 import JoeBets.Page.Games.Model as Games
 import JoeBets.Page.Leaderboard as Leaderboard
 import JoeBets.Page.Leaderboard.Model as Leaderboard
+import JoeBets.Page.Leaderboard.Route as Leaderboard
 import JoeBets.Page.Model as Page exposing (Page)
 import JoeBets.Page.Problem as Problem
 import JoeBets.Page.Problem.Model as Problem
@@ -286,7 +287,11 @@ view model =
             [ [ Html.li [] [ Route.a Route.About [] [ Icon.questionCircle |> Icon.view, Html.text "About" ] ]
               , Html.li [] [ Route.a Route.Feed [] [ Icon.stream |> Icon.view, Html.text "Feed" ] ]
               , Html.li [] [ Route.a Route.Games [] [ Icon.dice |> Icon.view, Html.text "Bets" ] ]
-              , Html.li [] [ Route.a Route.Leaderboard [] [ Icon.crown |> Icon.view, Html.text "Leaderboard" ] ]
+              , Html.li []
+                    [ Route.a (Route.Leaderboard Leaderboard.NetWorth)
+                        []
+                        [ Icon.crown |> Icon.view, Html.text "Leaderboard" ]
+                    ]
               ]
             , model.auth.localUser |> Maybe.map (User.link >> List.singleton >> Html.li [ HtmlA.class "me" ]) |> Maybe.toList
             , [ Html.li [ HtmlA.class "discord" ] [ Auth.logInOutButton AuthMsg model ]
@@ -361,8 +366,10 @@ load route model =
         Route.Games ->
             Games.load GamesMsg { model | page = Page.Games }
 
-        Route.Leaderboard ->
-            Leaderboard.load LeaderboardMsg { model | page = Page.Leaderboard }
+        Route.Leaderboard board ->
+            Leaderboard.load LeaderboardMsg
+                board
+                { model | page = Page.Leaderboard }
 
         Route.Edit target ->
             Edit.load EditMsg target { model | page = Page.Edit }

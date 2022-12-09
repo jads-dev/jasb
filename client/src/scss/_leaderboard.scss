@@ -1,6 +1,41 @@
+#leaderboard {
+  .nav {
+    padding: 0;
+    margin: 0;
+    list-style: none;
+
+    display: flex;
+    flex-direction: row;
+    flex-wrap: wrap;
+    justify-content: center;
+    align-items: stretch;
+
+    > li {
+      a,
+      button {
+        margin: 0.5em;
+        padding: 0.5em;
+        background-color: var(--primary);
+        color: var(--on-primary);
+        text-decoration: none;
+
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        font-family: sans-serif;
+
+        > svg {
+          margin-right: 0.25em;
+        }
+      }
+    }
+  }
+}
+
 .leaderboard {
   list-style: none;
   padding: 0;
+  margin: 0 0 1em 0;
 
   display: grid;
   grid-template-columns: auto auto 1fr auto;

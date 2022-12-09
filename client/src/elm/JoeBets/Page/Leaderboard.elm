@@ -14,7 +14,8 @@ import Http
 import JoeBets.Api as Api
 import JoeBets.Coins as Coins
 import JoeBets.Page exposing (Page)
-import JoeBets.Page.Leaderboard.Model as Loaderboard exposing (Model, Msg(..))
+import JoeBets.Page.Leaderboard.Model exposing (..)
+import JoeBets.Page.Leaderboard.Route as Route
 import JoeBets.Route as Route
 import JoeBets.User as User
 import Util.RemoteData as RemoteData
@@ -29,15 +30,27 @@ type alias Parent a =
 
 init : Model
 init =
-    RemoteData.Missing
+    Model Route.NetWorth RemoteData.Missing RemoteData.Missing
 
 
-load : (Msg -> msg) -> Parent a -> ( Parent a, Cmd msg )
-load wrap model =
-    ( model
+load : (Msg -> msg) -> Route.Board -> Parent a -> ( Parent a, Cmd msg )
+load wrap board model =
+    let
+        leaderboard =
+            model.leaderboard
+
+        loadBoard =
+            case board of
+                Route.NetWorth ->
+                    Http.expectJson (LoadNetWorth >> wrap) netWorthEntriesDecoder
+
+                Route.Debt ->
+                    Http.expectJson (LoadDebt >> wrap) debtEntriesDecoder
+    in
+    ( { model | leaderboard = { leaderboard | board = board } }
     , Api.get model.origin
-        { path = Api.Leaderboard
-        , expect = Http.expectJson (Load >> wrap) Loaderboard.decoder
+        { path = Api.Leaderboard board
+        , expect = loadBoard
         }
     )
 
@@ -45,28 +58,50 @@ load wrap model =
 update : Msg -> Parent a -> ( Parent a, Cmd msg )
 update msg model =
     case msg of
-        Load result ->
-            case result of
-                Ok leaderboard ->
-                    ( { model | leaderboard = RemoteData.Loaded leaderboard }, Cmd.none )
+        LoadNetWorth result ->
+            let
+                leaderboard =
+                    model.leaderboard
+            in
+            ( { model
+                | leaderboard =
+                    { leaderboard | netWorth = RemoteData.load result }
+              }
+            , Cmd.none
+            )
 
-                Err error ->
-                    ( { model | leaderboard = RemoteData.Failed error }, Cmd.none )
+        LoadDebt result ->
+            let
+                leaderboard =
+                    model.leaderboard
+            in
+            ( { model
+                | leaderboard =
+                    { leaderboard | debt = RemoteData.load result }
+              }
+            , Cmd.none
+            )
 
 
 view : (Msg -> msg) -> Parent a -> Page msg
 view _ { leaderboard } =
     let
-        body entries =
+        viewNetWorth { netWorth } =
+            Coins.view netWorth
+
+        viewDebt { debt } =
+            Coins.view debt
+
+        body viewValue entries =
             let
-                viewEntry ( id, { discriminator, name, netWorth, rank } as entry ) =
+                viewEntry ( id, { discriminator, name, value, rank } as entry ) =
                     Html.li []
                         [ Route.a (id |> Just |> Route.User)
                             []
                             [ Html.div [ HtmlA.class "rank" ] [ Html.span [] [ rank |> String.fromInt |> Html.text ] ]
                             , Html.div [ HtmlA.class "user-avatar" ] [ User.viewAvatar id entry ]
                             , Html.div [ HtmlA.class "user-name" ] [ User.viewName entry ]
-                            , Html.div [ HtmlA.class "net-worth" ] [ Coins.view netWorth ]
+                            , Html.div [ HtmlA.class "value" ] [ viewValue value ]
                             ]
                         ]
             in
@@ -75,8 +110,30 @@ view _ { leaderboard } =
 
             else
                 [ Html.ol [ HtmlA.class "leaderboard" ] (entries |> AssocList.toList |> List.map viewEntry) ]
+
+        viewData =
+            case leaderboard.board of
+                Route.NetWorth ->
+                    RemoteData.view (body viewNetWorth) leaderboard.netWorth
+
+                Route.Debt ->
+                    RemoteData.view (body viewDebt) leaderboard.debt
     in
     { title = "Leaderboard"
     , id = "leaderboard"
-    , body = Html.h2 [] [ Html.text "Leaderboard" ] :: (leaderboard |> RemoteData.view body)
+    , body =
+        Html.h2 [] [ Html.text "Leaderboard" ]
+            :: Html.ul [ HtmlA.class "nav" ]
+                [ Html.li []
+                    [ Route.a (Route.Leaderboard Route.NetWorth)
+                        []
+                        [ Icon.crown |> Icon.view, Html.text "Highest Net Worth" ]
+                    ]
+                , Html.li []
+                    [ Route.a (Route.Leaderboard Route.Debt)
+                        []
+                        [ Icon.creditCard |> Icon.view, Html.text "Most Leveraged" ]
+                    ]
+                ]
+            :: viewData
     }
