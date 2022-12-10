@@ -1,4 +1,3 @@
-import * as Joda from "@js-joda/core";
 import { default as Router } from "@koa/router";
 
 import { Leaderboard } from "../../public.js";
@@ -13,7 +12,7 @@ export const leaderboardApi = (server: Server.State): Router => {
       (await server.store.getNetWorthLeaderboard()).map(
         Leaderboard.netWorthEntryFromInternal,
       ),
-    Joda.Duration.of(1, Joda.ChronoUnit.MINUTES),
+    server.config.performance.leaderboardCacheDuration,
   );
   router.get("/net-worth", async (ctx) => {
     const result: Leaderboard.NetWorthEntry[] =
@@ -26,7 +25,7 @@ export const leaderboardApi = (server: Server.State): Router => {
       (await server.store.getDebtLeaderboard()).map(
         Leaderboard.debtEntryFromInternal,
       ),
-    Joda.Duration.of(1, Joda.ChronoUnit.MINUTES),
+    server.config.performance.leaderboardCacheDuration,
   );
   router.get("/debt", async (ctx) => {
     const result: Leaderboard.DebtEntry[] = await debtLeaderboardCache.get();

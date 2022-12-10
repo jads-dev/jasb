@@ -1,4 +1,3 @@
-import * as Joda from "@js-joda/core";
 import { default as Router } from "@koa/router";
 import { StatusCodes } from "http-status-codes";
 import * as Schema from "io-ts";
@@ -44,7 +43,7 @@ export const gamesApi = (server: Server.State): Router => {
       finished: finished as Games.WithId[],
     };
     return library;
-  }, Joda.Duration.of(1, Joda.ChronoUnit.MINUTES));
+  }, server.config.performance.gamesCacheDuration);
 
   // Get Games.
   router.get("/", async (ctx) => {
