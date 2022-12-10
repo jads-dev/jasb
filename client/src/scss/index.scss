@@ -14,6 +14,11 @@
 
 body {
   margin: 0;
+}
+
+#jasb {
+  color: var(--on-background);
+  background-color: var(--background);
 
   --mdc-theme-primary: var(--primary);
   --mdc-theme-on-primary: var(--on-primary);
@@ -27,11 +32,6 @@ body {
   --mdc-text-field-outlined-hover-border-color: var(--on-background);
   --mdc-text-field-label-ink-color: var(--on-background);
   --mdc-text-field-ink-color: var(--on-background);
-}
-
-#jasb {
-  color: var(--on-background);
-  background-color: var(--background);
 
   font-family: sans-serif;
 
