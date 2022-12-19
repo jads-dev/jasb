@@ -18,7 +18,7 @@
   "devDependencies": {
     "ajv": "^8.11.0",
     "compression-webpack-plugin": "^10.0.0",
-    "css-loader": "^6.7.1",
+    "css-loader": "^6.7.3",
     "cssnano": "^5.1.5",
     "elm": "^0.19.1-5",
     "elm-webpack-loader": "^8.0.0",
