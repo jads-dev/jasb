@@ -2,7 +2,7 @@ import type * as Joda from "@js-joda/core";
 import { StatusCodes } from "http-status-codes";
 import { default as Pg } from "pg";
 import { migrate } from "postgres-migrations";
-import { default as Slonik, SerializableValue } from "slonik";
+import { default as Slonik, type SerializableValue } from "slonik";
 import { z } from "zod";
 
 import {
@@ -321,6 +321,7 @@ export class Store {
           name,
           discriminator,
           avatar,
+          avatar_cache
           created,
           admin,
           balance
@@ -338,7 +339,7 @@ export class Store {
   async login(
     userId: string,
     name: string,
-    discriminator: string,
+    discriminator: string | null,
     avatar: string | null,
     accessToken: string,
     refreshToken: string,
@@ -554,7 +555,18 @@ export class Store {
       const sql = typedSql("game_with_stats");
       return await client.one(sql`
         SELECT
-          *
+          games.id,
+          games.name,
+          games.cover,
+          games.igdb_id,
+          games.added,
+          games.started,
+          games.finished,
+          games."order",
+          games.version,
+          games.modified,
+          games.progress,
+          COALESCE(bets.bets, 0) AS bets
         FROM
           jasb.edit_game(
             ${editor},
@@ -571,7 +583,8 @@ export class Store {
             ${finished === null},
             ${order ?? null},
             ${order === null}
-          );
+          ) as games LEFT JOIN 
+          jasb.game_bet_stats AS bets ON games.id = bets.game;
       `);
     });
   }

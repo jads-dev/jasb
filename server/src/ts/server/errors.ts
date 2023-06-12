@@ -1,6 +1,6 @@
-import { default as StatusCodes } from "http-status-codes";
+import { StatusCodes } from "http-status-codes";
 import type * as Koa from "koa";
-import { SchemaValidationError } from "slonik/dist/src/errors.js";
+import { SchemaValidationError } from "slonik/dist/errors.js";
 
 import { Auth } from "./auth.js";
 import type { Logging } from "./logging.js";

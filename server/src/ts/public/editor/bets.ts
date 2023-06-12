@@ -1,5 +1,5 @@
 import type { Internal } from "../../internal.js";
-import { Stake, Stakes } from "../bets.js";
+import { type Stake, Stakes } from "../bets.js";
 import type { Options } from "../bets/options.js";
 import type { Users } from "../users.js";
 

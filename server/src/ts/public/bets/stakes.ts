@@ -4,7 +4,7 @@ import type { Users } from "../users.js";
 export interface Stake {
   user: {
     name: string;
-    discriminator: string;
+    discriminator?: string;
     avatar?: string;
   };
   at: string;
@@ -19,7 +19,9 @@ export const fromInternal = (
   {
     user: {
       name: internal.user.name,
-      discriminator: internal.user.discriminator,
+      ...(internal.user.discriminator !== null
+        ? { discriminator: internal.user.discriminator }
+        : {}),
       ...(internal.user.avatar !== null
         ? { avatar: internal.user.avatar }
         : {}),

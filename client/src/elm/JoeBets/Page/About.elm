@@ -40,11 +40,9 @@ view wrap { auth } =
                 ]
             , Html.p []
                 [ Html.text "When you first log in, you will receive a starting balance, you can bet it on various bets as "
-                , Html.text "streams go on. You can always place bets, but if your balance is negative (or will go "
-                , Html.text "negative from the bet) you can only bet a maximum of "
+                , Html.text "streams go on. You can always place bets, as the first "
                 , Rules.maxStakeWhileInDebt |> String.fromInt |> Html.text
-                , Html.text " and you can't place bets on "
-                , Html.text "multiple options of the same bet. At any time you can choose to "
+                , Html.text " of each bet will be leveraged (borrowed). At any time you can choose to "
                 , Html.text "reset your balance to the starting amount, but you lose all your current bets."
                 ]
             , Html.p []

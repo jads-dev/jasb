@@ -6,9 +6,9 @@
   "scripts": {
     "build": "npx webpack",
     "dev": "npx webpack serve --mode=development",
-    "docker": "USER_ID=$(id -u ${USER}) GROUP_ID=$(id -g ${USER}) docker compose -f ../develop-compose.yaml run --tty --rm --service-ports --entrypoint /bin/ash client",
-    "docker:build": "USER_ID=$(id -u ${USER}) GROUP_ID=$(id -g ${USER}) docker compose -f ../develop-compose.yaml run --rm client run build",
-    "docker:dev": "USER_ID=$(id -u ${USER}) GROUP_ID=$(id -g ${USER}) docker compose -f ../develop-compose.yaml up --build client"
+    "docker": "cd ../development && ./compose.sh run --tty --rm --service-ports --entrypoint /bin/ash client",
+    "docker:build": "cd ../development && ./compose.sh run --rm client run build",
+    "docker:dev": "cd ../development && ./compose.sh up --build client"
   },
   "dependencies": {
     "@fortawesome/fontawesome-svg-core": "^6.1.1",
@@ -19,20 +19,20 @@
     "ajv": "^8.11.0",
     "compression-webpack-plugin": "^10.0.0",
     "css-loader": "^6.7.1",
-    "cssnano": "^5.1.5",
+    "cssnano": "^6.0.1",
     "elm": "^0.19.1-5",
     "elm-webpack-loader": "^8.0.0",
     "html-loader": "^4.1.0",
     "html-webpack-plugin": "^5.5.0",
     "mini-css-extract-plugin": "^2.6.0",
     "postcss-loader": "^7.0.0",
-    "postcss-preset-env": "^7.4.3",
+    "postcss-preset-env": "^8.4.2",
     "sass": "^1.49.9",
     "sass-loader": "^13.0.0",
     "style-loader": "^3.3.1",
     "terser-webpack-plugin": "^5.3.1",
     "ts-loader": "^9.2.8",
-    "typescript": "^4.6.3",
+    "typescript": "^5.1.3",
     "webpack": "^5.70.0",
     "webpack-cli": "^5.0.0",
     "webpack-dev-server": "^4.7.4"

@@ -4,7 +4,7 @@ import { default as Oci } from "oci-objectstorage";
 import { OciError } from "oci-sdk";
 
 import type { Config } from "../../server/config.js";
-import { details, ObjectUploader } from "../object-upload.js";
+import { details, type ObjectUploader } from "../object-upload.js";
 
 export class OciObjectUploader implements ObjectUploader {
   readonly config;

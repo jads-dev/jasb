@@ -7,6 +7,7 @@ module JoeBets.Bet.Maths exposing
 import AssocList
 import JoeBets.Bet.Model exposing (Bet)
 import JoeBets.Bet.Option as Option
+import JoeBets.Rules as Rules
 import JoeBets.User.Model as User
 import List.Extra as List
 import Round
@@ -33,7 +34,8 @@ ratio stakesOnBet stakesOnOption =
                 stakesOnOption
 
             else
-                1
+                -- Assume a minimum stake too avoid very excessive estimates.
+                Rules.minStake
 
         raw =
             toFloat stakesOnBet / toFloat ts

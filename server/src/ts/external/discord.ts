@@ -1,7 +1,7 @@
 export interface User {
   id: string;
   username: string;
-  discriminator: string;
+  discriminator?: string;
   avatar: string | null | undefined;
   mfa_enabled?: true;
   locale?: string;

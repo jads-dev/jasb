@@ -4,15 +4,15 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "docker:storage": "USER_ID=$(id -u ${USER}) GROUP_ID=$(id -g ${USER}) docker compose -f develop-compose.yaml up --build --no-log-prefix storage"
+    "docker:storage": "cd development && ./compose.sh up --build --no-log-prefix storage"
   },
   "devDependencies": {
     "@typescript-eslint/eslint-plugin": "^5.0.0",
     "@typescript-eslint/parser": "^5.0.0",
     "eslint": "^8.0.0",
-    "eslint-plugin-simple-import-sort": "^8.0.0",
+    "eslint-plugin-simple-import-sort": "^10.0.0",
     "prettier": "^2.4.1",
-    "prettier-plugin-elm": "^0.9.0",
-    "typescript": "^4.4.4"
+    "prettier-plugin-elm": "^0.11.0",
+    "typescript": "^5.1.3"
   }
 }

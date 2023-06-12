@@ -6,7 +6,14 @@ export const Gifted = z
   .object({
     type: z.literal("Gifted"),
     amount: z.number().int().positive(),
-    reason: z.enum(["AccountCreated", "Bankruptcy"]),
+    reason: z.union([
+      z.enum(["AccountCreated", "Bankruptcy"]),
+      z
+        .object({
+          special: z.string(),
+        })
+        .strict(),
+    ]),
   })
   .strict();
 export type Gifted = z.infer<typeof Gifted>;

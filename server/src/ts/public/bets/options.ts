@@ -2,7 +2,7 @@ import * as Schema from "io-ts";
 
 import type { Internal } from "../../internal.js";
 import type { Users } from "../users.js";
-import { Stake, Stakes } from "./stakes.js";
+import { type Stake, Stakes } from "./stakes.js";
 
 interface OptionIdBrand {
   readonly OptionId: unique symbol;

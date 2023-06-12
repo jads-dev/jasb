@@ -6,6 +6,7 @@ module JoeBets.User exposing
     , viewName
     )
 
+import Bitwise exposing (shiftRightBy)
 import Html exposing (Html)
 import Html.Attributes as HtmlA
 import JoeBets.Route as Route
@@ -23,7 +24,7 @@ type ViewMode
 type alias UserLikeWithAvatar a =
     { a
         | name : String
-        , discriminator : String
+        , discriminator : Maybe String
         , avatar : Maybe String
         , avatarCache : Maybe String
     }
@@ -38,14 +39,22 @@ viewLink viewMode id user =
         ]
 
 
-viewName : { a | name : String, discriminator : String } -> Html msg
+viewName : { a | name : String, discriminator : Maybe String } -> Html msg
 viewName { name, discriminator } =
+    let
+        suffix =
+            case discriminator of
+                Nothing ->
+                    []
+
+                Just value ->
+                    [ Html.span
+                        [ HtmlA.class "discriminator" ]
+                        [ Html.text "#", Html.text value ]
+                    ]
+    in
     Html.span [ HtmlA.class "name" ]
-        [ Html.text name
-        , Html.span
-            [ HtmlA.class "discriminator" ]
-            [ Html.text "#", Html.text discriminator ]
-        ]
+        (Html.text name :: suffix)
 
 
 viewAvatar : Id -> UserLikeWithAvatar a -> Html msg
@@ -73,9 +82,17 @@ viewAvatar id { discriminator, avatar, avatarCache } =
                 fallbackSrc =
                     let
                         default =
-                            discriminator |> String.toInt |> Maybe.map (modBy 5) |> Maybe.withDefault 0 |> String.fromInt
+                            case discriminator of
+                                Just value ->
+                                    value |> String.toInt |> Maybe.map (modBy 5)
+
+                                Nothing ->
+                                    id |> idToString |> String.toInt |> Maybe.map (shiftRightBy 22 >> modBy 6)
+
+                        defaultString =
+                            default |> Maybe.withDefault 0 |> String.fromInt
                     in
-                    [ "embed", "avatars", default ++ ".png" ] |> discordUrl
+                    [ "embed", "avatars", defaultString ++ ".png" ] |> discordUrl
 
                 src =
                     avatar |> Maybe.map (\hash -> [ "avatars", idToString id, hash ++ ".png" ] |> discordUrl)

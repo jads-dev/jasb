@@ -5,7 +5,7 @@ export interface Entry {
   id: Users.Id;
 
   name: string;
-  discriminator: string;
+  discriminator?: string;
   avatar?: string;
   avatar_cache?: string;
 
@@ -30,7 +30,9 @@ const baseFromInternal = (
   id: internal.id as Users.Id,
 
   name: internal.name,
-  discriminator: internal.discriminator,
+  ...(internal.discriminator !== null
+    ? { discriminator: internal.discriminator }
+    : {}),
   ...(internal.avatar !== null ? { avatar: internal.avatar } : {}),
   ...(internal.avatar_cache !== null
     ? { avatarCache: internal.avatar_cache }

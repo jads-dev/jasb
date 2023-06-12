@@ -24,7 +24,6 @@ export class Auth {
     this.config = config;
     this.store = store;
     this.oauth = new DiscordOAuth({
-      version: "v8",
       clientId: config.discord.clientId,
       clientSecret: config.discord.clientSecret.value,
     });
@@ -77,7 +76,9 @@ export class Auth {
     const login = await this.store.login(
       discordUser.id,
       discordUser.username,
-      discordUser.discriminator,
+      discordUser.discriminator !== "0"
+        ? discordUser.discriminator ?? null
+        : null,
       discordUser.avatar ?? null,
       discordToken.access_token,
       discordToken.refresh_token,

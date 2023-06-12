@@ -6,7 +6,7 @@ export const User = z
   .object({
     id: z.string(),
     name: z.string(),
-    discriminator: z.string().length(4),
+    discriminator: z.string().nullable(),
     avatar: z.string().nullable(),
     avatar_cache: z.string().url().nullable(),
 

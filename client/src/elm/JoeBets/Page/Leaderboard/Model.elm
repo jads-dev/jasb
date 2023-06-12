@@ -21,7 +21,7 @@ import Util.RemoteData exposing (RemoteData)
 
 type alias Entry specific =
     { name : String
-    , discriminator : String
+    , discriminator : Maybe String
     , avatar : Maybe String
     , avatarCache : Maybe String
     , rank : Int
@@ -41,7 +41,7 @@ entryDecoder : JsonD.Decoder a -> JsonD.Decoder (Entry a)
 entryDecoder specificDecoder =
     JsonD.succeed Entry
         |> JsonD.required "name" JsonD.string
-        |> JsonD.required "discriminator" JsonD.string
+        |> JsonD.optionalAsMaybe "discriminator" JsonD.string
         |> JsonD.optionalAsMaybe "avatar" JsonD.string
         |> JsonD.optionalAsMaybe "avatarCache" JsonD.string
         |> JsonD.required "rank" JsonD.int

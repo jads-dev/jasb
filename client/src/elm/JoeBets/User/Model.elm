@@ -55,7 +55,7 @@ encodeId (Id string) =
 
 type alias User =
     { name : String
-    , discriminator : String
+    , discriminator : Maybe String
     , avatar : Maybe String
     , avatarCache : Maybe String
     , balance : Int
@@ -70,7 +70,7 @@ decoder : JsonD.Decoder User
 decoder =
     JsonD.succeed User
         |> JsonD.required "name" JsonD.string
-        |> JsonD.required "discriminator" JsonD.string
+        |> JsonD.optionalAsMaybe "discriminator" JsonD.string
         |> JsonD.optionalAsMaybe "avatar" JsonD.string
         |> JsonD.optionalAsMaybe "avatarCache" JsonD.string
         |> JsonD.required "balance" JsonD.int
@@ -93,7 +93,7 @@ withIdDecoder =
 
 type alias Summary =
     { name : String
-    , discriminator : String
+    , discriminator : Maybe String
     , avatar : Maybe String
     , avatarCache : Maybe String
     }
@@ -108,6 +108,6 @@ summaryDecoder : JsonD.Decoder Summary
 summaryDecoder =
     JsonD.succeed Summary
         |> JsonD.required "name" JsonD.string
-        |> JsonD.required "discriminator" JsonD.string
+        |> JsonD.optionalAsMaybe "discriminator" JsonD.string
         |> JsonD.optionalAsMaybe "avatar" JsonD.string
         |> JsonD.optionalAsMaybe "avatarCache" JsonD.string

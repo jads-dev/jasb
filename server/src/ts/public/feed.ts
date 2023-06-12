@@ -12,7 +12,7 @@ export interface IdAndName<Id> {
 export interface UserInfo {
   id: Users.Id;
   name: string;
-  discriminator: string;
+  discriminator?: string;
   avatar?: string;
   avatarCache?: string;
 }
@@ -112,6 +112,8 @@ const userInfoFromInternal = (internal: Internal.Users.Summary): UserInfo => ({
   ...(internal.avatar_cache !== null
     ? { avatarCache: internal.avatar_cache }
     : {}),
-  discriminator: internal.discriminator,
+  ...(internal.discriminator !== null
+    ? { discriminator: internal.discriminator }
+    : {}),
 });
 export * as Feed from "./feed.js";

@@ -5,7 +5,7 @@ export interface Gifted {
   id: number;
   type: "Gifted";
   amount: number;
-  reason: "AccountCreated" | "Bankruptcy";
+  reason: "AccountCreated" | "Bankruptcy" | { special: string };
 }
 
 export interface Refunded {

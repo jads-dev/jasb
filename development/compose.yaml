@@ -1,3 +1,5 @@
+name: "jasb"
+
 networks:
   frontend:
   backend:
@@ -22,24 +24,24 @@ services:
 
   server:
     build:
-      context: "server/dev"
+      context: "../server/dev"
     user: "${USER_ID:?err}:${GROUP_ID:?err}"
     environment:
       JASB_CONFIG_PATH: "config.json5;config.dev.json5"
       #ROARR_LOG: true # Log all SQL queries, for debugging.
     volumes:
-      - ./server:/jasb/server
+      - ../server:/jasb/server
     networks:
       - frontend
       - backend
 
   client:
     build:
-      context: "client/dev"
+      context: "../client/dev"
     user: "${USER_ID:?err}:${GROUP_ID:?err}"
     ports:
       - "127.0.0.1:8080:8080/tcp" # Allows you to connect to the web UI locally.
     volumes:
-      - ./client:/jasb/client
+      - ../client:/jasb/client
     networks:
       - frontend

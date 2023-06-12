@@ -16,7 +16,7 @@ export type Id = Schema.TypeOf<typeof Id>;
 
 export interface User {
   name: string;
-  discriminator: string;
+  discriminator?: string;
   avatar?: string;
   avatarCache?: string;
 
@@ -35,7 +35,7 @@ export interface WithId {
 
 export interface Summary {
   name: string;
-  discriminator: string;
+  discriminator?: string;
   avatar?: string;
   avatar_cache?: string;
 }
@@ -62,7 +62,9 @@ export const fromInternal = (
   id: internal.id as Id,
   user: {
     name: internal.name,
-    discriminator: internal.discriminator,
+    ...(internal.discriminator !== null
+      ? { discriminator: internal.discriminator }
+      : {}),
     ...(internal.avatar !== null ? { avatar: internal.avatar } : {}),
     ...(internal.avatar_cache !== null
       ? { avatarCache: internal.avatar_cache }
@@ -83,7 +85,9 @@ export const summaryFromInternal = (
   internal.id as Id,
   {
     name: internal.name,
-    discriminator: internal.discriminator,
+    ...(internal.discriminator !== null
+      ? { discriminator: internal.discriminator }
+      : {}),
     ...(internal.avatar !== null ? { avatar: internal.avatar } : {}),
     ...(internal.avatar_cache !== null
       ? { avatarCache: internal.avatar_cache }

@@ -38,7 +38,7 @@ idAndNameDecoder idDecoder =
 type alias UserInfo =
     { id : User.Id
     , name : String
-    , discriminator : String
+    , discriminator : Maybe String
     , avatar : Maybe String
     , avatarCache : Maybe String
     }
@@ -49,7 +49,7 @@ userInfoDecoder =
     JsonD.succeed UserInfo
         |> JsonD.required "id" User.idDecoder
         |> JsonD.required "name" JsonD.string
-        |> JsonD.required "discriminator" JsonD.string
+        |> JsonD.optionalAsMaybe "discriminator" JsonD.string
         |> JsonD.optionalAsMaybe "avatar" JsonD.string
         |> JsonD.optionalAsMaybe "avatarCache" JsonD.string
 
