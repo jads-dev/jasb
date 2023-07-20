@@ -73,7 +73,9 @@ export const fromInternal = (
     ...(internal.author_avatar !== null
       ? { avatar: internal.author_avatar }
       : {}),
-    discriminator: internal.author_discriminator,
+    ...(internal.author_discriminator !== null
+      ? { discriminator: internal.author_discriminator }
+      : {}),
   },
   version: internal.version,
   created: internal.created.toJSON(),

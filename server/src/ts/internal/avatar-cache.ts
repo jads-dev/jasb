@@ -2,7 +2,7 @@ import { z } from "zod";
 
 export const CacheDetails = z
   .object({
-    discriminator: z.string(),
+    discriminator: z.string().nullable(),
     id: z.string(),
     avatar: z.string().nullable(),
   })

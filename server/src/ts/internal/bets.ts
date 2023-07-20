@@ -44,7 +44,7 @@ export type WithOptions = z.infer<typeof WithOptions>;
 export const Author = z
   .object({
     author_name: z.string(),
-    author_discriminator: z.string(),
+    author_discriminator: z.string().nullable(),
     author_avatar: z.string().nullable(),
   })
   .strict();

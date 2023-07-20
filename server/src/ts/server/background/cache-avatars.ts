@@ -77,6 +77,10 @@ async function removeFromCacheBatch(
   return deleted.length;
 }
 
+function mod(n: number, d: number): number {
+  return ((n % d) + d) % d;
+}
+
 function expandDetails({
   id,
   discriminator,
@@ -87,7 +91,11 @@ function expandDetails({
   filename: string;
 } {
   if (avatar === null) {
-    const defaultAvatar = (parseInt(discriminator) % 5).toString();
+    const defaultAvatar = (
+      discriminator === null
+        ? mod(parseInt(id) >> 22, 6)
+        : mod(parseInt(discriminator), 5)
+    ).toString();
     return {
       key: { discriminator: defaultAvatar },
       path: "embed/avatars",
