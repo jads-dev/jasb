@@ -131,25 +131,25 @@ export abstract class Notifier implements Notifier {
   public static newBet(
     clientOrigin: string,
     isPotentialSpoiler: boolean,
-    gameId: string,
+    gameSlug: string,
     game: string,
-    betId: string,
+    betSlug: string,
     bet: string,
   ): DiscordMessage {
     return construct(
       isPotentialSpoiler,
       discord`Stream Bets—“${spoiler(bet)}” bet for “${game}”.`,
       discord`New bet for the game “${game}”: “${spoiler(bet)}”.`,
-      `${clientOrigin}/games/${gameId}/${betId}`,
+      `${clientOrigin}/games/${gameSlug}/${betSlug}`,
     );
   }
 
   public static newStake(
     clientOrigin: string,
     isPotentialSpoiler: boolean,
-    gameId: string,
+    gameSlug: string,
     game: string,
-    betId: string,
+    betSlug: string,
     bet: string,
     option: string,
     owner: string,
@@ -164,16 +164,16 @@ export abstract class Notifier implements Notifier {
       )}” in the bet “${spoiler(bet)}” for the game “${game}”.\n\n${user(
         owner,
       )}: “${spoiler(message)}”.`,
-      `${clientOrigin}/games/${gameId}/${betId}`,
+      `${clientOrigin}/games/${gameSlug}/${betSlug}`,
     );
   }
 
   public static betComplete(
     clientOrigin: string,
     isPotentialSpoiler: boolean,
-    gameId: string,
+    gameSlug: string,
     game: string,
-    betId: string,
+    betSlug: string,
     bet: string,
     winners: string[],
     winningBets: number,
@@ -204,7 +204,7 @@ export abstract class Notifier implements Notifier {
       discord`The bet “${spoiler(
         bet,
       )}” for the game “${game}” has been resolved—${winningOptions} won!\n\n${winInfo}`,
-      `${clientOrigin}/games/${gameId}/${betId}`,
+      `${clientOrigin}/games/${gameSlug}/${betSlug}`,
     );
   }
 }

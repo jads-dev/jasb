@@ -22,6 +22,32 @@ services:
       - storage:/var/lib/postgresql/data
     restart: unless-stopped
 
+  migrate:
+    image: "redgate/flyway:9"
+    command: migrate
+    environment:
+      FLYWAY_URL: jdbc:postgresql://storage:5432/jasb
+      FLYWAY_USER: jasb
+      FLYWAY_PASSWORD: jasb
+      FLYWAY_LOCATIONS: filesystem:/flyway/sql/migrations
+      FLYWAY_SCHEMAS: jasb
+      FLYWAY_CREATE_SCHEMAS: true
+    volumes:
+      - ../server/src/sql:/flyway/sql
+    networks:
+      - backend
+    depends_on:
+      - storage
+    restart: no
+
+  tools:
+    image: "node:20"
+    user: "${USER_ID:?err}:${GROUP_ID:?err}"
+    entrypoint: "bash"
+    working_dir: "/jasb"
+    volumes:
+      - ..:/jasb
+
   server:
     build:
       context: "../server/dev"
@@ -30,7 +56,7 @@ services:
       JASB_CONFIG_PATH: "config.json5;config.dev.json5"
       #ROARR_LOG: true # Log all SQL queries, for debugging.
     volumes:
-      - ../server:/jasb/server
+      - ..:/jasb
     networks:
       - frontend
       - backend
@@ -42,6 +68,6 @@ services:
     ports:
       - "127.0.0.1:8080:8080/tcp" # Allows you to connect to the web UI locally.
     volumes:
-      - ../client:/jasb/client
+      - ..:/jasb
     networks:
       - frontend

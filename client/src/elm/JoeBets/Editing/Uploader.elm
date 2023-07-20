@@ -22,6 +22,7 @@ import Http
 import JoeBets.Api as Api
 import Json.Decode as JsonD
 import Json.Decode.Pipeline as JsonD
+import Material.Attributes as Material
 import Material.IconButton as IconButton
 import Material.TextField as TextField
 import Util.RemoteData as RemoteData
@@ -154,7 +155,7 @@ view wrap { label } { url, state } =
                     TextField.Url
                     url
                     (ChangeUrl >> wrap |> ifNotBusy)
-                    [ HtmlA.attribute "outlined" "" ]
+                    [ Material.outlined ]
                 , IconButton.view uploadIcon
                     ("Upload " ++ label)
                     (RequestFile |> wrap |> ifNotBusy)

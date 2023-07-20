@@ -16,10 +16,7 @@
     flex-wrap: wrap;
     justify-content: center;
     align-self: stretch;
-
-    > * {
-      margin: 0.5em;
-    }
+    gap: 2em;
   }
 
   .controls {
@@ -78,23 +75,26 @@
 
       margin: 0.5em 0;
     }
-
-    .inline {
-      display: flex;
-      align-items: center;
-
-      .fullwidth {
-        flex-grow: 1;
-      }
-    }
   }
 
   .errors {
     color: var(--bad);
   }
+
+  .inline {
+    display: flex;
+    align-items: center;
+
+    .fullwidth {
+      flex-grow: 1;
+    }
+  }
 }
 
 #bet-editor {
+  max-width: 50em;
+  flex-basis: 25em;
+
   .user {
     display: inline-flex;
     align-items: baseline;
@@ -137,6 +137,68 @@
       display: flex;
       justify-content: space-between;
     }
+  }
+}
+
+#lock-moments-editor {
+  background-color: var(--background);
+  border-radius: 0.5em;
+  padding: 1em;
+  margin: 0.5em;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5em;
+
+  h3,
+  p {
+    margin: 0;
+  }
+
+  ol {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+  }
+
+  .lock-moment-editor {
+    display: flex;
+    align-items: center;
+  }
+
+  .order {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    flex-grow: 0;
+    width: 5em;
+    margin-right: 0.5em;
+  }
+
+  .details {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    flex-grow: 1;
+    gap: 0.3em;
+
+    margin: 0.5em 0;
+  }
+
+  .moments-actions {
+    align-self: center;
+  }
+
+  .actions {
+    display: flex;
+    justify-content: space-between;
+  }
+
+  .save-state {
+    &:empty {
+      display: none;
+    }
+    align-self: center;
   }
 }
 

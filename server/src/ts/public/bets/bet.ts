@@ -2,12 +2,15 @@ import * as Schema from "io-ts";
 
 import type { Internal } from "../../internal.js";
 import { Expect } from "../../util/expect.js";
-import { type Option, Options } from "./options.js";
+import { Option, Options } from "./options.js";
 
+/**
+ * An ID for a bet from the perspective of the API user, this is the slug
+ * internally.
+ */
 interface BetIdBrand {
   readonly BetId: unique symbol;
 }
-
 export const Id = Schema.brand(
   Schema.string,
   (id): id is Schema.Branded<string, BetIdBrand> => true,
@@ -15,50 +18,68 @@ export const Id = Schema.brand(
 );
 export type Id = Schema.TypeOf<typeof Id>;
 
-export interface Voting {
-  state: "Voting";
-  locksWhen: string;
-}
+/**
+ * The progress details of a bet that is has open voting.
+ */
+export const Voting = Schema.readonly(
+  Schema.strict({
+    state: Schema.literal("Voting"),
+    lockMoment: Schema.string,
+  }),
+);
+export type Voting = Schema.TypeOf<typeof Voting>;
 
-export interface Locked {
-  state: "Locked";
-}
+/**
+ * The progress details of a bet that has locked, but not yet resolved.
+ */
+export const Locked = Schema.readonly(
+  Schema.strict({
+    state: Schema.literal("Locked"),
+  }),
+);
+export type Locked = Schema.TypeOf<typeof Locked>;
 
-export interface Complete {
-  state: "Complete";
-  winners: Options.Id[];
-}
+/**
+ * The progress details of a bet that has completed and has (a) winner(s).
+ */
+export const Complete = Schema.readonly(
+  Schema.strict({
+    state: Schema.literal("Complete"),
+    winners: Schema.readonlyArray(Options.Id),
+  }),
+);
+export type Complete = Schema.TypeOf<typeof Complete>;
 
-export interface Cancelled {
-  state: "Cancelled";
-  reason: string;
-}
+/**
+ * The progress details of a bet that has been cancelled.
+ */
+export const Cancelled = Schema.readonly(
+  Schema.strict({
+    state: Schema.literal("Cancelled"),
+    reason: Schema.string,
+  }),
+);
+export type Cancelled = Schema.TypeOf<typeof Cancelled>;
 
-export type Progress = Voting | Locked | Complete | Cancelled;
+/**
+ * The progress details of a bet.
+ */
+export const Progress = Schema.union([Voting, Locked, Complete, Cancelled]);
+export type Progress = Schema.TypeOf<typeof Progress>;
 
-export interface Bet {
-  name: string;
-  description: string;
-  spoiler: boolean;
-  author: string;
-
-  progress: Progress;
-
-  options: { id: Options.Id; option: Option }[];
-}
-
-export interface WithId {
-  id: Id;
-  bet: Bet;
-}
-
-export interface LockStatus {
-  id: Id;
-  name: string;
-  locksWhen: string;
-  locked: boolean;
-  version: number;
-}
+/**
+ * A game.
+ */
+export const Bet = Schema.readonly(
+  Schema.strict({
+    name: Schema.string,
+    description: Schema.string,
+    spoiler: Schema.boolean,
+    progress: Progress,
+    options: Schema.readonlyArray(Schema.tuple([Options.Id, Option])),
+  }),
+);
+export type Bet = Schema.TypeOf<typeof Bet>;
 
 export const unknownProgress = Expect.exhaustive(
   "bet progress",
@@ -66,24 +87,27 @@ export const unknownProgress = Expect.exhaustive(
 );
 
 const progressFromInternal = (
-  internal: Internal.Bet & Internal.Bets.WithOptions,
+  internal: Internal.Bets.WithOptions,
 ): Progress => {
   switch (internal.progress) {
     case "Voting":
-      return { state: "Voting", locksWhen: internal.locks_when };
+      return { state: "Voting", lockMoment: internal.lock_moment_name };
 
     case "Locked":
       return { state: "Locked" };
 
     case "Complete": {
       const winners = internal.options
-        .filter((option) => option.option.won)
-        .map((option) => option.option.id);
-      return { state: "Complete", winners: winners as Options.Id[] };
+        .filter((option) => option.won)
+        .map((option) => option.slug);
+      return {
+        state: "Complete",
+        winners: winners.map((w) => w as Options.Id),
+      };
     }
 
     case "Cancelled":
-      return { state: "Cancelled", reason: internal.cancelled_reason ?? "" };
+      return { state: "Cancelled", reason: internal.cancelled_reason! };
 
     default:
       return unknownProgress(internal.progress);
@@ -91,30 +115,14 @@ const progressFromInternal = (
 };
 
 export const fromInternal = (
-  internal: Internal.Bet & Internal.Bets.WithOptions,
-): WithId => ({
-  id: internal.id as Id,
-  bet: {
+  internal: Internal.Bets.WithOptions,
+): [Id, Bet] => [
+  internal.slug as Id,
+  {
     name: internal.name,
     description: internal.description,
     spoiler: internal.spoiler,
-    author: internal.by,
-
     progress: progressFromInternal(internal),
-
-    options: internal.options.map((internalOption) => {
-      const [id, option] = Options.fromInternal(internalOption);
-      return { id, option };
-    }),
+    options: internal.options.map(Options.fromInternal),
   },
-});
-
-export const lockStatusFromInternal = (
-  internal: Internal.Bets.LockStatus,
-): LockStatus => ({
-  id: internal.id as Id,
-  name: internal.name,
-  locksWhen: internal.locks_when,
-  locked: internal.locked,
-  version: internal.version,
-});
+];

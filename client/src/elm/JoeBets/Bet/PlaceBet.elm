@@ -20,6 +20,7 @@ import JoeBets.Rules as Rules
 import JoeBets.User.Model as User
 import Json.Decode as JsonD
 import Json.Encode as JsonE
+import Material.Attributes as Material
 import Material.Button as Button
 import Material.TextField as TextField
 import Time.DateTime as DateTime
@@ -205,7 +206,7 @@ view wrap ({ id, user } as localUser) placeBet =
                                 TextField.Text
                                 message
                                 (ChangeMessage >> wrap |> Just)
-                                [ HtmlA.attribute "outlined" "", HtmlA.maxlength 200 ]
+                                [ Material.outlined, HtmlA.maxlength 200 ]
                           , Html.p []
                                 [ Html.text "Please be aware: inappropriate messages, spoilers, or anything like that will result in a ban. "
                                 ]
@@ -324,7 +325,7 @@ view wrap ({ id, user } as localUser) placeBet =
                             TextField.Number
                             amount
                             (ChangeAmount >> wrap |> Just)
-                            [ HtmlA.attribute "outlined" ""
+                            [ Material.outlined
                             , 0 |> String.fromInt |> HtmlA.min
                             , max (user.balance + (existingBet |> Maybe.withDefault 0)) Rules.maxStakeWhileInDebt |> String.fromInt |> HtmlA.max
                             ]

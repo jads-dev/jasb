@@ -2,13 +2,17 @@ import * as Schema from "io-ts";
 
 import type { Internal } from "../internal.js";
 import { Expect } from "../util/expect.js";
+import { Validation } from "../util/validation.js";
 import { Bets } from "./bets.js";
-import { Users } from "./users.js";
+import { Users } from "./users/id.js";
 
+/**
+ * An ID for a user from the perspective of the API user, this is the slug
+ * internally.
+ */
 interface GameIdBrand {
   readonly GameId: unique symbol;
 }
-
 export const Id = Schema.brand(
   Schema.string,
   (id): id is Schema.Branded<string, GameIdBrand> => true,
@@ -16,54 +20,103 @@ export const Id = Schema.brand(
 );
 export type Id = Schema.TypeOf<typeof Id>;
 
-export interface Future {
-  state: "Future";
-}
+/**
+ * The progress details of a game that is a future game, not yet started.
+ */
+export const Future = Schema.readonly(
+  Schema.strict({
+    state: Schema.literal("Future"),
+  }),
+);
+export type Future = Schema.TypeOf<typeof Future>;
 
-export interface Current {
-  state: "Current";
-  start: string;
-}
+/**
+ * The progress details of a game that is a current game, started but not yet
+ * finished.
+ */
+export const Current = Schema.readonly(
+  Schema.strict({
+    state: Schema.literal("Current"),
+    start: Validation.Date,
+  }),
+);
+export type Current = Schema.TypeOf<typeof Current>;
 
-export interface Finished {
-  state: "Finished";
-  start: string;
-  finish: string;
-}
+/**
+ * The progress details of a game that is a finished game, started and finished.
+ */
+export const Finished = Schema.readonly(
+  Schema.strict({
+    state: Schema.literal("Finished"),
+    start: Validation.Date,
+    finish: Validation.Date,
+  }),
+);
+export type Finished = Schema.TypeOf<typeof Finished>;
 
-export type Progress = Future | Current | Finished;
+/**
+ * The progress details of a game.
+ */
+export const Progress = Schema.union([Future, Current, Finished]);
+export type Progress = Schema.TypeOf<typeof Progress>;
 
-export interface Game {
-  version: number;
-  name: string;
-  cover: string;
-  igdbId: string;
+/**
+ * The base details of a game.
+ */
+export const Game = Schema.intersection([
+  Schema.readonly(
+    Schema.strict({
+      name: Schema.string,
+      cover: Schema.string,
+      progress: Progress,
+      version: Schema.Int,
+      created: Validation.DateTime,
+      modified: Validation.DateTime,
+      managers: Schema.readonlyArray(Schema.tuple([Users.Id, Users.Summary])),
+    }),
+  ),
+  Schema.partial({ order: Schema.Int }),
+]);
+export type Game = Schema.TypeOf<typeof Game>;
 
-  bets: number;
+/**
+ * The details of a game with its bets.
+ */
+export const WithBets = Schema.intersection([
+  Game,
+  Schema.readonly(
+    Schema.strict({
+      bets: Schema.readonlyArray(Schema.tuple([Bets.Id, Bets.Bet])),
+    }),
+  ),
+]);
+export type WithBets = Schema.TypeOf<typeof WithBets>;
 
-  progress: Progress;
-  order?: number;
-}
+/**
+ * The details of a game with summarised bet statistics.
+ */
+export const WithBetStats = Schema.intersection([
+  Game,
+  Schema.readonly(
+    Schema.strict({
+      bets: Schema.Int,
+      staked: Schema.Int,
+    }),
+  ),
+]);
+export type WithBetStats = Schema.TypeOf<typeof WithBetStats>;
 
-export type WithBets = Omit<Game, "bets"> & {
-  bets: Bets.WithId[];
-};
-
-export interface Details {
-  staked: number;
-  mods: Record<Users.Id, Users.Summary>;
-}
-
-export interface WithId {
-  id: Id;
-  game: Game;
-}
-
-export interface Library {
-  future: WithId[];
-  current: WithId[];
-  finished: WithId[];
-}
+/**
+ * The library of games with bets.
+ */
+export const Library = Schema.readonly(
+  Schema.strict({
+    future: Schema.readonlyArray(Schema.tuple([Id, WithBetStats])),
+    current: Schema.readonlyArray(Schema.tuple([Id, WithBetStats])),
+    finished: Schema.readonlyArray(Schema.tuple([Id, WithBetStats])),
+  }),
+);
+export type Library = Schema.TypeOf<typeof Library>;
 
 export const unknownProgress = Expect.exhaustive(
   "game progress",
@@ -78,14 +131,16 @@ const progressFromInternal = (internal: Internal.Game): Progress => {
     case "Current":
       return {
         state: "Current",
-        start: internal.started?.toJSON() as string,
+        // We have an SQL check constraint, so this is not null in this case.
+        start: internal.started!,
       };
 
     case "Finished":
       return {
         state: "Finished",
-        start: internal.started?.toJSON() as string,
-        finish: internal.finished?.toJSON() as string,
+        // We have an SQL check constraint, so these are not null in this case.
+        start: internal.started!,
+        finish: internal.finished!,
       };
 
     default:
@@ -93,60 +148,39 @@ const progressFromInternal = (internal: Internal.Game): Progress => {
   }
 };
 
-export const fromInternal = (
+export const fromInternal = (internal: Internal.Game): [Id, Game] => [
+  internal.slug as Id,
+  {
+    name: internal.name,
+    cover: internal.cover,
+    progress: progressFromInternal(internal),
+    ...(internal.order !== null ? { order: internal.order as Schema.Int } : {}),
+    version: internal.version as Schema.Int,
+    created: internal.created,
+    modified: internal.modified,
+    managers: internal.managers.map(Users.summaryFromInternal),
+  },
+];
+
+export const withBetStatsFromInternal = (
   internal: Internal.Game & Internal.Games.BetStats,
-): WithId => ({
-  id: internal.id as Id,
-  game: {
-    version: internal.version,
-    name: internal.name,
-    cover: internal.cover,
-    igdbId: internal.igdb_id,
-
-    bets: internal.bets,
-
-    progress: progressFromInternal(internal),
-    ...(internal.order !== null ? { order: internal.order } : {}),
+): [Id, WithBetStats] => [
+  internal.slug as Id,
+  {
+    ...fromInternal(internal)[1],
+    bets: internal.bets as Schema.Int,
+    staked: internal.staked as Schema.Int,
   },
-});
-
-export const detailedFromInternal = (
-  internal: Internal.Game &
-    Internal.Games.BetStats &
-    Internal.Games.StakeStats &
-    Internal.Games.Mods,
-): { id: Id; game: Game & Details } => ({
-  id: internal.id as Id,
-  game: {
-    version: internal.version,
-    name: internal.name,
-    cover: internal.cover,
-    igdbId: internal.igdb_id,
-
-    progress: progressFromInternal(internal),
-    ...(internal.order !== null ? { order: internal.order } : {}),
-
-    bets: internal.bets,
-    staked: internal.staked,
-
-    mods: Object.fromEntries(internal.mods.map(Users.summaryFromInternal)),
-  },
-});
+];
 
 export const withBetsFromInternal = (
-  internal: Internal.Game & Internal.Games.EmbeddedBets,
-): { id: Id; game: WithBets } => ({
-  id: internal.id as Id,
-  game: {
-    version: internal.version,
-    name: internal.name,
-    cover: internal.cover,
-    igdbId: internal.igdb_id,
-
-    progress: progressFromInternal(internal),
-
+  internal: Internal.Game & Internal.Games.WithBets,
+): [Id, WithBets] => [
+  internal.slug as Id,
+  {
+    ...fromInternal(internal)[1],
     bets: internal.bets.map(Bets.fromInternal),
   },
-});
+];
 
 export * as Games from "./games.js";

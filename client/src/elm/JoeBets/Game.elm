@@ -1,6 +1,6 @@
 module JoeBets.Game exposing
     ( view
-    , viewMods
+    , viewManagers
     )
 
 import AssocList
@@ -11,7 +11,6 @@ import FontAwesome.Solid as Icon
 import Html exposing (Html)
 import Html.Attributes as HtmlA
 import JoeBets.Coins as Coins
-import JoeBets.Game.Details as Game
 import JoeBets.Game.Id as Game
 import JoeBets.Game.Model as Game exposing (Game)
 import JoeBets.Page.Bets.Model as Bets
@@ -26,27 +25,27 @@ import Time.Model as Time
 import Util.String as String
 
 
-viewMods : Game.Details -> Html msg
-viewMods { mods } =
+viewManagers : Game -> Html msg
+viewManagers { managers } =
     let
-        renderMod ( userId, user ) =
+        renderManager ( userId, user ) =
             Html.li [] [ User.viewLink User.Full userId user ]
 
         modsContent =
-            if AssocList.isEmpty mods then
+            if AssocList.isEmpty managers then
                 [ Html.span [] [ Html.text "No bet managers for this game." ]
                 ]
 
             else
                 [ Html.span [] [ Html.text "Bet managers for this game:" ]
-                , mods |> AssocList.toList |> List.map renderMod |> Html.ul []
+                , managers |> AssocList.toList |> List.map renderManager |> Html.ul []
                 ]
     in
     Html.span [ HtmlA.class "bet-managers" ] modsContent
 
 
-view : (Bets.Msg -> msg) -> Bets.Model -> Time.Context -> Maybe User.WithId -> Game.Id -> Game -> Maybe Game.Details -> Html msg
-view wrap { favourites } time localUser id { name, cover, bets, progress } details =
+view : (Bets.Msg -> msg) -> Bets.Model -> Time.Context -> Maybe User.WithId -> Game.Id -> Game -> Html msg
+view wrap { favourites } time localUser id { name, cover, bets, progress, staked } =
     let
         progressView =
             case progress of
@@ -63,11 +62,8 @@ view wrap { favourites } time localUser id { name, cover, bets, progress } detai
                     ]
                         |> List.concat
 
-        renderDetails { staked } =
-            [ Html.span [ HtmlA.class "total-staked" ] [ staked |> Coins.view, Html.text " bet in " ] ]
-
         stakedDetails =
-            details |> Maybe.map renderDetails |> Maybe.withDefault []
+            [ Html.span [ HtmlA.class "total-staked" ] [ staked |> Coins.view, Html.text " bet in " ] ]
 
         normalContent =
             [ Html.img
@@ -98,7 +94,7 @@ view wrap { favourites } time localUser id { name, cover, bets, progress } detai
             ]
 
         adminContent =
-            if localUser |> Auth.isMod id then
+            if localUser |> Auth.canManageGames then
                 [ Html.div [ HtmlA.class "admin-controls" ]
                     [ Route.a (id |> Just |> Edit.Game |> Route.Edit) [] [ Icon.pen |> Icon.view ]
                     ]

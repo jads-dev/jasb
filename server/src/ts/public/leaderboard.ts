@@ -1,60 +1,72 @@
+import * as Schema from "io-ts";
+
 import type { Internal } from "../internal.js";
-import type { Users } from "../public.js";
+import { Users } from "./users.js";
 
-export interface Entry {
-  id: Users.Id;
+/**
+ * The base for a leaderboard entry.
+ */
+const Entry = Schema.readonly(
+  Schema.intersection([
+    Users.Summary,
+    Schema.strict({
+      id: Users.Id,
+      rank: Schema.Int,
+    }),
+  ]),
+);
+type Entry = Schema.TypeOf<typeof Entry>;
 
-  name: string;
-  discriminator?: string;
-  avatar?: string;
-  avatar_cache?: string;
+/**
+ * A leaderboard entry showing the user's net worth.
+ */
+export const NetWorthEntry = Schema.readonly(
+  Schema.intersection([
+    Entry,
+    Schema.strict({
+      netWorth: Schema.Int,
+    }),
+  ]),
+);
+export type NetWorthEntry = Schema.TypeOf<typeof NetWorthEntry>;
 
-  rank: number;
-}
+/**
+ * A leaderboard entry showing the user's net worth.
+ */
+export const DebtEntry = Schema.readonly(
+  Schema.intersection([
+    Entry,
+    Schema.strict({
+      debt: Schema.Int,
+    }),
+  ]),
+);
+export type DebtEntry = Schema.TypeOf<typeof DebtEntry>;
 
-export interface NetWorth {
-  netWorth: number;
-}
-
-export type NetWorthEntry = Entry & NetWorth;
-
-export interface Debt {
-  debt: number;
-}
-
-export type DebtEntry = Entry & Debt;
-
-const baseFromInternal = (
-  internal: Internal.User & Internal.Users.Leaderboard,
-): Entry => ({
-  id: internal.id as Users.Id,
+const baseFromInternal = (internal: Internal.Users.Leaderboard): Entry => ({
+  id: internal.slug as Users.Id,
 
   name: internal.name,
   ...(internal.discriminator !== null
     ? { discriminator: internal.discriminator }
     : {}),
-  ...(internal.avatar !== null ? { avatar: internal.avatar } : {}),
-  ...(internal.avatar_cache !== null
-    ? { avatarCache: internal.avatar_cache }
-    : {}),
+  avatar: internal.avatar_url,
 
-  rank: internal.rank,
+  rank: internal.rank as Schema.Int,
 });
 
 export const netWorthEntryFromInternal = (
-  internal: Internal.User &
-    Internal.Users.BetStats &
-    Internal.Users.Leaderboard,
+  internal: Internal.Users.Leaderboard,
 ): NetWorthEntry => ({
   ...baseFromInternal(internal),
-  netWorth: internal.net_worth,
+  netWorth: internal.net_worth as Schema.Int,
 });
 
 export const debtEntryFromInternal = (
-  internal: Internal.User & Internal.Users.Leaderboard,
+  internal: Internal.Users.Leaderboard,
 ): DebtEntry => ({
   ...baseFromInternal(internal),
-  debt: internal.balance,
+  debt: internal.balance as Schema.Int,
 });
 
 export * as Leaderboard from "./leaderboard.js";

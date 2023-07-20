@@ -97,7 +97,6 @@ idFromString =
 
 type alias Bet =
     { name : String
-    , author : User.Id
     , description : String
     , spoiler : Bool
     , progress : Progress
@@ -109,11 +108,10 @@ decoder : JsonD.Decoder Bet
 decoder =
     let
         optionsDecoder =
-            JsonD.assocListFromList (JsonD.field "id" Option.idDecoder) (JsonD.field "option" Option.decoder)
+            JsonD.assocListFromTupleList Option.idDecoder Option.decoder
     in
     JsonD.succeed Bet
         |> JsonD.required "name" JsonD.string
-        |> JsonD.required "author" User.idDecoder
         |> JsonD.required "description" JsonD.string
         |> JsonD.required "spoiler" JsonD.bool
         |> JsonD.required "progress" progressDecoder
@@ -131,7 +129,6 @@ encode bet =
     in
     JsonE.object
         [ ( "name", bet.name |> JsonE.string )
-        , ( "author", bet.author |> User.encodeId )
         , ( "description", bet.description |> JsonE.string )
         , ( "spoiler", bet.spoiler |> JsonE.bool )
         , ( "progress", bet.progress |> encodeProgress )

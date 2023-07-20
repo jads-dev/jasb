@@ -9,5 +9,13 @@ export async function garbageCollect(
   await Promises.wait(server.config.store.garbageCollectionFrequency);
   const garbageCollected = await server.store.garbageCollect();
 
-  logger.info(`Garbage collected ${garbageCollected.length} expired sessions.`);
+  if (garbageCollected.length > 0) {
+    logger.info(
+      `Garbage collected ${garbageCollected.length} expired sessions.`,
+    );
+  } else {
+    logger.debug("Garbage collection found no expired sessions.");
+  }
+
+  return false;
 }

@@ -6,6 +6,7 @@ module Time.DateTime exposing
     , fromDateAndTime
     , fromIso
     , fromPosix
+    , getNow
     , time
     , toDateAndTime
     , toIso
@@ -21,6 +22,7 @@ import Iso8601
 import Json.Decode as JsonD
 import Json.Encode as JsonE
 import Material.TextField as TextField
+import Task exposing (Task)
 import Time
 import Time.Format as Format
 import Time.Model as Time
@@ -107,6 +109,11 @@ toPosix (DateTime dateTime) =
 fromPosix : Time.Posix -> DateTime
 fromPosix posix =
     posix |> Iso8601.fromTime |> DateTime
+
+
+getNow : Task x DateTime
+getNow =
+    Time.now |> Task.map fromPosix
 
 
 {-| Render as an HMTL editor.

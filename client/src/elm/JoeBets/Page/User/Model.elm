@@ -7,11 +7,14 @@ module JoeBets.Page.User.Model exposing
     , Msg(..)
     , Permissions
     , PermissionsOverlay
+    , SetPermission(..)
     , UserModel
     , apply
-    , decodeBankruptcyStats
-    , decodeGamePermissions
-    , decodePermissions
+    , bankruptcyStatsDecoder
+    , editablePermissionsDecoder
+    , encodeSetPermissions
+    , gamePermissionsDecoder
+    , permissionsDecoder
     )
 
 import AssocList
@@ -21,6 +24,9 @@ import JoeBets.Game.Model as Game
 import JoeBets.User.Model as User exposing (User)
 import Json.Decode as JsonD
 import Json.Decode.Pipeline as JsonD
+import Json.Encode as JsonE
+import Util.AssocList as AssocList
+import Util.Json.Decode as JsonD
 import Util.RemoteData exposing (RemoteData)
 
 
@@ -29,8 +35,8 @@ type alias Permissions =
     }
 
 
-decodePermissions : JsonD.Decoder Permissions
-decodePermissions =
+permissionsDecoder : JsonD.Decoder Permissions
+permissionsDecoder =
     JsonD.succeed Permissions
         |> JsonD.required "canManageBets" JsonD.bool
 
@@ -42,12 +48,12 @@ type alias GamePermissions =
     }
 
 
-decodeGamePermissions : JsonD.Decoder GamePermissions
-decodeGamePermissions =
+gamePermissionsDecoder : JsonD.Decoder GamePermissions
+gamePermissionsDecoder =
     JsonD.succeed GamePermissions
         |> JsonD.required "gameId" Game.idDecoder
         |> JsonD.required "gameName" JsonD.string
-        |> JsonD.custom decodePermissions
+        |> JsonD.custom permissionsDecoder
 
 
 type alias BankruptcyStats =
@@ -59,8 +65,8 @@ type alias BankruptcyStats =
     }
 
 
-decodeBankruptcyStats : JsonD.Decoder BankruptcyStats
-decodeBankruptcyStats =
+bankruptcyStatsDecoder : JsonD.Decoder BankruptcyStats
+bankruptcyStatsDecoder =
     JsonD.succeed BankruptcyStats
         |> JsonD.required "amountLost" JsonD.int
         |> JsonD.required "stakesLost" JsonD.int
@@ -75,8 +81,50 @@ type alias BankruptcyOverlay =
     }
 
 
+type alias EditablePermissions =
+    { manageGames : Bool
+    , managePermissions : Bool
+    , manageBets : Bool
+    , gameSpecific : AssocList.Dict Game.Id GamePermissions
+    }
+
+
+editablePermissionsDecoder : JsonD.Decoder EditablePermissions
+editablePermissionsDecoder =
+    JsonD.succeed EditablePermissions
+        |> JsonD.required "manageGames" JsonD.bool
+        |> JsonD.required "managePermissions" JsonD.bool
+        |> JsonD.required "manageBets" JsonD.bool
+        |> JsonD.required "gameSpecific" (JsonD.assocListFromList (JsonD.field "gameId" Game.idDecoder) gamePermissionsDecoder)
+
+
+type SetPermission
+    = ManageGames Bool
+    | ManagePermissions Bool
+    | ManageBets (Maybe Game.Id) Bool
+
+
+encodeSetPermissions : SetPermission -> JsonE.Value
+encodeSetPermissions setPermissions =
+    case setPermissions of
+        ManageGames v ->
+            JsonE.object [ ( "manageGames", JsonE.bool v ) ]
+
+        ManagePermissions v ->
+            JsonE.object [ ( "managePermissions", JsonE.bool v ) ]
+
+        ManageBets Nothing v ->
+            JsonE.object [ ( "manageBets", JsonE.bool v ) ]
+
+        ManageBets (Just gameId) v ->
+            JsonE.object
+                [ ( "game", Game.encodeId gameId )
+                , ( "manageBets", JsonE.bool v )
+                ]
+
+
 type alias PermissionsOverlay =
-    { permissions : RemoteData (AssocList.Dict Game.Id GamePermissions) }
+    { permissions : RemoteData EditablePermissions }
 
 
 type alias Model =
@@ -101,8 +149,8 @@ type Msg
     | LoadBankruptcyStats User.Id (Result Http.Error BankruptcyStats)
     | GoBankrupt
     | TogglePermissionsOverlay Bool
-    | LoadPermissions User.Id (Result Http.Error (List GamePermissions))
-    | SetPermissions User.Id Game.Id Permissions
+    | LoadPermissions User.Id (Result Http.Error EditablePermissions)
+    | SetPermissions User.Id SetPermission
     | NoOp
 
 

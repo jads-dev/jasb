@@ -7,10 +7,11 @@ module JoeBets.User.Auth.Model exposing
     , Msg(..)
     , Redirect
     , RedirectOrLoggedIn(..)
+    , canManageBets
+    , canManageGames
+    , canManagePermissions
     , codeAndStateParser
     , encodeCodeAndState
-    , isAdmin
-    , isMod
     , redirectDecoder
     , redirectOrLoggedInDecoder
     )
@@ -39,18 +40,23 @@ type alias Model =
     }
 
 
-isAdmin : Maybe { a | user : User } -> Bool
-isAdmin =
-    Maybe.map (.user >> .admin) >> Maybe.withDefault False
+canManageGames : Maybe { a | user : User } -> Bool
+canManageGames =
+    Maybe.map (.user >> .permissions >> .manageGames) >> Maybe.withDefault False
 
 
-isMod : Game.Id -> Maybe { a | user : User } -> Bool
-isMod game =
+canManagePermissions : Maybe { a | user : User } -> Bool
+canManagePermissions =
+    Maybe.map (.user >> .permissions >> .managePermissions) >> Maybe.withDefault False
+
+
+canManageBets : Game.Id -> Maybe { a | user : User } -> Bool
+canManageBets game =
     let
-        isAdminOrMod user =
-            user.admin || (user.mod |> EverySet.member game)
+        modForGame { manageBets } =
+            manageBets |> EverySet.member game
     in
-    Maybe.map (.user >> isAdminOrMod) >> Maybe.withDefault False
+    Maybe.map (.user >> .permissions >> modForGame) >> Maybe.withDefault False
 
 
 type Msg

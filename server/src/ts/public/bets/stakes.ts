@@ -1,39 +1,41 @@
-import type { Internal } from "../../internal.js";
-import type { Users } from "../users.js";
+import * as Schema from "io-ts";
 
-export interface Stake {
-  user: {
-    name: string;
-    discriminator?: string;
-    avatar?: string;
-  };
-  at: string;
-  amount: number;
-  message?: string;
-}
+import type { Internal } from "../../internal.js";
+import { Validation } from "../../util/validation.js";
+import { Users } from "../users/id.js";
+
+/**
+ * A stake on an option on the bet, by a user.
+ */
+export const Stake = Schema.readonly(
+  Schema.intersection([
+    Schema.strict({
+      user: Users.Summary,
+      at: Validation.DateTime,
+      amount: Schema.Int,
+    }),
+    Schema.partial({
+      message: Schema.string,
+    }),
+  ]),
+);
+export type Stake = Schema.TypeOf<typeof Stake>;
 
 export const fromInternal = (
-  internal: Internal.Stakes.WithUser,
+  internal: Internal.Stakes.Stake,
 ): [Users.Id, Stake] => [
-  internal.stake.owner as Users.Id,
+  internal.user.slug as Users.Id,
   {
     user: {
       name: internal.user.name,
       ...(internal.user.discriminator !== null
         ? { discriminator: internal.user.discriminator }
         : {}),
-      ...(internal.user.avatar !== null
-        ? { avatar: internal.user.avatar }
-        : {}),
-      ...(internal.user.avatar_cache !== null
-        ? { avatarCache: internal.user.avatar_cache }
-        : {}),
+      avatar: internal.user.avatar_url,
     },
-    at: internal.stake.made_at.toJSON(),
-    amount: internal.stake.amount,
-    ...(internal.stake.message !== null
-      ? { message: internal.stake.message }
-      : {}),
+    at: internal.made_at,
+    amount: internal.amount as Schema.Int,
+    ...(internal.message !== null ? { message: internal.message } : {}),
   },
 ];
 

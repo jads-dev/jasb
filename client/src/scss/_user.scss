@@ -224,10 +224,10 @@
   margin: 1em;
   display: flex;
   flex-direction: column;
-  align-items: flex-end;
   background-color: var(--background);
   gap: 1em;
   max-height: calc(100% - 4em);
+  overflow-y: auto;
 
   > ul {
     padding: 0;
@@ -236,8 +236,7 @@
     display: grid;
     grid-template-columns: 1fr auto;
     align-items: stretch;
-    font-size: 0.6em;
-    overflow: auto;
+    font-size: 0.8em;
 
     > li {
       display: contents;
@@ -248,7 +247,7 @@
 
       > * {
         background-color: var(--line-color, unset);
-        padding: 0.25em;
+        padding: 0.5em;
       }
 
       > div {

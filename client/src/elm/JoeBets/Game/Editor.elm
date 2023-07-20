@@ -7,6 +7,7 @@ module JoeBets.Game.Editor exposing
     , view
     )
 
+import AssocList
 import FontAwesome as Icon
 import FontAwesome.Solid as Icon
 import Html exposing (Html)
@@ -22,10 +23,12 @@ import JoeBets.Game.Model as Game exposing (Game)
 import JoeBets.Page.Bets.Model as Bets
 import JoeBets.Page.Edit.Validator as Validator exposing (Validator)
 import JoeBets.User.Auth.Model as Auth
+import Material.Attributes as Material
 import Material.Button as Button
 import Material.TextField as TextField
 import Time
 import Time.Date as Date
+import Time.DateTime as DateTime
 import Time.Model as Time
 import Util.Maybe as Maybe
 import Util.RemoteData as RemoteData
@@ -47,7 +50,6 @@ empty maybeGameId =
     , id = Slug.Auto
     , name = ""
     , cover = Uploader.init
-    , igdbId = ""
     , bets = 0
     , start = ""
     , finish = ""
@@ -68,7 +70,6 @@ diff model =
         (model.source |> Maybe.andThen (Tuple.second >> RemoteData.toMaybe) |> Maybe.map .version)
         (ifDifferent .name .name)
         (ifDifferent .cover (.cover >> Uploader.toUrl))
-        (ifDifferent .igdbId .igdbId)
         (ifDifferent (.progress >> Game.start) (.start >> Date.fromIso))
         (ifDifferent (.progress >> Game.finish) (.finish >> Date.fromIso))
         (ifDifferent .order .order)
@@ -117,7 +118,6 @@ fromGame id game =
     , id = Slug.Locked id
     , name = game.name
     , cover = game.cover |> Uploader.fromUrl
-    , igdbId = game.igdbId
     , bets = game.bets
     , start = startDate |> Maybe.map Date.toIso |> Maybe.withDefault ""
     , finish = finishDate |> Maybe.map Date.toIso |> Maybe.withDefault ""
@@ -149,12 +149,6 @@ update wrap msg parent model =
                 Nothing ->
                     ( empty Nothing, Cmd.none )
 
-        IgdbLoad _ ->
-            ( model, Cmd.none )
-
-        IgdbSet name cover ->
-            ( { model | name = name, cover = model.cover |> Uploader.setUrl cover }, Cmd.none )
-
         ChangeId id ->
             ( { model | id = id |> Url.slugify |> Game.idFromString |> Slug.Manual }, Cmd.none )
 
@@ -167,9 +161,6 @@ update wrap msg parent model =
                     Uploader.update (CoverMsg >> wrap) coverMsg parent coverUploaderModel model.cover
             in
             ( { model | cover = cover }, cmd )
-
-        ChangeIgdbId igdbId ->
-            ( { model | igdbId = igdbId }, Cmd.none )
 
         ChangeStart start ->
             ( { model | start = start }, Cmd.none )
@@ -205,11 +196,23 @@ toGame model =
                 Nothing ->
                     {} |> Game.Future
 
-        version =
-            model.source
-                |> Maybe.andThen (Tuple.second >> RemoteData.toMaybe)
-                |> Maybe.map (.version >> (+) 1)
-                |> Maybe.withDefault 0
+        { version, created, modified, staked, managers } =
+            case model.source |> Maybe.map Tuple.second |> Maybe.andThen RemoteData.toMaybe of
+                Just source ->
+                    { version = source.version + 1
+                    , created = source.created
+                    , modified = source.modified
+                    , staked = source.staked
+                    , managers = source.managers
+                    }
+
+                Nothing ->
+                    { version = 0
+                    , created = 0 |> Time.millisToPosix |> DateTime.fromPosix
+                    , modified = 0 |> Time.millisToPosix |> DateTime.fromPosix
+                    , staked = 0
+                    , managers = AssocList.empty
+                    }
 
         coverUrl =
             model.cover |> Uploader.toUrl
@@ -217,7 +220,7 @@ toGame model =
     ( model.source
         |> Maybe.map Tuple.first
         |> Maybe.withDefault (model.name |> Url.slugify |> Game.idFromString)
-    , Game version model.name coverUrl model.igdbId model.bets progress model.order
+    , Game model.name coverUrl progress model.order model.bets staked managers version created modified
     )
 
 
@@ -306,29 +309,46 @@ view save wrap wrapBets parent model =
                 ( id, game ) =
                     toGame model
 
+                source =
+                    model.source |> Maybe.map Tuple.second |> Maybe.andThen RemoteData.toMaybe
+
                 preview =
-                    [ Game.view wrapBets parent.bets parent.time parent.auth.localUser id game Nothing ]
+                    [ Game.view wrapBets parent.bets parent.time parent.auth.localUser id game ]
 
                 textField name type_ value action attrs =
-                    TextField.viewWithAttrs name type_ value action (HtmlA.attribute "outlined" "" :: attrs)
+                    TextField.viewWithAttrs name type_ value action (Material.outlined :: attrs)
             in
             [ Html.div [ HtmlA.class "core-content" ]
                 [ Html.div [ HtmlA.class "editor" ]
-                    [ Slug.view Game.idFromString Game.idToString (ChangeId >> wrap) model.name model.id
+                    [ Html.h3 [] [ Html.text "Metadata" ]
+                    , Html.div [ HtmlA.class "metadata" ]
+                        [ Html.div [ HtmlA.class "created" ]
+                            [ Html.text "Created: "
+                            , source |> Maybe.map (.created >> DateTime.view parent.time Time.Absolute) |> Maybe.withDefault (Html.text "- (New)")
+                            ]
+                        , Html.div [ HtmlA.class "modified" ]
+                            [ Html.text "Last Modified: "
+                            , source |> Maybe.map (.modified >> DateTime.view parent.time Time.Absolute) |> Maybe.withDefault (Html.text "- (New)")
+                            ]
+                        , Html.div [ HtmlA.class "version" ]
+                            [ Html.text "Version: "
+                            , source |> Maybe.map (.version >> String.fromInt) |> Maybe.withDefault "- (New)" |> Html.text
+                            ]
+                        ]
+                    , Slug.view Game.idFromString Game.idToString (ChangeId >> wrap) model.name model.id
                     , textField "Name" TextField.Text model.name (ChangeName >> wrap |> Just) [ HtmlA.required True ]
                     , Validator.view nameValidator model
                     , Uploader.view (CoverMsg >> wrap) coverUploaderModel model.cover
                     , Validator.view coverValidator model
-                    , textField "IGDB Id" TextField.Text model.igdbId (ChangeIgdbId >> wrap |> Just) [ HtmlA.required True ]
                     , Date.viewEditor "Start"
                         model.start
                         (ChangeStart >> wrap |> Just)
-                        [ HtmlA.attribute "outlined" "" ]
+                        [ Material.outlined ]
                     , Validator.view startValidator model
                     , Date.viewEditor "Finish"
                         model.finish
                         (ChangeFinish >> wrap |> Just)
-                        [ HtmlA.attribute "outlined" "" ]
+                        [ Material.outlined ]
                     , Validator.view finishValidator model
                     , textField "Order"
                         TextField.Number

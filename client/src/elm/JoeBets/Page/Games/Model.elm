@@ -31,7 +31,7 @@ gamesDecoder : JsonD.Decoder Games
 gamesDecoder =
     let
         subsetDecoder =
-            JsonD.assocListFromList (JsonD.field "id" Game.idDecoder) (JsonD.field "game" Game.decoder)
+            JsonD.assocListFromTupleList Game.idDecoder Game.decoder
     in
     JsonD.succeed Games
         |> JsonD.required "future" subsetDecoder

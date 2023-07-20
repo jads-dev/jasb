@@ -9,14 +9,14 @@ import { WebError } from "../errors.js";
 import type { Server } from "../model.js";
 import { requireSession } from "./auth.js";
 
-const PermissionsBody = Schema.intersection([
-  Schema.strict({
-    game: Schema.string,
-  }),
+const PermissionsBody = Schema.readonly(
   Schema.partial({
-    canManageBets: Schema.boolean,
+    game: Games.Id,
+    manageGames: Schema.boolean,
+    managePermissions: Schema.boolean,
+    manageBets: Schema.boolean,
   }),
-]);
+);
 type PermissionsBody = Schema.TypeOf<typeof PermissionsBody>;
 
 export const usersApi = (server: Server.State): Router => {
@@ -36,18 +36,18 @@ export const usersApi = (server: Server.State): Router => {
     if (internalUser === undefined) {
       throw new WebError(StatusCodes.NOT_FOUND, "User not found.");
     }
-    const result: Users.WithId = Users.fromInternal(internalUser);
-    ctx.body = result;
+    ctx.body = Schema.tuple([Users.Id, Users.User]).encode(
+      Users.fromInternal(internalUser),
+    );
   });
 
   // Get User Bets.
   router.get("/:userId/bets", async (ctx) => {
     const id = ctx.params["userId"];
     const games = await server.store.getUserBets(id ?? "");
-    const result: { id: Games.Id; game: Games.WithBets }[] = games.map(
-      Games.withBetsFromInternal,
-    );
-    ctx.body = result;
+    ctx.body = Schema.readonlyArray(
+      Schema.tuple([Games.Id, Games.WithBets]),
+    ).encode(games.map(Games.withBetsFromInternal));
   });
 
   // Get User Notifications.
@@ -64,10 +64,9 @@ export const usersApi = (server: Server.State): Router => {
       sessionCookie.user,
       sessionCookie.session,
     );
-    const result: Notifications.Notification[] = notifications.map(
-      Notifications.fromInternal,
+    ctx.body = Schema.readonlyArray(Notifications.Notification).encode(
+      notifications.map(Notifications.fromInternal),
     );
-    ctx.body = result;
   });
 
   // Clear User Notification.
@@ -91,10 +90,11 @@ export const usersApi = (server: Server.State): Router => {
 
   router.get("/:userId/bankrupt", async (ctx) => {
     const id = ctx.params["userId"];
-    const result = Users.bankruptcyStatsFromInternal(
-      await server.store.bankruptcyStats(id ?? ""),
+    ctx.body = Users.BankruptcyStats.encode(
+      Users.bankruptcyStatsFromInternal(
+        await server.store.bankruptcyStats(id ?? ""),
+      ),
     );
-    ctx.body = result;
   });
 
   // Bankrupt User.
@@ -112,9 +112,9 @@ export const usersApi = (server: Server.State): Router => {
     if (internalUser === undefined) {
       throw new WebError(StatusCodes.NOT_FOUND, "User not found.");
     }
-    const result: { id: Users.Id; user: Users.User } =
-      Users.fromInternal(internalUser);
-    ctx.body = result;
+    ctx.body = Schema.tuple([Users.Id, Users.User]).encode(
+      Users.fromInternal(internalUser),
+    );
   });
 
   // Get User Permissions.
@@ -122,24 +122,27 @@ export const usersApi = (server: Server.State): Router => {
     const permissions = await server.store.getPermissions(
       ctx.params["userId"] ?? "",
     );
-    const result: Users.Permissions[] = permissions.map(
-      Users.permissionsFromInternal,
+    ctx.body = Users.EditablePermissions.encode(
+      Users.editablePermissionsFromInternal(permissions),
     );
-    ctx.body = result;
   });
 
   // Set User Permissions.
   router.post("/:userId/permissions", Body(), async (ctx) => {
     const sessionCookie = requireSession(ctx.cookies);
     const body = Validation.body(PermissionsBody, ctx.request.body);
-    await server.store.setPermissions(
+    const permissions = await server.store.setPermissions(
       sessionCookie.user,
       sessionCookie.session,
       ctx.params["userId"] ?? "",
       body.game,
-      body.canManageBets,
+      body.manageGames,
+      body.managePermissions,
+      body.manageBets,
     );
-    ctx.status = StatusCodes.NO_CONTENT;
+    ctx.body = Users.EditablePermissions.encode(
+      Users.editablePermissionsFromInternal(permissions),
+    );
   });
 
   return router;

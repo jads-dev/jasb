@@ -22,20 +22,20 @@ import Util.Json.Decode as JsonD
 
 
 type alias Voting =
-    { locksWhen : String }
+    { lockMoment : String }
 
 
 votingDecoder : JsonD.Decoder Voting
 votingDecoder =
     JsonD.succeed Voting
-        |> JsonD.required "locksWhen" JsonD.string
+        |> JsonD.required "lockMoment" JsonD.string
 
 
 encodeVoting : Voting -> JsonE.Value
-encodeVoting { locksWhen } =
+encodeVoting { lockMoment } =
     JsonE.object
         [ ( "state", "Voting" |> JsonE.string )
-        , ( "locksWhen", locksWhen |> JsonE.string )
+        , ( "lockMoment", lockMoment |> JsonE.string )
         ]
 
 

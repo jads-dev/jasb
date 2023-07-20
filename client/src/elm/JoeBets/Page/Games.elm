@@ -67,7 +67,7 @@ view wrap wrapBets { auth, time, games, bets } =
     let
         viewGame ( id, game ) =
             if not games.favouritesOnly || EverySet.member id bets.favourites.value then
-                Html.li [] [ Game.view wrapBets bets time auth.localUser id game Nothing ] |> Just
+                Html.li [] [ Game.view wrapBets bets time auth.localUser id game ] |> Just
 
             else
                 Nothing
@@ -81,7 +81,7 @@ view wrap wrapBets { auth, time, games, bets } =
         body { future, current, finished } =
             let
                 admin =
-                    if Auth.isAdmin auth.localUser then
+                    if Auth.canManageGames auth.localUser then
                         [ Route.a (Edit.Game Nothing |> Route.Edit)
                             []
                             [ Icon.plus |> Icon.view, Html.text " Add Game" ]

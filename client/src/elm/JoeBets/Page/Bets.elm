@@ -99,7 +99,7 @@ load wrap id subset ({ bets } as model) =
     ( { model | bets = newBets }
     , Api.get model.origin
         { path = Api.Game id end
-        , expect = Http.expectJson (Load id subset >> wrap) gameBetsDecoder
+        , expect = Http.expectJson (Load id subset >> wrap) Game.withBetsDecoder
         }
     )
 
@@ -232,7 +232,7 @@ update wrap msg ({ bets, origin, time } as model) =
                             ( { model | bets = { bets | lockStatus = Just RemoteData.Missing } }
                             , Api.get origin
                                 { path = Api.Game game.id Api.LockStatus
-                                , expect = Http.expectJson (LockBetsData >> LockBets >> wrap) lockStatusDecoder
+                                , expect = Http.expectJson (LockBetsData >> LockBets >> wrap) gameLockStatusDecoder
                                 }
                             )
                     in
@@ -241,35 +241,29 @@ update wrap msg ({ bets, origin, time } as model) =
                 LockBetsData data ->
                     ( { model | bets = { bets | lockStatus = Just (RemoteData.load data) } }, Cmd.none )
 
-                Change gameTarget betTarget locked ->
+                Change gameTarget betTarget version locked ->
                     let
+                        action =
+                            if locked then
+                                Api.Lock
+
+                            else
+                                Api.Unlock
+
+                        fromResponse response =
+                            case response of
+                                Ok editableBet ->
+                                    Changed gameTarget betTarget editableBet
+
+                                Err error ->
+                                    Error error
+
                         request =
-                            case bets.lockStatus |> Maybe.andThen RemoteData.toMaybe |> Maybe.andThen (AssocList.get betTarget) of
-                                Just lockStatus ->
-                                    let
-                                        action =
-                                            if locked then
-                                                Api.Lock
-
-                                            else
-                                                Api.Unlock
-
-                                        fromResponse response =
-                                            case response of
-                                                Ok editableBet ->
-                                                    Changed gameTarget betTarget editableBet
-
-                                                Err error ->
-                                                    Error error
-                                    in
-                                    Api.post origin
-                                        { path = action |> Api.Bet betTarget |> Api.Game gameTarget
-                                        , body = [ ( "version", JsonE.int lockStatus.version ) ] |> JsonE.object |> Http.jsonBody
-                                        , expect = Http.expectJson (fromResponse >> LockBets >> wrap) EditableBet.decoder
-                                        }
-
-                                Nothing ->
-                                    Cmd.none
+                            Api.post origin
+                                { path = action |> Api.Bet betTarget |> Api.Game gameTarget
+                                , body = [ ( "version", JsonE.int version ) ] |> JsonE.object |> Http.jsonBody
+                                , expect = Http.expectJson (fromResponse >> LockBets >> wrap) EditableBet.decoder
+                                }
                     in
                     ( model, request )
 
@@ -278,13 +272,18 @@ update wrap msg ({ bets, origin, time } as model) =
                         set _ =
                             Just
                                 { name = updatedBet.name
-                                , locksWhen = updatedBet.locksWhen
                                 , locked = updatedBet.progress == EditableBet.Locked
                                 , version = updatedBet.version
                                 }
 
+                        updateBet lockMomentStatuses =
+                            { lockMomentStatuses | lockStatus = AssocList.update betTarget set lockMomentStatuses.lockStatus }
+
+                        updateLockMoment =
+                            AssocList.update updatedBet.lockMoment (Maybe.map updateBet)
+
                         lockStatus =
-                            bets.lockStatus |> Maybe.map (RemoteData.map (AssocList.update betTarget set))
+                            bets.lockStatus |> Maybe.map (RemoteData.map updateLockMoment)
                     in
                     ( { model | bets = { bets | lockStatus = lockStatus } }, Cmd.none )
 
@@ -357,10 +356,7 @@ view wrap model =
         body { id, subset, data } =
             let
                 game =
-                    data.game.game
-
-                details =
-                    data.game.details
+                    data.game
 
                 bets =
                     data.bets
@@ -416,7 +412,7 @@ view wrap model =
                                         []
 
                                 admin =
-                                    if model.auth.localUser |> Auth.isMod id then
+                                    if model.auth.localUser |> Auth.canManageBets id then
                                         [ Route.a (Edit.Bet id Edit.New |> Route.Edit)
                                             []
                                             [ Icon.plus |> Icon.view
@@ -451,8 +447,8 @@ view wrap model =
                             [ suggest ]
             in
             [ Html.div [ HtmlA.class "game-detail" ]
-                [ Game.view wrap model.bets model.time model.auth.localUser id game (Just details)
-                , Game.viewMods details
+                [ Game.view wrap model.bets model.time model.auth.localUser id game
+                , Game.viewManagers game
                 ]
             , Html.div [ HtmlA.class "controls" ] [ viewActiveFilters wrap subset filters gameFilters shownAmount ]
             , if shownBets |> List.isEmpty |> not then
@@ -467,7 +463,7 @@ view wrap model =
         gameName =
             model.bets.gameBets
                 |> Maybe.andThen (.data >> RemoteData.toMaybe)
-                |> Maybe.map (.game >> .game >> .name)
+                |> Maybe.map (.game >> .name)
                 |> Maybe.withDefault ""
 
         placeBetView localUser =
@@ -495,7 +491,7 @@ view wrap model =
     }
 
 
-viewLockStatus : (Msg -> msg) -> Game.Id -> AssocList.Dict Bet.Id LockStatus -> List (Html msg)
+viewLockStatus : (Msg -> msg) -> Game.Id -> GameLockStatus -> List (Html msg)
 viewLockStatus wrap gameId lockStatus =
     let
         linkify name betId =
@@ -505,22 +501,35 @@ viewLockStatus wrap gameId lockStatus =
                 , Icon.link |> Icon.view
                 ]
 
-        viewBet ( id, { name, locksWhen, locked } ) =
-            Html.li []
+        viewBet ( id, { name, locked, version } ) =
+            Html.li [ HtmlA.class "bet" ]
                 [ Html.span [ HtmlA.class "name" ] [ linkify name id ]
-                , Html.span [ HtmlA.class "locks-when" ] [ Html.text locksWhen ]
-                , Html.span [ HtmlA.class "locked" ] [ Switch.view (Html.text "") locked (Change gameId id >> LockBets >> wrap |> Just) ]
+                , Html.span [ HtmlA.class "locked" ] [ Switch.view (Html.text "") locked (Change gameId id version >> LockBets >> wrap |> Just) ]
                 ]
+
+        viewLockMomentBets ( lockMomentId, details ) =
+            let
+                content =
+                    if AssocList.isEmpty details.lockStatus then
+                        [ Html.li [ HtmlA.class "empty" ] [ Html.span [] [ Icon.ghost |> Icon.view, Html.text " No bets for lock moment." ] ] ]
+
+                    else
+                        details.lockStatus |> AssocList.toList |> List.map viewBet
+            in
+            Html.li [ HtmlA.class "lock-moment" ]
+                [ Html.span [ HtmlA.class "name" ]
+                    [ Html.text "Locks at “", Html.text details.lockMoment.name, Html.text "”:" ]
+                ]
+                :: content
 
         header =
             Html.li [ HtmlA.class "header" ]
-                [ Html.span [ HtmlA.class "name" ] [ Html.text "Name" ]
-                , Html.span [ HtmlA.class "locks-when" ] [ Html.text "Locks When" ]
+                [ Html.span [ HtmlA.class "name" ] [ Html.text "Bet" ]
                 , Html.span [ HtmlA.class "locked" ] [ Html.text "Locked" ]
                 ]
 
         bets =
-            lockStatus |> AssocList.toList |> List.map viewBet
+            lockStatus |> AssocList.toList |> List.concatMap viewLockMomentBets
     in
     [ Html.div [ HtmlA.class "overlay" ]
         [ Html.div [ HtmlA.id "lock-manager" ]

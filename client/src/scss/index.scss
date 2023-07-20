@@ -32,6 +32,12 @@ body {
   --mdc-text-field-outlined-hover-border-color: var(--on-background);
   --mdc-text-field-label-ink-color: var(--on-background);
   --mdc-text-field-ink-color: var(--on-background);
+  --mdc-select-outlined-disabled-border-color: var(--on-disabled);
+  --mdc-select-disabled-ink-color: var(--disabled);
+  --mdc-select-outlined-idle-border-color: var(--on-background);
+  --mdc-select-outlined-hover-border-color: var(--on-background);
+  --mdc-select-label-ink-color: var(--on-background);
+  --mdc-select-ink-color: var(--on-background);
 
   font-family: sans-serif;
 
@@ -263,8 +269,8 @@ a {
 
 .interactions {
   position: absolute;
-  top: 0em;
-  right: 0em;
+  top: 0;
+  right: 0;
 
   background-color: colors.$primary;
   color: colors.$on-primary;

@@ -6,6 +6,7 @@ module JoeBets.Bet.Editor.EditableBet exposing
     )
 
 import AssocList
+import JoeBets.Bet.Editor.LockMoment as LockMoment
 import JoeBets.Bet.Option as Option
 import JoeBets.Bet.Stake.Model as Stake exposing (Stake)
 import JoeBets.User.Model as User
@@ -48,7 +49,7 @@ editableOptionDecoder =
         |> JsonD.optionalAsMaybe "image" JsonD.string
         |> JsonD.required "order" JsonD.int
         |> JsonD.optional "won" JsonD.bool False
-        |> JsonD.required "stakes" (JsonD.assocListFromObject User.idFromString Stake.decoder)
+        |> JsonD.required "stakes" (JsonD.assocListFromTupleList User.idDecoder Stake.decoder)
         |> JsonD.required "version" JsonD.int
         |> JsonD.required "created" DateTime.decoder
         |> JsonD.required "modified" DateTime.decoder
@@ -58,7 +59,7 @@ type alias EditableBet =
     { name : String
     , description : String
     , spoiler : Bool
-    , locksWhen : String
+    , lockMoment : LockMoment.Id
     , progress : Progress
     , options : AssocList.Dict Option.Id EditableOption
 
@@ -66,15 +67,8 @@ type alias EditableBet =
     , version : Int
     , created : DateTime
     , modified : DateTime
-    , author : { id : User.Id, summary : User.Summary }
+    , author : User.SummaryWithId
     }
-
-
-summaryWithId : JsonD.Decoder { id : User.Id, summary : User.Summary }
-summaryWithId =
-    JsonD.succeed (\id summary -> { id = id, summary = summary })
-        |> JsonD.required "by" User.idDecoder
-        |> JsonD.required "author" User.summaryDecoder
 
 
 progressDecoder : JsonD.Decoder Progress
@@ -109,10 +103,10 @@ decoder =
         |> JsonD.required "name" JsonD.string
         |> JsonD.required "description" JsonD.string
         |> JsonD.required "spoiler" JsonD.bool
-        |> JsonD.required "locksWhen" JsonD.string
+        |> JsonD.required "lockMoment" LockMoment.idDecoder
         |> JsonD.custom progressDecoder
         |> JsonD.required "options" (JsonD.list editableOptionDecoder |> JsonD.map (AssocList.fromListWithDerivedKey .id))
         |> JsonD.required "version" JsonD.int
         |> JsonD.required "created" DateTime.decoder
         |> JsonD.required "modified" DateTime.decoder
-        |> JsonD.custom summaryWithId
+        |> JsonD.required "author" User.summaryWithIdDecoder

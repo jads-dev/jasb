@@ -73,6 +73,15 @@ target "client" {
   tags = generateTags("client")
 }
 
+target "migrate" {
+  context = "./migrate"
+  contexts = {
+    server-context = "./server"
+  }
+  inherits = ["build"]
+  tags = generateTags("migrate")
+}
+
 group "default" {
-  targets = [ "server", "client" ]
+  targets = [ "server", "client", "migrate" ]
 }

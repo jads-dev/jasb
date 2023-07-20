@@ -1,4 +1,5 @@
 import { default as Router } from "@koa/router";
+import * as Schema from "io-ts";
 
 import { Leaderboard } from "../../public.js";
 import type { Server } from "../model.js";
@@ -15,9 +16,9 @@ export const leaderboardApi = (server: Server.State): Router => {
     server.config.performance.leaderboardCacheDuration,
   );
   router.get("/net-worth", async (ctx) => {
-    const result: Leaderboard.NetWorthEntry[] =
-      await netWorthLeaderboardCache.get();
-    ctx.body = result;
+    ctx.body = Schema.readonlyArray(Leaderboard.NetWorthEntry).encode(
+      await netWorthLeaderboardCache.get(),
+    );
   });
 
   const debtLeaderboardCache = new ResultCache<Leaderboard.DebtEntry[]>(
@@ -28,8 +29,9 @@ export const leaderboardApi = (server: Server.State): Router => {
     server.config.performance.leaderboardCacheDuration,
   );
   router.get("/debt", async (ctx) => {
-    const result: Leaderboard.DebtEntry[] = await debtLeaderboardCache.get();
-    ctx.body = result;
+    ctx.body = Schema.readonlyArray(Leaderboard.DebtEntry).encode(
+      await debtLeaderboardCache.get(),
+    );
   });
 
   return router;

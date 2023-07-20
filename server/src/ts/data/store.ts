@@ -1,18 +1,13 @@
 import type * as Joda from "@js-joda/core";
 import { StatusCodes } from "http-status-codes";
-import { default as Pg } from "pg";
-import { migrate } from "postgres-migrations";
 import { default as Slonik, type SerializableValue } from "slonik";
-import { z } from "zod";
 
 import {
   AvatarCache,
   Bets,
-  ExternalNotifier,
   Feed,
   Games,
   Notifications,
-  Stakes,
   Users,
 } from "../internal.js";
 import type { Config } from "../server/config.js";
@@ -21,6 +16,7 @@ import type { Logging } from "../server/logging.js";
 import { Notifier } from "../server/notifier.js";
 import { SecretToken } from "../util/secret-token.js";
 import type { ObjectUploader } from "./object-upload.js";
+import { Queries } from "./store/queries.js";
 
 const createResultParserInterceptor = (): Slonik.Interceptor => {
   return {
@@ -47,48 +43,6 @@ const createResultParserInterceptor = (): Slonik.Interceptor => {
 };
 
 const sqlFragment = Slonik.sql.fragment;
-const typedSql = Slonik.createSqlTag({
-  typeAliases: {
-    void: z.object({}).strict(),
-    boolean: z
-      .object({
-        result: z.boolean(),
-      })
-      .strict(),
-    user: Users.User,
-    user_permissions_stats: Users.User.merge(Users.Permissions).merge(
-      Users.BetStats,
-    ),
-    session: Users.LoginDetail,
-    login: Users.User.merge(Users.Permissions).merge(Users.BetStats),
-    netWorthLeaderboard: Users.User.merge(Users.Leaderboard).merge(
-      Users.BetStats,
-    ),
-    debtLeaderboard: Users.User.merge(Users.Leaderboard),
-    bankruptcy_stats: Users.BankruptcyStats,
-    notification: Notifications.Notification,
-    access_token: Users.AccessToken,
-    game: Games.Game,
-    game_with_details: Games.Game.merge(Games.BetStats)
-      .merge(Games.StakeStats)
-      .merge(Games.Mods),
-    game_with_stats: Games.Game.merge(Games.BetStats),
-    bet_with_options: Bets.Bet.merge(Bets.WithOptions),
-    lock_status: Bets.LockStatus,
-    game_with_bets: Games.Game.merge(Games.EmbeddedBets),
-    bet_with_options_and_author: Bets.Bet.merge(Bets.WithOptions).merge(
-      Bets.Author,
-    ),
-    game_name: Games.Name,
-    bet_complete: ExternalNotifier.BetComplete,
-    new_balance: Stakes.NewBalance,
-    new_stake: ExternalNotifier.NewStake,
-    feed_item: Feed.Item,
-    per_game_permission: Users.PerGamePermissions,
-    avatar_cache_url: AvatarCache.Url,
-    avatar_cache_details: AvatarCache.CacheDetails,
-  },
-}).typeAlias;
 
 export class Store {
   readonly logger: Logging.Logger;
@@ -136,7 +90,7 @@ export class Store {
     notifier: Notifier,
     avatarCache: ObjectUploader | undefined,
   ): Promise<Store> {
-    const store = new Store(
+    return new Store(
       logger.child({
         system: "store",
         store: "postgres",
@@ -152,262 +106,166 @@ export class Store {
         interceptors: [createResultParserInterceptor()],
       }),
     );
-    await store.migrate();
-    return store;
   }
 
-  private async migrate(): Promise<void> {
-    const client = new Pg.Client(
-      Store.connectionString(this.config.store.source),
-    );
-    await client.connect();
-    const migrationLogger = this.logger.child({
-      task: "migration",
-    });
-    await migrate({ client }, "./src/sql/migrations", {
-      logger: (msg) => migrationLogger.info(msg),
-    });
-  }
-
-  async validateAdminOrMod(
-    id: string,
+  async validateManageGamesOrBets(
+    userSlug: string,
     sessionId: SecretToken,
   ): Promise<string> {
     return await this.withClient(async (client) => {
-      const sql = typedSql("boolean");
-      await client.query(sql`
-        SELECT
-          validate_admin_or_mod AS result
-        FROM
-          jasb.validate_admin_or_mod(
-            ${id},
-            ${sessionId.uri},
-            ${this.config.auth.sessionLifetime.toString()}
-          );
-      `);
-      return id;
+      if (
+        await client.query(
+          Queries.isTrue(sqlFragment`
+            jasb.validate_manage_games_or_bets(
+              ${userSlug},
+              ${sessionId.uri},
+              ${this.config.auth.sessionLifetime.toString()}
+            )
+          `),
+        )
+      ) {
+        return userSlug;
+      } else {
+        throw new WebError(StatusCodes.FORBIDDEN, "Not a bet manager.");
+      }
     });
   }
 
   async getUser(
-    id: string,
+    slug: string,
     sessionId?: SecretToken,
-  ): Promise<(Users.User & Users.Permissions & Users.BetStats) | undefined> {
+  ): Promise<Users.User | undefined> {
     return await this.withClient(async (client) => {
       if (sessionId !== undefined) {
-        const sql = typedSql("boolean");
-        await client.query(sql`
-          SELECT
-            validate_session AS result
-          FROM
-            jasb.validate_session(
-              ${id},
-              ${sessionId.uri},
-              ${this.config.auth.sessionLifetime.toString()}
-            );
-        `);
+        if (
+          !(await client.query(
+            Queries.isTrue(sqlFragment`
+              jasb.validate_session(
+                ${slug},
+                ${sessionId.uri},
+                ${this.config.auth.sessionLifetime.toString()}
+              );
+            `),
+          ))
+        ) {
+          throw new WebError(StatusCodes.UNAUTHORIZED, "Must be logged in.");
+        }
       }
-      const sql = typedSql("user_permissions_stats");
-      const result = await client.maybeOne(sql`
-        SELECT
-          users.*,
-          (users.staked + users.balance) AS net_worth,
-          COALESCE(ARRAY_AGG(perm.game) FILTER (WHERE perm.game IS NOT NULL), '{}') AS moderator_for
-        FROM
-          jasb.users_with_stakes AS users LEFT JOIN 
-          permissions AS perm ON users.id = perm."user" AND manage_bets = TRUE
-        WHERE
-          users.id = ${id}
-        GROUP BY (
-          users.id,
-          users.name,
-          users.discriminator,
-          users.avatar,
-          users.created,
-          users.admin,
-          users.balance,
-          users.staked,
-          users.avatar_cache
-        );
-      `);
+      const result = await client.maybeOne(
+        Queries.user(sqlFragment`
+          SELECT users.* FROM users WHERE users.slug = ${slug}
+        `),
+      );
       return result ?? undefined;
     });
   }
 
-  async getNetWorthLeaderboard(): Promise<
-    readonly (Users.User & Users.BetStats & Users.Leaderboard)[]
-  > {
+  async getNetWorthLeaderboard(): Promise<readonly Users.Leaderboard[]> {
     return await this.withClient(async (client) => {
-      const sql = typedSql("netWorthLeaderboard");
-      const results = await client.query(sql`
-        SELECT
-          id,
-          name,
-          discriminator,
-          avatar,
-          avatar_cache,
-          created,
-          admin,
-          balance,
-          staked,
-          net_worth,
-          rank::INT
-        FROM
-          jasb.leaderboard
-        WHERE
-          net_worth > ${this.config.rules.initialBalance}
-        ORDER BY rank
-        LIMIT 100;
-      `);
+      const results = await client.query(
+        Queries.leaderboard(sqlFragment`
+          SELECT leaderboard.* 
+          FROM jasb.leaderboard
+          WHERE net_worth > ${this.config.rules.initialBalance}
+        `),
+      );
       return results.rows;
     });
   }
 
-  async getDebtLeaderboard(): Promise<
-    readonly (Users.User & Users.Leaderboard)[]
-  > {
+  async getDebtLeaderboard(): Promise<readonly Users.Leaderboard[]> {
     return await this.withClient(async (client) => {
-      const sql = typedSql("debtLeaderboard");
-      const results = await client.query(sql`
-        SELECT
-          id,
-          name,
-          discriminator,
-          avatar,
-          avatar_cache,
-          created,
-          admin,
-          balance,
-          RANK() OVER (
-            ORDER BY balance ASC
-          ) rank
-        FROM 
-          jasb.users
-        WHERE
-          balance < 0
-        ORDER BY balance ASC
-        LIMIT 100;
-      `);
+      const results = await client.query(
+        Queries.leaderboard(sqlFragment`
+          SELECT debt_leaderboard.* 
+          FROM jasb.debt_leaderboard
+          WHERE balance < 0
+        `),
+      );
       return results.rows;
     });
   }
 
-  async bankruptcyStats(userId: string): Promise<Users.BankruptcyStats> {
+  async bankruptcyStats(userSlug: string): Promise<Users.BankruptcyStats> {
     return await this.withClient(async (client) => {
-      const sql = typedSql("bankruptcy_stats");
-      return await client.one(sql`
-        SELECT
-          COALESCE(SUM(stakes.amount), 0) AS amount_lost,
-          COALESCE(COUNT(*), 0) AS stakes_lost,
-          COALESCE(SUM(stakes.amount) FILTER (WHERE bets.progress = 'Locked'), 0) AS locked_amount_lost,
-          COALESCE(COUNT(*) FILTER (WHERE bets.progress = 'Locked'), 0) AS locked_stakes_lost,
-          ${this.config.rules.initialBalance}::INT AS balance_after
-        FROM
-          jasb.stakes LEFT JOIN 
-          jasb.bets ON bets.id = stakes.bet AND bets.game = stakes.game
-        WHERE
-          stakes.owner = ${userId} AND 
-          is_active(bets.progress)
-      `);
+      return await client.one(
+        Queries.bankruptcyStats(
+          this.config.rules.initialBalance,
+          sqlFragment`
+            SELECT * from jasb.users WHERE users.slug = ${userSlug}
+          `,
+        ),
+      );
     });
   }
 
-  async bankrupt(userId: string, sessionId: SecretToken): Promise<Users.User> {
+  async bankrupt(
+    userSlug: string,
+    sessionId: SecretToken,
+  ): Promise<Users.User> {
     return await this.inTransaction(async (client) => {
-      const sql = typedSql("user");
-      return await client.one(sql`
-        SELECT
-          id,
-          name,
-          discriminator,
-          avatar,
-          avatar_cache
-          created,
-          admin,
-          balance
-        FROM
-          jasb.bankrupt(
-            ${userId},
+      return await client.one(
+        Queries.user(sqlFragment`
+          SELECT * FROM jasb.bankrupt(
+            ${userSlug},
             ${sessionId.uri},
             ${this.config.auth.sessionLifetime.toString()},
             ${this.config.rules.initialBalance}
-          );
-      `);
+        )`),
+      );
     });
   }
 
   async login(
-    userId: string,
-    name: string,
+    discordId: string,
+    username: string,
+    display_name: string | null,
     discriminator: string | null,
     avatar: string | null,
     accessToken: string,
     refreshToken: string,
     discordExpiresIn: Joda.Duration,
   ): Promise<{
-    user: Users.User & Users.Permissions & Users.BetStats & Users.LoginDetail;
+    user: Users.User & Users.LoginDetail;
     notifications: readonly Notifications.Notification[];
   }> {
     const sessionId = await SecretToken.secureRandom(
       this.config.auth.sessionIdSize,
     );
     return await this.inTransaction(async (client) => {
-      const createSession = async () => {
-        const sql = typedSql("session");
-        return await client.one(sql`SELECT session, started FROM jasb.login(
-          ${userId},
-          ${sessionId.uri},
-          ${name},
-          ${discriminator},
-          ${avatar},
-          ${accessToken},
-          ${refreshToken},
-          ${discordExpiresIn.toString()},
-          ${this.config.rules.initialBalance}
-        )`);
-      };
+      const session = await (async () => {
+        return await client.one(
+          Queries.session(sqlFragment`
+            SELECT * FROM jasb.login(
+              ${discordId},
+              ${sessionId.uri},
+              ${username},
+              ${display_name},
+              ${discriminator},
+              ${avatar},
+              ${accessToken},
+              ${refreshToken},
+              ${discordExpiresIn.toString()},
+              ${this.config.rules.initialBalance}
+            )
+          `),
+        );
+      })();
       const login = async () => {
-        const session = await createSession();
-        const sql = typedSql("login");
-        const user = await client.one(sql`
-          SELECT
-            users.*,
-            (users.staked + users.balance) AS net_worth,
-            COALESCE(ARRAY_AGG(permissions.game) FILTER ( WHERE permissions.game IS NOT NULL ), '{}') AS moderator_for
-          FROM
-            jasb.users_with_stakes AS users LEFT JOIN
-            jasb.permissions ON users.id = permissions."user" AND manage_bets = TRUE
-          WHERE users.id = ${userId}
-          GROUP BY (
-            users.id,
-            users.name,
-            users.discriminator,
-            users.avatar,
-            users.avatar_cache,
-            users.created,
-            users.admin,
-            users.balance,
-            users.staked
-          )
-        `);
+        const user = await client.one(
+          Queries.user(sqlFragment`
+            SELECT users.* FROM users WHERE users.id = ${session.user}
+          `),
+        );
         return { ...user, ...session };
       };
       const notification = async () => {
-        const sql = typedSql("notification");
-        return await client.query(sql`
-          SELECT
-            id,
-            TO_JSON(happened) AS happened,
-            notification,
-            read
-          FROM
-            jasb.notifications
-          WHERE
-            "for" = ${userId} AND 
-            read = FALSE
-          ORDER BY 
-            notifications.happened DESC;
-        `);
+        return await client.query(
+          Queries.notification(sqlFragment`
+            SELECT notifications.* FROM jasb.notifications
+            WHERE "for" = ${session.user} AND read IS NOT TRUE
+          `),
+        );
       };
       const [loginResults, notificationResults] = await Promise.all([
         login(),
@@ -421,56 +279,37 @@ export class Store {
   }
 
   async logout(
-    userId: string,
+    userSlug: string,
     session: SecretToken,
   ): Promise<string | undefined> {
-    return await this.withClient(async (client) => {
-      const sql = typedSql("access_token");
-      const result = await client.maybeOne(sql`
-        DELETE FROM
-          jasb.sessions
-        WHERE
-          "user" = ${userId} AND 
-          session = ${session.uri}
-        RETURNING access_token;
-      `);
+    return await this.inTransaction(async (client) => {
+      const result = await client.maybeOne(
+        Queries.accessToken(sqlFragment`
+          DELETE FROM
+            jasb.sessions
+          USING
+            jasb.users
+          WHERE
+            users.slug = ${userSlug} AND
+            sessions."user" = users.id AND 
+            session = ${session.uri}
+          RETURNING sessions.*
+        `),
+      );
       return result?.access_token;
     });
   }
 
   async getGame(
-    id: string,
-  ): Promise<
-    (Games.Game & Games.BetStats & Games.StakeStats & Games.Mods) | undefined
-  > {
+    slug: string,
+  ): Promise<(Games.Game & Games.BetStats) | undefined> {
     return await this.withClient(async (client) => {
-      const sql = typedSql("game_with_details");
-      return (
-        (await client.maybeOne(sql`
-          SELECT
-            games.id,
-            games.name,
-            games.cover,
-            games.igdb_id,
-            games.added,
-            games.started,
-            games.finished,
-            games."order",
-            games.version,
-            games.modified,
-            games.progress,
-            COALESCE(bets.bets, 0) AS bets,
-            COALESCE(stakes.staked, 0) AS staked,
-            TO_JSON(mods.mods) AS mods
-          FROM
-            jasb.games LEFT JOIN 
-            jasb.game_bet_stats AS bets ON games.id = bets.game LEFT JOIN 
-            jasb.game_stake_stats AS stakes ON games.id = stakes.game LEFT JOIN 
-            jasb.game_mods AS mods ON games.id = mods.game
-          WHERE
-            id = ${id};
-        `)) ?? undefined
+      const result = await client.maybeOne(
+        Queries.gameWithBetStats(sqlFragment`
+          SELECT games.* FROM jasb.games WHERE games.slug = ${slug}
+        `),
       );
+      return result ?? undefined;
     });
   }
 
@@ -489,53 +328,44 @@ export class Store {
     subset: Games.Progress,
   ): Promise<readonly (Games.Game & Games.BetStats)[]> {
     return await this.withClient(async (client) => {
-      const sql = typedSql("game_with_stats");
-      const results = await client.query(sql`
-        SELECT
-          games.*,
-          game_bet_stats.bets
-        FROM
-          jasb.games INNER JOIN 
-          jasb.game_bet_stats ON game = id
-        WHERE
-          progress = ${subset}
-        ORDER BY
-          ${this.getSort(subset)}, games.added ASC;
-      `);
+      const results = await client.query(
+        Queries.gameWithBetStats(
+          sqlFragment`
+            SELECT games.* FROM jasb.games WHERE games.progress = ${subset}
+          `,
+          sqlFragment`ORDER BY ${this.getSort(subset)}, games.created ASC`,
+        ),
+      );
       return results.rows;
     });
   }
 
   async addGame(
-    creator: string,
+    creatorSlug: string,
     sessionId: SecretToken,
-    id: string,
+    slug: string,
     name: string,
     cover: string,
-    igdbId: string,
-    started: string | null,
-    finished: string | null,
+    started: Joda.LocalDate | null,
+    finished: Joda.LocalDate | null,
     order: number | null,
   ): Promise<Games.Game> {
-    return await this.withClient(async (client) => {
-      const sql = typedSql("game");
-      return await client.one(sql`
-        SELECT
-          *
-        FROM
-          jasb.add_game(
-            ${creator},
+    return await this.inTransaction(async (client) => {
+      return await client.one(
+        Queries.gameWithBetStats(sqlFragment`
+          SELECT * FROM jasb.add_game(
+            ${creatorSlug},
             ${sessionId.uri},
             ${this.config.auth.sessionLifetime.toString()},
-            ${id},
+            ${slug},
             ${name},
             ${cover},
-            ${igdbId},
-            ${started},
-            ${finished},
+            ${started?.toString() ?? null},
+            ${finished?.toString() ?? null},
             ${order}
-          );
-      `);
+          ) AS games
+      `),
+      );
     });
   }
 
@@ -546,29 +376,14 @@ export class Store {
     id: string,
     name?: string,
     cover?: string,
-    igdbId?: string,
-    started?: string | null,
-    finished?: string | null,
+    started?: Joda.LocalDate | null,
+    finished?: Joda.LocalDate | null,
     order?: number | null,
   ): Promise<Games.Game & Games.BetStats> {
-    return await this.withClient(async (client) => {
-      const sql = typedSql("game_with_stats");
-      return await client.one(sql`
-        SELECT
-          games.id,
-          games.name,
-          games.cover,
-          games.igdb_id,
-          games.added,
-          games.started,
-          games.finished,
-          games."order",
-          games.version,
-          games.modified,
-          games.progress,
-          COALESCE(bets.bets, 0) AS bets
-        FROM
-          jasb.edit_game(
+    return await this.inTransaction(async (client) => {
+      return await client.one(
+        Queries.gameWithBetStats(sqlFragment`
+          SELECT * FROM jasb.edit_game(
             ${editor},
             ${sessionId.uri},
             ${this.config.auth.sessionLifetime.toString()},
@@ -576,239 +391,221 @@ export class Store {
             ${version},
             ${name ?? null},
             ${cover ?? null},
-            ${igdbId ?? null},
-            ${started ?? null},
+            ${started?.toString() ?? null},
             ${started === null},
-            ${finished ?? null},
+            ${finished?.toString() ?? null},
             ${finished === null},
             ${order ?? null},
             ${order === null}
-          ) as games LEFT JOIN 
-          jasb.game_bet_stats AS bets ON games.id = bets.game;
-      `);
+          )
+        `),
+      );
     });
   }
 
-  async getBets(
-    gameId: string,
-  ): Promise<readonly (Bets.Bet & Bets.WithOptions)[]> {
+  async getLockMoments(gameSlug: string): Promise<readonly Bets.LockMoment[]> {
     return await this.withClient(async (client) => {
-      const sql = typedSql("bet_with_options");
-      const results = await client.query(sql`
-        SELECT
-          bets.*,
-          TO_JSONB(COALESCE(options.options, '{}')) AS options
-        FROM
-          jasb.bets LEFT JOIN
-          jasb.options_by_bet AS options ON bets.game = options.game AND bets.id = options.bet
-        WHERE
-          bets.game = ${gameId}
-        ORDER BY bets.created DESC;
-      `);
+      const results = await client.query(
+        Queries.lockMoment(sqlFragment`
+          SELECT lock_moments.* 
+          FROM 
+            jasb.lock_moments INNER JOIN 
+            jasb.games ON 
+              lock_moments.game = games.id AND 
+              games.slug = ${gameSlug}
+        `),
+      );
       return results.rows;
     });
   }
 
-  async getBetsLockStatus(gameId: string): Promise<readonly Bets.LockStatus[]> {
+  async editLockMoments(
+    authorSlug: string,
+    sessionId: SecretToken,
+    gameSlug: string,
+    remove?: readonly { id: string; version: number }[],
+    edit?: readonly {
+      id: string;
+      version: number;
+      name?: string;
+      order?: number;
+    }[],
+    add?: readonly {
+      id: string;
+      name: string;
+      order: number;
+    }[],
+  ): Promise<readonly Bets.LockMoment[]> {
+    return await this.inTransaction(async (client) => {
+      const removeUnnest = Slonik.sql.unnest(
+        (remove ?? []).map(({ id, version }) => [id, version]),
+        ["text", "int4"],
+      );
+      const editUnnest = Slonik.sql.unnest(
+        (edit ?? []).map(({ id, version, name, order }) => [
+          id,
+          version,
+          name ?? null,
+          order ?? null,
+        ]),
+        ["text", "int4", "text", "int4"],
+      );
+      const addUnnest = Slonik.sql.unnest(
+        (add ?? []).map(({ id, name, order }) => [id, name, order]),
+        ["text", "text", "int4"],
+      );
+      const result = await client.query(
+        Queries.lockMoment(sqlFragment`
+          SELECT * FROM jasb.edit_lock_moments(
+            ${authorSlug},
+            ${sessionId.uri},
+            ${this.config.auth.sessionLifetime.toString()},
+            ${gameSlug},
+            (SELECT array_agg(
+              row(slug, version)::RemoveLockMoment
+            ) FROM ${removeUnnest} AS removes(slug, version)),
+            (SELECT array_agg(
+              row(slug, version, name, "order")::EditLockMoment
+            ) FROM ${editUnnest} AS edits(slug, version, name, "order")),
+            (SELECT array_agg(
+              row(slug, name, "order")::AddLockMoment
+            ) FROM ${addUnnest} AS edits(slug, name, "order"))
+          )
+        `),
+      );
+      return result.rows;
+    });
+  }
+
+  async getBets(
+    gameSlug: string,
+  ): Promise<readonly (Bets.Bet & Bets.WithOptions)[]> {
     return await this.withClient(async (client) => {
-      const sql = typedSql("lock_status");
-      const results = await client.query(sql`
-        SELECT
-          bets.id,
-          bets.name,
-          bets.locks_when,
-          bets.progress = 'Locked'::BetProgress as locked,
-          bets.version
-        FROM
-          jasb.bets
-        WHERE
-          bets.game = ${gameId} AND
-          (bets.progress = 'Voting'::BetProgress OR bets.progress = 'Locked'::BetProgress)
-        ORDER BY bets.created DESC;
-      `);
+      const results = await client.query(
+        Queries.betWithOptions(sqlFragment`
+          SELECT bets.* 
+          FROM jasb.bets INNER JOIN jasb.games ON bets.game = games.id
+          WHERE games.slug = ${gameSlug}
+        `),
+      );
+      return results.rows;
+    });
+  }
+
+  async getBetsLockStatus(
+    gameSlug: string,
+  ): Promise<readonly Bets.LockStatus[]> {
+    return await this.withClient(async (client) => {
+      const results = await client.query(
+        Queries.lockStatus(sqlFragment`
+          SELECT bets.* 
+          FROM jasb.bets INNER JOIN jasb.games ON bets.game = games.id
+          WHERE games.slug = ${gameSlug}
+        `),
+      );
       return results.rows;
     });
   }
 
   async getUserBets(
-    userId: string,
-  ): Promise<readonly (Games.Game & Games.EmbeddedBets)[]> {
+    userSlug: string,
+  ): Promise<readonly (Games.Game & Games.WithBets)[]> {
     return await this.withClient(async (client) => {
-      const sql = typedSql("game_with_bets");
-      const results = await client.query(sql`
-        WITH
-          bets AS (
-            SELECT
-              bets.game,
-              bets.id,
-              JSONB_INSERT(
-                TO_JSONB((bets.*)::jasb.bets),
-                ARRAY['options'],
-                TO_JSONB(COALESCE(options.options, '{}'))
-              ) AS bet,
-              MAX(stakes.made_at) AS last_stake_made_at
-            FROM
-              jasb.stakes INNER JOIN 
-              jasb.bets ON stakes.game = bets.game AND stakes.bet = bets.id LEFT JOIN
-              jasb.options_by_bet AS options ON bets.game = options.game AND bets.id = options.bet
-            WHERE stakes.owner = ${userId}
-            GROUP BY (bets.game, bets.id, options.options)
-            ORDER BY MAX(stakes.made_at) DESC
-            LIMIT 100
-          )
-          SELECT
-            games.*,
-            JSONB_AGG(bets.bet) AS bets
+      const results = await client.query(
+        Queries.gameWithBets(sqlFragment`
+          SELECT 
+            bets.*,
+            max(stakes.made_at) AS game_order
           FROM
-            bets INNER JOIN
-            jasb.games ON bets.game = games.id
-          GROUP BY games.id
-          ORDER BY MAX(bets.last_stake_made_at) DESC;
-      `);
+            jasb.users INNER JOIN 
+            jasb.stakes ON users.id = stakes.owner INNER JOIN
+            jasb.options ON stakes.option = options.id INNER JOIN
+            jasb.bets ON options.bet = bets.id
+          WHERE users.slug = ${userSlug}
+          GROUP BY bets.id
+          LIMIT 100
+        `),
+      );
       return results.rows;
     });
   }
 
-  betWithOptionsAndAuthorFromBets(betsSubquery: Slonik.SqlFragment) {
-    const sql = typedSql("bet_with_options_and_author");
-    return sql`
-      SELECT
-        bets.game,
-        bets.id,
-        bets.name,
-        bets.description,
-        bets.spoiler,
-        bets.locks_when,
-        bets.cancelled_reason,
-        bets.progress,
-        bets.created,
-        bets.modified,
-        bets.version,
-        bets.resolved,
-        bets.by,
-        users.name AS author_name,
-        users.discriminator AS author_discriminator,
-        users.avatar AS author_avatar,
-        TO_JSONB(COALESCE(options.options, '{}')) AS options
-      FROM
-        (${betsSubquery}) AS bets INNER JOIN 
-        jasb.users ON bets.by = users.id LEFT JOIN 
-        jasb.options_by_bet AS options ON bets.game = options.game AND bets.id = options.bet;
-    `;
-  }
-
   async getBet(
-    gameId: string,
-    betId: string,
-  ): Promise<(Bets.Bet & Bets.WithOptions & Bets.Author) | undefined> {
+    gameSlug: string,
+    betSlug: string,
+  ): Promise<Bets.EditableBet | undefined> {
     return await this.withClient(async (client) => {
-      return (
-        (await client.maybeOne(
-          this.betWithOptionsAndAuthorFromBets(sqlFragment`
-          SELECT * FROM jasb.bets WHERE bets.game = ${gameId} AND bets.id = ${betId}
+      const result = await client.maybeOne(
+        Queries.editableBet(sqlFragment`
+          SELECT bets.* 
+          FROM 
+            jasb.bets INNER JOIN 
+            jasb.games ON bets.game = games.id AND games.slug = ${gameSlug} 
+          WHERE bets.slug = ${betSlug}
         `),
-        )) ?? undefined
       );
+      return result ?? undefined;
     });
   }
 
-  toAddOptionRow({
-    id,
-    name,
-    image,
-  }: {
-    id: string;
-    name: string;
-    image: string | null;
-  }): Slonik.ValueExpression {
-    return sqlFragment`ROW(${id}, ${name ?? null}, ${
-      image ?? null
-    })::AddOption`;
-  }
-
-  async newBet(
-    by: string,
+  async addBet(
+    authorSlug: string,
     sessionId: SecretToken,
-    gameId: string,
-    id: string,
-    name: string,
+    gameSlug: string,
+    betSlug: string,
+    betName: string,
     description: string,
     spoiler: boolean,
-    locksWhen: string,
+    lockMomentSlug: string,
     options: {
       id: string;
       name: string;
       image: string | null;
     }[],
-  ): Promise<Bets.Bet & Bets.WithOptions & Bets.Author> {
-    const optionsArray =
-      options !== undefined
-        ? sqlFragment`ARRAY[${Slonik.sql.join(
-            options.map(this.toAddOptionRow),
-            sqlFragment`, `,
-          )}]`
-        : null;
+  ): Promise<Bets.EditableBet> {
+    const addUnnest = Slonik.sql.unnest(
+      options.map(({ id, name, image }) => [id, name, image ?? null]),
+      ["text", "text", "text"],
+    );
     return await this.inTransaction(async (client) => {
       const result = await client.one(
-        this.betWithOptionsAndAuthorFromBets(sqlFragment`
-          SELECT
-            *
-          FROM
-            jasb.add_bet(
-              ${by},
-              ${sessionId.uri},
-              ${this.config.auth.sessionLifetime.toString()},
-              ${gameId},
-              ${id},
-              ${name},
-              ${description},
-              ${spoiler},
-              ${locksWhen},
-              ${optionsArray}
+        Queries.editableBet(sqlFragment`
+          SELECT *
+          FROM jasb.add_bet(
+            ${authorSlug},
+            ${sessionId.uri},
+            ${this.config.auth.sessionLifetime.toString()},
+            ${gameSlug},
+            ${betSlug},
+            ${betName},
+            ${description},
+            ${spoiler},
+            ${lockMomentSlug},
+            (
+              SELECT array_agg(
+                row(slug, name, image, 0)::AddOption
+              ) FROM ${addUnnest} AS adds(slug, name, image)
             )
+          )
         `),
       );
       await this.notifier.notify(async () => {
-        const sql = typedSql("game_name");
-        const nameResult = await client.one(
-          sql`SELECT name FROM jasb.games WHERE id = ${gameId};`,
+        const result = await client.one(
+          Queries.gameWithBetStats(sqlFragment`
+            SELECT games.* FROM jasb.games WHERE games.slug = ${gameSlug}
+          `),
         );
         return Notifier.newBet(
           this.config.clientOrigin,
           spoiler,
-          gameId,
-          nameResult.name,
-          id,
-          name,
+          gameSlug,
+          result.name,
+          betSlug,
+          betName,
         );
       });
       return result;
     });
-  }
-
-  toEditOptionRow({
-    id,
-    version,
-    name,
-    image,
-    order,
-  }: {
-    id: string;
-    version?: number;
-    name?: string;
-    image?: string | null;
-    order?: number;
-  }): Slonik.ValueExpression {
-    return sqlFragment`
-      ROW(
-        ${id}, 
-        ${version ?? null}, 
-        ${name ?? null}, 
-        ${image ?? null}, 
-        ${image === null}, 
-        ${order ?? null}
-      )::EditOption
-    `;
   }
 
   async editBet(
@@ -820,8 +617,11 @@ export class Store {
     name?: string,
     description?: string,
     spoiler?: boolean,
-    locksWhen?: string,
-    removeOptions?: string[],
+    lockMoment?: string,
+    removeOptions?: {
+      id: string;
+      version: number;
+    }[],
     editOptions?: {
       id: string;
       version: number;
@@ -835,50 +635,65 @@ export class Store {
       image: string | null;
       order: number;
     }[],
-  ): Promise<(Bets.Bet & Bets.WithOptions & Bets.Author) | undefined> {
-    const editArray =
-      editOptions !== undefined
-        ? sqlFragment`ARRAY[${Slonik.sql.join(
-            editOptions.map(this.toEditOptionRow),
-            sqlFragment`, `,
-          )}]`
-        : null;
-    const addArray =
-      addOptions !== undefined
-        ? sqlFragment`ARRAY[${Slonik.sql.join(
-            addOptions.map(this.toEditOptionRow),
-            sqlFragment`, `,
-          )}]`
-        : null;
+  ): Promise<Bets.EditableBet | undefined> {
+    const removeArray = Slonik.sql.unnest(
+      (removeOptions ?? []).map(({ id, version }) => [id, version]),
+      ["text", "int4"],
+    );
+    const editUnnest = Slonik.sql.unnest(
+      (editOptions ?? []).map(({ id, version, name, image, order }) => [
+        id,
+        version,
+        name ?? null,
+        image ?? null,
+        image === null,
+        order ?? null,
+      ]),
+      ["text", "int4", "text", "text", "bool", "int4"],
+    );
+    const addUnnest = Slonik.sql.unnest(
+      (addOptions ?? []).map(({ id, name, image, order }) => [
+        id,
+        name,
+        image ?? null,
+        order,
+      ]),
+      ["text", "text", "text", "int4"],
+    );
     return await this.inTransaction(async (client) => {
-      return (
-        (await client.maybeOne(
-          this.betWithOptionsAndAuthorFromBets(sqlFragment`
-          SELECT
-            *
-          FROM
-            jasb.edit_bet(
-              ${editor},
-              ${sessionId.uri},
-              ${this.config.auth.sessionLifetime.toString()},
-              ${old_version},
-              ${gameId},
-              ${id},
-              ${name ?? null},
-              ${description ?? null},
-              ${spoiler ?? null},
-              ${locksWhen ?? null},
-              ${
-                removeOptions !== undefined
-                  ? Slonik.sql.array(removeOptions, "text")
-                  : null
-              },
-              ${editArray},
-              ${addArray}
+      const result = await client.maybeOne(
+        Queries.editableBet(sqlFragment`
+          SELECT *
+          FROM jasb.edit_bet(
+            ${editor},
+            ${sessionId.uri},
+            ${this.config.auth.sessionLifetime.toString()},
+            ${old_version},
+            ${gameId},
+            ${id},
+            ${name ?? null},
+            ${description ?? null},
+            ${spoiler ?? null},
+            ${lockMoment ?? null},
+            (
+              SELECT array_agg(
+                row(slug, version)::RemoveOption
+              ) FROM ${removeArray} AS removes(slug, version)
+            ),
+            (
+              SELECT array_agg(
+                row(slug, version, name, image, remove_image, "order")::EditOption
+              ) FROM ${editUnnest} AS edits(slug, version, name, image, remove_image, "order")
+            ),
+            (
+              SELECT array_agg(
+                row(slug, name, image, "order")::AddOption
+              ) FROM ${addUnnest} AS adds(slug, name, image, "order")
             )
+          )
         `),
-        )) ?? undefined
       );
+      return result ?? undefined;
     });
   }
 
@@ -889,87 +704,69 @@ export class Store {
     id: string,
     old_version: number,
     locked: boolean,
-  ): Promise<(Bets.Bet & Bets.WithOptions & Bets.Author) | undefined> {
-    return await this.withClient(async (client) => {
-      return (
-        (await client.maybeOne(
-          this.betWithOptionsAndAuthorFromBets(sqlFragment`
-          SELECT
-            *
-          FROM
-            jasb.set_bet_locked(
-              ${editor},
-              ${sessionId.uri},
-              ${this.config.auth.sessionLifetime.toString()},
-              ${old_version},
-              ${gameId},
-              ${id},
-              ${locked}
-            )
+  ): Promise<Bets.EditableBet | undefined> {
+    return await this.inTransaction(async (client) => {
+      const result = await client.maybeOne(
+        Queries.editableBet(sqlFragment`
+          SELECT *
+          FROM jasb.set_bet_locked(
+            ${editor},
+            ${sessionId.uri},
+            ${this.config.auth.sessionLifetime.toString()},
+            ${old_version},
+            ${gameId},
+            ${id},
+            ${locked}
+          )
         `),
-        )) ?? undefined
       );
+      return result ?? undefined;
     });
   }
 
   async completeBet(
-    userId: string,
+    userSlug: string,
     sessionId: SecretToken,
-    gameId: string,
-    betId: string,
+    gameSlug: string,
+    betSlug: string,
     old_version: number,
     winners: string[],
-  ): Promise<(Bets.Bet & Bets.WithOptions & Bets.Author) | undefined> {
+  ): Promise<Bets.EditableBet | undefined> {
     return await this.inTransaction(async (client) => {
       const result = await client.maybeOne(
-        this.betWithOptionsAndAuthorFromBets(sqlFragment`
-          SELECT
-            *
-          FROM
-            jasb.complete_bet(
-              ${userId},
-              ${sessionId.uri},
-              ${this.config.auth.sessionLifetime.toString()},
-              ${old_version},
-              ${gameId},
-              ${betId},
-              ${Slonik.sql.array(winners, "text")}
-            )
+        Queries.editableBet(sqlFragment`
+          SELECT *
+          FROM jasb.complete_bet(
+            ${userSlug},
+            ${sessionId.uri},
+            ${this.config.auth.sessionLifetime.toString()},
+            ${old_version},
+            ${gameSlug},
+            ${betSlug},
+            ${Slonik.sql.array(winners, "text")}
+          )
         `),
       );
       await this.notifier.notify(async () => {
-        const sql = typedSql("bet_complete");
         const row = await client.one(
-          sql`
-            SELECT 
-              games.name AS game_name, 
-              bets.name AS bet_name,
-              bets.spoiler,
-              bet_stats.winning_stakes,
-              bet_stats.total_staked,
-              TO_JSONB(COALESCE(bet_stats.top_winners, '{}')) AS top_winners,
-              bet_stats.biggest_payout
-            FROM 
-              jasb.games INNER JOIN 
-              jasb.bets ON games.id = bets.game INNER JOIN 
-              jasb.bet_stats ON games.id = bet_stats.game AND bets.id = bet_stats.id
-            WHERE 
-              games.id = ${gameId} AND 
-              bets.id = ${betId}
-          `,
+          Queries.betCompleteNotificationDetails(sqlFragment`
+            SELECT bets.* 
+            FROM jasb.games INNER JOIN jasb.bets ON games.id = bets.game 
+            WHERE games.slug = ${gameSlug} AND bets.slug = ${betSlug}
+          `),
         );
         return Notifier.betComplete(
           this.config.clientOrigin,
           row.spoiler,
-          gameId,
+          gameSlug,
           row.game_name,
-          betId,
+          betSlug,
           row.bet_name,
           winners,
-          row.winning_stakes,
-          row.total_staked,
-          row.top_winners.map((u) => u.id),
-          row.biggest_payout,
+          row.winning_stakes_count,
+          row.total_staked_amount,
+          row.top_winning_discord_ids,
+          row.biggest_payout_amount,
         );
       });
       return result ?? undefined;
@@ -977,147 +774,137 @@ export class Store {
   }
 
   async revertCompleteBet(
-    userId: string,
+    userSlug: string,
     sessionId: SecretToken,
-    gameId: string,
-    betId: string,
+    gameSlug: string,
+    betSlug: string,
     old_version: number,
-  ): Promise<(Bets.Bet & Bets.WithOptions & Bets.Author) | undefined> {
+  ): Promise<Bets.EditableBet | undefined> {
     return await this.inTransaction(async (client) => {
-      return (
-        (await client.maybeOne(
-          this.betWithOptionsAndAuthorFromBets(sqlFragment`
-          SELECT
-            *
-          FROM
-            jasb.revert_complete_bet(
-              ${userId},
-              ${sessionId.uri},
-              ${this.config.auth.sessionLifetime.toString()},
-              ${old_version},
-              ${gameId},
-              ${betId}
-            )
+      const result = await client.maybeOne(
+        Queries.editableBet(sqlFragment`
+          SELECT *
+          FROM jasb.revert_complete_bet(
+            ${userSlug},
+            ${sessionId.uri},
+            ${this.config.auth.sessionLifetime.toString()},
+            ${old_version},
+            ${gameSlug},
+            ${betSlug}
+          )
         `),
-        )) ?? undefined
       );
+      return result ?? undefined;
     });
   }
 
   async cancelBet(
-    userId: string,
+    userSlug: string,
     sessionId: SecretToken,
-    gameId: string,
-    betId: string,
+    gameSlug: string,
+    betSlug: string,
     old_version: number,
     reason: string,
-  ): Promise<(Bets.Bet & Bets.WithOptions & Bets.Author) | undefined> {
+  ): Promise<Bets.EditableBet | undefined> {
     return await this.inTransaction(async (client) => {
-      return (
-        (await client.maybeOne(
-          this.betWithOptionsAndAuthorFromBets(sqlFragment`
-          SELECT
-            *
-          FROM
-            jasb.cancel_bet(
-              ${userId},
-              ${sessionId.uri},
-              ${this.config.auth.sessionLifetime.toString()},
-              ${old_version},
-              ${gameId},
-              ${betId},
-              ${reason}
-            )
+      const result = await client.maybeOne(
+        Queries.editableBet(sqlFragment`
+          SELECT *
+          FROM jasb.cancel_bet(
+            ${userSlug},
+            ${sessionId.uri},
+            ${this.config.auth.sessionLifetime.toString()},
+            ${old_version},
+            ${gameSlug},
+            ${betSlug},
+            ${reason}
+          )
         `),
-        )) ?? undefined
       );
+      return result ?? undefined;
     });
   }
 
   async revertCancelBet(
-    userId: string,
+    userSlug: string,
     sessionId: SecretToken,
-    gameId: string,
-    betId: string,
+    gameSlug: string,
+    betSlug: string,
     old_version: number,
-  ): Promise<(Bets.Bet & Bets.WithOptions & Bets.Author) | undefined> {
+  ): Promise<Bets.EditableBet | undefined> {
     return await this.inTransaction(async (client) => {
-      return (
-        (await client.maybeOne(
-          this.betWithOptionsAndAuthorFromBets(sqlFragment`
-          SELECT
-            *
-          FROM
-            jasb.revert_cancel_bet(
-              ${userId},
-              ${sessionId.uri},
-              ${this.config.auth.sessionLifetime.toString()},
-              ${old_version},
-              ${gameId},
-              ${betId}
-            )
+      const result = await client.maybeOne(
+        Queries.editableBet(sqlFragment`
+          SELECT *
+          FROM jasb.revert_cancel_bet(
+            ${userSlug},
+            ${sessionId.uri},
+            ${this.config.auth.sessionLifetime.toString()},
+            ${old_version},
+            ${gameSlug},
+            ${betSlug}
+          )
         `),
-        )) ?? undefined
       );
+      return result ?? undefined;
     });
   }
 
   async newStake(
-    userId: string,
+    userSlug: string,
     sessionId: SecretToken,
-    gameId: string,
-    betId: string,
-    optionId: string,
+    gameSlug: string,
+    betSlug: string,
+    optionSlug: string,
     amount: number,
     message: string | null,
   ): Promise<number> {
     return await this.inTransaction(async (client) => {
-      const sql = typedSql("new_balance");
-      const row = await client.one(sql`
-        SELECT
-          jasb.new_stake(
+      const row = await client.one(
+        Queries.newBalance(sqlFragment`
+          SELECT * FROM jasb.new_stake(
             ${this.config.rules.minStake},
             ${this.config.rules.notableStake},
             ${this.config.rules.maxStakeWhileInDebt},
-            ${userId},
+            ${userSlug},
             ${sessionId.uri},
             ${this.config.auth.sessionLifetime.toString()},
-            ${gameId},
-            ${betId},
-            ${optionId},
+            ${gameSlug},
+            ${betSlug},
+            ${optionSlug},
             ${amount},
             ${message}
-          ) AS new_balance;
-      `);
+          )
+        `),
+      );
       if (message !== null) {
         await this.notifier.notify(async () => {
-          const sql = typedSql("new_stake");
           const row = await client.one(
-            sql`
-              SELECT 
-                games.name AS game_name, 
-                bets.name AS bet_name,
-                bets.spoiler,
-                options.name AS option_name 
-              FROM 
-                jasb.games INNER JOIN 
-                jasb.bets ON games.id = bets.game INNER JOIN 
-                jasb.options ON games.id = options.game AND bets.id = options.bet
-              WHERE 
-                games.id = ${gameId} AND 
-                bets.id = ${betId} AND
-                options.id = ${optionId};
-            `,
+            Queries.newStakeNotificationDetails(
+              userSlug,
+              sqlFragment`
+                SELECT 
+                  options.* 
+                FROM 
+                  jasb.games INNER JOIN 
+                  jasb.bets ON games.id = bets.game INNER JOIN 
+                  jasb.options ON bets.id = options.bet
+                WHERE 
+                  games.slug = ${gameSlug} AND 
+                  bets.slug = ${betSlug} AND 
+                  options.slug = ${optionSlug}
+              `,
+            ),
           );
           return Notifier.newStake(
             this.config.clientOrigin,
             row.spoiler,
-            gameId,
+            gameSlug,
             row.game_name,
-            betId,
+            betSlug,
             row.bet_name,
             row.option_name,
-            userId,
+            row.user_discord_id,
             amount,
             message,
           );
@@ -1135,18 +922,18 @@ export class Store {
     optionId: string,
   ): Promise<number> {
     return await this.inTransaction(async (client) => {
-      const sql = typedSql("new_balance");
-      const result = await client.one(sql`
-        SELECT
-          jasb.withdraw_stake(
+      const result = await client.one(
+        Queries.newBalance(sqlFragment`
+          SELECT * FROM jasb.withdraw_stake(
             ${userId},
             ${sessionId.uri},
             ${this.config.auth.sessionLifetime.toString()},
             ${gameId},
             ${betId},
             ${optionId}
-          ) AS new_balance;
-      `);
+          )
+        `),
+      );
       return result.new_balance;
     });
   }
@@ -1161,10 +948,9 @@ export class Store {
     message: string | null,
   ): Promise<number> {
     return await this.inTransaction(async (client) => {
-      const sql = typedSql("new_balance");
-      const result = await client.one(sql`
-        SELECT
-          jasb.change_stake(
+      const result = await client.one(
+        Queries.newBalance(sqlFragment`
+          SELECT * FROM jasb.change_stake(
             ${this.config.rules.minStake},
             ${this.config.rules.notableStake},
             ${this.config.rules.maxStakeWhileInDebt},
@@ -1176,33 +962,29 @@ export class Store {
             ${optionId},
             ${amount},
             ${message}
-          ) AS new_balance;
-      `);
+          )
+        `),
+      );
       return result.new_balance;
     });
   }
 
   async getNotifications(
-    userId: string,
+    slug: string,
     sessionId: SecretToken,
     includeRead = false,
   ): Promise<readonly Notifications.Notification[]> {
     return await this.withClient(async (client) => {
-      const sql = typedSql("notification");
-      const results = await client.query(sql`
-        SELECT
-          id,
-          happened,
-          notification,
-          read
-        FROM
-          jasb.get_notifications(
-            ${userId},
+      const results = await client.query(
+        Queries.notification(sqlFragment`
+          SELECT * FROM jasb.get_notifications(
+            ${slug},
             ${sessionId.uri},
             ${this.config.auth.sessionLifetime.toString()},
             ${includeRead}
-          );
-      `);
+          )
+        `),
+      );
       return results.rows;
     });
   }
@@ -1211,188 +993,171 @@ export class Store {
     userId: string,
     sessionId: SecretToken,
     id: string,
-  ): Promise<void> {
-    return await this.withClient(async (client) => {
-      const sql = typedSql("boolean");
-      await client.query(sql`
-        SELECT
-          set_read AS result
-        FROM
-          jasb.set_read(
-            ${userId},
-            ${sessionId.uri},
-            ${this.config.auth.sessionLifetime.toString()},
-            ${id}
-          );
-      `);
-    });
+  ): Promise<boolean> {
+    const result = await this.inTransaction(
+      async (client) =>
+        await client.one(
+          Queries.isTrue(sqlFragment`
+            jasb.set_read(
+              ${userId},
+              ${sessionId.uri},
+              ${this.config.auth.sessionLifetime.toString()},
+              ${id}
+            )
+          `),
+        ),
+    );
+    return result.result;
   }
 
   async getFeed(): Promise<readonly Feed.Item[]> {
     return await this.withClient(async (client) => {
-      const sql = typedSql("feed_item");
-      const results = await client.query(sql`
-        SELECT item, time FROM jasb.feed ORDER BY time DESC LIMIT 100;
-      `);
+      const results = await client.query(
+        Queries.feedItem(sqlFragment`
+          SELECT feed.* FROM jasb.feed
+        `),
+      );
       return results.rows;
     });
   }
 
   async getBetFeed(
-    gameId: string,
-    betId: string,
+    gameSlug: string,
+    betSlug: string,
   ): Promise<readonly Feed.Item[]> {
     return await this.withClient(async (client) => {
-      const sql = typedSql("feed_item");
-      const results = await client.query(sql`
-        SELECT
-          item, time
-        FROM
-          jasb.feed
-        WHERE
-          game = ${gameId} AND 
-          bet = ${betId}
-        ORDER BY time DESC
-      `);
+      const results = await client.query(
+        Queries.feedItem(sqlFragment`
+          SELECT feed.* 
+          FROM jasb.feed
+          WHERE game_slug = ${gameSlug} AND bet_slug = ${betSlug}
+        `),
+      );
       return results.rows;
     });
   }
 
-  async getPermissions(
-    userId: string,
-  ): Promise<readonly Users.PerGamePermissions[]> {
+  async getPermissions(userSlug: string): Promise<Users.EditablePermissions> {
     return await this.withClient(async (client) => {
-      const sql = typedSql("per_game_permission");
-      const results = await client.query(sql`
-        SELECT
-          games.id AS game_id,
-          games.name AS game_name,
-          COALESCE(per_game_permissions.manage_bets, FALSE) AS manage_bets
-        FROM
-          jasb.games LEFT JOIN
-          jasb.per_game_permissions ON "user" = ${userId} AND games.id = per_game_permissions.game;
-      `);
-      return results.rows;
+      return await client.one(
+        Queries.editablePermissions(sqlFragment`
+          SELECT users.* FROM jasb.users WHERE users.slug = ${userSlug}
+        `),
+      );
     });
   }
 
   async setPermissions(
-    editorId: string,
+    editorSlug: string,
     sessionId: SecretToken,
-    userId: string,
-    gameId: string,
+    userSlug: string,
+    gameSlug: string | undefined,
+    manage_games: boolean | undefined,
+    manage_permissions: boolean | undefined,
     manage_bets: boolean | undefined,
-  ): Promise<void> {
-    await this.withClient(async (client) => {
-      const sql = typedSql("per_game_permission");
-      await client.query(sql`
-        SELECT
-          *
-        FROM
-          jasb.set_permissions(
-            ${editorId},
+  ): Promise<Users.EditablePermissions> {
+    return await this.inTransaction(async (client) => {
+      return await client.one(
+        Queries.editablePermissions(sqlFragment`
+          SELECT * FROM jasb.set_permissions(
+            ${editorSlug},
             ${sessionId.uri},
             ${this.config.auth.sessionLifetime.toString()},
-            ${userId},
-            ${gameId},
+            ${userSlug},
+            ${gameSlug ?? null},
+            ${manage_games ?? null},
+            ${manage_permissions ?? null},
             ${manage_bets ?? null}
-          );
-      `);
+          )
+        `),
+      );
     });
   }
 
-  async garbageCollect(): Promise<string[]> {
-    return await this.withClient(async (client) => {
-      const sql = typedSql("access_token");
-      const results = await client.query(sql`
-        DELETE FROM
-          jasb.sessions
-        WHERE
-          NOW() >= (started + ${this.config.auth.sessionLifetime.toString()}::INTERVAL)
-        RETURNING access_token;
-      `);
+  async garbageCollect(): Promise<readonly string[]> {
+    return await this.inTransaction(async (client) => {
+      const results = await client.query(
+        Queries.accessToken(sqlFragment`
+          DELETE FROM
+            jasb.sessions
+          WHERE
+            NOW() >= (started + ${this.config.auth.sessionLifetime.toString()}::INTERVAL)
+          RETURNING sessions.*
+        `),
+      );
       return results.rows.map((row) => row.access_token);
     });
   }
 
   async avatarCacheGarbageCollection(
     garbageCollectBatchSize: number,
-  ): Promise<string[]> {
+  ): Promise<readonly string[]> {
     return await this.withClient(async (client) => {
-      const sql = typedSql("avatar_cache_url");
-      const results = await client.query(sql`
-        SELECT 
-          cached_avatars.url
-        FROM
-          jasb.cached_avatars
-        WHERE NOT EXISTS (
-          SELECT FROM jasb.users
-          WHERE cached_avatars.url = users.avatar_cache
-        ) LIMIT ${garbageCollectBatchSize};
-      `);
+      const results = await client.query(
+        Queries.avatarMeta(sqlFragment`
+          SELECT avatars.*
+          FROM 
+            jasb.avatars LEFT JOIN 
+            jasb.users ON avatars.id = users.avatar
+          WHERE avatars.cached AND users.id IS NULL
+          LIMIT ${garbageCollectBatchSize}
+        `),
+      );
       return results.rows.map((row) => row.url);
     });
   }
 
   async avatarsToCache(
     cacheBatchSize: number,
-  ): Promise<readonly AvatarCache.CacheDetails[]> {
+  ): Promise<readonly AvatarCache.Meta[]> {
     return await this.withClient(async (client) => {
-      const sql = typedSql("avatar_cache_details");
-      const results = await client.query(sql`
-        SELECT
-          users.discriminator,
-          users.id,
-          users.avatar
-        FROM
-          jasb.users
-        WHERE
-          users.avatar_cache IS NULL
-        LIMIT ${cacheBatchSize};
-      `);
+      const results = await client.query(
+        Queries.avatarMeta(sqlFragment`
+          SELECT avatars.*
+          FROM jasb.avatars
+          WHERE avatars.cached IS NOT TRUE
+          LIMIT ${cacheBatchSize}
+        `),
+      );
       return results.rows;
     });
   }
 
   async updateCachedAvatars(
-    added: { user: string; key: AvatarCache.Key; url: string }[],
-  ): Promise<void> {
-    const sql = typedSql("void");
-    await this.withClient(
+    cached: readonly { oldUrl: string; newUrl: string }[],
+  ): Promise<number> {
+    const result = await this.inTransaction(
       async (client) =>
-        await Promise.all([
-          client.query(sql`
-            INSERT INTO jasb.cached_avatars (url, key) 
-            SELECT DISTINCT * FROM ${Slonik.sql.unnest(
-              added.map(({ key, url }) => [url, JSON.stringify(key)]),
-              ["text", "jsonb"],
-            )}
-            ON CONFLICT DO NOTHING;
-          `),
-          client.query(sql`
-            UPDATE jasb.users 
+        await client.one(
+          Queries.count(sqlFragment`
+            UPDATE jasb.avatars 
             SET 
-              avatar_cache = added.url 
-            FROM (SELECT "user", url FROM ${Slonik.sql.unnest(
-              added.map(({ user, url }) => [user, url]),
+              url = cached.new_url,
+              cached = TRUE
+            FROM ${Slonik.sql.unnest(
+              cached.map(({ oldUrl, newUrl }) => [oldUrl, newUrl]),
               ["text", "text"],
-            )} AS added("user", url)) AS added 
-            WHERE 
-              users.id = added."user"
+            )} AS cached(old_url, new_url) 
+            WHERE avatars.cached IS NOT TRUE AND avatars.url = cached.old_url
+            RETURNING avatars.id
           `),
-        ]),
+        ),
     );
+    return result.affected;
   }
 
-  async deleteCachedAvatars(deleted: string[]): Promise<void> {
-    const sql = typedSql("void");
-    await this.withClient(
+  async deleteCachedAvatars(deleted: readonly string[]): Promise<number> {
+    const result = await this.inTransaction(
       async (client) =>
-        await client.query(sql`
-          DELETE FROM jasb.cached_avatars 
-          WHERE url = ANY(${Slonik.sql.array(deleted, "text")});
-        `),
+        await client.one(
+          Queries.count(sqlFragment`
+            DELETE FROM jasb.avatars 
+            WHERE url = ANY(${Slonik.sql.array(deleted, "text")})
+            RETURNING avatars.id
+          `),
+        ),
     );
+    return result.affected;
   }
 
   async unload(): Promise<void> {

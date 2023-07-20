@@ -17,6 +17,7 @@ import JoeBets.Store.Codecs as Codecs
 import JoeBets.Store.Item as Item
 import JoeBets.Store.KeyedItem as Store exposing (KeyedItem)
 import JoeBets.Theme as Theme
+import Material.Attributes as Material
 import Material.IconButton as IconButton
 import Material.Select as Select
 import Material.Switch as Switch
@@ -95,7 +96,7 @@ view wrap { settings } =
                 , wrap = Maybe.withDefault Theme.Auto >> SetTheme >> wrap
                 , disabled = False
                 , fullWidth = True
-                , attrs = []
+                , attrs = [ Material.outlined ]
                 }
 
             layoutSelectModel =
@@ -106,7 +107,7 @@ view wrap { settings } =
                 , wrap = Maybe.withDefault Layout.Auto >> SetLayout >> wrap
                 , disabled = False
                 , fullWidth = True
-                , attrs = []
+                , attrs = [ Material.outlined ]
                 }
         in
         [ Html.div [ HtmlA.id "client-settings" ]

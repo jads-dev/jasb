@@ -2,6 +2,7 @@ import * as Joda from "@js-joda/core";
 import { default as Router } from "@koa/router";
 import { promises as fs } from "fs";
 import { StatusCodes } from "http-status-codes";
+import * as Schema from "io-ts";
 import { koaBody as Body } from "koa-body";
 
 import { Feed } from "../public.js";
@@ -37,8 +38,7 @@ export const api = (server: Server.State): Router => {
   );
 
   apiRouter.get("/feed", async (ctx) => {
-    const result: Feed.Event[] = await feedCache.get();
-    ctx.body = result;
+    ctx.body = Schema.readonlyArray(Feed.Event).encode(await feedCache.get());
   });
 
   apiRouter.post(
@@ -53,7 +53,7 @@ export const api = (server: Server.State): Router => {
       const imageUpload = server.imageUpload;
       if (imageUpload !== undefined) {
         const sessionCookie = requireSession(ctx.cookies);
-        const userId = await server.store.validateAdminOrMod(
+        const userId = await server.store.validateManageGamesOrBets(
           sessionCookie.user,
           sessionCookie.session,
         );
@@ -71,14 +71,16 @@ export const api = (server: Server.State): Router => {
             "File type not provided.",
           );
         }
-        ctx.body = {
-          url: await imageUpload.upload(
-            file.originalFilename ?? file.newFilename,
-            file.mimetype,
-            Uint8Array.from(await fs.readFile(file.filepath)),
-            { uploader: userId },
-          ),
-        };
+        ctx.body = Schema.strict({ url: Schema.string }).encode({
+          url: (
+            await imageUpload.upload(
+              file.originalFilename ?? file.newFilename,
+              file.mimetype,
+              Uint8Array.from(await fs.readFile(file.filepath)),
+              { uploader: userId },
+            )
+          ).toString(),
+        });
       } else {
         throw new WebError(
           StatusCodes.SERVICE_UNAVAILABLE,

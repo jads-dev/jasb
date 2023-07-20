@@ -1,6 +1,7 @@
 module JoeBets.User.Model exposing
     ( Id
     , Summary
+    , SummaryWithId
     , User
     , WithId
     , decoder
@@ -11,6 +12,7 @@ module JoeBets.User.Model exposing
     , idToString
     , summary
     , summaryDecoder
+    , summaryWithIdDecoder
     , withIdDecoder
     )
 
@@ -53,16 +55,37 @@ encodeId (Id string) =
     string |> JsonE.string
 
 
+type alias Permissions =
+    { manageGames : Bool
+    , managePermissions : Bool
+    , manageBets : EverySet Game.Id
+    }
+
+
+defaultPermissions : Permissions
+defaultPermissions =
+    { manageGames = False
+    , managePermissions = False
+    , manageBets = EverySet.empty
+    }
+
+
+permissionsDecoder : JsonD.Decoder Permissions
+permissionsDecoder =
+    JsonD.succeed Permissions
+        |> JsonD.optional "manageGames" JsonD.bool False
+        |> JsonD.optional "managePermissions" JsonD.bool False
+        |> JsonD.optional "manageBets" (JsonD.everySetFromList Game.idDecoder) EverySet.empty
+
+
 type alias User =
     { name : String
     , discriminator : Maybe String
-    , avatar : Maybe String
-    , avatarCache : Maybe String
+    , avatar : String
     , balance : Int
     , betValue : Int
     , created : DateTime
-    , admin : Bool
-    , mod : EverySet Game.Id
+    , permissions : Permissions
     }
 
 
@@ -71,13 +94,11 @@ decoder =
     JsonD.succeed User
         |> JsonD.required "name" JsonD.string
         |> JsonD.optionalAsMaybe "discriminator" JsonD.string
-        |> JsonD.optionalAsMaybe "avatar" JsonD.string
-        |> JsonD.optionalAsMaybe "avatarCache" JsonD.string
+        |> JsonD.required "avatar" JsonD.string
         |> JsonD.required "balance" JsonD.int
         |> JsonD.required "betValue" JsonD.int
         |> JsonD.required "created" DateTime.decoder
-        |> JsonD.optional "admin" JsonD.bool False
-        |> JsonD.optional "mod" (JsonD.everySetFromList Game.idDecoder) EverySet.empty
+        |> JsonD.optional "permissions" permissionsDecoder defaultPermissions
 
 
 type alias WithId =
@@ -86,22 +107,21 @@ type alias WithId =
 
 withIdDecoder : JsonD.Decoder WithId
 withIdDecoder =
-    JsonD.succeed WithId
-        |> JsonD.required "id" idDecoder
-        |> JsonD.required "user" decoder
+    JsonD.map2 WithId
+        (JsonD.index 0 idDecoder)
+        (JsonD.index 1 decoder)
 
 
 type alias Summary =
     { name : String
     , discriminator : Maybe String
-    , avatar : Maybe String
-    , avatarCache : Maybe String
+    , avatar : String
     }
 
 
 summary : User -> Summary
-summary { name, discriminator, avatar, avatarCache } =
-    Summary name discriminator avatar avatarCache
+summary { name, discriminator, avatar } =
+    Summary name discriminator avatar
 
 
 summaryDecoder : JsonD.Decoder Summary
@@ -109,5 +129,15 @@ summaryDecoder =
     JsonD.succeed Summary
         |> JsonD.required "name" JsonD.string
         |> JsonD.optionalAsMaybe "discriminator" JsonD.string
-        |> JsonD.optionalAsMaybe "avatar" JsonD.string
-        |> JsonD.optionalAsMaybe "avatarCache" JsonD.string
+        |> JsonD.required "avatar" JsonD.string
+
+
+type alias SummaryWithId =
+    { id : Id, user : Summary }
+
+
+summaryWithIdDecoder : JsonD.Decoder SummaryWithId
+summaryWithIdDecoder =
+    JsonD.map2 SummaryWithId
+        (JsonD.index 0 idDecoder)
+        (JsonD.index 1 summaryDecoder)

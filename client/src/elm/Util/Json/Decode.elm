@@ -1,6 +1,7 @@
 module Util.Json.Decode exposing
     ( assocListFromList
     , assocListFromObject
+    , assocListFromTupleList
     , atLeastOne
     , everySetFromList
     , optionalAsMaybe
@@ -26,6 +27,12 @@ atLeastOne itemDecoder =
                     succeed ( first, rest )
     in
     list itemDecoder |> andThen nonEmpty
+
+
+assocListFromTupleList : Decoder key -> Decoder value -> Decoder (AssocList.Dict key value)
+assocListFromTupleList decodeKey decodeValue =
+    JsonD.list (JsonD.map2 Tuple.pair (JsonD.index 0 decodeKey) (JsonD.index 1 decodeValue))
+        |> JsonD.map (List.reverse >> AssocList.fromList)
 
 
 assocListFromList : Decoder key -> Decoder value -> Decoder (AssocList.Dict key value)

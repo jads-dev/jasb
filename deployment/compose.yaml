@@ -1,8 +1,6 @@
 # This docker compose file is for building and running a production version of jasb.
 # This uses the built images from the github image repository.
 
-version: "3.9"
-
 networks:
   backend:
   frontend:
@@ -13,6 +11,36 @@ volumes:
   storage-volume:
 
 services:
+  storage:
+    image: postgres:15
+    volumes:
+      - storage-volume:/var/lib/postgresql/data
+    environment:
+      POSTGRES_USER: jasb
+      POSTGRES_PASSWORD: CHANGE_ME
+      TZ: UTC
+    networks:
+      - backend
+    restart: unless-stopped
+    profiles:
+      - migrate
+      - serve
+
+  migrate:
+    image: "ghcr.io/jads-dev/jasb/migrate:latest"
+    command: migrate
+    environment:
+      FLYWAY_URL: jdbc:postgresql://storage:5432/jasb
+      FLYWAY_USER: jasb
+      FLYWAY_PASSWORD: CHANGE_ME
+    networks:
+      - backend
+    depends_on:
+      - storage
+    restart: no
+    profiles:
+      - migrate
+
   server:
     image: "ghcr.io/jads-dev/jasb/server:latest"
     environment:
@@ -25,6 +53,8 @@ services:
     volumes:
       - /host/path/to/config.json5:/jasb/config.json5:ro
     restart: unless-stopped
+    profiles:
+      - serve
 
   client:
     image: "ghcr.io/jads-dev/jasb/client:latest"
@@ -35,15 +65,5 @@ services:
     depends_on:
       - server
     restart: unless-stopped
-
-  storage:
-    image: postgres:15
-    volumes:
-      - storage-volume:/var/lib/postgresql/data
-    environment:
-      POSTGRES_USER: jasb
-      POSTGRES_PASSWORD: CHANGE_ME
-      TZ: UTC
-    networks:
-      - backend
-    restart: unless-stopped
+    profiles:
+      - serve

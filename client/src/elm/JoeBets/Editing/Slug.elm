@@ -3,11 +3,15 @@ module JoeBets.Editing.Slug exposing
     , init
     , resolve
     , set
+    , validator
     , view
     )
 
 import Html exposing (Html)
 import Html.Attributes as HtmlA
+import JoeBets.Page.Edit.Validator as Validator exposing (Validator)
+import List.Extra as List
+import Material.Attributes as Material
 import Material.TextField as TextField
 import Util.Url as Url
 
@@ -43,7 +47,7 @@ set idFromString name slug =
             slug
 
         _ ->
-            name |> Maybe.map (idFromString >> Manual) |> Maybe.withDefault Auto
+            name |> Maybe.map (Url.slugify >> idFromString >> Manual) |> Maybe.withDefault Auto
 
 
 view : (String -> id) -> (id -> String) -> (String -> msg) -> String -> Slug id -> Html msg
@@ -65,4 +69,23 @@ view idFromString idToString changeId name slug =
         TextField.Text
         (idToString value)
         action
-        (HtmlA.attribute "outlined" "" :: title)
+        (Material.outlined :: title)
+
+
+validator : (String -> id) -> (value -> ( Slug id, String )) -> List value -> Validator value
+validator idFromString getSlugAndName values =
+    let
+        resolveFromTuple ( slug, name ) =
+            resolve idFromString name slug
+
+        resolvedIds =
+            values |> List.map (getSlugAndName >> resolveFromTuple)
+
+        isNotUnique value =
+            let
+                targetId =
+                    value |> getSlugAndName |> resolveFromTuple
+            in
+            List.count ((==) targetId) resolvedIds > 1
+    in
+    Validator.fromPredicate "Slug must be unqiue." isNotUnique

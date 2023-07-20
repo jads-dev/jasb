@@ -2,46 +2,52 @@ import { z } from "zod";
 
 import { zonedDateTime } from "./types.js";
 
-export const User = z
+const UserBase = z
   .object({
-    id: z.string(),
+    slug: z.string(),
     name: z.string(),
     discriminator: z.string().nullable(),
-    avatar: z.string().nullable(),
-    avatar_cache: z.string().url().nullable(),
-
     created: zonedDateTime,
-    admin: z.boolean(),
-
     balance: z.number().int(),
-  })
-  .strict();
-export type User = z.infer<typeof User>;
-
-export const BetStats = z
-  .object({
+    avatar_url: z.string().url(),
     staked: z.number().int(),
     net_worth: z.number().int(),
   })
   .strict();
-export type BetStats = z.infer<typeof BetStats>;
+
+export const User = z
+  .object({
+    manage_games: z.boolean(),
+    manage_permissions: z.boolean(),
+    manage_bets: z.array(z.string()),
+  })
+  .strict()
+  .merge(UserBase);
+export type User = z.infer<typeof User>;
+
+export const Avatar = z
+  .object({
+    id: z.number().int(),
+    discord_user: z.string().nullable(),
+    hash: z.string().nullable(),
+    default_index: z.number().int().nullable(),
+    url: z.string().url(),
+    cached: z.boolean(),
+  })
+  .strict();
+export type Avatar = z.infer<typeof Avatar>;
 
 export const Leaderboard = z
   .object({
     rank: z.number().int().nonnegative(),
   })
-  .strict();
+  .strict()
+  .merge(UserBase);
 export type Leaderboard = z.infer<typeof Leaderboard>;
-
-export const Permissions = z
-  .object({
-    moderator_for: z.array(z.string()),
-  })
-  .strict();
-export type Permissions = z.infer<typeof Permissions>;
 
 export const LoginDetail = z
   .object({
+    user: z.number().int(),
     session: z.string(),
     started: zonedDateTime,
   })
@@ -49,11 +55,10 @@ export const LoginDetail = z
 export type LoginDetail = z.infer<typeof LoginDetail>;
 
 export const Summary = User.pick({
-  id: true,
+  slug: true,
   name: true,
   discriminator: true,
-  avatar: true,
-  avatar_cache: true,
+  avatar_url: true,
 });
 export type Summary = z.infer<typeof Summary>;
 
@@ -68,20 +73,41 @@ export const BankruptcyStats = z
   .strict();
 export type BankruptcyStats = z.infer<typeof BankruptcyStats>;
 
-export const PerGamePermissions = z
+/**
+ * The permissions about a specific game a user with the right permissions can
+ * edit about another user.
+ */
+export const SpecificPermissions = z
   .object({
-    game_id: z.string(),
+    game_slug: z.string(),
     game_name: z.string(),
     manage_bets: z.boolean(),
   })
   .strict();
-export type PerGamePermissions = z.infer<typeof PerGamePermissions>;
+export type SpecificPermissions = z.infer<typeof SpecificPermissions>;
 
-export const AccessToken = z
+/**
+ * The general and specific permissions a user with the right permissions can
+ * edit about another user.
+ */
+export const EditablePermissions = z
+  .object({
+    manage_games: z.boolean(),
+    manage_permissions: z.boolean(),
+    manage_bets: z.boolean(),
+    game_specific: z.array(SpecificPermissions),
+  })
+  .strict();
+export type EditablePermissions = z.infer<typeof EditablePermissions>;
+
+/**
+ * The discord access token for a user.
+ */
+export const DiscordAccessToken = z
   .object({
     access_token: z.string(),
   })
   .strict();
-export type AccessToken = z.infer<typeof AccessToken>;
+export type DiscordAccessToken = z.infer<typeof DiscordAccessToken>;
 
 export * as Users from "./users.js";

@@ -1,10 +1,10 @@
 ARG NODE_VERSION=20
 
-FROM node:${NODE_VERSION}-alpine
+FROM node:${NODE_VERSION}
 
 EXPOSE 8080
 
-VOLUME [ "/jasb/client" ]
+VOLUME [ "/jasb" ]
 WORKDIR "/jasb/client"
 
 ENV JASB_DEV_ENV "docker"

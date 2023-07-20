@@ -136,13 +136,6 @@ view wrap specificFeed { feed, bets, settings } =
                 potentialSpoiler =
                     HtmlA.class "potential-spoiler"
 
-                viewUser user =
-                    Route.a (user.id |> Just |> Route.User)
-                        [ HtmlA.class "user permalink" ]
-                        [ User.viewAvatar user.id user
-                        , Html.span [ HtmlA.class "name" ] [ Html.text user.name ]
-                        ]
-
                 itemRender isSpoiler icon contents =
                     let
                         ( divAttrs, liAttrs ) =
@@ -196,7 +189,7 @@ view wrap specificFeed { feed, bets, settings } =
                         winInfo =
                             if winningBets > 0 then
                                 [ highlighted.winners
-                                    |> List.map viewUser
+                                    |> List.map (\{ id, user } -> User.viewLink User.Compact id user)
                                     |> List.intersperse (Html.text ", ")
                                     |> List.addBeforeLast (Html.text "and ")
                                 , [ Html.text eachWon
@@ -244,7 +237,7 @@ view wrap specificFeed { feed, bets, settings } =
                             , Html.text "”."
                             ]
                         , Html.div [ HtmlA.class "message" ]
-                            [ viewUser user
+                            [ User.viewLink User.Compact user.id user.user
                             , Html.q [ potentialSpoiler ] [ Html.text message ]
                             ]
                         ]

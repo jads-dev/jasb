@@ -4,15 +4,18 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "docker:storage": "cd development && ./compose.sh up --build --no-log-prefix storage"
+    "docker:storage": "./development/compose.sh up --no-log-prefix storage",
+    "docker:migrate": "./development/compose.sh run --rm migrate",
+    "docker:tools": "./development/compose.sh run --rm tools"
   },
   "devDependencies": {
-    "@typescript-eslint/eslint-plugin": "^5.0.0",
-    "@typescript-eslint/parser": "^5.0.0",
+    "@typescript-eslint/eslint-plugin": "^6.1.0",
+    "@typescript-eslint/parser": "^6.1.0",
     "eslint": "^8.0.0",
     "eslint-plugin-simple-import-sort": "^10.0.0",
-    "prettier": "^2.4.1",
+    "prettier": "^3.0.0",
     "prettier-plugin-elm": "^0.11.0",
+    "prettier-plugin-sql": "^0.15.1",
     "typescript": "^5.1.3"
   }
 }

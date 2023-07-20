@@ -1,60 +1,81 @@
+import * as Schema from "io-ts";
+
 import type { Internal } from "../internal.js";
 import { Expect } from "../util/expect.js";
-import type { Bets } from "./bets.js";
-import type { Games } from "./games.js";
-import type { Users } from "./users.js";
+import { Bets } from "./bets.js";
+import { Games } from "./games.js";
+import { Users } from "./users.js";
 
-export interface IdAndName<Id> {
-  id: Id;
-  name: string;
-}
+const idAndName = <T extends Schema.Mixed>(id: T) =>
+  Schema.tuple([id, Schema.string]);
 
-export interface UserInfo {
-  id: Users.Id;
-  name: string;
-  discriminator?: string;
-  avatar?: string;
-  avatarCache?: string;
-}
+/**
+ * A feed event about a new bet being made.
+ */
+const NewBet = Schema.readonly(
+  Schema.strict({
+    type: Schema.literal("NewBet"),
+    game: idAndName(Games.Id),
+    bet: idAndName(Bets.Id),
+    spoiler: Schema.boolean,
+  }),
+);
+type NewBet = Schema.TypeOf<typeof NewBet>;
 
-export interface NewBet {
-  type: "NewBet";
-  game: IdAndName<Games.Id>;
-  bet: IdAndName<Bets.Id>;
-  spoiler: boolean;
-}
+/**
+ * A feed event about a bet being completed.
+ */
+const BetComplete = Schema.readonly(
+  Schema.strict({
+    type: Schema.literal("BetComplete"),
+    game: idAndName(Games.Id),
+    bet: idAndName(Bets.Id),
+    spoiler: Schema.boolean,
+    winners: Schema.readonlyArray(idAndName(Bets.Options.Id)),
+    highlighted: Schema.readonly(
+      Schema.strict({
+        winners: Schema.readonlyArray(Schema.tuple([Users.Id, Users.Summary])),
+        amount: Schema.Int,
+      }),
+    ),
+    totalReturn: Schema.Int,
+    winningBets: Schema.Int,
+  }),
+);
+type BetComplete = Schema.TypeOf<typeof BetComplete>;
 
-export interface BetComplete {
-  type: "BetComplete";
-  game: IdAndName<Games.Id>;
-  bet: IdAndName<Bets.Id>;
-  spoiler: boolean;
-  winners: IdAndName<Bets.Options.Id>[];
-  highlighted: {
-    winners: UserInfo[];
-    amount: number;
-  };
-  totalReturn: number;
-  winningBets: number;
-}
+/**
+ * A feed event about a notably large stake being placed.
+ */
+const NotableStake = Schema.readonly(
+  Schema.strict({
+    type: Schema.literal("NotableStake"),
+    game: idAndName(Games.Id),
+    bet: idAndName(Bets.Id),
+    spoiler: Schema.boolean,
+    option: idAndName(Bets.Options.Id),
+    user: Schema.tuple([Users.Id, Users.Summary]),
+    message: Schema.string,
+    stake: Schema.Int,
+  }),
+);
+type NotableStake = Schema.TypeOf<typeof NotableStake>;
 
-export interface NotableStake {
-  type: "NotableStake";
-  game: IdAndName<Games.Id>;
-  bet: IdAndName<Bets.Id>;
-  spoiler: boolean;
-  option: IdAndName<Bets.Options.Id>;
-  user: UserInfo;
-  message: string;
-  stake: number;
-}
-
-export type Event = NewBet | BetComplete | NotableStake;
+/**
+ * An event in the feed.
+ */
+export const Event = Schema.union([NewBet, BetComplete, NotableStake]);
+export type Event = Schema.TypeOf<typeof Event>;
 
 export const unknownEvent = Expect.exhaustive(
   "feed event",
   (i: Internal.Feed.Event) => i.type,
 );
+
+const idAndNameFromInternal = <Id extends string>(internal: {
+  slug: string;
+  name: string;
+}): [Id, string] => [internal.slug as Id, internal.name];
 
 export const fromInternal = (internal: Internal.Feed.Item): Event => {
   const event = internal.item;
@@ -76,11 +97,11 @@ export const fromInternal = (internal: Internal.Feed.Item): Event => {
           idAndNameFromInternal<Bets.Options.Id>(w),
         ),
         highlighted: {
-          winners: event.highlighted.winners.map(userInfoFromInternal),
-          amount: event.highlighted.amount,
+          winners: event.highlighted.winners.map(Users.summaryFromInternal),
+          amount: event.highlighted.amount as Schema.Int,
         },
-        totalReturn: event.totalReturn,
-        winningBets: event.winningStakes,
+        totalReturn: event.totalReturn as Schema.Int,
+        winningBets: event.winningStakes as Schema.Int,
       };
     case "NotableStake":
       return {
@@ -89,31 +110,13 @@ export const fromInternal = (internal: Internal.Feed.Item): Event => {
         bet: idAndNameFromInternal(event.bet),
         spoiler: event.spoiler,
         option: idAndNameFromInternal(event.option),
-        user: userInfoFromInternal(event.user),
+        user: Users.summaryFromInternal(event.user),
         message: event.message,
-        stake: event.stake,
+        stake: event.stake as Schema.Int,
       };
     default:
       return unknownEvent(event);
   }
 };
 
-const idAndNameFromInternal = <Id extends string>(
-  internal: Internal.Feed.IdAndName,
-): IdAndName<Id> => ({
-  id: internal.id as Id,
-  name: internal.name,
-});
-
-const userInfoFromInternal = (internal: Internal.Users.Summary): UserInfo => ({
-  id: internal.id as Users.Id,
-  name: internal.name,
-  ...(internal.avatar !== null ? { avatar: internal.avatar } : {}),
-  ...(internal.avatar_cache !== null
-    ? { avatarCache: internal.avatar_cache }
-    : {}),
-  ...(internal.discriminator !== null
-    ? { discriminator: internal.discriminator }
-    : {}),
-});
 export * as Feed from "./feed.js";

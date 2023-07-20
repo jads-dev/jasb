@@ -6,9 +6,9 @@
   "scripts": {
     "build": "npx webpack",
     "dev": "npx webpack serve --mode=development",
-    "docker": "cd ../development && ./compose.sh run --tty --rm --service-ports --entrypoint /bin/ash client",
-    "docker:build": "cd ../development && ./compose.sh run --rm client run build",
-    "docker:dev": "cd ../development && ./compose.sh up --build client"
+    "docker": "../development/compose.sh run --tty --rm --service-ports --entrypoint /bin/ash client",
+    "docker:build": "../development/compose.sh run --rm client run build",
+    "docker:dev": "../development/compose.sh up --build --no-log-prefix client"
   },
   "dependencies": {
     "@fortawesome/fontawesome-svg-core": "^6.1.1",
@@ -26,7 +26,7 @@
     "html-webpack-plugin": "^5.5.0",
     "mini-css-extract-plugin": "^2.6.0",
     "postcss-loader": "^7.0.0",
-    "postcss-preset-env": "^8.4.2",
+    "postcss-preset-env": "^9.0.0",
     "sass": "^1.49.9",
     "sass-loader": "^13.0.0",
     "style-loader": "^3.3.1",

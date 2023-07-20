@@ -1,5 +1,5 @@
 module JoeBets.Page.Bets.Model exposing
-    ( GameBets
+    ( GameLockStatus
     , LockBetsMsg(..)
     , LockStatus
     , Model
@@ -7,7 +7,7 @@ module JoeBets.Page.Bets.Model exposing
     , Selected
     , StoreChange(..)
     , Subset(..)
-    , gameBetsDecoder
+    , gameLockStatusDecoder
     , lockStatusDecoder
     )
 
@@ -15,9 +15,9 @@ import AssocList
 import EverySet exposing (EverySet)
 import Http
 import JoeBets.Bet.Editor.EditableBet exposing (EditableBet)
-import JoeBets.Bet.Model as Bet exposing (Bet)
+import JoeBets.Bet.Editor.LockMoment as LockMoment exposing (LockMoment)
+import JoeBets.Bet.Model as Bet
 import JoeBets.Bet.PlaceBet.Model as PlaceBet
-import JoeBets.Game.Details as Game
 import JoeBets.Game.Id as Game
 import JoeBets.Game.Model as Game
 import JoeBets.Page.Bets.Filters exposing (Filter, Filters)
@@ -38,27 +38,10 @@ type Subset
     | Suggestions
 
 
-type alias GameBets =
-    { game : Game.Detailed
-    , bets : AssocList.Dict Bet.Id Bet
-    }
-
-
-gameBetsDecoder : JsonD.Decoder GameBets
-gameBetsDecoder =
-    let
-        decoder =
-            JsonD.assocListFromList (JsonD.field "id" Bet.idDecoder) (JsonD.field "bet" Bet.decoder)
-    in
-    JsonD.succeed GameBets
-        |> JsonD.required "game" Game.detailedDecoder
-        |> JsonD.required "bets" decoder
-
-
 type alias Selected =
     { id : Game.Id
     , subset : Subset
-    , data : RemoteData GameBets
+    , data : RemoteData Game.WithBets
     }
 
 
@@ -67,13 +50,12 @@ type alias Model =
     , placeBet : PlaceBet.Model
     , filters : AssocList.Dict Game.Id (Item Filters)
     , favourites : Item (EverySet Game.Id)
-    , lockStatus : Maybe (RemoteData (AssocList.Dict Bet.Id LockStatus))
+    , lockStatus : Maybe (RemoteData GameLockStatus)
     }
 
 
 type alias LockStatus =
     { name : String
-    , locksWhen : String
     , locked : Bool
     , version : Int
     }
@@ -84,25 +66,46 @@ lockStatusDecoder =
     let
         lockStatus =
             JsonD.succeed LockStatus
-                |> JsonD.required "name" JsonD.string
-                |> JsonD.required "locksWhen" JsonD.string
+                |> JsonD.required "betName" JsonD.string
                 |> JsonD.required "locked" JsonD.bool
-                |> JsonD.required "version" JsonD.int
+                |> JsonD.required "betVersion" JsonD.int
     in
-    JsonD.assocListFromList (JsonD.field "id" Bet.idDecoder) lockStatus
+    JsonD.assocListFromList (JsonD.field "betId" Bet.idDecoder) lockStatus
+
+
+type alias LockMomentStatuses =
+    { lockMoment : LockMoment
+    , lockStatus : AssocList.Dict Bet.Id LockStatus
+    }
+
+
+lockMomentStatusesDecoder : JsonD.Decoder LockMomentStatuses
+lockMomentStatusesDecoder =
+    JsonD.map2 LockMomentStatuses
+        (JsonD.index 1 LockMoment.decoder)
+        (JsonD.index 2 lockStatusDecoder)
+
+
+type alias GameLockStatus =
+    AssocList.Dict LockMoment.Id LockMomentStatuses
+
+
+gameLockStatusDecoder : JsonD.Decoder GameLockStatus
+gameLockStatusDecoder =
+    JsonD.assocListFromList (JsonD.index 0 LockMoment.idDecoder) lockMomentStatusesDecoder
 
 
 type LockBetsMsg
     = Open
-    | LockBetsData (RemoteData.Response (AssocList.Dict Bet.Id LockStatus))
-    | Change Game.Id Bet.Id Bool
+    | LockBetsData (RemoteData.Response GameLockStatus)
+    | Change Game.Id Bet.Id Int Bool
     | Changed Game.Id Bet.Id EditableBet
     | Error Http.Error
     | Close
 
 
 type Msg
-    = Load Game.Id Subset (RemoteData.Response GameBets)
+    = Load Game.Id Subset (RemoteData.Response Game.WithBets)
     | SetFilter Filter Bool
     | ClearFilters
     | SetFavourite Game.Id Bool

@@ -10,10 +10,13 @@ module JoeBets.Game.Model exposing
 
 import AssocList
 import JoeBets.Bet.Model as Bet exposing (Bet)
+import JoeBets.Bet.Option exposing (Option)
 import JoeBets.Game.Progress as Progress
+import JoeBets.User.Model as User
 import Json.Decode as JsonD
 import Json.Decode.Pipeline as JsonD
 import Time.Date exposing (Date)
+import Time.DateTime as DateTime exposing (DateTime)
 import Util.Json.Decode as JsonD
 
 
@@ -70,26 +73,40 @@ progressDecoder =
 
 
 type alias Game =
-    { version : Int
-    , name : String
+    { name : String
     , cover : String
-    , igdbId : String
-    , bets : Int
     , progress : Progress
     , order : Maybe Int
+    , bets : Int
+    , staked : Int
+    , managers : AssocList.Dict User.Id User.Summary
+
+    -- Metadata
+    , version : Int
+    , created : DateTime
+    , modified : DateTime
     }
+
+
+baseDecoder : JsonD.Decoder Int -> JsonD.Decoder Int -> JsonD.Decoder Game
+baseDecoder bets staked =
+    JsonD.succeed
+        Game
+        |> JsonD.required "name" JsonD.string
+        |> JsonD.required "cover" JsonD.string
+        |> JsonD.required "progress" progressDecoder
+        |> JsonD.optionalAsMaybe "order" JsonD.int
+        |> JsonD.custom bets
+        |> JsonD.custom staked
+        |> JsonD.required "managers" (JsonD.assocListFromTupleList User.idDecoder User.summaryDecoder)
+        |> JsonD.required "version" JsonD.int
+        |> JsonD.required "created" DateTime.decoder
+        |> JsonD.required "modified" DateTime.decoder
 
 
 decoder : JsonD.Decoder Game
 decoder =
-    JsonD.succeed Game
-        |> JsonD.required "version" JsonD.int
-        |> JsonD.required "name" JsonD.string
-        |> JsonD.required "cover" JsonD.string
-        |> JsonD.required "igdbId" JsonD.string
-        |> JsonD.required "bets" JsonD.int
-        |> JsonD.required "progress" progressDecoder
-        |> JsonD.optionalAsMaybe "order" JsonD.int
+    baseDecoder (JsonD.field "bets" JsonD.int) (JsonD.field "staked" JsonD.int)
 
 
 type alias WithBets =
@@ -101,22 +118,26 @@ type alias WithBets =
 withBetsDecoder : JsonD.Decoder WithBets
 withBetsDecoder =
     let
-        gameWithoutGivenBetCount bets =
-            JsonD.succeed Game
-                |> JsonD.required "version" JsonD.int
-                |> JsonD.required "name" JsonD.string
-                |> JsonD.required "cover" JsonD.string
-                |> JsonD.required "igdbId" JsonD.string
-                |> JsonD.hardcoded bets
-                |> JsonD.required "progress" progressDecoder
-                |> JsonD.optionalAsMaybe "order" JsonD.int
-
         betsDecoder =
-            JsonD.assocListFromList (JsonD.field "id" Bet.idDecoder) (JsonD.field "bet" Bet.decoder)
+            JsonD.assocListFromTupleList Bet.idDecoder Bet.decoder
+
+        getOptionStakes : Option -> List Int
+        getOptionStakes option =
+            option.stakes |> AssocList.values |> List.map .amount
+
+        getBetStakes : Bet -> List Int
+        getBetStakes bet =
+            bet.options |> AssocList.values |> List.concatMap getOptionStakes
+
+        gameDecoder : AssocList.Dict Bet.Id Bet -> JsonD.Decoder Game
+        gameDecoder bets =
+            baseDecoder
+                (bets |> AssocList.size |> JsonD.succeed)
+                (bets |> AssocList.values |> List.concatMap getBetStakes |> List.sum |> JsonD.succeed)
 
         fromBets bets =
             JsonD.succeed WithBets
-                |> JsonD.custom (bets |> AssocList.size |> gameWithoutGivenBetCount)
+                |> JsonD.custom (gameDecoder bets)
                 |> JsonD.hardcoded bets
     in
     JsonD.field "bets" betsDecoder |> JsonD.andThen fromBets

@@ -5,10 +5,11 @@ import { koaBody as Body } from "koa-body";
 
 import { Bets, Editor, Feed, Games } from "../../public.js";
 import { Options } from "../../public/bets/options.js";
+import { LockMoments } from "../../public/editor.js";
 import { Validation } from "../../util/validation.js";
 import { WebError } from "../errors.js";
 import type { Server } from "../model.js";
-import { requireSession } from "./auth.js";
+import * as Auth from "./auth.js";
 
 const StakeBody = Schema.intersection([
   Schema.strict({
@@ -24,7 +25,7 @@ const BetBody = {
   name: Schema.string,
   description: Schema.string,
   spoiler: Schema.boolean,
-  locksWhen: Schema.string,
+  lockMoment: LockMoments.Id,
 };
 const CreateBetBody = Schema.intersection([
   Schema.strict(BetBody),
@@ -42,7 +43,12 @@ const EditBetBody = Schema.intersection([
   Schema.strict({ version: Schema.Int }),
   Schema.partial(BetBody),
   Schema.partial({
-    removeOptions: Schema.array(Schema.string),
+    removeOptions: Schema.array(
+      Schema.strict({
+        id: Options.Id,
+        version: Schema.Int,
+      }),
+    ),
     editOptions: Schema.array(
       Schema.intersection([
         Schema.strict({
@@ -96,32 +102,32 @@ export const betsApi = (server: Server.State): Router => {
     if (bet === undefined) {
       throw new WebError(StatusCodes.NOT_FOUND, "Bet not found.");
     }
-    const result: { game: Games.Game; bet: Bets.Bet } = {
-      game: Games.fromInternal(game).game,
-      bet: Bets.fromInternal(bet).bet,
-    };
-    ctx.body = result;
+    ctx.body = Schema.strict({
+      game: Games.Game,
+      bet: Bets.Bet,
+    }).encode({
+      game: Games.withBetStatsFromInternal(game)[1],
+      bet: Bets.fromInternal(bet)[1],
+    });
   });
 
   router.get("/edit", async (ctx) => {
-    const bet = await server.store.getBet(
-      ctx.params["gameId"] ?? "",
-      ctx.params["betId"] ?? "",
-    );
+    const gameId = ctx.params["gameId"] ?? "";
+    const betId = ctx.params["betId"] ?? "";
+    const bet = await server.store.getBet(gameId, betId);
     if (bet === undefined) {
       throw new WebError(StatusCodes.NOT_FOUND, "Bet not found.");
     }
-    const result: Editor.Bets.EditableBet = Editor.Bets.fromInternal(bet);
-    ctx.body = result;
+    ctx.body = Editor.Bets.EditableBet.encode(Editor.Bets.fromInternal(bet));
   });
 
   // Create Bet
   router.put("/", Body(), async (ctx) => {
-    const sessionCookie = requireSession(ctx.cookies);
+    const sessionCookie = Auth.requireSession(ctx.cookies);
     const gameId = ctx.params["gameId"] ?? "";
     const betId = ctx.params["betId"] ?? "";
     const body = Validation.body(CreateBetBody, ctx.request.body);
-    const bet = await server.store.newBet(
+    const bet = await server.store.addBet(
       sessionCookie.user,
       sessionCookie.session,
       gameId,
@@ -129,16 +135,15 @@ export const betsApi = (server: Server.State): Router => {
       body.name,
       body.description,
       body.spoiler,
-      body.locksWhen,
+      body.lockMoment,
       body.addOptions,
     );
-    const result: Editor.Bets.EditableBet = Editor.Bets.fromInternal(bet);
-    ctx.body = result;
+    ctx.body = Editor.Bets.EditableBet.encode(Editor.Bets.fromInternal(bet));
   });
 
   // Edit Bet
   router.post("/", Body(), async (ctx) => {
-    const sessionCookie = requireSession(ctx.cookies);
+    const sessionCookie = Auth.requireSession(ctx.cookies);
     const gameId = ctx.params["gameId"] ?? "";
     const betId = ctx.params["betId"] ?? "";
     const body = Validation.body(EditBetBody, ctx.request.body);
@@ -151,7 +156,7 @@ export const betsApi = (server: Server.State): Router => {
       body.name,
       body.description,
       body.spoiler,
-      body.locksWhen,
+      body.lockMoment,
       body.removeOptions,
       body.editOptions,
       body.addOptions,
@@ -159,13 +164,12 @@ export const betsApi = (server: Server.State): Router => {
     if (bet === undefined) {
       throw new WebError(StatusCodes.NOT_FOUND, "Bet not found.");
     }
-    const result: Editor.Bets.EditableBet = Editor.Bets.fromInternal(bet);
-    ctx.body = result;
+    ctx.body = Editor.Bets.EditableBet.encode(Editor.Bets.fromInternal(bet));
   });
 
   // Complete Bet
   router.post("/complete", Body(), async (ctx) => {
-    const sessionCookie = requireSession(ctx.cookies);
+    const sessionCookie = Auth.requireSession(ctx.cookies);
     const gameId = ctx.params["gameId"] ?? "";
     const body = Validation.body(CompleteBetBody, ctx.request.body);
     const bet = await server.store.completeBet(
@@ -179,13 +183,12 @@ export const betsApi = (server: Server.State): Router => {
     if (bet === undefined) {
       throw new WebError(StatusCodes.NOT_FOUND, "Bet not found.");
     }
-    const result: Editor.Bets.EditableBet = Editor.Bets.fromInternal(bet);
-    ctx.body = result;
+    ctx.body = Editor.Bets.EditableBet.encode(Editor.Bets.fromInternal(bet));
   });
 
   // Revert Complete Bet
   router.post("/complete/revert", Body(), async (ctx) => {
-    const sessionCookie = requireSession(ctx.cookies);
+    const sessionCookie = Auth.requireSession(ctx.cookies);
     const gameId = ctx.params["gameId"] ?? "";
     const body = Validation.body(RevertBody, ctx.request.body);
     const bet = await server.store.revertCompleteBet(
@@ -198,13 +201,12 @@ export const betsApi = (server: Server.State): Router => {
     if (bet === undefined) {
       throw new WebError(StatusCodes.NOT_FOUND, "Bet not found.");
     }
-    const result: Editor.Bets.EditableBet = Editor.Bets.fromInternal(bet);
-    ctx.body = result;
+    ctx.body = Editor.Bets.EditableBet.encode(Editor.Bets.fromInternal(bet));
   });
 
   // Lock Bet
   router.post("/lock", Body(), async (ctx) => {
-    const sessionCookie = requireSession(ctx.cookies);
+    const sessionCookie = Auth.requireSession(ctx.cookies);
     const gameId = ctx.params["gameId"] ?? "";
     const body = Validation.body(ModifyLockStateBody, ctx.request.body);
     const bet = await server.store.setBetLocked(
@@ -218,13 +220,12 @@ export const betsApi = (server: Server.State): Router => {
     if (bet === undefined) {
       throw new WebError(StatusCodes.NOT_FOUND, "Bet not found.");
     }
-    const result: Editor.Bets.EditableBet = Editor.Bets.fromInternal(bet);
-    ctx.body = result;
+    ctx.body = Editor.Bets.EditableBet.encode(Editor.Bets.fromInternal(bet));
   });
 
   // Unlock Bet
   router.post("/unlock", Body(), async (ctx) => {
-    const sessionCookie = requireSession(ctx.cookies);
+    const sessionCookie = Auth.requireSession(ctx.cookies);
     const gameId = ctx.params["gameId"] ?? "";
     const body = Validation.body(ModifyLockStateBody, ctx.request.body);
     const bet = await server.store.setBetLocked(
@@ -238,13 +239,12 @@ export const betsApi = (server: Server.State): Router => {
     if (bet === undefined) {
       throw new WebError(StatusCodes.NOT_FOUND, "Bet not found.");
     }
-    const result: Editor.Bets.EditableBet = Editor.Bets.fromInternal(bet);
-    ctx.body = result;
+    ctx.body = Editor.Bets.EditableBet.encode(Editor.Bets.fromInternal(bet));
   });
 
   // Cancel Bet
   router.post("/cancel", Body(), async (ctx) => {
-    const sessionCookie = requireSession(ctx.cookies);
+    const sessionCookie = Auth.requireSession(ctx.cookies);
     const gameId = ctx.params["gameId"] ?? "";
     const body = Validation.body(CancelBetBody, ctx.request.body);
     const bet = await server.store.cancelBet(
@@ -258,13 +258,12 @@ export const betsApi = (server: Server.State): Router => {
     if (bet === undefined) {
       throw new WebError(StatusCodes.NOT_FOUND, "Bet not found.");
     }
-    const result: Editor.Bets.EditableBet = Editor.Bets.fromInternal(bet);
-    ctx.body = result;
+    ctx.body = Editor.Bets.EditableBet.encode(Editor.Bets.fromInternal(bet));
   });
 
   // Revert Cancel Bet
   router.post("/cancel/revert", Body(), async (ctx) => {
-    const sessionCookie = requireSession(ctx.cookies);
+    const sessionCookie = Auth.requireSession(ctx.cookies);
     const gameId = ctx.params["gameId"] ?? "";
     const body = Validation.body(RevertBody, ctx.request.body);
     const bet = await server.store.revertCancelBet(
@@ -277,8 +276,7 @@ export const betsApi = (server: Server.State): Router => {
     if (bet === undefined) {
       throw new WebError(StatusCodes.NOT_FOUND, "Bet not found.");
     }
-    const result: Editor.Bets.EditableBet = Editor.Bets.fromInternal(bet);
-    ctx.body = result;
+    ctx.body = Editor.Bets.EditableBet.encode(Editor.Bets.fromInternal(bet));
   });
 
   // Get Bet Feed
@@ -286,8 +284,9 @@ export const betsApi = (server: Server.State): Router => {
     const gameId = ctx.params["gameId"] ?? "";
     const betId = ctx.params["betId"] ?? "";
     const feed = await server.store.getBetFeed(gameId, betId);
-    const result: Feed.Event[] = feed.map(Feed.fromInternal);
-    ctx.body = result;
+    ctx.body = Schema.readonlyArray(Feed.Event).encode(
+      feed.map(Feed.fromInternal),
+    );
   });
 
   function validateStakeBody(body: unknown): StakeBody {
@@ -320,47 +319,50 @@ export const betsApi = (server: Server.State): Router => {
 
   // Place Stake.
   router.put("/options/:optionId/stake", Body(), async (ctx) => {
-    const sessionCookie = requireSession(ctx.cookies);
+    const sessionCookie = Auth.requireSession(ctx.cookies);
     const { amount, message } = validateStakeBody(ctx.request.body);
-    const new_balance = await server.store.newStake(
-      sessionCookie.user,
-      sessionCookie.session,
-      ctx.params["gameId"] ?? "",
-      ctx.params["betId"] ?? "",
-      ctx.params["optionId"] ?? "",
-      amount,
-      message ?? null,
+    ctx.body = Schema.Int.encode(
+      (await server.store.newStake(
+        sessionCookie.user,
+        sessionCookie.session,
+        ctx.params["gameId"] ?? "",
+        ctx.params["betId"] ?? "",
+        ctx.params["optionId"] ?? "",
+        amount,
+        message ?? null,
+      )) as Schema.Int,
     );
-    ctx.body = new_balance;
   });
 
   // Edit Stake.
   router.post("/options/:optionId/stake", Body(), async (ctx) => {
-    const sessionCookie = requireSession(ctx.cookies);
+    const sessionCookie = Auth.requireSession(ctx.cookies);
     const { amount, message } = validateStakeBody(ctx.request.body);
-    const new_balance = await server.store.changeStake(
-      sessionCookie.user,
-      sessionCookie.session,
-      ctx.params["gameId"] ?? "",
-      ctx.params["betId"] ?? "",
-      ctx.params["optionId"] ?? "",
-      amount,
-      message ?? null,
+    ctx.body = Schema.Int.encode(
+      (await server.store.changeStake(
+        sessionCookie.user,
+        sessionCookie.session,
+        ctx.params["gameId"] ?? "",
+        ctx.params["betId"] ?? "",
+        ctx.params["optionId"] ?? "",
+        amount,
+        message ?? null,
+      )) as Schema.Int,
     );
-    ctx.body = new_balance;
   });
 
   // Withdraw Stake.
   router.delete("/options/:optionId/stake", Body(), async (ctx) => {
-    const sessionCookie = requireSession(ctx.cookies);
-    const new_balance = await server.store.withdrawStake(
-      sessionCookie.user,
-      sessionCookie.session,
-      ctx.params["gameId"] ?? "",
-      ctx.params["betId"] ?? "",
-      ctx.params["optionId"] ?? "",
+    const sessionCookie = Auth.requireSession(ctx.cookies);
+    ctx.body = Schema.Int.encode(
+      (await server.store.withdrawStake(
+        sessionCookie.user,
+        sessionCookie.session,
+        ctx.params["gameId"] ?? "",
+        ctx.params["betId"] ?? "",
+        ctx.params["optionId"] ?? "",
+      )) as Schema.Int,
     );
-    ctx.body = new_balance;
   });
 
   return router;

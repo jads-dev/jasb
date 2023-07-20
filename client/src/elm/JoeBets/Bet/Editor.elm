@@ -7,7 +7,7 @@ module JoeBets.Bet.Editor exposing
     )
 
 import AssocList
-import EverySet as EverySet
+import EverySet
 import FontAwesome as Icon
 import FontAwesome.Solid as Icon
 import Html exposing (Html)
@@ -18,9 +18,13 @@ import Http
 import JoeBets.Api as Api
 import JoeBets.Bet as Bet
 import JoeBets.Bet.Editor.EditableBet as EditableBet exposing (EditableBet)
+import JoeBets.Bet.Editor.LockMoment as LockMoment
+import JoeBets.Bet.Editor.LockMoment.Editor as LockMoment
+import JoeBets.Bet.Editor.LockMoment.Selector as LockMoment
 import JoeBets.Bet.Editor.Model exposing (..)
 import JoeBets.Bet.Model as Bet
 import JoeBets.Bet.Option as Option
+import JoeBets.Editing.Order as Order
 import JoeBets.Editing.Slug as Slug
 import JoeBets.Editing.Uploader as Uploader
 import JoeBets.Game.Id as Game
@@ -32,6 +36,7 @@ import JoeBets.User.Auth.Model as Auth
 import JoeBets.User.Model as User
 import Json.Encode as JsonE
 import List.Extra as List
+import Material.Attributes as Material
 import Material.Button as Button
 import Material.IconButton as IconButton
 import Material.Switch as Switch
@@ -52,7 +57,7 @@ type alias Parent a =
 
 
 empty : User.Id -> Bool -> Game.Id -> Edit.EditMode -> Model
-empty _ isMod gameId editMode =
+empty _ canManageBets gameId editMode =
     let
         ( source, id ) =
             case editMode of
@@ -63,7 +68,7 @@ empty _ isMod gameId editMode =
                     ( Nothing, Slug.Auto )
 
         mode =
-            if not isMod || editMode == Edit.Suggest then
+            if not canManageBets || editMode == Edit.Suggest then
                 EditSuggestion
 
             else
@@ -76,7 +81,9 @@ empty _ isMod gameId editMode =
     , name = ""
     , description = ""
     , spoiler = True
-    , locksWhen = ""
+    , lockMoments = RemoteData.Missing
+    , lockMomentEditor = Nothing
+    , lockMoment = Nothing
     , options = AssocList.empty
     , contextualOverlay = Nothing
     , internalIdCounter = 0
@@ -91,13 +98,13 @@ isNew { source } =
 load : String -> User.WithId -> (Msg -> msg) -> Game.Id -> Edit.EditMode -> ( Model, Cmd msg )
 load origin localUser wrap gameId editMode =
     let
-        isMod =
-            Auth.isMod gameId (Just localUser)
+        canManageBets =
+            Auth.canManageBets gameId (Just localUser)
 
         model =
-            empty localUser.id isMod gameId editMode
+            empty localUser.id canManageBets gameId editMode
 
-        cmd =
+        getBetCmd =
             case editMode of
                 Edit.Edit id ->
                     Api.get origin
@@ -107,8 +114,14 @@ load origin localUser wrap gameId editMode =
 
                 _ ->
                     Cmd.none
+
+        getLockMomentsCmd =
+            Api.get origin
+                { path = Api.Game gameId Api.LockMoments
+                , expect = Http.expectJson (LoadLockMoments gameId >> wrap) LockMoment.lockMomentsDecoder
+                }
     in
-    ( model, cmd )
+    ( model, Cmd.batch [ getBetCmd, getLockMomentsCmd ] )
 
 
 fromSource : Bet.Id -> EditableBet -> Model -> Model
@@ -118,7 +131,7 @@ fromSource bet editableBet model =
         , name = editableBet.name
         , description = editableBet.description
         , spoiler = editableBet.spoiler
-        , locksWhen = editableBet.locksWhen
+        , lockMoment = Just editableBet.lockMoment
         , options =
             editableBet.options
                 |> AssocList.toList
@@ -143,8 +156,45 @@ update wrap localUser msg ({ origin } as parent) model =
                     else
                         ( model, Cmd.none )
 
-                Err _ ->
-                    ( model, Cmd.none )
+                Err errorMsg ->
+                    ( { model | source = Just { id = bet, bet = RemoteData.Failed errorMsg } }
+                    , Cmd.none
+                    )
+
+        LoadLockMoments game result ->
+            let
+                closeIfSaving editor =
+                    case editor |> Maybe.map .saved of
+                        Just LockMoment.Saving ->
+                            Nothing
+
+                        _ ->
+                            editor
+
+                setIf m =
+                    if model.gameId == game then
+                        { m
+                            | lockMoments = RemoteData.load result
+                            , lockMomentEditor = m.lockMomentEditor |> closeIfSaving
+                        }
+
+                    else
+                        m
+            in
+            ( model |> setIf, Cmd.none )
+
+        EditLockMoments editLockMomentsMsg ->
+            let
+                ( editor, cmd ) =
+                    LockMoment.updateEditor
+                        origin
+                        (EditLockMoments >> wrap)
+                        (\game lockMoments -> LoadLockMoments game (Ok lockMoments) |> wrap)
+                        (model |> lockMomentContext)
+                        editLockMomentsMsg
+                        model.lockMomentEditor
+            in
+            ( { model | lockMomentEditor = editor }, cmd )
 
         Reset ->
             case model.source of
@@ -185,8 +235,8 @@ update wrap localUser msg ({ origin } as parent) model =
         SetSpoiler isSpoiler ->
             ( { model | spoiler = isSpoiler }, Cmd.none )
 
-        SetLocksWhen locksWhen ->
-            ( { model | locksWhen = locksWhen }, Cmd.none )
+        SetLockMoment lockMoment ->
+            ( { model | lockMoment = lockMoment }, Cmd.none )
 
         SetLocked locked ->
             case model.source |> Maybe.andThen (.bet >> RemoteData.toMaybe) of
@@ -461,9 +511,16 @@ descriptionValidator =
     Validator.fromPredicate "Description must not be empty." (.description >> String.isEmpty)
 
 
-locksWhenValidator : Validator Model
-locksWhenValidator =
-    Validator.fromPredicate "Lock moment must not be empty." (.locksWhen >> String.isEmpty)
+optionOrderValidator : AssocList.Dict String OptionEditor -> Validator OptionEditor
+optionOrderValidator lockMoments =
+    Order.validator (.order >> toFloat >> Just) lockMoments
+
+
+optionSlugValidator : AssocList.Dict String OptionEditor -> Validator OptionEditor
+optionSlugValidator lockMoments =
+    lockMoments
+        |> AssocList.values
+        |> Slug.validator Option.idFromString (\{ id, name } -> ( id, name ))
 
 
 optionsValidator : Validator Model
@@ -495,8 +552,51 @@ validator =
         ]
 
 
+type alias SourceInfo msg =
+    { version : Int
+    , created : Html msg
+    , modified : Html msg
+    , author : User.SummaryWithId
+    , progress : EditableBet.Progress
+    }
+
+
+toSourceInfo : Time.Context -> EditableBet -> SourceInfo msg
+toSourceInfo time { author, created, modified, version, progress } =
+    { version = version
+    , created = created |> DateTime.view time Time.Absolute
+    , modified = modified |> DateTime.view time Time.Absolute
+    , author = author
+    , progress = progress
+    }
+
+
+newSourceInfo : User.WithId -> SourceInfo msg
+newSourceInfo localUser =
+    { version = 0
+    , created = Html.text "N/A (New Bet)"
+    , modified = Html.text "N/A (New Bet)"
+    , author = { id = localUser.id, user = User.summary localUser.user }
+    , progress = EditableBet.Voting
+    }
+
+
 view : msg -> (Msg -> msg) -> Time.Context -> User.WithId -> Model -> List (Html msg)
 view save wrap time localUser model =
+    let
+        coreContent =
+            viewCoreContent save wrap time localUser model
+    in
+    [ instructions
+    , model.source
+        |> Maybe.map (.bet >> RemoteData.view (toSourceInfo time >> coreContent))
+        |> Maybe.withDefault (coreContent (newSourceInfo localUser))
+        |> Html.div [ HtmlA.class "core-content" ]
+    ]
+
+
+viewCoreContent : msg -> (Msg -> msg) -> Time.Context -> User.WithId -> Model -> SourceInfo msg -> List (Html msg)
+viewCoreContent save wrap time localUser model { author, created, modified, version, progress } =
     let
         betId =
             resolveId model
@@ -507,85 +607,8 @@ view save wrap time localUser model =
         preview =
             [ Html.h3 [] [ Html.text "Preview" ], Bet.view time Nothing model.gameId "" betId bet ]
 
-        summarise { id, user } =
-            { id = id, summary = User.summary user }
-
-        maybeSource =
-            model.source
-                |> Maybe.andThen (.bet >> RemoteData.toMaybe)
-
-        author =
-            maybeSource
-                |> Maybe.map .author
-                |> Maybe.withDefault (summarise localUser)
-
         textField name type_ value action attrs =
-            TextField.viewWithAttrs name type_ value action (HtmlA.attribute "outlined" "" :: attrs)
-
-        progress =
-            maybeSource |> Maybe.map .progress |> Maybe.withDefault EditableBet.Voting
-
-        cancel =
-            Html.div [ HtmlA.class "dangerous" ]
-                [ Button.view Button.Raised
-                    Button.Padded
-                    "Cancel & Refund Bet"
-                    (Icon.ban |> Icon.view |> Just)
-                    (Cancel |> wrap |> Just)
-                ]
-
-        ( progressDescription, progressButtons ) =
-            case progress of
-                EditableBet.Voting ->
-                    ( "Bet open for voting."
-                    , [ Button.view
-                            Button.Raised
-                            Button.Padded
-                            "Lock Bet"
-                            (Icon.lock |> Icon.view |> Just)
-                            (SetLocked True |> wrap |> Just)
-                      , cancel
-                      ]
-                    )
-
-                EditableBet.Locked ->
-                    ( "Bet locked."
-                    , [ Button.view
-                            Button.Raised
-                            Button.Padded
-                            "Unlock Bet"
-                            (Icon.unlock |> Icon.view |> Just)
-                            (SetLocked False |> wrap |> Just)
-                      , Button.view Button.Raised
-                            Button.Padded
-                            "Declare Winner(s) For Bet"
-                            (Icon.check |> Icon.view |> Just)
-                            (Complete |> wrap |> Just)
-                      , cancel
-                      ]
-                    )
-
-                EditableBet.Complete _ ->
-                    ( "Bet complete."
-                    , [ Button.view
-                            Button.Raised
-                            Button.Padded
-                            "Revert Complete"
-                            (Icon.undo |> Icon.view |> Just)
-                            (RevertComplete |> wrap |> Just)
-                      ]
-                    )
-
-                EditableBet.Cancelled _ ->
-                    ( "Bet cancelled."
-                    , [ Button.view
-                            Button.Raised
-                            Button.Padded
-                            "Revert Cancel"
-                            (Icon.undo |> Icon.view |> Just)
-                            (RevertCancel |> wrap |> Just)
-                      ]
-                    )
+            TextField.viewWithAttrs name type_ value action (Material.outlined :: attrs)
 
         progressOverlay =
             case model.contextualOverlay of
@@ -653,75 +676,128 @@ view save wrap time localUser model =
 
                 Nothing ->
                     []
+
+        cancel =
+            Html.div [ HtmlA.class "dangerous" ]
+                [ Button.view Button.Raised
+                    Button.Padded
+                    "Cancel & Refund Bet"
+                    (Icon.ban |> Icon.view |> Just)
+                    (Cancel |> wrap |> Just)
+                ]
+
+        ( progressDescription, progressButtons ) =
+            case progress of
+                EditableBet.Voting ->
+                    ( "Bet open for voting."
+                    , [ Button.view
+                            Button.Raised
+                            Button.Padded
+                            "Lock Bet"
+                            (Icon.lock |> Icon.view |> Just)
+                            (SetLocked True |> wrap |> Just)
+                      , cancel
+                      ]
+                    )
+
+                EditableBet.Locked ->
+                    ( "Bet locked."
+                    , [ Button.view
+                            Button.Raised
+                            Button.Padded
+                            "Unlock Bet"
+                            (Icon.unlock |> Icon.view |> Just)
+                            (SetLocked False |> wrap |> Just)
+                      , Button.view Button.Raised
+                            Button.Padded
+                            "Declare Winner(s) For Bet"
+                            (Icon.check |> Icon.view |> Just)
+                            (Complete |> wrap |> Just)
+                      , cancel
+                      ]
+                    )
+
+                EditableBet.Complete _ ->
+                    ( "Bet complete."
+                    , [ Button.view
+                            Button.Raised
+                            Button.Padded
+                            "Revert Complete"
+                            (Icon.undo |> Icon.view |> Just)
+                            (RevertComplete |> wrap |> Just)
+                      ]
+                    )
+
+                EditableBet.Cancelled _ ->
+                    ( "Bet cancelled."
+                    , [ Button.view
+                            Button.Raised
+                            Button.Padded
+                            "Revert Cancel"
+                            (Icon.undo |> Icon.view |> Just)
+                            (RevertCancel |> wrap |> Just)
+                      ]
+                    )
     in
-    [ instructions
-    , Html.div [ HtmlA.class "core-content" ]
-        [ Html.div [ HtmlA.id "bet-editor", HtmlA.class "editor" ]
-            [ Html.h3 [] [ Html.text "Metadata" ]
-            , Html.div [ HtmlA.class "metadata" ]
-                [ Html.div [ HtmlA.class "author" ]
-                    [ Html.text "Author: "
-                    , User.viewLink User.Full author.id author.summary
-                    ]
-                , Html.div [ HtmlA.class "created" ]
-                    [ Html.text "Created: "
-                    , maybeSource |> Maybe.map (.created >> DateTime.view time Time.Absolute) |> Maybe.withDefault (Html.text "- (New)")
-                    ]
-                , Html.div [ HtmlA.class "modified" ]
-                    [ Html.text "Last Modified: "
-                    , maybeSource |> Maybe.map (.modified >> DateTime.view time Time.Absolute) |> Maybe.withDefault (Html.text "- (New)")
-                    ]
-                , Html.div [ HtmlA.class "modified" ]
-                    [ Html.text "Version: "
-                    , maybeSource |> Maybe.map (.version >> String.fromInt) |> Maybe.withDefault "- (New)" |> Html.text
-                    ]
+    [ Html.div [ HtmlA.id "bet-editor", HtmlA.class "editor" ]
+        [ Html.h3 [] [ Html.text "Metadata" ]
+        , Html.div [ HtmlA.class "metadata" ]
+            [ Html.div [ HtmlA.class "author" ]
+                [ Html.text "Author: "
+                , User.viewLink User.Full author.id author.user
                 ]
-            , Html.h3 [] [ Html.text "Progress" ]
-            , Html.p [] [ Html.text progressDescription ]
-            , Html.div [ HtmlA.class "progress" ] (progressButtons ++ progressOverlay)
-            , Html.h3 [] [ Html.text "Edit" ]
-            , Slug.view Bet.idFromString Bet.idToString (SetId >> wrap) model.name model.id
-            , textField "Name" TextField.Text model.name (SetName >> wrap |> Just) [ HtmlA.required True ]
-            , Validator.view nameValidator model
-            , TextArea.view
-                [ "Description" |> HtmlA.attribute "label"
-                , SetDescription >> wrap |> HtmlE.onInput
-                , HtmlA.required True
-                , HtmlA.attribute "outlined" ""
-                , HtmlA.value model.description
-                ]
-                []
-            , Validator.view descriptionValidator model
-            , textField "Lock Moment" TextField.Text model.locksWhen (SetLocksWhen >> wrap |> Just) [ HtmlA.required True ]
-            , Validator.view locksWhenValidator model
-            , Switch.view (Html.text "Spoiler") model.spoiler (SetSpoiler >> wrap |> Just)
-            , model.options
-                |> AssocList.toList
-                |> List.map (viewOption wrap)
-                |> HtmlK.ol []
-            , Html.div [ HtmlA.class "option-controls" ]
-                [ Button.view Button.Standard
-                    Button.Padded
-                    "Add"
-                    (Icon.plus |> Icon.view |> Just)
-                    (NewOption |> wrap |> Just)
-                ]
-            , Validator.view optionsValidator model
-            , Html.div [ HtmlA.class "controls" ]
-                [ Button.view Button.Standard
-                    Button.Padded
-                    "Reset"
-                    (Icon.undo |> Icon.view |> Just)
-                    (Reset |> wrap |> Just)
-                , Button.view Button.Raised
-                    Button.Padded
-                    "Save"
-                    (Icon.save |> Icon.view |> Just)
-                    (save |> Validator.whenValid validator model)
-                ]
+            , Html.div [ HtmlA.class "created" ] [ Html.text "Created: ", created ]
+            , Html.div [ HtmlA.class "modified" ] [ Html.text "Last Modified: ", modified ]
+            , Html.div [ HtmlA.class "version" ] [ Html.text "Version: ", version |> String.fromInt |> Html.text ]
             ]
-        , Html.div [ HtmlA.class "preview" ] preview
+        , Html.h3 [] [ Html.text "Progress" ]
+        , Html.p [] [ Html.text progressDescription ]
+        , Html.div [ HtmlA.class "progress" ] (progressButtons ++ progressOverlay)
+        , Html.h3 [] [ Html.text "Edit" ]
+        , Slug.view Bet.idFromString Bet.idToString (SetId >> wrap) model.name model.id
+        , textField "Name" TextField.Text model.name (SetName >> wrap |> Just) [ HtmlA.required True ]
+        , Validator.view nameValidator model
+        , TextArea.view
+            [ "Description" |> HtmlA.attribute "label"
+            , SetDescription >> wrap |> HtmlE.onInput
+            , HtmlA.required True
+            , Material.outlined
+            , HtmlA.value model.description
+            ]
+            []
+        , Validator.view descriptionValidator model
+        , LockMoment.selector (EditLockMoments >> wrap)
+            (model |> lockMomentContext)
+            model.lockMomentEditor
+            (SetLockMoment >> wrap)
+            model.lockMoment
+        , Switch.view (Html.text "Is Spoiler") model.spoiler (SetSpoiler >> wrap |> Just)
+        , model.options
+            |> AssocList.toList
+            |> List.map (viewOption wrap)
+            |> HtmlK.ol []
+        , Html.div [ HtmlA.class "option-controls" ]
+            [ Button.view Button.Standard
+                Button.Padded
+                "Add"
+                (Icon.plus |> Icon.view |> Just)
+                (NewOption |> wrap |> Just)
+            ]
+        , Validator.view optionsValidator model
+        , Html.div [ HtmlA.class "controls" ]
+            [ Button.view Button.Standard
+                Button.Padded
+                "Reset"
+                (Icon.undo |> Icon.view |> Just)
+                (Reset |> wrap |> Just)
+            , Button.view Button.Raised
+                Button.Padded
+                "Save"
+                (Icon.save |> Icon.view |> Just)
+                (save |> Validator.whenValid validator model)
+            ]
         ]
+    , Html.div [ HtmlA.class "preview" ] preview
     ]
 
 
@@ -766,7 +842,7 @@ viewOption wrap ( internalId, { id, name, image, order } ) =
             ChangeOption internalId >> wrap
 
         textField label type_ value action attrs =
-            TextField.viewWithAttrs label type_ value action (HtmlA.attribute "outlined" "" :: attrs)
+            TextField.viewWithAttrs label type_ value action (Material.outlined :: attrs)
 
         content =
             Html.li [ HtmlA.class "option-editor" ]

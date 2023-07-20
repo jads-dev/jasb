@@ -243,8 +243,8 @@ internalView timeContext voteAs viewType highlight hasVoted gameId gameName betI
 
         ( class, icon, progressDescription ) =
             case bet.progress of
-                Voting { locksWhen } ->
-                    ( "voting", Icon.voteYea, "The bet is open. You can place bets until " ++ locksWhen ++ "." )
+                Voting { lockMoment } ->
+                    ( "voting", Icon.voteYea, "The bet is open. You can place bets until " ++ lockMoment ++ "." )
 
                 Locked _ ->
                     ( "locked", Icon.lock, "The bet is locked, awaiting the result, you can no longer place bets." )
@@ -275,10 +275,10 @@ internalView timeContext voteAs viewType highlight hasVoted gameId gameName betI
 
         extraByProgress =
             case bet.progress of
-                Voting { locksWhen } ->
+                Voting { lockMoment } ->
                     [ Html.p []
                         [ Html.text "You can place bets, or modify your bet, until "
-                        , Html.text locksWhen
+                        , Html.text lockMoment
                         , Html.text ". Click the square by the option you think will win to place a bet, or to edit/refund an existing bet."
                         ]
                     ]
@@ -319,7 +319,7 @@ internalView timeContext voteAs viewType highlight hasVoted gameId gameName betI
                     ]
 
         adminContent =
-            if voteAs |> Auth.isMod gameId then
+            if voteAs |> Auth.canManageBets gameId then
                 [ Html.div [ HtmlA.class "admin-controls" ]
                     [ Route.a (betId |> Edit.Edit |> Edit.Bet gameId |> Route.Edit) [] [ Icon.pen |> Icon.view ]
                     ]

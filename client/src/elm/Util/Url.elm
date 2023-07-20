@@ -19,3 +19,4 @@ slugify =
         >> String.join "-"
         >> String.filter isAllowed
         >> (String.foldr removeRepeatedDashes ( False, "" ) >> Tuple.second)
+        >> String.left 20

@@ -3,19 +3,19 @@ import { z } from "zod";
 import { zonedDateTime } from "./types.js";
 import { Users } from "./users.js";
 
-export const IdAndName = z
+export const SlugAndName = z
   .object({
-    id: z.string(),
+    slug: z.string(),
     name: z.string(),
   })
   .strict();
-export type IdAndName = z.infer<typeof IdAndName>;
+export type SlugAndName = z.infer<typeof SlugAndName>;
 
 export const NewBet = z
   .object({
     type: z.literal("NewBet"),
-    game: IdAndName,
-    bet: IdAndName,
+    game: SlugAndName,
+    bet: SlugAndName,
     spoiler: z.boolean(),
   })
   .strict();
@@ -24,13 +24,13 @@ export type NewBet = z.infer<typeof NewBet>;
 export const BetComplete = z
   .object({
     type: z.literal("BetComplete"),
-    game: IdAndName,
-    bet: IdAndName,
+    game: SlugAndName,
+    bet: SlugAndName,
     spoiler: z.boolean(),
-    winners: z.array(IdAndName),
+    winners: z.array(SlugAndName),
     highlighted: z
       .object({
-        winners: z.array(Users.User),
+        winners: z.array(Users.Summary),
         amount: z.number().int().nonnegative(),
       })
       .strict(),
@@ -43,10 +43,10 @@ export type BetComplete = z.infer<typeof BetComplete>;
 export const NotableStake = z
   .object({
     type: z.literal("NotableStake"),
-    game: IdAndName,
-    bet: IdAndName,
+    game: SlugAndName,
+    bet: SlugAndName,
     spoiler: z.boolean(),
-    option: IdAndName,
+    option: SlugAndName,
     user: Users.Summary,
     message: z.string(),
     stake: z.number().int().positive(),

@@ -54,7 +54,7 @@ decoder =
     JsonD.succeed Option
         |> JsonD.required "name" JsonD.string
         |> JsonD.optionalAsMaybe "image" JsonD.string
-        |> JsonD.required "stakes" (JsonD.assocListFromObject User.idFromString Stake.decoder)
+        |> JsonD.required "stakes" (JsonD.assocListFromTupleList User.idDecoder Stake.decoder)
 
 
 encode : Option -> JsonE.Value

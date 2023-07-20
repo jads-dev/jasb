@@ -234,7 +234,7 @@ update wrap msg ({ user, auth, origin } as model) =
                     if givenUser.id == userId then
                         let
                             updatePermissions overlay =
-                                { overlay | permissions = response |> Result.map (AssocList.fromListWithDerivedKey .gameId) |> RemoteData.load }
+                                { overlay | permissions = response |> RemoteData.load }
 
                             newOverlay =
                                 givenUser.permissionsOverlay |> Maybe.map updatePermissions
@@ -247,22 +247,12 @@ update wrap msg ({ user, auth, origin } as model) =
                 Nothing ->
                     ( model, Cmd.none )
 
-        SetPermissions userId gameId permissions ->
+        SetPermissions userId permission ->
             case user of
                 Just givenUser ->
                     if givenUser.id == userId then
-                        let
-                            replacePermissions =
-                                AssocList.update gameId (Maybe.map (\old -> { old | permissions = permissions }))
-
-                            updatePermissions overlay =
-                                { overlay | permissions = overlay.permissions |> RemoteData.map replacePermissions }
-
-                            newOverlay =
-                                givenUser.permissionsOverlay |> Maybe.map updatePermissions
-                        in
-                        ( { model | user = Just { givenUser | permissionsOverlay = newOverlay } }
-                        , setPermissions wrap model.origin userId gameId permissions
+                        ( model
+                        , setPermissions wrap model.origin userId permission
                         )
 
                     else
@@ -307,7 +297,7 @@ view wrap model =
                             [ [ avatar, User.viewName userData ], isYou ]
 
                         adminControls =
-                            if Auth.isAdmin model.auth.localUser then
+                            if Auth.canManagePermissions model.auth.localUser then
                                 [ [ Html.div []
                                         [ Button.view Button.Raised
                                             Button.Padded
@@ -463,13 +453,24 @@ viewBankruptcyOverlay wrap { sureToggle, stats } =
 viewPermissionsOverlay : (Msg -> msg) -> User.Id -> PermissionsOverlay -> List (Html msg)
 viewPermissionsOverlay wrap userId overlay =
     let
-        body gamePermissions =
-            [ gamePermissions |> AssocList.values |> List.map viewGamePermissions |> Html.ul [] ]
+        setPerms perm v =
+            SetPermissions userId (perm v) |> wrap
+
+        body { manageBets, manageGames, managePermissions, gameSpecific } =
+            [ Switch.view (Html.text "Manage Games") manageGames (setPerms ManageGames |> Just)
+            , Switch.view (Html.text "Manage Permissions") managePermissions (setPerms ManagePermissions |> Just)
+            , Switch.view (Html.text "Manage All Bets") manageBets (setPerms (ManageBets Nothing) |> Just)
+            , gameSpecific |> AssocList.values |> List.map viewGamePermissions |> Html.ul []
+            ]
 
         viewGamePermissions { gameId, gameName, permissions } =
             Html.li []
                 [ Html.span [] [ Html.text gameName ]
-                , Html.div [] [ Switch.view (Html.text "Manage") permissions.canManageBets ((\v -> SetPermissions userId gameId { permissions | canManageBets = v } |> wrap) |> Just) ]
+                , Html.div []
+                    [ Switch.view (Html.text "Manage")
+                        permissions.canManageBets
+                        (setPerms (ManageBets (Just gameId)) |> Just)
+                    ]
                 ]
 
         alwaysBody =
@@ -492,8 +493,8 @@ loadBets wrap origin id =
         { path = Api.User id Api.UserBets
         , expect =
             Http.expectJson (LoadBets id >> wrap)
-                (JsonD.assocListFromList (JsonD.field "id" Game.idDecoder)
-                    (JsonD.field "game" Game.withBetsDecoder)
+                (JsonD.assocListFromTupleList Game.idDecoder
+                    Game.withBetsDecoder
                 )
         }
 
@@ -502,7 +503,7 @@ loadBankruptcyStats : (Msg -> msg) -> String -> User.Id -> Cmd msg
 loadBankruptcyStats wrap origin id =
     Api.get origin
         { path = Api.User id Api.Bankrupt
-        , expect = Http.expectJson (LoadBankruptcyStats id >> wrap) decodeBankruptcyStats
+        , expect = Http.expectJson (LoadBankruptcyStats id >> wrap) bankruptcyStatsDecoder
         }
 
 
@@ -510,14 +511,14 @@ loadPermissions : (Msg -> msg) -> String -> User.Id -> Cmd msg
 loadPermissions wrap origin id =
     Api.get origin
         { path = Api.User id Api.Permissions
-        , expect = Http.expectJson (LoadPermissions id >> wrap) (JsonD.list decodeGamePermissions)
+        , expect = Http.expectJson (LoadPermissions id >> wrap) editablePermissionsDecoder
         }
 
 
-setPermissions : (Msg -> msg) -> String -> User.Id -> Game.Id -> Permissions -> Cmd msg
-setPermissions wrap origin id gameId { canManageBets } =
+setPermissions : (Msg -> msg) -> String -> User.Id -> SetPermission -> Cmd msg
+setPermissions wrap origin id permission =
     Api.post origin
         { path = Api.User id Api.Permissions
-        , body = JsonE.object [ ( "game", gameId |> Game.encodeId ), ( "canManageBets", canManageBets |> JsonE.bool ) ] |> Http.jsonBody
+        , body = permission |> encodeSetPermissions |> Http.jsonBody
         , expect = NoOp |> wrap |> always |> Http.expectWhatever
         }

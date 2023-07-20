@@ -6,7 +6,6 @@ module JoeBets.Page.Feed.Model exposing
     , Msg(..)
     , NewBet
     , NotableStake
-    , UserInfo
     , decoder
     , relevantGame
     )
@@ -30,28 +29,9 @@ type alias IdAndName id =
 
 idAndNameDecoder : JsonD.Decoder a -> JsonD.Decoder (IdAndName a)
 idAndNameDecoder idDecoder =
-    JsonD.succeed IdAndName
-        |> JsonD.required "id" idDecoder
-        |> JsonD.required "name" JsonD.string
-
-
-type alias UserInfo =
-    { id : User.Id
-    , name : String
-    , discriminator : Maybe String
-    , avatar : Maybe String
-    , avatarCache : Maybe String
-    }
-
-
-userInfoDecoder : JsonD.Decoder UserInfo
-userInfoDecoder =
-    JsonD.succeed UserInfo
-        |> JsonD.required "id" User.idDecoder
-        |> JsonD.required "name" JsonD.string
-        |> JsonD.optionalAsMaybe "discriminator" JsonD.string
-        |> JsonD.optionalAsMaybe "avatar" JsonD.string
-        |> JsonD.optionalAsMaybe "avatarCache" JsonD.string
+    JsonD.map2 IdAndName
+        (JsonD.index 0 idDecoder)
+        (JsonD.index 1 JsonD.string)
 
 
 type alias NewBet =
@@ -70,7 +50,7 @@ newBetDecoder =
 
 
 type alias Highlighted =
-    { winners : List UserInfo
+    { winners : List User.SummaryWithId
     , amount : Int
     }
 
@@ -78,7 +58,7 @@ type alias Highlighted =
 highlightedDecoder : JsonD.Decoder Highlighted
 highlightedDecoder =
     JsonD.succeed Highlighted
-        |> JsonD.required "winners" (JsonD.list userInfoDecoder)
+        |> JsonD.required "winners" (JsonD.list User.summaryWithIdDecoder)
         |> JsonD.required "amount" JsonD.int
 
 
@@ -110,7 +90,7 @@ type alias NotableStake =
     , bet : IdAndName Bet.Id
     , spoiler : Bool
     , option : IdAndName Option.Id
-    , user : UserInfo
+    , user : User.SummaryWithId
     , message : String
     , stake : Int
     }
@@ -123,7 +103,7 @@ notableStakeDecoder =
         |> JsonD.required "bet" (idAndNameDecoder Bet.idDecoder)
         |> JsonD.optional "spoiler" JsonD.bool False
         |> JsonD.required "option" (idAndNameDecoder Option.idDecoder)
-        |> JsonD.required "user" userInfoDecoder
+        |> JsonD.required "user" User.summaryWithIdDecoder
         |> JsonD.required "message" JsonD.string
         |> JsonD.required "stake" JsonD.int
 

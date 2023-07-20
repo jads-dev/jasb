@@ -57,6 +57,7 @@ type GamePath
     = GameRoot
     | Bets
     | LockStatus
+    | LockMoments
     | Bet Bets.Id BetPath
     | Suggestions
 
@@ -176,8 +177,11 @@ gamePathToStringList path =
         Bets ->
             [ "bets" ]
 
+        LockMoments ->
+            [ "lock" ]
+
         LockStatus ->
-            [ "bets", "lock" ]
+            [ "lock", "status" ]
 
         Bet id betPath ->
             "bets" :: Bets.idToString id :: betPathToStringList betPath

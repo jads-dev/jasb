@@ -14,6 +14,7 @@ module JoeBets.Bet.Editor.Model exposing
     , encodeOptionDiff
     , initOption
     , initOptionFromEditable
+    , lockMomentContext
     , resolveId
     , toBet
     )
@@ -22,6 +23,8 @@ import AssocList
 import EverySet exposing (EverySet)
 import Http
 import JoeBets.Bet.Editor.EditableBet as EditableBet exposing (EditableBet, EditableOption)
+import JoeBets.Bet.Editor.LockMoment as LockMoment
+import JoeBets.Bet.Editor.LockMoment.Editor as LockMoment
 import JoeBets.Bet.Model as Bet exposing (Bet)
 import JoeBets.Bet.Option as Option
 import JoeBets.Editing.Slug as Slug exposing (Slug)
@@ -90,11 +93,18 @@ type alias Model =
     , name : String
     , description : String
     , spoiler : Bool
-    , locksWhen : String
+    , lockMoments : RemoteData LockMoment.LockMoments
+    , lockMomentEditor : Maybe LockMoment.Editor
+    , lockMoment : Maybe LockMoment.Id
     , options : AssocList.Dict String OptionEditor
     , contextualOverlay : Maybe ContextualOverlay
     , internalIdCounter : Int
     }
+
+
+lockMomentContext : Model -> LockMoment.Context
+lockMomentContext { gameId, lockMoments } =
+    { game = gameId, lockMoments = lockMoments }
 
 
 resolveId : Model -> Bet.Id
@@ -103,7 +113,7 @@ resolveId { id, name } =
 
 
 toBet : User.Id -> Model -> Bet
-toBet localUser { source, name, description, spoiler, locksWhen, options } =
+toBet _ { source, name, description, spoiler, lockMoments, lockMoment, options } =
     let
         maybeSourceBet =
             source |> Maybe.andThen (.bet >> RemoteData.toMaybe)
@@ -124,13 +134,10 @@ toBet localUser { source, name, description, spoiler, locksWhen, options } =
               }
             )
 
-        author =
-            maybeSourceBet |> Maybe.map (.author >> .id) |> Maybe.withDefault localUser
-
         fromEditableProgress editableProgress =
             case editableProgress of
                 EditableBet.Voting ->
-                    Bet.Voting { locksWhen = locksWhen }
+                    Bet.Voting { lockMoment = Maybe.map2 LockMoment.name (lockMoments |> RemoteData.toMaybe) lockMoment |> Maybe.withDefault "" }
 
                 EditableBet.Locked ->
                     Bet.Locked {}
@@ -148,11 +155,11 @@ toBet localUser { source, name, description, spoiler, locksWhen, options } =
 
         progress =
             maybeSourceBet
-                |> Maybe.map (.progress >> fromEditableProgress)
-                |> Maybe.withDefault (Bet.Voting { locksWhen = locksWhen })
+                |> Maybe.map .progress
+                |> Maybe.withDefault EditableBet.Voting
+                |> fromEditableProgress
     in
     { name = name
-    , author = author
     , description = description
     , spoiler = spoiler
     , progress = progress
@@ -168,12 +175,14 @@ toBet localUser { source, name, description, spoiler, locksWhen, options } =
 
 type Msg
     = Load Game.Id Bet.Id (Result Http.Error EditableBet)
+    | LoadLockMoments Game.Id (Result Http.Error LockMoment.LockMoments)
+    | EditLockMoments LockMoment.EditorMsg
     | SetMode Mode
     | SetId String
     | SetName String
     | SetDescription String
     | SetSpoiler Bool
-    | SetLocksWhen String
+    | SetLockMoment (Maybe LockMoment.Id)
     | SetLocked Bool
     | Complete
     | RevertComplete
@@ -220,29 +229,29 @@ type alias Diff =
     , name : Maybe String
     , description : Maybe String
     , spoiler : Maybe Bool
-    , locksWhen : Maybe String
-    , removeOptions : Maybe (List Option.Id)
+    , lockMoment : Maybe LockMoment.Id
+    , removeOptions : Maybe (List OptionDiff)
     , editOptions : Maybe (List OptionDiff)
     , addOptions : Maybe (List OptionDiff)
     }
 
 
 encodeDiff : Diff -> JsonE.Value
-encodeDiff { version, name, description, spoiler, locksWhen, removeOptions, editOptions, addOptions } =
+encodeDiff { version, name, description, spoiler, lockMoment, removeOptions, editOptions, addOptions } =
     JsonE.startObject
         |> JsonE.maybeField "version" JsonE.int version
         |> JsonE.maybeField "name" JsonE.string name
         |> JsonE.maybeField "description" JsonE.string description
         |> JsonE.maybeField "spoiler" JsonE.bool spoiler
-        |> JsonE.maybeField "locksWhen" JsonE.string locksWhen
-        |> JsonE.maybeField "removeOptions" (JsonE.list Option.encodeId) removeOptions
+        |> JsonE.maybeField "lockMoment" LockMoment.encodeId lockMoment
+        |> JsonE.maybeField "removeOptions" (JsonE.list encodeOptionDiff) removeOptions
         |> JsonE.maybeField "editOptions" (JsonE.list encodeOptionDiff) editOptions
         |> JsonE.maybeField "addOptions" (JsonE.list encodeOptionDiff) addOptions
         |> JsonE.finishObject
 
 
 diff : Model -> Result String Diff
-diff { source, name, description, spoiler, locksWhen, options } =
+diff { source, name, description, spoiler, lockMoment, options } =
     case source of
         Just existing ->
             case existing.bet |> RemoteData.toMaybe of
@@ -261,8 +270,17 @@ diff { source, name, description, spoiler, locksWhen, options } =
                                 ( Nothing, Nothing ) ->
                                     diffs
 
-                                ( Just _, Nothing ) ->
-                                    { diffs | remove = optionId :: remove }
+                                ( Just old, Nothing ) ->
+                                    let
+                                        optionDiff =
+                                            OptionDiff
+                                                (Just old.version)
+                                                optionId
+                                                Nothing
+                                                Nothing
+                                                Nothing
+                                    in
+                                    { diffs | remove = optionDiff :: remove }
 
                                 ( Just old, Just new ) ->
                                     let
@@ -303,7 +321,7 @@ diff { source, name, description, spoiler, locksWhen, options } =
                         (Maybe.ifDifferent bet.name name)
                         (Maybe.ifDifferent bet.description description)
                         (Maybe.ifDifferent bet.spoiler spoiler)
-                        (Maybe.ifDifferent bet.locksWhen locksWhen)
+                        (Maybe.ifDifferent bet.lockMoment (lockMoment |> Maybe.withDefault bet.lockMoment))
                         (resolvedOptions.remove |> Maybe.ifFalse List.isEmpty)
                         (resolvedOptions.edit |> Maybe.ifFalse List.isEmpty)
                         (resolvedOptions.add |> Maybe.ifFalse List.isEmpty)
@@ -322,16 +340,21 @@ diff { source, name, description, spoiler, locksWhen, options } =
                         (Just (option.image |> Uploader.toUrl |> Maybe.ifTrue (String.isEmpty >> not)))
                         Nothing
             in
-            Diff
-                Nothing
-                (Just name)
-                (Just description)
-                (Just spoiler)
-                (Just locksWhen)
-                Nothing
-                Nothing
-                (options |> AssocList.values |> List.sortBy .order |> List.map optionDiff |> Just)
-                |> Ok
+            case lockMoment of
+                Just id ->
+                    Diff
+                        Nothing
+                        (Just name)
+                        (Just description)
+                        (Just spoiler)
+                        (Just id)
+                        Nothing
+                        Nothing
+                        (options |> AssocList.values |> List.sortBy .order |> List.map optionDiff |> Just)
+                        |> Ok
+
+                Nothing ->
+                    Err "Must give a lock moment."
 
 
 type alias CompleteAction =

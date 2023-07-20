@@ -1,7 +1,5 @@
 import { z } from "zod";
 
-import { zonedDateTime } from "./types.js";
-
 export const Gifted = z
   .object({
     type: z.literal("Gifted"),
@@ -18,14 +16,15 @@ export const Gifted = z
   .strict();
 export type Gifted = z.infer<typeof Gifted>;
 
-const optionReference = z.object({
-  gameId: z.string(),
-  gameName: z.string(),
-  betId: z.string(),
-  betName: z.string(),
-  optionId: z.string(),
-  optionName: z.string(),
+export const OptionReference = z.object({
+  game_slug: z.string(),
+  game_name: z.string(),
+  bet_slug: z.string(),
+  bet_name: z.string(),
+  option_slug: z.string(),
+  option_name: z.string(),
 });
+export type OptionReference = z.infer<typeof OptionReference>;
 
 export const Refunded = z
   .object({
@@ -33,7 +32,7 @@ export const Refunded = z
     reason: z.enum(["OptionRemoved", "BetCancelled"]),
     amount: z.number().int().positive(),
   })
-  .merge(optionReference)
+  .merge(OptionReference)
   .strict();
 export type Refunded = z.infer<typeof Refunded>;
 
@@ -43,7 +42,7 @@ export const BetFinished = z
     result: z.enum(["Win", "Loss"]),
     amount: z.number().int(),
   })
-  .merge(optionReference)
+  .merge(OptionReference)
   .strict();
 export type BetFinished = z.infer<typeof BetFinished>;
 
@@ -53,7 +52,7 @@ export const BetReverted = z
     reverted: z.enum(["Complete", "Cancelled"]),
     amount: z.number().int(),
   })
-  .merge(optionReference)
+  .merge(OptionReference)
   .strict();
 export type BetReverted = z.infer<typeof BetReverted>;
 
@@ -69,8 +68,6 @@ export const Notification = z
   .object({
     id: z.number().int(),
     notification: Message,
-    happened: zonedDateTime,
-    read: z.boolean(),
   })
   .strict();
 export type Notification = z.infer<typeof Notification>;

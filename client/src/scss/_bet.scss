@@ -405,16 +405,31 @@
 
     display: grid;
     align-items: center;
-    grid-template-columns: 1fr 1fr auto;
+    grid-template-columns: 1fr auto;
     gap: 0.5em;
 
     .header {
       font-weight: bold;
-      text-align: center;
+      font-size: 1.2em;
     }
 
     li {
       display: contents;
+    }
+
+    .lock-moment .name {
+      grid-column: 1 / span 2;
+      justify-self: center;
+    }
+
+    .empty {
+      font-size: 1em;
+
+      span {
+        grid-column: 1 / span 2;
+        justify-self: center;
+        opacity: 0.8;
+      }
     }
 
     .locked {

@@ -26,7 +26,7 @@ const runTaskRepeatedlyInBackground = (
   parentLogger: Logging.Logger,
   taskName: string,
   task:
-    | ((server: Server.State, logger: Logging.Logger) => Promise<void>)
+    | ((server: Server.State, logger: Logging.Logger) => Promise<boolean>)
     | undefined,
 ) => {
   if (task !== undefined) {
@@ -35,9 +35,8 @@ const runTaskRepeatedlyInBackground = (
     });
     runTaskRepeatedly(server, logger, task).catch((error) =>
       logger.error(
-        `Unhandled exception in background task ${taskName}: ${
-          (error as Error)?.message
-        }.`,
+        `Unhandled exception in background task ${taskName}: ${(error as Error)
+          ?.message}.`,
         {
           exception: error,
         },
@@ -49,11 +48,11 @@ const runTaskRepeatedlyInBackground = (
 const runTaskRepeatedly = async (
   server: Server.State,
   logger: Logging.Logger,
-  task: (server: Server.State, logger: Logging.Logger) => Promise<void>,
+  task: (server: Server.State, logger: Logging.Logger) => Promise<boolean>,
 ): Promise<void> => {
-  // eslint-disable-next-line no-constant-condition
-  while (true) {
-    await task(server, logger);
+  let finished = false;
+  while (!finished) {
+    finished = await task(server, logger);
   }
 };
 

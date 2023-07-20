@@ -18,6 +18,11 @@ const SessionCookie = Schema.strict({
 });
 type SessionCookie = Schema.TypeOf<typeof SessionCookie>;
 
+const UserAndNotifications = Schema.strict({
+  user: Schema.tuple([Users.Id, Users.User]),
+  notifications: Schema.readonlyArray(Notifications.Notification),
+});
+
 const encodeSessionCookie = (data: SessionCookie): string =>
   JSON.stringify(SessionCookie.encode(data));
 
@@ -66,10 +71,10 @@ export const authApi = (server: Server.State): Router => {
           oldSession.user,
           oldSession.session,
         );
-        ctx.body = {
+        ctx.body = UserAndNotifications.encode({
           user: Users.fromInternal(user),
           notifications: notifications.map(Notifications.fromInternal),
-        };
+        });
         return;
       }
     }
@@ -83,7 +88,9 @@ export const authApi = (server: Server.State): Router => {
         secure: Auth.secure,
         signed: true,
       });
-      ctx.body = { redirect: url };
+      ctx.body = Schema.strict({ redirect: Schema.string }).encode({
+        redirect: url,
+      });
       return;
     } else {
       const expectedState = ctx.cookies.get(Auth.stateCookieName, {
@@ -102,7 +109,7 @@ export const authApi = (server: Server.State): Router => {
       ctx.cookies.set(Auth.stateCookieName, null, { signed: true });
       ctx.cookies.set(
         Auth.sessionCookieName,
-        encodeSessionCookie({ user: user.id, session }),
+        encodeSessionCookie({ user: user[0], session }),
         {
           expires: Joda.convert(expires).toDate(),
           httpOnly: true,
@@ -111,10 +118,10 @@ export const authApi = (server: Server.State): Router => {
           signed: true,
         },
       );
-      ctx.body = {
+      ctx.body = UserAndNotifications.encode({
         user,
         notifications,
-      };
+      });
     }
   });
 

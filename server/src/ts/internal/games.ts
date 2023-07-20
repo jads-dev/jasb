@@ -8,18 +8,16 @@ export type Progress = z.infer<typeof Progress>;
 
 export const Game = z
   .object({
-    id: z.string(),
+    slug: z.string(),
     name: z.string(),
     cover: z.string(),
-    igdb_id: z.string(),
-
-    progress: Progress,
     started: localDate.nullable(),
     finished: localDate.nullable(),
+    progress: Progress,
     order: z.number().int().nullable(),
-
-    added: zonedDateTime,
+    managers: z.array(Users.Summary),
     version: z.number().int().nonnegative(),
+    created: zonedDateTime,
     modified: zonedDateTime,
   })
   .strict();
@@ -28,30 +26,17 @@ export type Game = z.infer<typeof Game>;
 export const BetStats = z
   .object({
     bets: z.number().int().nonnegative(),
+    staked: z.number().int().nonnegative(),
   })
   .strict();
 export type BetStats = z.infer<typeof BetStats>;
 
-export const EmbeddedBets = z
+export const WithBets = z
   .object({
     bets: z.array(Bets.Bet.merge(Bets.WithOptions)),
   })
   .strict();
-export type EmbeddedBets = z.infer<typeof EmbeddedBets>;
-
-export const StakeStats = z
-  .object({
-    staked: z.number().int().nonnegative(),
-  })
-  .strict();
-export type StakeStats = z.infer<typeof StakeStats>;
-
-export const Mods = z
-  .object({
-    mods: z.array(Users.User),
-  })
-  .strict();
-export type Mods = z.infer<typeof Mods>;
+export type WithBets = z.infer<typeof WithBets>;
 
 export const Name = z
   .object({

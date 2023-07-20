@@ -1,5 +1,6 @@
 module Util.AssocList exposing
     ( filterJust
+    , filterMap
     , findIndexOfKey
     , findKeyAtIndex
     , fromListWithDerivedKey

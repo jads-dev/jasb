@@ -2,6 +2,7 @@ module Util.RemoteData exposing
     ( RemoteData(..)
     , Response
     , errorToString
+    , isLoaded
     , load
     , map
     , toMaybe
@@ -50,6 +51,16 @@ toMaybe remoteData =
 
         Failed _ ->
             Nothing
+
+
+isLoaded : RemoteData value -> Bool
+isLoaded remoteData =
+    case remoteData of
+        Loaded _ ->
+            True
+
+        _ ->
+            False
 
 
 load : Response value -> RemoteData value
