@@ -136,7 +136,7 @@ export const betWithOptions = (betsSource: Slonik.SqlFragment) => {
       bets INNER JOIN
       jasb.lock_moments ON bets.lock_moment = lock_moments.id LEFT JOIN
       jasb.options_by_bet AS options ON bets.id = options.bet
-    ORDER BY lock_moments."order", bets.created DESC
+    ORDER BY lock_moments."order", bets.created
   `;
 };
 
@@ -159,7 +159,7 @@ export const lockStatus = (betsSource: Slonik.SqlFragment) => {
         'Voting'::BetProgress, 
         'Locked'::BetProgress
       )
-    ORDER BY bets.created DESC
+    ORDER BY bets.created
   `;
 };
 

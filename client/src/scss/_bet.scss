@@ -394,6 +394,8 @@
   background-color: var(--background);
   border-radius: 0.5em;
   padding: 1em;
+  overflow: auto;
+  margin: 1em;
 
   display: flex;
   flex-direction: column;
