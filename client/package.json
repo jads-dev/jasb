@@ -3,6 +3,10 @@
   "description": "JASB web client.",
   "version": "1.0.0",
   "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./dist/index.mjs"
+  },
   "scripts": {
     "build": "npx webpack",
     "dev": "npx webpack serve --mode=development",
@@ -12,21 +16,23 @@
   },
   "dependencies": {
     "@fortawesome/fontawesome-svg-core": "^6.1.1",
-    "elm-material": "file:./elm-material",
-    "lit": "^2.2.1"
+    "elm-material": "file:./elm-material"
   },
   "devDependencies": {
+    "@principalstudio/html-webpack-inject-preload": "^1.2.7",
     "ajv": "^8.11.0",
     "compression-webpack-plugin": "^10.0.0",
     "css-loader": "^6.7.1",
     "cssnano": "^6.0.1",
     "elm": "^0.19.1-5",
+    "elm-analyse": "^0.16.5",
     "elm-webpack-loader": "^8.0.0",
     "html-loader": "^4.1.0",
     "html-webpack-plugin": "^5.5.0",
     "mini-css-extract-plugin": "^2.6.0",
     "postcss-loader": "^7.0.0",
     "postcss-preset-env": "^9.0.0",
+    "resolve-url-loader": "^5.0.0",
     "sass": "^1.49.9",
     "sass-loader": "^13.0.0",
     "style-loader": "^3.3.1",

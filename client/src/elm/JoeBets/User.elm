@@ -1,6 +1,7 @@
 module JoeBets.User exposing
     ( ViewMode(..)
     , link
+    , nameString
     , viewAvatar
     , viewLink
     , viewName
@@ -86,4 +87,8 @@ viewAvatar _ user =
 
 link : WithId -> Html msg
 link { id, user } =
-    Route.a (id |> Just |> Route.User) [] [ viewAvatar id user, viewName user ]
+    Route.a (id |> Just |> Route.User)
+        [ HtmlA.class "user" ]
+        [ viewAvatar id user
+        , viewName user
+        ]

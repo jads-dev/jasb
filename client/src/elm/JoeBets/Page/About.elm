@@ -3,6 +3,7 @@ module JoeBets.Page.About exposing (view)
 import Html
 import Html.Attributes as HtmlA
 import JoeBets.Page exposing (Page)
+import JoeBets.Route as Route
 import JoeBets.Rules as Rules
 import JoeBets.User.Auth as Auth
 import JoeBets.User.Auth.Model as Auth
@@ -21,8 +22,11 @@ view wrap { auth } =
         [ Html.h2 [] [ Html.text "About" ]
         , Html.div []
             [ Html.p []
-                [ Html.text "This site allows you to bet (for bragging rights only, no money!) on various things to do with Joseph Anderson streams. "
-                , Html.text "It is an unofficial fan creation."
+                [ Html.text "Place bets on Joseph Anderson streams. Bet "
+                , Html.text "monocoins on "
+                , Route.a Route.Games [] [ Html.text "a variety of bets" ]
+                , Html.text " for fun and "
+                , Html.text "bragging rights. There is no real-money betting."
                 ]
             , Html.p []
                 [ Html.text "You need to be "
@@ -55,7 +59,8 @@ view wrap { auth } =
                 , Html.blankA "https://github.com" [ "jads-dev", "jasb" ] [ Html.text "an open source project" ]
                 , Html.text " by "
                 , Html.blankA "https://github.com" [ "jads-dev" ] [ Html.text "jads-dev" ]
-                , Html.text "."
+                , Html.text ". "
+                , Html.text "It is an unofficial fan creation."
                 ]
             ]
         ]

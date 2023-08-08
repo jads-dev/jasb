@@ -2,8 +2,10 @@ import * as Schema from "io-ts";
 
 import type { Internal } from "../internal.js";
 import { Expect } from "../util/expect.js";
+import { Iterables } from "../util/iterables.js";
 import { Validation } from "../util/validation.js";
 import { Bets } from "./bets.js";
+import { LockMoments } from "./editor/lock-moments.js";
 import { Users } from "./users/id.js";
 
 /**
@@ -86,7 +88,13 @@ export const WithBets = Schema.intersection([
   Game,
   Schema.readonly(
     Schema.strict({
-      bets: Schema.readonlyArray(Schema.tuple([Bets.Id, Bets.Bet])),
+      bets: Schema.readonlyArray(
+        Schema.tuple([
+          LockMoments.Id,
+          Schema.string,
+          Schema.readonlyArray(Schema.tuple([Bets.Id, Bets.Bet])),
+        ]),
+      ),
     }),
   ),
 ]);
@@ -175,12 +183,21 @@ export const withBetStatsFromInternal = (
 
 export const withBetsFromInternal = (
   internal: Internal.Game & Internal.Games.WithBets,
-): [Id, WithBets] => [
-  internal.slug as Id,
-  {
-    ...fromInternal(internal)[1],
-    bets: internal.bets.map(Bets.fromInternal),
-  },
-];
+): [Id, WithBets] => {
+  const betsByLockMoment = [
+    ...Iterables.groupBy((bet) => bet.lock_moment_slug, internal.bets),
+  ];
+  return [
+    internal.slug as Id,
+    {
+      ...fromInternal(internal)[1],
+      bets: betsByLockMoment.map(([lockMomentSlug, bets]) => [
+        lockMomentSlug as LockMoments.Id,
+        bets[0]?.lock_moment_name ?? "",
+        bets.map(Bets.fromInternal),
+      ]),
+    },
+  ];
+};
 
 export * as Games from "./games.js";

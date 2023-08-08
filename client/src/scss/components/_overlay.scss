@@ -1,0 +1,60 @@
+@use "../_colors.scss";
+
+.overlay {
+  .background,
+  .foreground {
+    position: fixed;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    left: 0;
+  }
+
+  .background {
+    z-index: 998;
+    @include colors.by_name("overlay");
+  }
+
+  .foreground {
+    z-index: 999;
+    max-height: 100vh;
+    max-width: 100vw;
+    overflow: hidden;
+    padding: 1em;
+
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+
+    pointer-events: none;
+
+    > div {
+      @include colors.by_name("background");
+      border-radius: 1em;
+      padding: 1em;
+      pointer-events: all;
+      overflow: auto;
+      max-width: min(40em, 100%);
+      box-sizing: border-box;
+    }
+
+    .title {
+      h2 {
+        flex-grow: 1;
+      }
+      display: flex;
+    }
+
+    .controls {
+      display: flex;
+      gap: 1em;
+      justify-content: space-between;
+
+      .actions {
+        display: flex;
+        gap: 1em;
+      }
+    }
+  }
+}

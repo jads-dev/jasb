@@ -739,7 +739,7 @@ viewCoreContent save wrap time localUser model { author, created, modified, vers
                       ]
                     )
     in
-    [ Html.div [ HtmlA.id "bet-editor", HtmlA.class "editor" ]
+    Html.div [ HtmlA.id "bet-editor", HtmlA.class "editor" ]
         [ Html.h3 [] [ Html.text "Metadata" ]
         , Html.div [ HtmlA.class "metadata" ]
             [ Html.div [ HtmlA.class "author" ]
@@ -768,7 +768,6 @@ viewCoreContent save wrap time localUser model { author, created, modified, vers
         , Validator.view descriptionValidator model
         , LockMoment.selector (EditLockMoments >> wrap)
             (model |> lockMomentContext)
-            model.lockMomentEditor
             (SetLockMoment >> wrap)
             model.lockMoment
         , Switch.view (Html.text "Is Spoiler") model.spoiler (SetSpoiler >> wrap |> Just)
@@ -797,8 +796,8 @@ viewCoreContent save wrap time localUser model { author, created, modified, vers
                 (save |> Validator.whenValid validator model)
             ]
         ]
-    , Html.div [ HtmlA.class "preview" ] preview
-    ]
+        :: Html.div [ HtmlA.class "preview" ] preview
+        :: LockMoment.viewEditor (EditLockMoments >> wrap) (model |> lockMomentContext) model.lockMomentEditor
 
 
 instructions : Html msg

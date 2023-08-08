@@ -1,6 +1,8 @@
 module JoeBets.Route exposing
     ( Route(..)
     , a
+    , decoder
+    , encode
     , fromUrl
     , pushUrl
     , replaceUrl
@@ -16,11 +18,15 @@ import JoeBets.Game.Model as Game
 import JoeBets.Page.Bets.Model as Bets
 import JoeBets.Page.Edit.Model as Edit
 import JoeBets.Page.Leaderboard.Route as Leaderboard
-import JoeBets.User.Auth.Model as Auth
+import JoeBets.User.Auth.Route as Auth
 import JoeBets.User.Model as User
+import Json.Decode as JsonD
+import Json.Decode.Pipeline as JsonD
+import Json.Encode as JsonE
 import Url exposing (Url)
 import Url.Builder
 import Url.Parser as Parser exposing ((</>), (<?>))
+import Util.Json.Decode as JsonD
 import Util.Maybe as Maybe
 
 
@@ -156,3 +162,25 @@ replaceUrl navigationKey =
 a : Route -> List (Html.Attribute msg) -> List (Html msg) -> Html msg
 a route attrs =
     Html.a ((route |> toUrl |> HtmlA.href) :: attrs)
+
+
+decoder : JsonD.Decoder Route
+decoder =
+    let
+        addFakeOrigin absolute =
+            "https://example.com" ++ absolute
+
+        ifUrl maybeUrl =
+            case maybeUrl of
+                Just url ->
+                    url |> fromUrl |> JsonD.succeed
+
+                Nothing ->
+                    JsonD.fail "Not a valid URL."
+    in
+    JsonD.string |> JsonD.andThen (addFakeOrigin >> Url.fromString >> ifUrl)
+
+
+encode : Route -> JsonE.Value
+encode =
+    toUrl >> JsonE.string

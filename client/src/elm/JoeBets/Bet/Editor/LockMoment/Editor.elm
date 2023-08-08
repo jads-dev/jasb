@@ -473,23 +473,26 @@ viewEditor wrap context maybeModel =
                         && Validator.valid itemsValidator model.lockMoments
             in
             [ Html.div [ HtmlA.class "overlay" ]
-                [ [ context.lockMoments |> RemoteData.view editorContent
-                  , [ Html.div [ HtmlA.class "actions" ]
-                        [ Button.view Button.Standard
-                            Button.Padded
-                            "Cancel"
-                            (Icon.times |> Icon.view |> Just)
-                            (CancelEdit |> wrap |> Just)
-                        , Button.view Button.Raised
-                            Button.Padded
-                            "Save"
-                            (Icon.times |> Icon.view |> Just)
-                            (SaveEdit |> wrap |> Maybe.when canSave)
-                        ]
+                [ Html.div [ HtmlA.class "background", CancelEdit |> wrap |> HtmlE.onClick ] []
+                , [ [ context.lockMoments |> RemoteData.view editorContent
+                    , [ Html.div [ HtmlA.class "controls" ]
+                            [ Button.view Button.Standard
+                                Button.Padded
+                                "Cancel"
+                                (Icon.times |> Icon.view |> Just)
+                                (CancelEdit |> wrap |> Just)
+                            , Button.view Button.Raised
+                                Button.Padded
+                                "Save"
+                                (Icon.times |> Icon.view |> Just)
+                                (SaveEdit |> wrap |> Maybe.when canSave)
+                            ]
+                      ]
                     ]
+                        |> List.concat
+                        |> Html.div [ HtmlA.id "lock-moments-editor" ]
                   ]
-                    |> List.concat
-                    |> Html.div [ HtmlA.id "lock-moments-editor" ]
+                    |> Html.div [ HtmlA.class "foreground" ]
                 ]
             ]
 

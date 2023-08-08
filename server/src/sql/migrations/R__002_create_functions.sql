@@ -1426,7 +1426,7 @@ CREATE FUNCTION withdraw_stake (
         MESSAGE = 'Bet not found.';
     END IF;
 
-    IF NOT BET_IS_VOTING THEN
+    IF NOT bet_is_voting THEN
       RAISE EXCEPTION USING
         ERRCODE = 'BDREQ',
         MESSAGE = 'Bet not accepting stake modifications.';
@@ -1441,6 +1441,7 @@ CREATE FUNCTION withdraw_stake (
               bets ON bets.slug = bet_slug AND options.bet = bets.id INNER JOIN
               games ON games.slug = game_slug AND bets.game = games.id
           WHERE
+            users.slug = user_slug AND
             stakes.owner = users.id AND
             stakes.option = options.id AND
             stakes.message IS NULL

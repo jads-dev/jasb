@@ -1,5 +1,7 @@
 port module JoeBets.Ports exposing
-    ( storeCmd
+    ( sessionStoreCmd
+    , sessionStoreSub
+    , storeCmd
     , storeSub
     )
 
@@ -11,3 +13,9 @@ port storeCmd : JsonE.Value -> Cmd msg
 
 
 port storeSub : (JsonD.Value -> msg) -> Sub msg
+
+
+port sessionStoreCmd : JsonE.Value -> Cmd msg
+
+
+port sessionStoreSub : (JsonD.Value -> msg) -> Sub msg

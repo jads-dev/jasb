@@ -33,11 +33,11 @@ viewManagers { managers } =
 
         modsContent =
             if AssocList.isEmpty managers then
-                [ Html.span [] [ Html.text "No bet managers for this game." ]
+                [ Html.span [] [ Html.text "No bet managers." ]
                 ]
 
             else
-                [ Html.span [] [ Html.text "Bet managers for this game:" ]
+                [ Html.span [] [ Html.text "Bet managers:" ]
                 , managers |> AssocList.toList |> List.map renderManager |> Html.ul []
                 ]
     in
@@ -72,25 +72,24 @@ view wrap { favourites } time localUser id { name, cover, bets, progress, staked
                 , HtmlA.alt ""
                 ]
                 []
-            , Html.div [ HtmlA.class "details" ]
-                [ Html.h2
-                    [ HtmlA.class "title permalink" ]
-                    [ Html.text name, Icon.link |> Icon.view ]
-                , [ stakedDetails
-                  , [ Html.span [ HtmlA.class "bet-count" ]
-                        [ bets |> String.fromInt |> Html.text
-                        , Html.text " bet"
-                        , bets |> String.plural |> Html.text
-                        , Html.text "."
-                        ]
-                    ]
-                  ]
-                    |> List.concat
-                    |> Html.span []
-                , Html.span
-                    [ HtmlA.class "progress" ]
-                    progressView
+            , Html.h2 [ HtmlA.class "title" ]
+                [ Html.text name
+                , Html.span [ HtmlA.class "permalink" ] [ Icon.link |> Icon.view ]
                 ]
+            , [ stakedDetails
+              , [ Html.span [ HtmlA.class "bet-count" ]
+                    [ bets |> String.fromInt |> Html.text
+                    , Html.text " bet"
+                    , bets |> String.plural |> Html.text
+                    , Html.text "."
+                    ]
+                ]
+              ]
+                |> List.concat
+                |> Html.span [ HtmlA.class "stats" ]
+            , Html.span
+                [ HtmlA.class "progress" ]
+                progressView
             ]
 
         adminContent =

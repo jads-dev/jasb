@@ -3,12 +3,12 @@ module JoeBets exposing (main)
 import Browser
 import Browser.Events as Browser
 import Browser.Navigation as Navigation
-import FontAwesome as Icon
-import FontAwesome.Brands as Icon
-import FontAwesome.Solid as Icon
 import Html
 import Html.Attributes as HtmlA
 import JoeBets.Layout as Layout
+import JoeBets.Messages exposing (..)
+import JoeBets.Model exposing (..)
+import JoeBets.Navigation as Navigation
 import JoeBets.Page.About as About
 import JoeBets.Page.Bet as Bet
 import JoeBets.Page.Bet.Model as Bet
@@ -24,7 +24,7 @@ import JoeBets.Page.Games.Model as Games
 import JoeBets.Page.Leaderboard as Leaderboard
 import JoeBets.Page.Leaderboard.Model as Leaderboard
 import JoeBets.Page.Leaderboard.Route as Leaderboard
-import JoeBets.Page.Model as Page exposing (Page)
+import JoeBets.Page.Model as Page
 import JoeBets.Page.Problem as Problem
 import JoeBets.Page.Problem.Model as Problem
 import JoeBets.Page.User as User
@@ -34,64 +34,19 @@ import JoeBets.Settings as Settings
 import JoeBets.Settings.Model as Settings
 import JoeBets.Store as Store
 import JoeBets.Store.KeyedItem as Store
+import JoeBets.Store.Session as SessionStore
+import JoeBets.Store.Session.Model as SessionStore
 import JoeBets.Theme as Theme
 import JoeBets.User as User
 import JoeBets.User.Auth as Auth
 import JoeBets.User.Auth.Model as Auth
 import JoeBets.User.Notifications as Notifications
 import JoeBets.User.Notifications.Model as Notifications
-import Json.Decode as JsonD
-import Material.IconButton as IconButton
 import Task
 import Time
 import Time.Model as Time
 import Url exposing (Url)
 import Util.Html as Html
-import Util.Maybe as Maybe
-
-
-type alias Flags =
-    { store : List JsonD.Value
-    }
-
-
-type alias Model =
-    { origin : String
-    , navigationKey : Navigation.Key
-    , time : Time.Context
-    , page : Page
-    , auth : Auth.Model
-    , notifications : Notifications.Model
-    , feed : Feed.Model
-    , user : User.Model
-    , bets : Bets.Model
-    , bet : Bet.Model
-    , games : Games.Model
-    , leaderboard : Leaderboard.Model
-    , edit : Edit.Model
-    , settings : Settings.Model
-    , problem : Problem.Model
-    , visibility : Browser.Visibility
-    }
-
-
-type Msg
-    = ChangeUrl Route
-    | UrlChanged Route
-    | SetTimeZone Time.Zone
-    | SetTime Time.Posix
-    | AuthMsg Auth.Msg
-    | NotificationsMsg Notifications.Msg
-    | FeedMsg Feed.Msg
-    | UserMsg User.Msg
-    | BetsMsg Bets.Msg
-    | BetMsg Bet.Msg
-    | GamesMsg Games.Msg
-    | LeaderboardMsg Leaderboard.Msg
-    | EditMsg Edit.Msg
-    | SettingsMsg Settings.Msg
-    | ChangeVisibility Browser.Visibility
-    | NoOp
 
 
 main : Program Flags Model Msg
@@ -125,6 +80,8 @@ init flags url key =
             { origin = origin
             , navigationKey = key
             , time = { zone = Time.utc, now = Time.millisToPosix 0 }
+            , route = route
+            , navigation = Navigation.init
             , page = Page.About
             , auth = auth
             , notifications = Notifications.init
@@ -223,6 +180,9 @@ update msg model =
         ChangeVisibility visibility ->
             ( { model | visibility = visibility }, Cmd.none )
 
+        NavigationMsg navigationMsg ->
+            Navigation.update navigationMsg model
+
         NoOp ->
             ( model, Cmd.none )
 
@@ -230,7 +190,7 @@ update msg model =
 subscriptions : Model -> Sub Msg
 subscriptions model =
     let
-        fromResult result =
+        storeFromResult result =
             case result of
                 Ok keyedItem ->
                     case keyedItem of
@@ -242,12 +202,23 @@ subscriptions model =
 
                 Err _ ->
                     NoOp
+
+        sessionStoreFromResult result =
+            case result of
+                Ok keyedValue ->
+                    case keyedValue of
+                        SessionStore.LoginRedirectValue value ->
+                            value |> Auth.RedirectAfterLogin |> AuthMsg
+
+                Err _ ->
+                    NoOp
     in
     Sub.batch
         [ Time.every 10000 SetTime
         , Browser.onVisibilityChange ChangeVisibility
         , Notifications.subscriptions NotificationsMsg model
-        , Store.changedValues fromResult
+        , Store.changedValues storeFromResult
+        , SessionStore.retrievedValues sessionStoreFromResult
         ]
 
 
@@ -283,47 +254,16 @@ view model =
                 Page.Problem ->
                     Problem.view model
 
-        menu =
-            [ [ Html.li [] [ Route.a Route.About [] [ Icon.questionCircle |> Icon.view, Html.text "About" ] ]
-              , Html.li [] [ Route.a Route.Feed [] [ Icon.stream |> Icon.view, Html.text "Feed" ] ]
-              , Html.li [] [ Route.a Route.Games [] [ Icon.dice |> Icon.view, Html.text "Bets" ] ]
-              , Html.li []
-                    [ Route.a (Route.Leaderboard Leaderboard.NetWorth)
-                        []
-                        [ Icon.crown |> Icon.view, Html.text "Leaderboard" ]
-                    ]
-              ]
-            , model.auth.localUser |> Maybe.map (User.link >> List.singleton >> Html.li [ HtmlA.class "me" ]) |> Maybe.toList
-            , [ Html.li [ HtmlA.class "discord" ] [ Auth.logInOutButton AuthMsg model ]
-              , model |> Auth.viewError |> Html.div [ HtmlA.class "errors" ]
-              , Html.li [ HtmlA.class "stream" ]
-                    [ Html.blankA "https://www.twitch.tv"
-                        [ "andersonjph" ]
-                        [ Icon.twitch |> Icon.view, Html.text "The Stream" ]
-                    ]
-              , Html.li [ HtmlA.class "discord" ]
-                    [ Html.blankA "https://discord.gg"
-                        [ "tJjNP4QRvV" ]
-                        [ Icon.discord |> Icon.view
-                        , Html.text "Notifications"
-                        ]
-                    ]
-              , Html.li [ HtmlA.class "settings" ]
-                    [ IconButton.view (Icon.cog |> Icon.view)
-                        "Settings"
-                        (True |> Settings.SetVisibility |> SettingsMsg |> Just)
-                    ]
-              ]
-            ]
-
         combinedBody =
             [ [ Html.header []
                     [ Html.div []
                         [ Html.h1 [ HtmlA.title "Joseph Anderson Stream Bets" ] [ Html.text "JASB" ]
-                        , Html.nav [] [ menu |> List.concat |> Html.ul [] ]
+                        , Navigation.view model
                         ]
                     ]
-              , Html.div [ HtmlA.class "page", HtmlA.id id ] body
+              , Html.div [ HtmlA.class "core" ]
+                    [ Html.div [ HtmlA.class "page", HtmlA.id id ] body
+                    ]
               , Notifications.view NotificationsMsg model
               ]
             , Settings.view SettingsMsg model
@@ -343,7 +283,11 @@ view model =
 
 
 load : Route -> Model -> ( Model, Cmd Msg )
-load route model =
+load route oldRouteModel =
+    let
+        model =
+            { oldRouteModel | route = route }
+    in
     case route of
         Route.About ->
             ( { model | page = Page.About }, Cmd.none )

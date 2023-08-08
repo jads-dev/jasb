@@ -1,0 +1,17 @@
+@import "../_util.scss";
+
+.user {
+  @include icon-aside;
+
+  .avatar {
+    width: 1em;
+    height: 1em;
+    border-radius: 1em;
+  }
+
+  .name .discriminator {
+    opacity: 0.25;
+
+    font-size: 0.75em;
+  }
+}

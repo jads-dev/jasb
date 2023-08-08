@@ -13,8 +13,8 @@ import Material.Select as Select
 import Util.RemoteData as RemoteData
 
 
-selector : (LockMoment.EditorMsg -> msg) -> LockMoment.Context -> Maybe LockMoment.Editor -> (Maybe LockMoment.Id -> msg) -> Maybe LockMoment.Id -> Html msg
-selector wrapEditor context maybeEditor select selected =
+selector : (LockMoment.EditorMsg -> msg) -> LockMoment.Context -> (Maybe LockMoment.Id -> msg) -> Maybe LockMoment.Id -> Html msg
+selector wrapEditor context select selected =
     let
         lockMoments =
             context.lockMoments
@@ -30,6 +30,7 @@ selector wrapEditor context maybeEditor select selected =
             , wrap = select
             , disabled = List.isEmpty lockMoments
             , fullWidth = True
+            , fixedPosition = False
             , attrs = [ Material.outlined ]
             }
 
@@ -41,7 +42,7 @@ selector wrapEditor context maybeEditor select selected =
             , meta = Nothing
             }
     in
-    (lockMoments |> List.map option |> Select.view model)
-        :: IconButton.view (Icon.edit |> Icon.view) "Edit Lock Moments" (LockMoment.ShowEditor |> wrapEditor |> Just)
-        :: LockMoment.viewEditor wrapEditor context maybeEditor
+    [ lockMoments |> List.map option |> Select.view model
+    , IconButton.view (Icon.edit |> Icon.view) "Edit Lock Moments" (LockMoment.ShowEditor |> wrapEditor |> Just)
+    ]
         |> Html.div [ HtmlA.class "inline" ]

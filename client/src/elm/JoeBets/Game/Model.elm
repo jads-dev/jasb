@@ -5,10 +5,12 @@ module JoeBets.Game.Model exposing
     , decoder
     , finish
     , start
+    , updateByBetId
     , withBetsDecoder
     )
 
 import AssocList
+import JoeBets.Bet.Editor.LockMoment as LockMoment
 import JoeBets.Bet.Model as Bet exposing (Bet)
 import JoeBets.Bet.Option exposing (Option)
 import JoeBets.Game.Progress as Progress
@@ -111,29 +113,47 @@ decoder =
 
 type alias WithBets =
     { game : Game
-    , bets : AssocList.Dict Bet.Id Bet
+    , bets : AssocList.Dict LockMoment.Id ( String, AssocList.Dict Bet.Id Bet )
     }
+
+
+updateByBetId : Bet.Id -> (Maybe Bet -> Maybe Bet) -> WithBets -> WithBets
+updateByBetId targetBet updateBet withBets =
+    let
+        updateLockMomentBets _ ( name, bets ) =
+            ( name, bets |> AssocList.update targetBet updateBet )
+    in
+    { withBets | bets = withBets.bets |> AssocList.map updateLockMomentBets }
 
 
 withBetsDecoder : JsonD.Decoder WithBets
 withBetsDecoder =
     let
         betsDecoder =
-            JsonD.assocListFromTupleList Bet.idDecoder Bet.decoder
+            let
+                betsForId =
+                    JsonD.map2 Tuple.pair
+                        (JsonD.index 1 JsonD.string)
+                        (JsonD.index 2 (JsonD.assocListFromTupleList Bet.idDecoder Bet.decoder))
+            in
+            JsonD.assocListFromList (JsonD.index 0 LockMoment.idDecoder) betsForId
 
-        getOptionStakes : Option -> List Int
         getOptionStakes option =
             option.stakes |> AssocList.values |> List.map .amount
 
-        getBetStakes : Bet -> List Int
         getBetStakes bet =
             bet.options |> AssocList.values |> List.concatMap getOptionStakes
 
-        gameDecoder : AssocList.Dict Bet.Id Bet -> JsonD.Decoder Game
         gameDecoder bets =
+            let
+                allBets =
+                    bets
+                        |> AssocList.values
+                        |> List.concatMap (Tuple.second >> AssocList.values)
+            in
             baseDecoder
-                (bets |> AssocList.size |> JsonD.succeed)
-                (bets |> AssocList.values |> List.concatMap getBetStakes |> List.sum |> JsonD.succeed)
+                (allBets |> List.length |> JsonD.succeed)
+                (allBets |> List.concatMap getBetStakes |> List.sum |> JsonD.succeed)
 
         fromBets bets =
             JsonD.succeed WithBets

@@ -5,15 +5,24 @@
 @mixin narrow {
   font-size: 0.8em;
 
-  header {
-    position: relative;
-  }
-
   .bet > ul > li {
     > img,
     > .stats {
       display: none;
     }
+  }
+
+  #bets {
+    grid-template-columns: [left] 1fr [right] 0;
+  }
+
+  .leaderboard {
+    font-size: 1em;
+  }
+
+  #feed > ol,
+  .feed > ol {
+    font-size: 1em;
   }
 }
 

@@ -1,15 +1,37 @@
 {
+  "$schema": "https://json.schemastore.org/tsconfig",
+
+  "include": ["./src/mts/**/*", "./material/src/mts/**/*"],
+  "exclude": ["node_modules", "dist"],
+
   "compilerOptions": {
     "experimentalDecorators": true,
-    "target": "es6",
-    "sourceMap": true,
-    "removeComments": true,
-    "noImplicitReturns": true,
-    "strict": true,
-    "moduleResolution": "node",
+    "module": "es2022",
+    "target": "es2020",
+    "lib": ["dom", "es2020"],
+    "moduleResolution": "node16",
+
     "outDir": "dist",
-    "allowJs": true,
-    "useDefineForClassFields": false
-  },
-  "include": ["src/elm/JoeBets/index.d.ts", "src/ts/**/*", "src/js/**/*"]
+    "sourceMap": true,
+
+    "strict": true,
+    "allowUnusedLabels": false,
+    "allowUnreachableCode": false,
+    "exactOptionalPropertyTypes": true,
+    "noFallthroughCasesInSwitch": true,
+    "noImplicitOverride": true,
+    "noImplicitReturns": true,
+    "noPropertyAccessFromIndexSignature": true,
+    "noUncheckedIndexedAccess": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+
+    "verbatimModuleSyntax": true,
+
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+
+    "preserveConstEnums": true
+  }
 }

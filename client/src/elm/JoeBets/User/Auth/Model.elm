@@ -1,17 +1,15 @@
 module JoeBets.User.Auth.Model exposing
-    ( CodeAndState
-    , Error(..)
+    ( Error(..)
     , LoggedIn
     , LoginProgress(..)
     , Model
     , Msg(..)
+    , Progress(..)
     , Redirect
     , RedirectOrLoggedIn(..)
     , canManageBets
     , canManageGames
     , canManagePermissions
-    , codeAndStateParser
-    , encodeCodeAndState
     , redirectDecoder
     , redirectOrLoggedInDecoder
     )
@@ -20,12 +18,11 @@ import EverySet
 import Http
 import JoeBets.Game.Id as Game
 import JoeBets.Game.Model as Game
+import JoeBets.Route exposing (Route)
 import JoeBets.User.Model as User exposing (User)
 import JoeBets.User.Notifications.Model as Notifications exposing (Notification)
 import Json.Decode as JsonD
 import Json.Decode.Pipeline as JsonD
-import Json.Encode as JsonE
-import Url.Parser.Query as Query
 
 
 type Error
@@ -33,8 +30,13 @@ type Error
     | Unauthorized
 
 
+type Progress
+    = LoggingIn
+    | LoggingOut
+
+
 type alias Model =
-    { trying : Bool
+    { inProgress : Maybe Progress
     , error : Maybe Error
     , localUser : Maybe User.WithId
     }
@@ -61,7 +63,8 @@ canManageBets game =
 
 type Msg
     = Login LoginProgress
-    | SetLocalUser Bool LoggedIn
+    | SetLocalUser LoggedIn
+    | RedirectAfterLogin (Maybe Route)
     | Logout
 
 
@@ -92,25 +95,6 @@ redirectDecoder : JsonD.Decoder Redirect
 redirectDecoder =
     JsonD.succeed Redirect
         |> JsonD.required "redirect" JsonD.string
-
-
-type alias CodeAndState =
-    { code : String, state : String }
-
-
-codeAndStateParser : Query.Parser (Maybe CodeAndState)
-codeAndStateParser =
-    Query.map2 (Maybe.map2 CodeAndState)
-        (Query.string "code")
-        (Query.string "state")
-
-
-encodeCodeAndState : CodeAndState -> JsonE.Value
-encodeCodeAndState { code, state } =
-    JsonE.object
-        [ ( "code", JsonE.string code )
-        , ( "state", JsonE.string state )
-        ]
 
 
 type RedirectOrLoggedIn

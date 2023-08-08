@@ -1,78 +1,91 @@
 @use "sass:color";
 
-$primary: #ad1818;
-$on-primary: #ffffff;
-$dark: #28262e;
-$on-dark: #f2f2f0;
-$dark-accent: #d77d39;
-$on-dark-accent: #000000;
-$light: #f2f2f0;
-$on-light: #28262e;
-$light-accent: #797677;
-$on-light-accent: #000000;
-
-$discord: #7d92dd;
-$on-discord: #000000;
-$twitch: #6700fd;
-$on-twitch: #ffffff;
-
 $good: #6a8440;
-$warning: #e77408;
 $bad: #ff0000;
-$disabled: #666666;
-$on-disabled: #ffffff;
-$link-color: #2222ff;
 
-@mixin light {
-  --background: #{$light};
-  --on-background: #{$on-light};
+$dark: (
+  "background": #101010,
+  "on-background": #ffffff,
+  "secondary-background": #18181b,
+  "on-secondary-background": #ffffff,
 
-  --secondary-background: #{color.scale($light, $lightness: -15%)};
-  --on-secondary-background: #{$on-light};
+  "card": #000000,
+  "on-card": #ffffff,
 
-  --good: #{$good};
-  --warning: #{$warning};
-  --bad: #{$bad};
-  --link-color: #{$link-color};
+  "disabled": #666666,
+  "on-disabled": #ffffff,
+
+  "primary": #fed766,
+  "on-primary": #000000,
+  "secondary": #009fb7,
+  "on-secondary": #000000,
+  "tertiary": #fe4a49,
+  "on-tertiary": #000000,
+
+  "discord": #7d92dd,
+  "on-discord": #000000,
+  "twitch": #6700fd,
+  "on-twitch": #ffffff,
+
+  "on-overlay": #000000,
+  "overlay": #80808080,
+
+  "tint": #00000080,
+  "good": #{color.scale($good, $lightness: 35%)},
+  "bad": #{$bad},
+);
+
+$light: (
+  "background": #f0f0f0,
+  "on-background": #000000,
+  "secondary-background": #e7e7e4,
+  "on-secondary-background": #000000,
+
+  "card": #ffffff,
+  "on-card": #000000,
+
+  "disabled": #666666,
+  "on-disabled": #000000,
+
+  "primary": #fe4a49,
+  "on-primary": #000000,
+  "secondary": #009fb7,
+  "on-secondary": #000000,
+  "tertiary": #fed766,
+  "on-tertiary": #000000,
+
+  "discord": #7d92dd,
+  "on-discord": #000000,
+  "twitch": #6700fd,
+  "on-twitch": #ffffff,
+
+  "on-overlay": #000000,
+  "overlay": #80808080,
+
+  "tint": #ffffff80,
+  "good": #{$good},
+  "bad": #{$bad},
+);
+
+@function by-name($name) {
+  @return var(--#{$name}-color);
+}
+
+@mixin by-name($name) {
+  color: by-name("on-#{$name}");
+  background-color: by-name($name);
 }
 
 @mixin dark {
-  --background: #{$dark};
-  --on-background: #{$on-dark};
-
-  --secondary-background: #{color.scale($dark, $lightness: 15%)};
-  --on-secondary-background: #{$on-dark};
-
-  --good: #{color.scale($good, $lightness: 35%)};
-  --warning: #{$warning};
-  --bad: #{$bad};
-  --link-color: #{color.scale($link-color, $lightness: 35%)};
-}
-
-:root {
-  --primary: #{$primary};
-  --on-primary: #{$on-primary};
-  --secondary: #{$dark-accent};
-  --on-secondary: #{$on-dark-accent};
-  --tertiary: #{$light-accent};
-  --on-tertiary: #{$on-light-accent};
-
-  --disabled: #{$disabled};
-  --on-disabled: #{$on-disabled};
-
-  @include dark;
-
-  @media (prefers-color-scheme: light) {
-    @include light;
+  color-scheme: dark;
+  @each $name, $color in $dark {
+    --#{$name}-color: #{$color};
   }
 }
 
-#jasb {
-  &.dark-theme {
-    @include dark;
-  }
-
-  &.light-theme {
-    @include light;
+@mixin light {
+  color-scheme: light;
+  @each $name, $color in $light {
+    --#{$name}-color: #{$color};
   }
 }

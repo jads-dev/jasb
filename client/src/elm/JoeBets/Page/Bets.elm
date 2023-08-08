@@ -12,11 +12,13 @@ import FontAwesome as Icon
 import FontAwesome.Solid as Icon
 import Html exposing (Html)
 import Html.Attributes as HtmlA
+import Html.Events as HtmlE
 import Html.Keyed as HtmlK
 import Http
 import JoeBets.Api as Api
 import JoeBets.Bet as Bet
 import JoeBets.Bet.Editor.EditableBet as EditableBet
+import JoeBets.Bet.Editor.LockMoment as LockMoment
 import JoeBets.Bet.Model as Bet
 import JoeBets.Bet.PlaceBet as PlaceBet
 import JoeBets.Bet.PlaceBet.Model as PlaceBet
@@ -156,8 +158,8 @@ update wrap msg ({ bets, origin, time } as model) =
 
                         PlaceBet.Bet gameId betId betChange ->
                             let
-                                updateGAndB gAndB =
-                                    { gAndB | bets = gAndB.bets |> AssocList.update betId (betChange |> Bet.apply >> Maybe.map) }
+                                updateGAndB =
+                                    Game.updateByBetId betId (Bet.apply betChange |> Maybe.map)
 
                                 applyToSelected selected =
                                     { selected | data = selected.data |> RemoteData.map updateGAndB }
@@ -373,24 +375,73 @@ view wrap model =
                         |> Filters.resolveDefaults
 
                 viewBet ( betId, bet ) =
-                    Bet.viewFiltered model.time
-                        (Bet.voteAsFromAuth (PlaceBetMsg >> wrap) model.auth)
-                        subset
-                        filters
-                        id
-                        game.name
-                        betId
-                        bet
-                        |> Maybe.map (List.singleton >> Html.li [] >> Tuple.pair (betId |> Bet.idToString))
+                    let
+                        renderedBet =
+                            Bet.viewFiltered model.time
+                                (Bet.readWriteFromAuth (PlaceBetMsg >> wrap) model.auth)
+                                subset
+                                filters
+                                id
+                                game.name
+                                betId
+                                bet
+
+                        expand b =
+                            [ b ]
+                                |> Html.li []
+                                |> Tuple.pair (betId |> Bet.idToString)
+                    in
+                    renderedBet |> Maybe.map expand
+
+                betsRendered =
+                    bets
+                        |> AssocList.map
+                            (\_ ( n, b ) ->
+                                ( n
+                                , b
+                                    |> AssocList.toList
+                                    |> List.filterMap viewBet
+                                )
+                            )
+
+                viewLockMomentBets ( lockMomentId, ( lockMomentName, lockMomentBets ) ) =
+                    if lockMomentBets |> List.isEmpty then
+                        Nothing
+
+                    else
+                        Just
+                            ( lockMomentId |> LockMoment.idToString
+                            , [ lockMomentBets |> HtmlK.ol [ HtmlA.class "bet-list" ]
+                              , Html.div [ HtmlA.class "lock-moment" ]
+                                    [ Html.text lockMomentName ]
+                              ]
+                                |> Html.li [ lockMomentId |> LockMoment.idToString |> HtmlA.id ]
+                            )
 
                 shownBets =
-                    bets |> AssocList.toList |> List.filterMap viewBet
+                    betsRendered
+                        |> AssocList.toList
+                        |> List.filterMap viewLockMomentBets
+                        |> HtmlK.ol [ HtmlA.class "lock-moments" ]
+
+                shownCount =
+                    betsRendered
+                        |> AssocList.values
+                        |> List.map (Tuple.second >> List.length)
+                        |> List.sum
 
                 shownAmount =
                     [ Html.text "("
-                    , shownBets |> List.length |> String.fromInt |> Html.text
+                    , shownCount
+                        |> String.fromInt
+                        |> Html.text
                     , Html.text "/"
-                    , bets |> AssocList.size |> String.fromInt |> Html.text
+                    , bets
+                        |> AssocList.values
+                        |> List.map (Tuple.second >> AssocList.size)
+                        |> List.sum
+                        |> String.fromInt
+                        |> Html.text
                     , Html.text " shown)."
                     ]
 
@@ -451,8 +502,8 @@ view wrap model =
                 , Game.viewManagers game
                 ]
             , Html.div [ HtmlA.class "controls" ] [ viewActiveFilters wrap subset filters gameFilters shownAmount ]
-            , if shownBets |> List.isEmpty |> not then
-                shownBets |> HtmlK.ul [ HtmlA.class "bet-list" ]
+            , if shownCount > 0 then
+                shownBets
 
               else
                 Html.p [ HtmlA.class "empty" ] [ Icon.ghost |> Icon.view, Html.text "No matching bets." ]
@@ -532,10 +583,13 @@ viewLockStatus wrap gameId lockStatus =
             lockStatus |> AssocList.toList |> List.concatMap viewLockMomentBets
     in
     [ Html.div [ HtmlA.class "overlay" ]
-        [ Html.div [ HtmlA.id "lock-manager" ]
-            [ header :: bets |> Html.ol []
-            , Button.view Button.Standard Button.Padded "Close" (Icon.times |> Icon.view |> Just) (LockBets Close |> wrap |> Just)
-            ]
+        [ Html.div [ HtmlA.class "background", LockBets Close |> wrap |> HtmlE.onClick ] []
+        , [ Html.div [ HtmlA.id "lock-manager" ]
+                [ header :: bets |> Html.ol []
+                , Button.view Button.Standard Button.Padded "Close" (Icon.times |> Icon.view |> Just) (LockBets Close |> wrap |> Just)
+                ]
+          ]
+            |> Html.div [ HtmlA.class "foreground" ]
         ]
     ]
 

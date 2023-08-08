@@ -1,0 +1,147 @@
+@use "sass:color";
+@use "../_colors.scss";
+
+#user {
+  max-width: 50em;
+
+  h2 {
+    align-items: center;
+    justify-content: center;
+  }
+
+  .net-worth {
+    list-style: none;
+    padding: 0;
+
+    font-size: 1.5em;
+
+    display: grid;
+    grid-template-columns: auto auto auto;
+    justify-content: center;
+    gap: 0.1em 0.75em;
+
+    > li {
+      display: contents;
+
+      &:first-of-type {
+        .title {
+          margin-bottom: 0.25em;
+        }
+      }
+
+      .title {
+        text-align: right;
+      }
+
+      .score {
+        align-items: center;
+
+        > span {
+          flex-grow: 1;
+          text-align: right;
+        }
+      }
+    }
+  }
+
+  .bankrupt {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 1em;
+    gap: 0.5em;
+
+    @include colors.by_name("card");
+
+    h3 {
+      margin: 0;
+      font-size: 1.5em;
+    }
+
+    p {
+      font-size: 1.5em;
+      max-width: 20em;
+      margin: 0;
+    }
+  }
+
+  .manage-user {
+    display: flex;
+    justify-content: center;
+  }
+
+  .bets {
+    padding: 1em;
+    @include colors.by_name("card");
+
+    h3,
+    h4 {
+      margin: 0;
+    }
+  }
+
+  .game-section,
+  .bets-section {
+    padding: 0.5em 0 0 0.5em;
+    margin: 0;
+    list-style-type: none;
+
+    display: flex;
+    flex-flow: column;
+    gap: 0.5em;
+  }
+}
+
+#permissions-overlay {
+  display: flex;
+  flex-flow: column;
+  gap: 1em;
+  max-height: calc(100% - 4em);
+  overflow-y: auto;
+
+  > ul {
+    padding: 0;
+    margin: 0;
+    list-style: none;
+    display: grid;
+    grid-template-columns: 1fr auto;
+    align-items: stretch;
+    font-size: 0.8em;
+
+    > li {
+      display: contents;
+
+      &:nth-child(odd) {
+        --line-color: #{color.scale(#ffffff, $alpha: -50%)};
+      }
+
+      > * {
+        background-color: var(--line-color, unset);
+        padding: 0.5em;
+      }
+
+      > div {
+        display: flex;
+        align-items: center;
+      }
+    }
+  }
+}
+
+#bankruptcy-overlay {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1em;
+
+  p {
+    margin: 0;
+  }
+
+  .actions {
+    width: 100%;
+    display: flex;
+    justify-content: space-between;
+  }
+}

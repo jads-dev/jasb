@@ -22,7 +22,10 @@ import JoeBets.Api as Api
 import JoeBets.Page.Model as Page exposing (Page)
 import JoeBets.Page.Problem.Model as Problem
 import JoeBets.Route as Route exposing (Route)
-import JoeBets.User.Auth.Model as Route exposing (..)
+import JoeBets.Store.Session as Session
+import JoeBets.Store.Session.Model as Session
+import JoeBets.User.Auth.Model exposing (..)
+import JoeBets.User.Auth.Route exposing (..)
 import JoeBets.User.Model as User exposing (User)
 import JoeBets.User.Notifications as Notifications
 import JoeBets.User.Notifications.Model as Notifications
@@ -37,6 +40,7 @@ type alias Parent a =
         | auth : Model
         , navigationKey : Navigation.Key
         , origin : String
+        , route : Route
         , notifications : Notifications.Model
         , visibility : Browser.Visibility
         , page : Page
@@ -63,7 +67,7 @@ handleLogInResponse wrap redirect result =
                             noOp
 
                 L loggedIn ->
-                    loggedIn |> SetLocalUser (redirect == Redirect) |> wrap
+                    loggedIn |> SetLocalUser |> wrap
 
         Err error ->
             error |> Failed |> Login |> wrap
@@ -87,7 +91,27 @@ init wrap noOp origin route =
                                 redirectOrLoggedInDecoder
                         }
     in
-    ( { trying = False, error = Nothing, localUser = Nothing }, cmd )
+    ( { inProgress = Just LoggingIn
+      , error = Nothing
+      , localUser = Nothing
+      }
+    , cmd
+    )
+
+
+setLoginRedirect : Route -> Cmd msg
+setLoginRedirect =
+    Just >> Session.LoginRedirectValue >> Session.set
+
+
+deleteLoginRedirect : Cmd msg
+deleteLoginRedirect =
+    Session.LoginRedirect |> Session.delete
+
+
+getLoginRedirect : Cmd msg
+getLoginRedirect =
+    Session.LoginRedirect |> Session.get
 
 
 load : (Msg -> msg) -> Maybe CodeAndState -> Parent a -> ( Parent a, Cmd msg )
@@ -97,8 +121,8 @@ load wrap maybeCodeAndState ({ auth } as model) =
             ( model, Cmd.none )
 
         Just codeAndState ->
-            if not auth.trying then
-                ( { model | auth = { auth | trying = True } }
+            if auth.inProgress == Nothing then
+                ( { model | auth = { auth | inProgress = Just LoggingIn } }
                 , Api.post model.origin
                     { path = Api.Auth Api.Login
                     , body = codeAndState |> encodeCodeAndState |> Http.jsonBody
@@ -114,20 +138,23 @@ load wrap maybeCodeAndState ({ auth } as model) =
 
 
 update : (Msg -> msg) -> msg -> (Notifications.Msg -> msg) -> Msg -> Parent a -> ( Parent a, Cmd msg )
-update wrap noOp wrapNotifications msg ({ auth, page, problem } as model) =
+update wrap noOp wrapNotifications msg ({ route, auth, page, problem } as model) =
     case msg of
         Login progress ->
             case progress of
                 Start ->
-                    ( { model | auth = { auth | trying = True } }
-                    , Api.post model.origin
-                        { path = Api.Auth Api.Login
-                        , body = Http.emptyBody
-                        , expect =
-                            expectJsonOrUnauthorised
-                                (handleLogInResponse wrap Redirect)
-                                redirectOrLoggedInDecoder
-                        }
+                    ( { model | auth = { auth | inProgress = Just LoggingIn } }
+                    , Cmd.batch
+                        [ setLoginRedirect route
+                        , Api.post model.origin
+                            { path = Api.Auth Api.Login
+                            , body = Http.emptyBody
+                            , expect =
+                                expectJsonOrUnauthorised
+                                    (handleLogInResponse wrap Redirect)
+                                    redirectOrLoggedInDecoder
+                            }
+                        ]
                     )
 
                 Continue { redirect } ->
@@ -137,42 +164,34 @@ update wrap noOp wrapNotifications msg ({ auth, page, problem } as model) =
                     ( { model
                         | auth =
                             { auth
-                                | trying = False
+                                | inProgress = Nothing
                                 , error = Just error
                                 , localUser = Nothing
                             }
                       }
-                    , Cmd.none
+                    , deleteLoginRedirect
                     )
 
-        SetLocalUser redirect loggedIn ->
+        SetLocalUser loggedIn ->
             let
                 redirectCmd =
-                    if redirect then
-                        loggedIn.user.id
-                            |> Just
-                            |> Route.User
-                            |> Route.toUrl
-                            |> Navigation.pushUrl model.navigationKey
+                    case page of
+                        Page.Problem ->
+                            case problem of
+                                Problem.MustBeLoggedIn { path } ->
+                                    Navigation.pushUrl model.navigationKey path
 
-                    else
-                        case page of
-                            Page.Problem ->
-                                case problem of
-                                    Problem.MustBeLoggedIn { path } ->
-                                        Navigation.pushUrl model.navigationKey path
+                                _ ->
+                                    Cmd.none
 
-                                    _ ->
-                                        Cmd.none
-
-                            _ ->
-                                Cmd.none
+                        _ ->
+                            Cmd.none
 
                 newModel =
                     { model
                         | auth =
                             { auth
-                                | trying = False
+                                | inProgress = Nothing
                                 , localUser = Just loggedIn.user
                                 , error = Nothing
                             }
@@ -184,10 +203,31 @@ update wrap noOp wrapNotifications msg ({ auth, page, problem } as model) =
                         (loggedIn.notifications |> Ok |> Notifications.Load)
                         newModel
             in
-            ( withNotifications, Cmd.batch [ redirectCmd, notificationsCmd ] )
+            ( withNotifications
+            , Cmd.batch [ redirectCmd, notificationsCmd, getLoginRedirect ]
+            )
+
+        RedirectAfterLogin maybeRoute ->
+            case maybeRoute of
+                Just redirectTo ->
+                    ( model
+                    , Cmd.batch
+                        [ deleteLoginRedirect
+                        , Route.pushUrl model.navigationKey redirectTo
+                        ]
+                    )
+
+                Nothing ->
+                    ( model, Cmd.none )
 
         Logout ->
-            ( { model | auth = { auth | trying = False, localUser = Nothing } }
+            ( { model
+                | auth =
+                    { auth
+                        | inProgress = Nothing
+                        , localUser = Nothing
+                    }
+              }
             , Api.post model.origin
                 { path = Api.Auth Api.Logout
                 , body = Http.emptyBody
@@ -202,14 +242,14 @@ logInOutButton wrap { auth } =
         ( icon, action, text ) =
             case auth.localUser of
                 Nothing ->
-                    if not auth.trying then
+                    if auth.inProgress == Nothing then
                         ( Icon.discord, Start |> Login |> wrap |> HtmlE.onClick, "Log in" )
 
                     else
                         ( Icon.spinner |> Icon.styled [ Icon.spinPulse ], HtmlA.disabled True, "Log in" )
 
                 Just _ ->
-                    if not auth.trying then
+                    if auth.inProgress == Nothing then
                         ( Icon.signOutAlt, Logout |> wrap |> HtmlE.onClick, "Log out" )
 
                     else
@@ -234,10 +274,12 @@ logInButton wrap auth content =
                 Just _ ->
                     Nothing
     in
-    button |> Maybe.andThen (Maybe.whenNot auth.trying) |> Maybe.withDefault content
+    button
+        |> Maybe.andThen (Maybe.when (auth.inProgress == Nothing))
+        |> Maybe.withDefault content
 
 
-viewError : Parent a -> List (Html msg)
+viewError : { a | auth : Model } -> List (Html msg)
 viewError { auth } =
     case auth.error of
         Just Unauthorized ->

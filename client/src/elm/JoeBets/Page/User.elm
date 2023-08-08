@@ -15,6 +15,7 @@ import Html.Events as HtmlE
 import Http
 import JoeBets.Api as Api
 import JoeBets.Bet as Bet
+import JoeBets.Bet.Editor.LockMoment as LockMoment
 import JoeBets.Coins as Coins
 import JoeBets.Game as Game
 import JoeBets.Game.Id as Game
@@ -26,11 +27,11 @@ import JoeBets.User as User
 import JoeBets.User.Auth.Model as Auth
 import JoeBets.User.Model as User
 import Json.Decode as JsonD
-import Json.Encode as JsonE
 import Material.Button as Button
 import Material.Switch as Switch
 import Time.Model as Time
 import Util.AssocList as AssocList
+import Util.Html as Html
 import Util.Html.Events as HtmlE
 import Util.Json.Decode as JsonD
 import Util.Maybe as Maybe
@@ -273,32 +274,35 @@ view wrap model =
                 isLocal =
                     Just id == (model.auth.localUser |> Maybe.map .id)
 
+                htmlTitle =
+                    case user |> RemoteData.toMaybe of
+                        Just u ->
+                            [ Html.text "“"
+                            , User.viewName u
+                            , Html.text "” ("
+                            , Html.text (User.idToString id)
+                            , Html.text ")"
+                            ]
+
+                        Nothing ->
+                            [ Html.text (User.idToString id) ]
+
                 title =
                     case user |> RemoteData.toMaybe of
                         Just u ->
-                            "“" ++ u.name ++ "”"
+                            "“" ++ User.nameString u ++ "” (" ++ User.idToString id ++ ")"
 
                         Nothing ->
-                            "Profile"
+                            User.idToString id
 
                 body userData =
                     let
                         avatar =
                             User.viewAvatar id userData
 
-                        isYou =
-                            if isLocal then
-                                [ Html.span [ HtmlA.class "local-user-indicator" ] [ Html.text " (you)" ] ]
-
-                            else
-                                []
-
-                        identity =
-                            [ [ avatar, User.viewName userData ], isYou ]
-
                         adminControls =
                             if Auth.canManagePermissions model.auth.localUser then
-                                [ [ Html.div []
+                                [ [ Html.div [ HtmlA.class "manage-user" ]
                                         [ Button.view Button.Raised
                                             Button.Padded
                                             "Edit Permissions"
@@ -316,7 +320,8 @@ view wrap model =
                         bankruptcyControls =
                             if isLocal then
                                 [ [ Html.div [ HtmlA.class "bankrupt dangerous" ]
-                                        [ Html.p [] [ Html.text "Going bankrupt will reset your balance to the starting amount, and cancel all your current bets." ]
+                                        [ Html.h3 [] [ Html.text "Bankruptcy" ]
+                                        , Html.p [] [ Html.text "Going bankrupt will reset your balance to the starting amount, and cancel all your current bets." ]
                                         , Button.view Button.Raised
                                             Button.Padded
                                             "Go Bankrupt"
@@ -334,28 +339,32 @@ view wrap model =
                         controls =
                             List.concat [ bankruptcyControls, adminControls ]
 
-                        netWorthEntry ( name, amount ) =
+                        netWorthEntry ( prefix, name, amount ) =
                             Html.li []
-                                [ Html.span [ HtmlA.class "title" ] [ Html.text name ]
+                                [ Html.span [] [ Html.text prefix ]
+                                , Html.span [ HtmlA.class "title" ] [ Html.text name ]
                                 , Coins.view amount
                                 ]
 
                         netWorth =
-                            [ ( "Net Worth", userData.balance + userData.betValue )
-                            , ( "Balance", userData.balance )
-                            , ( "Bets", userData.betValue )
+                            [ ( "", "Net Worth", userData.balance + userData.betValue )
+                            , ( "=", "Balance", userData.balance )
+                            , ( "+", "Bets", userData.betValue )
                             ]
 
                         betsSection =
                             [ Html.details [ HtmlA.class "bets", TryLoadBets id |> wrap |> always |> HtmlE.onToggle ]
-                                [ Html.summary [] [ Html.h3 [] [ Html.text "Bets" ] ]
-                                , Html.div [] (RemoteData.view (viewBets model.time id) bets)
+                                [ Html.summary []
+                                    [ Html.h3 [] [ Html.text "Bets Placed By This User" ]
+                                    , Html.summaryMarker
+                                    ]
+                                , Html.div []
+                                    (RemoteData.view (viewBets wrap model.time model.auth id) bets)
                                 ]
                             ]
 
                         contents =
-                            [ [ Html.h2 [] [ Html.text title ]
-                              , identity |> List.concat |> Html.div [ HtmlA.class "identity" ]
+                            [ [ Html.h2 [ HtmlA.class "user" ] [ avatar, Html.span [] htmlTitle ]
                               , netWorth |> List.map netWorthEntry |> Html.ul [ HtmlA.class "net-worth" ]
                               ]
                             , betsSection
@@ -376,20 +385,38 @@ view wrap model =
             }
 
 
-viewBets : Time.Context -> User.Id -> AssocList.Dict Game.Id Game.WithBets -> List (Html msg)
-viewBets time userId =
+viewBets : (Msg -> msg) -> Time.Context -> Auth.Model -> User.Id -> AssocList.Dict Game.Id Game.WithBets -> List (Html msg)
+viewBets wrap time auth targetUserId =
     let
         viewBet gameId game ( id, bet ) =
-            Html.li [] [ Bet.viewSummarised time Nothing (Just userId) gameId game.name id bet ]
+            Html.li []
+                [ Bet.viewSummarised time
+                    (Bet.readOnlyFromAuth auth)
+                    (Just targetUserId)
+                    gameId
+                    game.name
+                    id
+                    bet
+                ]
+
+        viewLockMomentBets gameId game ( id, ( lockMoment, bets ) ) =
+            [ Html.div [ HtmlA.class "lock-moment" ]
+                [ Html.text lockMoment ]
+            , bets
+                |> AssocList.toList
+                |> List.map (viewBet gameId game)
+                |> Html.ol [ HtmlA.class "bets-section" ]
+            ]
+                |> Html.li [ id |> LockMoment.idToString |> HtmlA.id ]
 
         viewGame ( id, { game, bets } ) =
             Html.li []
                 [ Html.details []
-                    [ Html.summary [] [ Html.h4 [] [ Html.text game.name ] ]
+                    [ Html.summary [] [ Html.h4 [] [ Html.text game.name ], Html.summaryMarker ]
                     , bets
                         |> AssocList.toList
-                        |> List.map (viewBet id game)
-                        |> Html.ul [ HtmlA.class "bets-section" ]
+                        |> List.map (viewLockMomentBets id game)
+                        |> Html.ol [ HtmlA.class "lock-moments" ]
                     ]
                 ]
     in
@@ -445,7 +472,12 @@ viewBankruptcyOverlay wrap { sureToggle, stats } =
             ]
     in
     [ Html.div [ HtmlA.class "overlay" ]
-        [ [ renderedStats, controls ] |> List.concat |> Html.div [ HtmlA.id "bankruptcy-overlay" ]
+        [ Html.div [ HtmlA.class "background", False |> ToggleBankruptcyOverlay |> wrap |> HtmlE.onClick ] []
+        , [ [ renderedStats, controls ]
+                |> List.concat
+                |> Html.div [ HtmlA.id "bankruptcy-overlay" ]
+          ]
+            |> Html.div [ HtmlA.class "foreground" ]
         ]
     ]
 
@@ -482,7 +514,12 @@ viewPermissionsOverlay wrap userId overlay =
             ]
     in
     [ Html.div [ HtmlA.class "overlay" ]
-        [ [ overlay.permissions |> RemoteData.view body, alwaysBody ] |> List.concat |> Html.div [ HtmlA.id "permissions-overlay" ]
+        [ Html.div [ HtmlA.class "background", TogglePermissionsOverlay False |> wrap |> HtmlE.onClick ] []
+        , [ [ overlay.permissions |> RemoteData.view body, alwaysBody ]
+                |> List.concat
+                |> Html.div [ HtmlA.id "permissions-overlay" ]
+          ]
+            |> Html.div [ HtmlA.class "foreground" ]
         ]
     ]
 

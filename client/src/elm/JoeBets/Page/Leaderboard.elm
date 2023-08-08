@@ -118,22 +118,21 @@ view _ { leaderboard } =
 
                 Route.Debt ->
                     RemoteData.view (body viewDebt) leaderboard.debt
+
+        tabButton icon name route =
+            Html.li []
+                [ Route.a (Route.Leaderboard route)
+                    [ HtmlA.classList [ ( "active", leaderboard.board == route ) ] ]
+                    [ icon |> Icon.view, Html.span [] [ Html.text name ] ]
+                ]
     in
     { title = "Leaderboard"
     , id = "leaderboard"
     , body =
         Html.h2 [] [ Html.text "Leaderboard" ]
             :: Html.ul [ HtmlA.class "nav" ]
-                [ Html.li []
-                    [ Route.a (Route.Leaderboard Route.NetWorth)
-                        []
-                        [ Icon.crown |> Icon.view, Html.text "Highest Net Worth" ]
-                    ]
-                , Html.li []
-                    [ Route.a (Route.Leaderboard Route.Debt)
-                        []
-                        [ Icon.creditCard |> Icon.view, Html.text "Most Leveraged" ]
-                    ]
+                [ tabButton Icon.crown "Highest Net Worth" Route.NetWorth
+                , tabButton Icon.creditCard "Most Leveraged" Route.Debt
                 ]
             :: viewData
     }

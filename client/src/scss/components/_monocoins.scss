@@ -1,0 +1,25 @@
+@use "../_colors.scss";
+@use "../_util.scss";
+
+.score {
+  @include util.icon-aside;
+
+  &::before {
+    display: block;
+    width: 1em;
+    height: 1em;
+
+    content: "";
+    background-image: url("../../../assets/images/monocoin.png");
+    background-size: contain;
+    background-position: center;
+  }
+
+  .good {
+    color: #{colors.by_name("good")};
+  }
+
+  .bad {
+    color: #{colors.by_name("bad")};
+  }
+}

@@ -1,0 +1,170 @@
+@use "../_colors.scss";
+
+@mixin left {
+  grid-column: left;
+  background-color: #{colors.by_name("tint")};
+  padding: 0 1em;
+  margin: 0 -1em;
+}
+
+@mixin right {
+  grid-column: right;
+  margin-left: 1em;
+  padding-left: 1em;
+  overflow: hidden;
+}
+
+#bets {
+  max-width: 70em;
+  align-items: stretch;
+  background-color: unset;
+  gap: 0;
+
+  display: grid;
+  grid-template-columns: [left] 1fr [right] minmax(min-content, 10em);
+
+  .lock-moments {
+    display: contents;
+
+    > li {
+      display: contents;
+
+      &:last-of-type > .bet-list {
+        padding: 1em;
+        border-radius: 0 0 1em 1em;
+      }
+    }
+
+    .lock-moment {
+      border-top: 0.1em solid #{colors.by-name("overlay")};
+      color: #{colors.by-name("overlay")};
+      text-align: right;
+      @include right;
+      margin-top: 1em;
+    }
+  }
+
+  .bet-list {
+    border-top: 0.1em solid #{colors.by-name("overlay")};
+    list-style: none;
+
+    display: flex;
+    flex-flow: column;
+    gap: 2em;
+
+    @include left;
+    margin-top: 1em;
+    margin-bottom: -1em;
+    padding-top: 1em;
+    padding-bottom: 1em;
+  }
+
+  .game-detail {
+    display: contents;
+
+    .game {
+      @include left;
+      padding: 1em 1em 0 1em;
+      margin: -1em -1em 0 -1em;
+      border-radius: 1em 1em 0 0;
+    }
+
+    .bet-managers {
+      @include right;
+      display: flex;
+      flex-flow: column wrap;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5em;
+
+      > ul,
+      > ul > li {
+        display: contents;
+      }
+    }
+  }
+
+  .filters {
+    display: flex;
+    flex-flow: column;
+    align-items: flex-end;
+    width: 100%;
+
+    @include left;
+    padding-bottom: 1em;
+    margin-bottom: -1em;
+
+    > .title {
+      display: flex;
+      flex-flow: row wrap;
+      align-items: center;
+    }
+
+    > .filter {
+      align-self: stretch;
+      display: grid;
+      justify-content: flex-end;
+      grid-template-columns: repeat(auto-fit, 9em);
+      gap: 0.5em;
+
+      > div {
+        @include colors.by-name("secondary");
+        border-radius: 0.5em;
+        padding: 0.5em;
+
+        > label {
+          justify-content: space-between;
+          width: 100%;
+        }
+      }
+    }
+  }
+}
+
+#lock-manager {
+  margin: 1em;
+
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+
+  ol {
+    list-style: none;
+    padding: 0;
+
+    display: grid;
+    align-items: center;
+    grid-template-columns: 1fr auto;
+    gap: 0.5em;
+
+    .header {
+      font-weight: bold;
+      font-size: 1.2em;
+    }
+
+    li {
+      display: contents;
+    }
+
+    .lock-moment .name {
+      grid-column: 1 / span 2;
+      justify-self: center;
+      margin-top: 0.5em;
+      font-weight: bold;
+    }
+
+    .empty {
+      font-size: 1em;
+
+      span {
+        grid-column: 1 / span 2;
+        justify-self: center;
+        opacity: 0.8;
+      }
+    }
+
+    .locked {
+      justify-self: center;
+    }
+  }
+}

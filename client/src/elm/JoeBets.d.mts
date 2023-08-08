@@ -1,4 +1,5 @@
-import type * as Store from "../../ts/store";
+import type * as SessionStore from "../ts/session-store.mjs";
+import type * as Store from "../ts/store.mjs";
 
 export interface InboundPort<T> {
   subscribe(callback: (data: T) => void): void;
@@ -9,11 +10,9 @@ export interface OutboundPort<T> {
 }
 
 export namespace Elm {
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  namespace JoeBets {
+  export namespace JoeBets {
     export interface App {
-      // eslint-disable-next-line @typescript-eslint/ban-types
-      ports: Store.Ports;
+      ports: Store.Ports & SessionStore.Ports;
     }
     export function init(options: {
       node?: HTMLElement | null;

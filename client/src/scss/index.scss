@@ -1,87 +1,82 @@
-@use "./user";
-@use "./leaderboard";
-@use "./game";
-@use "./bet";
-@use "./about";
-@use "./edit";
-@use "./feed";
-@use "./settings";
-@use "./colors";
-@use "./size";
+@use "../../elm-material/src/scss/_material.scss" as mdc;
+@use "@fortawesome/fontawesome-svg-core/styles.css";
 
-@import "elm-material/src/scss/_material.scss";
-@import "@fortawesome/fontawesome-svg-core/styles.css";
+@use "./_util.scss";
+@use "./_colors.scss";
+@use "./_material.scss";
+@use "./_fonts.scss";
+@use "./_sizes.scss";
+@use "./components/_user.scss";
+@use "./components/_notifications.scss";
+@use "./components/_navigation.scss";
+@use "./components/_overlay.scss";
+@use "./components/_game.scss";
+@use "./components/_settings.scss";
+@use "./components/_monocoins.scss";
+@use "./components/_bet.scss";
+@use "./pages/_about.scss";
+@use "./pages/_feed.scss";
+@use "./pages/_games.scss";
+@use "./pages/_leaderboard.scss";
+@use "./pages/_bets.scss";
+@use "./pages/_bet.scss" as bet-page;
+@use "./pages/_user.scss" as user-page;
+@use "./pages/_edit.scss";
 
 body {
   margin: 0;
+  font-size: 1em;
+}
+
+img {
+  max-width: 100%;
 }
 
 #jasb {
-  color: var(--on-background);
-  background-color: var(--background);
+  font-family: "Roboto Flex", sans-serif;
+  font-optical-sizing: auto;
 
-  --mdc-theme-primary: var(--primary);
-  --mdc-theme-on-primary: var(--on-primary);
-  --mdc-theme-secondary: var(--secondary);
-  --mdc-theme-on-secondary: var(--on-secondary);
-  --mdc-button-disabled-fill-color: var(--on-disabled);
-  --mdc-button-disabled-ink-color: var(--disabled);
-  --mdc-text-field-outlined-disabled-border-color: var(--on-disabled);
-  --mdc-text-field-disabled-ink-color: var(--disabled);
-  --mdc-text-field-outlined-idle-border-color: var(--on-background);
-  --mdc-text-field-outlined-hover-border-color: var(--on-background);
-  --mdc-text-field-label-ink-color: var(--on-background);
-  --mdc-text-field-ink-color: var(--on-background);
-  --mdc-select-outlined-disabled-border-color: var(--on-disabled);
-  --mdc-select-disabled-ink-color: var(--disabled);
-  --mdc-select-outlined-idle-border-color: var(--on-background);
-  --mdc-select-outlined-hover-border-color: var(--on-background);
-  --mdc-select-label-ink-color: var(--on-background);
-  --mdc-select-ink-color: var(--on-background);
+  @include colors.dark;
+  &.dark-theme {
+    @include colors.dark;
+  }
 
-  font-family: sans-serif;
+  @media (prefers-color-scheme: light) {
+    @include colors.light;
+  }
+  &.light-theme {
+    @include colors.light;
+  }
 
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  align-content: flex-start;
+  width: max(20em, 100vw);
+  min-height: 100vh;
+  overflow: hidden;
 
-  height: 100vh;
-  width: 100vw;
-  box-sizing: border-box;
-
-  overflow: auto;
-
-  padding: 0 0 1em 0;
+  @include colors.by_name("background");
+  background-image: url("../../assets/images/background.svg");
+  background-repeat: repeat;
+  background-size: 7.5em 1.5em;
 }
 
 header {
-  position: sticky;
-  top: 0;
-  padding: 1em;
   width: 100%;
-  background-color: var(--background);
-  z-index: 20;
+  display: flex;
+  align-items: center;
+  padding: 0.1rem 0.5rem;
+  box-sizing: border-box;
+
+  @include colors.by_name("secondary-background");
 
   > div {
-    display: flex;
-    flex-direction: row;
-    justify-content: flex-end;
-    flex-wrap: wrap;
-    gap: 1em;
+    display: contents;
   }
 
   h1 {
-    flex-grow: 200;
-
-    display: flex;
-    justify-content: left;
-    align-items: center;
-    gap: 0.25em;
-
-    font-size: 2em;
-
     margin: 0;
+    padding: 0.5rem;
+
+    @include util.icon-aside;
+    align-items: center;
 
     &::before {
       display: block;
@@ -94,210 +89,91 @@ header {
   }
 }
 
-nav {
-  color: colors.$light;
-  flex-grow: 1;
+a {
+  color: #{colors.by_name("on-background")};
+  text-decoration-color: rgba(127, 127, 127, 0.5);
 
-  ul {
-    padding: 0;
-    margin: 0;
-    list-style: none;
-
-    display: flex;
-    flex-direction: row;
-    flex-wrap: wrap;
-    justify-content: center;
-    align-items: stretch;
+  &:hover {
+    color: #{colors.by_name("primary")};
   }
 
-  > ul > li {
-    a,
-    button {
-      margin: 0.5em;
-      padding: 0.5em;
-      background-color: var(--primary);
-      color: var(--on-primary);
-      text-decoration: none;
-
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      font-family: sans-serif;
-
-      > svg {
-        margin-right: 0.25em;
-      }
-    }
-
-    &.discord {
-      button {
-        width: calc(100% - 1em);
-      }
-
-      button,
-      a {
-        appearance: none;
-        border: unset;
-        font: unset;
-        cursor: pointer;
-        background-color: colors.$discord;
-        color: colors.$on-discord;
-      }
-    }
-
-    &.stream a {
-      background-color: colors.$twitch;
-      color: colors.$on-twitch;
-    }
-
-    &.me {
-      .avatar {
-        font-size: 0.5em;
-        margin-right: 0.5em;
-      }
-    }
-
-    &.settings {
-      color: var(--on-background);
-      align-self: center;
-    }
+  .external,
+  .permalink {
+    font-size: 0.5em;
+    vertical-align: top;
   }
+}
+
+h2 {
+  margin: 0;
+  font-size: 2.5em;
+  text-align: center;
+  font-size: 2em;
+}
+
+.core {
+  padding: 1em;
+  display: flex;
+  flex-flow: column;
+  align-items: center;
 }
 
 .page {
   display: flex;
-  flex-direction: column;
+  flex-flow: column;
   align-items: center;
-  flex-grow: 1;
-  flex-shrink: 1;
-  flex-basis: 15em;
-  padding: 0 1em;
   gap: 1em;
-
-  h2 {
-    border-bottom: 0.1em solid var(--primary);
-    margin: 0;
-  }
-
-  > p {
-    margin: 0;
-  }
+  padding: 1em;
+  margin: 0 auto 0 auto;
+  border-radius: 1em;
+  background-color: #{colors.by_name("tint")};
 }
 
-a .external {
-  margin-left: 0.25em;
-  font-size: 0.6em;
-  align-self: flex-start;
+.dangerous {
+  --mdc-theme-primary: #{colors.by_name("bad")};
 }
 
-.warning {
-  font-weight: bold;
-}
+details {
+  > summary {
+    display: flex;
+    align-items: center;
+    gap: 0.5em;
 
-.overlay {
-  position: fixed;
-  top: 0;
-  right: 0;
-  bottom: 0;
-  left: 0;
+    cursor: pointer;
 
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  align-items: center;
-
-  background-color: transparentize(#cccccc, 0.3);
-
-  > div {
-    max-width: 50em;
-
-    > .controls {
-      margin-top: 1.5em;
-
-      align-self: stretch;
-
-      display: flex;
-      flex-wrap: wrap-reverse;
-      justify-content: space-between;
-      align-items: center;
-
-      > * {
-        margin: 0.5em;
-      }
+    list-style-type: none;
+    &::marker {
+      display: none;
     }
   }
 
-  z-index: 999;
-}
+  > summary > .marker {
+    > .up {
+      display: none;
+    }
+    > .down {
+      display: block;
+    }
+  }
 
-.error {
-  color: var(--bad);
-}
-
-.permalink {
-  color: inherit;
-  text-decoration: unset;
-
-  svg {
-    font-size: 0.5em;
-    margin-bottom: 0.25em;
-    margin-left: 0.25em;
+  &[open] > summary > .marker {
+    > .up {
+      display: block;
+    }
+    > .down {
+      display: none;
+    }
   }
 }
 
-a {
-  color: var(--link-color);
-}
-
-.final-actions {
-  font-size: 1.5em;
-  padding: 0.25em;
-  border-radius: 0.25em;
-  color: var(--on-background);
-  background-color: var(--background);
-  align-self: center;
+.errors {
   list-style: none;
-
-  > li {
-    margin: 0.25em;
-  }
-
-  &:empty {
-    display: none;
-  }
-}
-
-.interactions {
-  position: absolute;
-  top: 0;
-  right: 0;
-
-  background-color: colors.$primary;
-  color: colors.$on-primary;
-
-  padding: 0.25em;
+  padding: 0;
+  margin: 0;
 
   display: flex;
-  align-items: center;
+  flex-flow: row wrap;
+  gap: 1em;
 
-  & > * {
-    flex-basis: 2em;
-  }
-
-  a {
-    color: inherit;
-  }
-
-  &:empty {
-    display: none;
-  }
-}
-
-label {
-  display: inline-flex;
-  flex-direction: row-reverse;
-
-  mwc-switch {
-    margin: 0 0 0 0.25em;
-  }
+  color: #{colors.by_name("bad")};
 }

@@ -96,6 +96,7 @@ view wrap { settings } =
                 , wrap = Maybe.withDefault Theme.Auto >> SetTheme >> wrap
                 , disabled = False
                 , fullWidth = True
+                , fixedPosition = True
                 , attrs = [ Material.outlined ]
                 }
 
@@ -107,10 +108,11 @@ view wrap { settings } =
                 , wrap = Maybe.withDefault Layout.Auto >> SetLayout >> wrap
                 , disabled = False
                 , fullWidth = True
+                , fixedPosition = True
                 , attrs = [ Material.outlined ]
                 }
         in
-        [ Html.div [ HtmlA.id "client-settings" ]
+        [ Html.div [ HtmlA.id "client-settings", HtmlA.class "overlay" ]
             [ Html.div [ HtmlA.class "background", False |> SetVisibility |> wrap |> HtmlE.onClick ] []
             , Html.div [ HtmlA.class "foreground" ]
                 [ Html.div []

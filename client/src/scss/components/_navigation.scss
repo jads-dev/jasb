@@ -1,0 +1,52 @@
+@use "../_util.scss";
+@use "../_colors.scss";
+
+header nav {
+  flex-grow: 1;
+  padding: 0.5rem;
+  font-size: 1.25em;
+
+  display: flex;
+  flex-flow: column;
+
+  > ul {
+    list-style-type: none;
+    margin: 0;
+    padding: 0;
+
+    display: flex;
+    flex-flow: row wrap-reverse;
+    justify-content: flex-end;
+    align-items: center;
+    gap: 0.5em;
+
+    > li > a {
+      @include util.icon-aside;
+    }
+  }
+
+  mwc-list-item {
+    height: 3em;
+  }
+
+  .user.submenu {
+    > div > mwc-icon-button > img {
+      width: 0.75em;
+      height: 0.75em;
+    }
+  }
+  .submenu {
+    position: relative;
+
+    .menu[open] {
+      width: 13em;
+      bottom: 0;
+      top: auto;
+    }
+  }
+
+  .error {
+    @include colors.by-name("bad");
+    align-self: flex-end;
+  }
+}

@@ -9,6 +9,7 @@ import FontAwesome as Icon
 import FontAwesome.Solid as Icon
 import Html exposing (Html)
 import Html.Attributes as HtmlA
+import Html.Events as HtmlE
 import Http
 import JoeBets.Api as Api
 import JoeBets.Bet.Maths as Bet
@@ -343,7 +344,13 @@ view wrap ({ id, user } as localUser) placeBet =
                       ]
                     ]
             in
-            [ Html.div [ HtmlA.class "overlay" ] [ contents |> List.concat |> Html.div [ HtmlA.class "place-bet" ] ] ]
+            [ Html.div [ HtmlA.class "overlay" ]
+                [ Html.div [ HtmlA.class "background", Cancel |> wrap |> HtmlE.onClick ] []
+                , [ contents |> List.concat |> Html.div [ HtmlA.class "place-bet" ]
+                  ]
+                    |> Html.div [ HtmlA.class "foreground" ]
+                ]
+            ]
 
         Nothing ->
             []

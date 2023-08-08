@@ -1,0 +1,69 @@
+@use "./_colors.scss";
+
+#jasb {
+  --mdc-typography-font-family: "Roboto Flex", sans-serif;
+  --mdc-typography-button-font-size: 1em;
+  --mdc-typography-button-text-transform: none;
+
+  --mdc-menu-item-height: 2em;
+
+  --mdc-icon-size: 0.75em;
+  --mdc-icon-button-size: 1.5em;
+
+  --mdc-shape-small: 0.1em;
+  --mdc-shape-medium: 0.1em;
+  --mdc-shape-large: 0.1em;
+
+  --mdc-theme-primary: #{colors.by-name("primary")};
+  --mdc-theme-on-primary: #{colors.by-name("on-primary")};
+
+  --mdc-theme-secondary: #{colors.by-name("secondary")};
+  --mdc-theme-on-secondary: #{colors.by-name("on-secondary")};
+
+  --mdc-theme-surface: #{colors.by-name("card")};
+  --mdc-theme-on-surface: #{colors.by-name("on-card")};
+
+  --mdc-theme-background: #{colors.by-name("background")};
+  --mdc-theme-on-background: #{colors.by-name("on-background")};
+  --mdc-theme-text-icon-on-background: #{colors.by-name("on-background")};
+
+  --mdc-button-disabled-fill-color: #{colors.by-name("disabled")};
+  --mdc-button-disabled-ink-color: #{colors.by-name("on-disabled")};
+
+  --mdc-text-field-outlined-disabled-border-color: colors.by_name(
+    "on-disabled"
+  );
+  --mdc-text-field-disabled-ink-color: #{colors.by_name("disabled")};
+  --mdc-text-field-outlined-idle-border-color: #{colors.by_name("on-background")};
+  --mdc-text-field-outlined-hover-border-color: #{colors.by_name(
+      "on-background"
+    )};
+  --mdc-text-field-label-ink-color: #{colors.by_name("on-background")};
+  --mdc-text-field-ink-color: #{colors.by_name("on-background")};
+
+  --mdc-tab-text-label-color-default: #{colors.by-name("on-background")};
+  --mdc-tab-color-default: #{colors.by-name("on-background")};
+
+  --mdc-select-outlined-disabled-border-color: #{colors.by_name("on-disabled")};
+  --mdc-select-disabled-ink-color: #{colors.by_name("disabled")};
+  --mdc-select-outlined-idle-border-color: #{colors.by_name("on-background")};
+  --mdc-select-outlined-hover-border-color: #{colors.by_name("on-background")};
+  --mdc-select-label-ink-color: #{colors.by_name("on-background")};
+  --mdc-select-ink-color: #{colors.by_name("on-background")};
+
+  --mdc-theme-text-primary-on-background: #{colors.by-name("on-background")};
+  --mdc-theme-text-secondary-on-background: #{colors.by-name("on-disabled")};
+
+  --mdc-checkbox-unchecked-color: #{colors.by-name("on-disabled")};
+
+  --mdc-theme-text-disabled-on-light: #{colors.by-name("disabled")};
+
+  --mdc-switch-selected-track-color: #{colors.by-name("primary")};
+  --mdc-switch-selected-handle-color: #{colors.by-name("primary")};
+  --mdc-switch-selected-hover-track-color: #{colors.by-name("primary")};
+  --mdc-switch-selected-hover-handle-color: #{colors.by-name("primary")};
+  --mdc-switch-selected-focus-track-color: #{colors.by-name("primary")};
+  --mdc-switch-selected-focus-handle-color: #{colors.by-name("primary")};
+  --mdc-switch-selected-pressed-track-color: #{colors.by-name("primary")};
+  --mdc-switch-selected-pressed-handle-color: #{colors.by-name("primary")};
+}

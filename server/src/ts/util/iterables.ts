@@ -12,6 +12,34 @@ export const zip = function* <Items extends unknown[]>(
   }
 };
 
+const noGroup: unique symbol = Symbol();
+/**
+ * Assumes items are sorted in group first already.
+ * @param getGroup Get the group.
+ * @param items The items to group.
+ */
+export function* groupBy<Item, Group>(
+  getGroup: (item: Item) => Group,
+  items: Iterable<Item>,
+): Iterable<[Group, readonly Item[]]> {
+  let group: typeof noGroup | Group = noGroup;
+  let itemsInGroup: Item[] = [];
+  for (const item of items) {
+    const itemGroup = getGroup(item);
+    if (itemGroup !== group) {
+      if (itemsInGroup.length > 0 && group !== noGroup) {
+        yield [group, itemsInGroup];
+        itemsInGroup = [];
+      }
+      group = itemGroup;
+    }
+    itemsInGroup.push(item);
+  }
+  if (itemsInGroup.length > 0 && group !== noGroup) {
+    yield [group, itemsInGroup];
+  }
+}
+
 export const partition = <Item>(
   predicate: (item: Item) => boolean,
   items: Item[],

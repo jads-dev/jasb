@@ -1,0 +1,25 @@
+#games {
+  .games {
+    display: flex;
+    flex-flow: row wrap;
+    justify-content: space-around;
+    gap: 1em;
+    align-self: stretch;
+
+    > div {
+      flex-grow: 1;
+      flex-basis: 25em;
+      max-width: 50em;
+
+      > ol {
+        list-style-type: none;
+        padding: 0;
+        margin: 0;
+
+        display: flex;
+        flex-flow: column nowrap;
+        gap: 0.5em;
+      }
+    }
+  }
+}

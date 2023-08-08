@@ -1,4 +1,4 @@
-import { InboundPort, OutboundPort } from "../elm/JoeBets";
+import type { InboundPort, OutboundPort } from "../elm/JoeBets.mjs";
 
 export interface Flags {
   store: Value[];
@@ -46,6 +46,7 @@ type StoreError = "PreconditionFailed";
 type ReceiveValueCallback = (valueOrError: Value | StoreError) => void;
 
 export interface Store {
+  readonly metadata: unknown;
   getAll: () => Iterable<Value>;
   onReceiveValue: (callback: ReceiveValueCallback) => void;
   get: (key: string) => void;
@@ -53,7 +54,7 @@ export interface Store {
     key: string,
     value: unknown,
     schemaVersion: number,
-    ifDocumentVersion?: number
+    ifDocumentVersion?: number,
   ) => void;
   delete: (key: string, ifDocumentVersion?: number) => void;
 }
@@ -98,8 +99,8 @@ export const ports = (store: Store, ports: Ports): void => {
           `Unknown operation received through port: “${JSON.stringify(
             cmd,
             undefined,
-            2
-          )}”.`
+            2,
+          )}”.`,
         );
         break;
     }
@@ -120,7 +121,7 @@ class Browser implements Store {
     version: Browser.currentMetadataVersion,
   };
 
-  private readonly metadata: Metadata<typeof Browser.currentMetadataVersion>;
+  public readonly metadata: Metadata<typeof Browser.currentMetadataVersion>;
   private readonly backend: Storage;
   private callback: ReceiveValueCallback | undefined;
 
@@ -131,7 +132,7 @@ class Browser implements Store {
 
   private constructor(
     metadata: Metadata<typeof Browser.currentMetadataVersion>,
-    backend: Storage
+    backend: Storage,
   ) {
     this.metadata = metadata;
     this.backend = backend;
@@ -170,7 +171,7 @@ class Browser implements Store {
   get(key: string): void {
     if (this.callback !== undefined) {
       const item = this.internalGet(key);
-      this.callback({ key, item });
+      this.callback({ key, ...(item !== undefined ? { item } : {}) });
     }
   }
 
@@ -178,7 +179,7 @@ class Browser implements Store {
     key: string,
     value: unknown,
     schemaVersion: number,
-    ifDocumentVersion?: number
+    ifDocumentVersion?: number,
   ): void {
     const existingItem = this.internalGet(key);
     const existingDocumentVersion = existingItem?.documentVersion ?? -1;
@@ -242,7 +243,7 @@ class Browser implements Store {
   }
 
   private static getMetadata(
-    backend: Storage
+    backend: Storage,
   ): Metadata<typeof Browser.currentMetadataVersion> {
     const rawMetadata = backend.getItem(Browser.prefix + Browser.metadataKey);
     if (rawMetadata !== null) {
@@ -254,7 +255,7 @@ class Browser implements Store {
   }
 
   private static migrate(
-    from: Metadata
+    from: Metadata,
   ): Metadata<typeof Browser.currentMetadataVersion> {
     if (from.version === Browser.currentMetadataVersion) {
       return from as Metadata<typeof Browser.currentMetadataVersion>;
@@ -265,7 +266,7 @@ class Browser implements Store {
     switch (from.version) {
       default:
         console.warn(
-          `Unable to update metadata from version ${from.version}. Discarding old store.`
+          `Unable to update metadata from version ${from.version}. Discarding old store.`,
         );
         return Browser.defaultMetadata;
     }
@@ -273,6 +274,7 @@ class Browser implements Store {
 }
 
 class Null implements Store {
+  public readonly metadata = undefined;
   private callback: ReceiveValueCallback | undefined;
 
   getAll(): Value[] {
@@ -300,7 +302,9 @@ class Null implements Store {
     }
   }
 
-  get(): void {
-    // Do nothing.
+  get(key: string): void {
+    if (this.callback !== undefined) {
+      this.callback({ key });
+    }
   }
 }
