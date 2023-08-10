@@ -71,7 +71,7 @@ init flags url key =
             url.host
 
         ( auth, authCmd ) =
-            Auth.init AuthMsg NoOp origin route
+            Auth.init AuthMsg origin route
 
         store =
             flags.store |> Store.init

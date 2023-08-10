@@ -48,23 +48,23 @@ type alias Parent a =
     }
 
 
-type ShouldRedirect msg
-    = Redirect
-    | Ignore msg
+type InitiatedBy
+    = User
+    | System
 
 
-handleLogInResponse : (Msg -> msg) -> ShouldRedirect msg -> Result Error RedirectOrLoggedIn -> msg
+handleLogInResponse : (Msg -> msg) -> InitiatedBy -> Result Error RedirectOrLoggedIn -> msg
 handleLogInResponse wrap redirect result =
     case result of
         Ok continue ->
             case continue of
                 R target ->
                     case redirect of
-                        Redirect ->
+                        User ->
                             target |> Continue |> Login |> wrap
 
-                        Ignore noOp ->
-                            noOp
+                        System ->
+                            FinishNotLoggedIn |> Login |> wrap
 
                 L loggedIn ->
                     loggedIn |> SetLocalUser |> wrap
@@ -73,8 +73,8 @@ handleLogInResponse wrap redirect result =
             error |> Failed |> Login |> wrap
 
 
-init : (Msg -> msg) -> msg -> String -> Route -> ( Model, Cmd msg )
-init wrap noOp origin route =
+init : (Msg -> msg) -> String -> Route -> ( Model, Cmd msg )
+init wrap origin route =
     let
         cmd =
             case route of
@@ -87,7 +87,7 @@ init wrap noOp origin route =
                         , body = Http.emptyBody
                         , expect =
                             expectJsonOrUnauthorised
-                                (handleLogInResponse wrap (Ignore noOp))
+                                (handleLogInResponse wrap System)
                                 redirectOrLoggedInDecoder
                         }
     in
@@ -121,20 +121,16 @@ load wrap maybeCodeAndState ({ auth } as model) =
             ( model, Cmd.none )
 
         Just codeAndState ->
-            if auth.inProgress == Nothing then
-                ( { model | auth = { auth | inProgress = Just LoggingIn } }
-                , Api.post model.origin
-                    { path = Api.Auth Api.Login
-                    , body = codeAndState |> encodeCodeAndState |> Http.jsonBody
-                    , expect =
-                        expectJsonOrUnauthorised
-                            (handleLogInResponse wrap Redirect)
-                            redirectOrLoggedInDecoder
-                    }
-                )
-
-            else
-                ( model, Cmd.none )
+            ( { model | auth = { auth | inProgress = Just LoggingIn } }
+            , Api.post model.origin
+                { path = Api.Auth Api.Login
+                , body = codeAndState |> encodeCodeAndState |> Http.jsonBody
+                , expect =
+                    expectJsonOrUnauthorised
+                        (handleLogInResponse wrap User)
+                        redirectOrLoggedInDecoder
+                }
+            )
 
 
 update : (Msg -> msg) -> msg -> (Notifications.Msg -> msg) -> Msg -> Parent a -> ( Parent a, Cmd msg )
@@ -151,10 +147,21 @@ update wrap noOp wrapNotifications msg ({ route, auth, page, problem } as model)
                             , body = Http.emptyBody
                             , expect =
                                 expectJsonOrUnauthorised
-                                    (handleLogInResponse wrap Redirect)
+                                    (handleLogInResponse wrap User)
                                     redirectOrLoggedInDecoder
                             }
                         ]
+                    )
+
+                FinishNotLoggedIn ->
+                    ( { model
+                        | auth =
+                            { auth
+                                | inProgress = Nothing
+                                , localUser = Nothing
+                            }
+                      }
+                    , deleteLoginRedirect
                     )
 
                 Continue { redirect } ->

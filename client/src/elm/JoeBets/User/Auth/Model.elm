@@ -70,6 +70,7 @@ type Msg
 
 type LoginProgress
     = Start
+    | FinishNotLoggedIn
     | Continue Redirect
     | Failed Error
 
