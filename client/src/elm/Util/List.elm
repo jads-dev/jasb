@@ -55,12 +55,16 @@ moveTo from to items =
 
 addBeforeLast : a -> List a -> List a
 addBeforeLast extra items =
-    case items of
-        first :: last :: [] ->
-            [ first, extra, last ]
+    let
+        internal soFar itemsLeft =
+            case itemsLeft of
+                first :: last :: [] ->
+                    soFar ++ [ first, extra, last ]
 
-        first :: rest ->
-            first :: addBeforeLast extra rest
+                first :: rest ->
+                    internal (first :: soFar) rest
 
-        [] ->
-            []
+                [] ->
+                    soFar
+    in
+    internal [] items

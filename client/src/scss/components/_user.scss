@@ -1,7 +1,8 @@
-@import "../_util.scss";
+@use "../_util.scss";
+@use "../_colors.scss";
 
 .user {
-  @include icon-aside;
+  @include util.icon-aside;
 
   .avatar {
     width: 1em;
@@ -11,7 +12,63 @@
 
   .name .discriminator {
     opacity: 0.25;
-
     font-size: 0.75em;
+  }
+}
+
+.user-selector {
+  position: relative;
+  --mdc-list-item-graphic-margin: 0.5em;
+
+  &.required {
+    .selected-user {
+      color: #{colors.by_name("bad")};
+    }
+  }
+  &.selected {
+    .selected-user {
+      color: unset;
+    }
+  }
+
+  .avatar {
+    width: 100%;
+    height: 100%;
+    border-radius: 100%;
+  }
+
+  .name .discriminator {
+    opacity: 0.25;
+    font-size: 0.75em;
+  }
+
+  .input {
+    display: flex;
+    flex-flow: row;
+    align-items: center;
+    gap: 1em;
+  }
+
+  .search {
+    display: flex;
+    flex-flow: row;
+    align-items: center;
+    gap: 0.25em;
+    flex-grow: 1;
+  }
+
+  .options {
+    overflow-y: auto;
+  }
+
+  .selected-user {
+    display: flex;
+    flex-flow: row;
+    align-items: center;
+    gap: 0.25em;
+    .avatar {
+      width: 1em;
+      height: 1em;
+    }
   }
 }

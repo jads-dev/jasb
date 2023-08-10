@@ -9,25 +9,25 @@ import FontAwesome as Icon
 import FontAwesome.Solid as Icon
 import Html exposing (Html)
 import Html.Attributes as HtmlA
-import Html.Events as HtmlE
-import Http
 import JoeBets.Api as Api
+import JoeBets.Api.Action as Api
+import JoeBets.Api.Path as Api
 import JoeBets.Bet.Maths as Bet
 import JoeBets.Bet.Model as Bet
-import JoeBets.Bet.PlaceBet.Model as PlaceBet exposing (..)
+import JoeBets.Bet.PlaceBet.Model exposing (..)
 import JoeBets.Coins as Coins
+import JoeBets.Overlay as Overlay
 import JoeBets.Page.User.Model as User
 import JoeBets.Rules as Rules
 import JoeBets.User.Model as User
 import Json.Decode as JsonD
 import Json.Encode as JsonE
-import Material.Attributes as Material
 import Material.Button as Button
 import Material.TextField as TextField
 import Time.DateTime as DateTime
 import Time.Model as Time
+import Util.Json.Encode.Pipeline as JsonE
 import Util.Maybe as Maybe
-import Util.RemoteData as RemoteData
 
 
 type alias Parent a =
@@ -43,10 +43,6 @@ init =
 
 update : (Msg -> msg) -> (List Change -> msg) -> String -> Time.Context -> Msg -> Parent a -> ( Parent a, Cmd msg )
 update wrap handleSuccess origin time msg model =
-    let
-        setSent sent overlay =
-            { overlay | sent = sent }
-    in
     case msg of
         Start target ->
             let
@@ -55,7 +51,7 @@ update wrap handleSuccess origin time msg model =
             in
             ( { model
                 | placeBet =
-                    Overlay target (bet |> String.fromInt) "" False Nothing |> Just
+                    Overlay target (bet |> String.fromInt) "" Api.initAction |> Just
               }
             , Cmd.none
             )
@@ -79,21 +75,21 @@ update wrap handleSuccess origin time msg model =
 
         Place { id, user } amount message ->
             let
-                tryPlaceBet { target } =
+                tryPlaceBet ({ target } as placeBet) =
                     let
-                        putOrPost =
+                        request =
                             if target.existingBet == Nothing then
-                                "PUT"
+                                Api.put
 
                             else
-                                "POST"
+                                Api.post
 
                         handle response =
                             case response of
                                 Ok newBalance ->
                                     handleSuccess
-                                        [ User.ChangeBalance newBalance |> PlaceBet.User id
-                                        , PlaceBet.Bet target.gameId target.betId <|
+                                        [ User.ChangeBalance newBalance |> User id
+                                        , Bet target.gameId target.betId <|
                                             case target.existingBet of
                                                 Just _ ->
                                                     Bet.ChangeStake target.optionId id amount message
@@ -110,63 +106,82 @@ update wrap handleSuccess origin time msg model =
 
                                 Err error ->
                                     error |> SetError |> wrap
+
+                        ( action, cmd ) =
+                            { path =
+                                Api.Stake
+                                    |> Api.Option target.optionId
+                                    |> Api.Bet target.betId
+                                    |> Api.Game target.gameId
+                            , body =
+                                JsonE.startObject
+                                    |> JsonE.field "amount" JsonE.int amount
+                                    |> JsonE.maybeField "message" JsonE.string message
+                                    |> JsonE.finishObject
+                            , wrap = handle
+                            , decoder = JsonD.int
+                            }
+                                |> request origin
+                                |> Api.doAction placeBet.action
                     in
-                    Api.request origin
-                        putOrPost
-                        { path =
-                            Api.Game target.gameId (Api.Bet target.betId (Api.Option target.optionId Api.Stake))
-                        , body =
-                            [ ( "amount", amount |> JsonE.int ) |> Just
-                            , message |> Maybe.map (\m -> ( "message", m |> JsonE.string ))
-                            ]
-                                |> List.filterMap identity
-                                |> JsonE.object
-                                |> Http.jsonBody
-                        , expect =
-                            Http.expectJson handle JsonD.int
-                        }
+                    ( Just { placeBet | action = action }, cmd )
+
+                ( newPlaceBet, placeBetCmd ) =
+                    model.placeBet
+                        |> Maybe.map tryPlaceBet
+                        |> Maybe.withDefault ( model.placeBet, Cmd.none )
             in
-            ( { model | placeBet = model.placeBet |> Maybe.map (setSent True) }
-            , model.placeBet |> Maybe.map tryPlaceBet |> Maybe.withDefault Cmd.none
-            )
+            ( { model | placeBet = newPlaceBet }, placeBetCmd )
 
         Withdraw userId ->
             let
-                tryWithdrawBet { target } =
+                tryWithdrawBet ({ target } as placeBet) =
                     let
                         handle response =
                             case response of
                                 Ok newBalance ->
                                     handleSuccess
-                                        [ User.ChangeBalance newBalance |> PlaceBet.User userId
-                                        , Bet.RemoveStake target.optionId userId |> PlaceBet.Bet target.gameId target.betId
+                                        [ User.ChangeBalance newBalance |> User userId
+                                        , Bet.RemoveStake target.optionId userId |> Bet target.gameId target.betId
                                         ]
 
                                 Err error ->
                                     error |> SetError |> wrap
+
+                        ( action, cmd ) =
+                            { path = Api.Game target.gameId (Api.Bet target.betId (Api.Option target.optionId Api.Stake))
+                            , wrap = handle
+                            , decoder = JsonD.int
+                            }
+                                |> Api.delete origin
+                                |> Api.doAction placeBet.action
                     in
-                    Api.delete origin
-                        { path = Api.Game target.gameId (Api.Bet target.betId (Api.Option target.optionId Api.Stake))
-                        , body = Http.emptyBody
-                        , expect = Http.expectJson handle JsonD.int
-                        }
+                    ( Just { placeBet | action = action }, cmd )
+
+                ( newPlaceBet, placeBetCmd ) =
+                    model.placeBet
+                        |> Maybe.map tryWithdrawBet
+                        |> Maybe.withDefault ( model.placeBet, Cmd.none )
             in
-            ( { model | placeBet = model.placeBet |> Maybe.map (setSent True) }
-            , model.placeBet |> Maybe.map tryWithdrawBet |> Maybe.withDefault Cmd.none
-            )
+            ( { model | placeBet = newPlaceBet }, placeBetCmd )
 
         SetError error ->
             let
                 setError overlay =
-                    { overlay | error = Just error, sent = False }
+                    { overlay
+                        | action =
+                            overlay.action |> Api.handleActionDone (Err error)
+                    }
             in
-            ( { model | placeBet = model.placeBet |> Maybe.map setError }, Cmd.none )
+            ( { model | placeBet = model.placeBet |> Maybe.map setError }
+            , Cmd.none
+            )
 
 
 view : (Msg -> msg) -> User.WithId -> Model -> List (Html msg)
 view wrap ({ id, user } as localUser) placeBet =
     case placeBet of
-        Just { amount, target, message, error, sent } ->
+        Just { amount, target, message, action } ->
             let
                 { gameName, bet, optionId, optionName, existingBet } =
                     target
@@ -203,11 +218,9 @@ view wrap ({ id, user } as localUser) placeBet =
                                 , Html.text "If you do, you won't be able to change your bet. "
                                 , Html.text "You can leave it blank if you don't want to."
                                 ]
-                          , TextField.viewWithAttrs "Message"
-                                TextField.Text
-                                message
-                                (ChangeMessage >> wrap |> Just)
-                                [ Material.outlined, HtmlA.maxlength 200 ]
+                          , TextField.outlined "Message" (ChangeMessage >> wrap |> Just) message
+                                |> TextField.maxLength 200
+                                |> TextField.view
                           , Html.p []
                                 [ Html.text "Please be aware: inappropriate messages, spoilers, or anything like that will result in a ban. "
                                 ]
@@ -220,15 +233,8 @@ view wrap ({ id, user } as localUser) placeBet =
                 submit =
                     case amountNumber of
                         Just betAmount ->
-                            let
-                                toPay =
-                                    betAmount - alreadyPaid
-
-                                place =
-                                    Place localUser betAmount messageIfGiven |> wrap |> Ok
-                            in
                             if Just betAmount == existingBet && messageIfGiven == Nothing then
-                                Err "You can change your bet."
+                                Err "You have already placed the bet, you can change the value to change your stake, or delete it."
 
                             else if betAmount == 0 then
                                 Err "You cannot place a zero value bet, but you can cancel the bet."
@@ -241,11 +247,8 @@ view wrap ({ id, user } as localUser) placeBet =
                                     |> String.concat
                                     |> Err
 
-                            else if toPay <= user.balance then
-                                place
-
-                            else if betAmount <= Rules.maxStakeWhileInDebt then
-                                place
+                            else if betAmount - alreadyPaid <= user.balance || betAmount <= Rules.maxStakeWhileInDebt then
+                                Place localUser betAmount messageIfGiven |> wrap |> Ok
 
                             else
                                 [ "You can't place bets of more than "
@@ -258,19 +261,15 @@ view wrap ({ id, user } as localUser) placeBet =
                         Nothing ->
                             Err "Not a valid, whole number."
 
-                errorMessage =
-                    let
-                        validation =
-                            case submit of
-                                Ok _ ->
-                                    []
+                validationError =
+                    case submit of
+                        Ok _ ->
+                            []
 
-                                Err e ->
-                                    [ e ]
-                    in
-                    (validation ++ (error |> Maybe.map RemoteData.errorToString |> Maybe.toList))
-                        |> List.map Html.text
-                        |> Html.p [ HtmlA.class "error" ]
+                        Err e ->
+                            [ [ Html.li [] [ Html.text e ] ]
+                                |> Html.ul [ HtmlA.class "validation-errors" ]
+                            ]
 
                 ( actionName, description ) =
                     case existingBet of
@@ -283,13 +282,12 @@ view wrap ({ id, user } as localUser) placeBet =
                 actions =
                     let
                         cancelButton =
-                            if not sent && existingBet /= Nothing then
+                            if existingBet /= Nothing then
                                 [ Html.span [ HtmlA.class "cancel" ]
-                                    [ Button.view Button.Raised
-                                        Button.Padded
-                                        "Delete Bet"
-                                        (Icon.trash |> Icon.view |> Just)
-                                        (Withdraw id |> wrap |> Just)
+                                    [ Button.filled "Delete Bet"
+                                        |> Button.button (Withdraw id |> wrap |> Just |> Api.ifNotWorking action)
+                                        |> Button.icon (Icon.trash |> Icon.view)
+                                        |> Button.view
                                     ]
                                 ]
 
@@ -297,15 +295,14 @@ view wrap ({ id, user } as localUser) placeBet =
                                 []
                     in
                     cancelButton
-                        ++ [ Button.view Button.Raised
-                                Button.Padded
-                                (actionName ++ " Bet")
-                                (Icon.check |> Icon.view |> Just)
-                                (submit |> Result.toMaybe |> Maybe.alsoOnlyIf (not sent))
+                        ++ [ Button.filled (actionName ++ " Bet")
+                                |> Button.button (submit |> Result.toMaybe |> Api.ifNotWorking action)
+                                |> Button.icon (Icon.check |> Icon.view)
+                                |> Button.view
                            ]
 
-                contents =
-                    [ [ Html.p []
+                overlayContents =
+                    [ [ [ Html.p []
                             [ Html.text description
                             , Html.text " bet on “"
                             , Html.text optionName
@@ -317,40 +314,38 @@ view wrap ({ id, user } as localUser) placeBet =
                             , Html.text currentRatio
                             , Html.text "."
                             ]
-                      , Html.p [ HtmlA.class "balance" ]
+                        , Html.p [ HtmlA.class "balance" ]
                             [ Html.text "Your Balance: "
                             , Coins.viewAmountOrTransaction user.balance
                                 (amountNumber |> Maybe.map ((-) user.balance >> (+) alreadyPaid))
                             ]
-                      , TextField.viewWithAttrs "Bet Amount"
-                            TextField.Number
-                            amount
+                        , TextField.outlined "Bet Amount"
                             (ChangeAmount >> wrap |> Just)
-                            [ Material.outlined
-                            , 0 |> String.fromInt |> HtmlA.min
-                            , max (user.balance + (existingBet |> Maybe.withDefault 0)) Rules.maxStakeWhileInDebt |> String.fromInt |> HtmlA.max
-                            ]
-                      , errorMessage
-                      ]
-                    , messageInput
-                    , [ Html.div [ HtmlA.class "controls" ]
-                            [ Button.view Button.Standard
-                                Button.Padded
-                                "Back"
-                                (Icon.times |> Icon.view |> Just)
-                                (Cancel |> wrap |> Just)
+                            amount
+                            |> TextField.number
+                            |> TextField.attrs
+                                [ 0 |> String.fromInt |> HtmlA.min
+                                , max (user.balance + (existingBet |> Maybe.withDefault 0)) Rules.maxStakeWhileInDebt |> String.fromInt |> HtmlA.max
+                                ]
+                            |> TextField.view
+                        ]
+                      , validationError
+                      , Api.viewAction [] action
+                      , messageInput
+                      , [ Html.div [ HtmlA.class "controls" ]
+                            [ Button.text "Back"
+                                |> Button.button (Cancel |> wrap |> Just)
+                                |> Button.icon (Icon.times |> Icon.view)
+                                |> Button.view
                             , Html.div [ HtmlA.class "actions" ] actions
                             ]
+                        ]
                       ]
+                        |> List.concat
+                        |> Html.div [ HtmlA.class "place-bet" ]
                     ]
             in
-            [ Html.div [ HtmlA.class "overlay" ]
-                [ Html.div [ HtmlA.class "background", Cancel |> wrap |> HtmlE.onClick ] []
-                , [ contents |> List.concat |> Html.div [ HtmlA.class "place-bet" ]
-                  ]
-                    |> Html.div [ HtmlA.class "foreground" ]
-                ]
-            ]
+            [ Overlay.view (Cancel |> wrap) overlayContents ]
 
         Nothing ->
             []

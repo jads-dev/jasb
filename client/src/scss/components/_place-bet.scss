@@ -1,0 +1,15 @@
+.place-bet {
+  display: flex;
+  flex-flow: column;
+  gap: 1em;
+
+  p {
+    margin: 0;
+  }
+
+  .balance {
+    align-self: center;
+    text-align: center;
+    font-size: 1.5em;
+  }
+}

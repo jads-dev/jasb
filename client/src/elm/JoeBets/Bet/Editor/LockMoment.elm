@@ -17,6 +17,7 @@ module JoeBets.Bet.Editor.LockMoment exposing
     )
 
 import AssocList
+import JoeBets.Api.Data exposing (Data)
 import JoeBets.Game.Id as Game
 import Json.Decode as JsonD
 import Json.Decode.Pipeline as JsonD
@@ -24,7 +25,6 @@ import Json.Encode as JsonE
 import Time.DateTime as DateTime exposing (DateTime)
 import Url.Parser as Url
 import Util.Json.Decode as JsonD
-import Util.RemoteData exposing (RemoteData)
 
 
 type Id
@@ -119,5 +119,5 @@ version lockMoments lockMoment =
 
 type alias Context =
     { game : Game.Id
-    , lockMoments : RemoteData LockMoments
+    , lockMoments : Data LockMoments
     }

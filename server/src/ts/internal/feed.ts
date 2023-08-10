@@ -1,21 +1,21 @@
 import { z } from "zod";
 
-import { zonedDateTime } from "./types.js";
+import { Types } from "./types.js";
 import { Users } from "./users.js";
 
-export const SlugAndName = z
-  .object({
-    slug: z.string(),
-    name: z.string(),
-  })
-  .strict();
-export type SlugAndName = z.infer<typeof SlugAndName>;
+export const SlugAndName = <T extends z.ZodTypeAny>(slug: T) =>
+  z
+    .object({
+      slug: slug,
+      name: z.string(),
+    })
+    .strict();
 
 export const NewBet = z
   .object({
     type: z.literal("NewBet"),
-    game: SlugAndName,
-    bet: SlugAndName,
+    game: SlugAndName(Types.gameSlug),
+    bet: SlugAndName(Types.betSlug),
     spoiler: z.boolean(),
   })
   .strict();
@@ -24,18 +24,18 @@ export type NewBet = z.infer<typeof NewBet>;
 export const BetComplete = z
   .object({
     type: z.literal("BetComplete"),
-    game: SlugAndName,
-    bet: SlugAndName,
+    game: SlugAndName(Types.gameSlug),
+    bet: SlugAndName(Types.betSlug),
     spoiler: z.boolean(),
-    winners: z.array(SlugAndName),
+    winners: z.array(SlugAndName(Types.optionSlug)),
     highlighted: z
       .object({
         winners: z.array(Users.Summary),
-        amount: z.number().int().nonnegative(),
+        amount: Types.nonNegativeInt,
       })
       .strict(),
-    totalReturn: z.number().int().nonnegative(),
-    winningStakes: z.number().int().nonnegative(),
+    totalReturn: Types.nonNegativeInt,
+    winningStakes: Types.nonNegativeInt,
   })
   .strict();
 export type BetComplete = z.infer<typeof BetComplete>;
@@ -43,13 +43,13 @@ export type BetComplete = z.infer<typeof BetComplete>;
 export const NotableStake = z
   .object({
     type: z.literal("NotableStake"),
-    game: SlugAndName,
-    bet: SlugAndName,
+    game: SlugAndName(Types.gameSlug),
+    bet: SlugAndName(Types.betSlug),
     spoiler: z.boolean(),
-    option: SlugAndName,
+    option: SlugAndName(Types.optionSlug),
     user: Users.Summary,
     message: z.string(),
-    stake: z.number().int().positive(),
+    stake: Types.positiveInt,
   })
   .strict();
 export type NotableStake = z.infer<typeof NotableStake>;
@@ -64,7 +64,7 @@ export type Event = z.infer<typeof Event>;
 export const Item = z
   .object({
     item: Event,
-    time: zonedDateTime,
+    time: Types.zonedDateTime,
   })
   .strict();
 export type Item = z.infer<typeof Item>;

@@ -20,7 +20,7 @@ view timeContext by { amount, at, user, message } =
     in
     Html.div [ HtmlA.class "stake" ]
         [ Html.a [ HtmlA.class "user", by |> Just |> Route.User |> Route.toUrl |> HtmlA.href ]
-            [ User.viewAvatar by user
+            [ User.viewAvatar user
             , User.viewName user
             ]
         , Coins.view amount

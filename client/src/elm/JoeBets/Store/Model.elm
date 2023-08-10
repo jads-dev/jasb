@@ -6,7 +6,6 @@ module JoeBets.Store.Model exposing
     )
 
 import JoeBets.Game.Id as Game
-import JoeBets.Game.Model as Game
 import Json.Decode as JsonD
 import Json.Encode as JsonE
 import Util.Json.Decode as JsonD

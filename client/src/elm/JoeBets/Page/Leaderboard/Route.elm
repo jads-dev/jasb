@@ -1,8 +1,11 @@
 module JoeBets.Page.Leaderboard.Route exposing
     ( Board(..)
-    , boardFromString
-    , boardToString
+    , boardFromListOfStrings
+    , boardParser
+    , boardToListOfStrings
     )
+
+import Url.Parser as Url
 
 
 type Board
@@ -10,24 +13,36 @@ type Board
     | Debt
 
 
-boardToString : Board -> String
-boardToString board =
+boardToListOfStrings : Board -> List String
+boardToListOfStrings board =
     case board of
         NetWorth ->
-            "net-worth"
+            []
 
         Debt ->
-            "debt"
+            [ "debt" ]
 
 
-boardFromString : String -> Maybe Board
-boardFromString board =
+boardFromListOfStrings : List String -> Maybe Board
+boardFromListOfStrings board =
     case board of
-        "net-worth" ->
+        [] ->
             Just NetWorth
 
-        "debt" ->
+        [ "net-worth" ] ->
+            Just NetWorth
+
+        [ "debt" ] ->
             Just Debt
 
         _ ->
             Nothing
+
+
+boardParser : Url.Parser (Board -> a) a
+boardParser =
+    Url.oneOf
+        [ Url.top |> Url.map NetWorth
+        , Url.s "net-worth" |> Url.map NetWorth
+        , Url.s "debt" |> Url.map Debt
+        ]

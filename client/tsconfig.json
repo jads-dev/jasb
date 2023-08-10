@@ -1,15 +1,15 @@
 {
   "$schema": "https://json.schemastore.org/tsconfig",
 
-  "include": ["./src/mts/**/*", "./material/src/mts/**/*"],
+  "include": ["./src/mts/**/*", "./material/src/mts/**/*", "./assets/*.d.mts"],
   "exclude": ["node_modules", "dist"],
 
   "compilerOptions": {
     "experimentalDecorators": true,
-    "module": "es2022",
+    "module": "nodenext",
     "target": "es2020",
     "lib": ["dom", "es2020"],
-    "moduleResolution": "node16",
+    "moduleResolution": "nodenext",
 
     "outDir": "dist",
     "sourceMap": true,

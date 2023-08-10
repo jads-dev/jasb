@@ -4,22 +4,23 @@ import type * as Cookies from "cookies";
 import { either as Either } from "fp-ts";
 import { StatusCodes } from "http-status-codes";
 import * as Schema from "io-ts";
-import { koaBody as Body } from "koa-body";
 
-import { Notifications, Users } from "../../public.js";
+import { Notifications } from "../../public.js";
+import { Users } from "../../public/users.js";
 import { Validation } from "../../util/validation.js";
 import { Auth } from "../auth.js";
 import { WebError } from "../errors.js";
 import type { Server } from "../model.js";
+import { body } from "./util.js";
 
-const SessionCookie = Schema.strict({
-  user: Users.Id,
+export const SessionCookie = Schema.strict({
+  user: Users.Slug,
   session: Validation.SecretTokenUri,
 });
-type SessionCookie = Schema.TypeOf<typeof SessionCookie>;
+export type SessionCookie = Schema.TypeOf<typeof SessionCookie>;
 
 const UserAndNotifications = Schema.strict({
-  user: Schema.tuple([Users.Id, Users.User]),
+  user: Schema.tuple([Users.Slug, Users.User]),
   notifications: Schema.readonlyArray(Notifications.Notification),
 });
 
@@ -61,7 +62,7 @@ export const authApi = (server: Server.State): Router => {
   const router = new Router();
 
   // Log In.
-  router.post("/login", Body(), async (ctx) => {
+  router.post("/login", body, async (ctx) => {
     const origin = server.config.clientOrigin;
     const oldSession = decodeSessionCookie(ctx.cookies);
     if (oldSession != null) {
@@ -126,11 +127,11 @@ export const authApi = (server: Server.State): Router => {
   });
 
   // Log Out.
-  router.post("/logout", Body(), async (ctx) => {
+  router.post("/logout", body, async (ctx) => {
     const oldSession = requireSession(ctx.cookies);
     await server.auth.logout(oldSession.user, oldSession.session);
     ctx.cookies.set(Auth.sessionCookieName, null, { signed: true });
-    ctx.status = StatusCodes.OK;
+    ctx.body = Users.Slug.encode(oldSession.user);
   });
 
   return router;

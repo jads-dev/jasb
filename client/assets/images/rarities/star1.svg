@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="53" height="80">
+  <defs>
+    <g id="a">
+      <path fill="#f9c543" d="m26 27 27-9-18-3Z"/>
+      <path fill="#fdb53f" d="m40 31 13-13-27 9Z"/>
+      <path fill="#f9c543" d="m12 32-2 17 16-22Z"/>
+      <path fill="#fc9a42" d="M26 27 10 49l16-7Zm9-12L26-1v28Zm-9 12 17 22-3-18Z"/>
+      <path fill="#fdb53f" d="M26 27v15l17 7z"/>
+      <path fill="#f9c543" d="M26 27V-1l-8 16z"/>
+      <path fill="#fdb53f" d="M18 15 0 18l26 9Z"/>
+      <path fill="#fc9a42" d="M26 27 0 18l12 14Z"/>
+    </g>
+  </defs>
+  <use href="#a" transform="translate(0 1)"/>
+</svg>

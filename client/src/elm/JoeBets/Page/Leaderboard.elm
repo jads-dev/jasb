@@ -10,15 +10,21 @@ import FontAwesome as Icon
 import FontAwesome.Solid as Icon
 import Html
 import Html.Attributes as HtmlA
-import Http
 import JoeBets.Api as Api
+import JoeBets.Api.Data as Api
+import JoeBets.Api.Path as Api
 import JoeBets.Coins as Coins
+import JoeBets.Messages as Global
 import JoeBets.Page exposing (Page)
 import JoeBets.Page.Leaderboard.Model exposing (..)
 import JoeBets.Page.Leaderboard.Route as Route
 import JoeBets.Route as Route
 import JoeBets.User as User
-import Util.RemoteData as RemoteData
+
+
+wrap : Msg -> Global.Msg
+wrap =
+    Global.LeaderboardMsg
 
 
 type alias Parent a =
@@ -30,61 +36,66 @@ type alias Parent a =
 
 init : Model
 init =
-    Model Route.NetWorth RemoteData.Missing RemoteData.Missing
+    { board = Route.NetWorth
+    , netWorth = Api.initData
+    , debt = Api.initData
+    }
 
 
-load : (Msg -> msg) -> Route.Board -> Parent a -> ( Parent a, Cmd msg )
-load wrap board model =
+load : Route.Board -> Parent a -> ( Parent a, Cmd Global.Msg )
+load board ({ leaderboard } as model) =
     let
-        leaderboard =
-            model.leaderboard
-
-        loadBoard =
+        ( newLeaderboard, loadCmd ) =
             case board of
                 Route.NetWorth ->
-                    Http.expectJson (LoadNetWorth >> wrap) netWorthEntriesDecoder
+                    let
+                        ( netWorth, cmd ) =
+                            { path = Api.Leaderboard Route.NetWorth
+                            , wrap = LoadNetWorth >> wrap
+                            , decoder = netWorthEntriesDecoder
+                            }
+                                |> Api.get model.origin
+                                |> Api.getData leaderboard.netWorth
+                    in
+                    ( { leaderboard | netWorth = netWorth, board = board }, cmd )
 
                 Route.Debt ->
-                    Http.expectJson (LoadDebt >> wrap) debtEntriesDecoder
+                    let
+                        ( debt, cmd ) =
+                            { path = Api.Leaderboard Route.Debt
+                            , wrap = LoadDebt >> wrap
+                            , decoder = debtEntriesDecoder
+                            }
+                                |> Api.get model.origin
+                                |> Api.getData leaderboard.debt
+                    in
+                    ( { leaderboard | debt = debt, board = board }, cmd )
     in
-    ( { model | leaderboard = { leaderboard | board = board } }
-    , Api.get model.origin
-        { path = Api.Leaderboard board
-        , expect = loadBoard
-        }
-    )
+    ( { model | leaderboard = newLeaderboard }, loadCmd )
 
 
-update : Msg -> Parent a -> ( Parent a, Cmd msg )
-update msg model =
+update : Msg -> Parent a -> ( Parent a, Cmd Global.Msg )
+update msg ({ leaderboard } as model) =
     case msg of
         LoadNetWorth result ->
-            let
-                leaderboard =
-                    model.leaderboard
-            in
             ( { model
                 | leaderboard =
-                    { leaderboard | netWorth = RemoteData.load result }
+                    { leaderboard | netWorth = leaderboard.netWorth |> Api.updateData result }
               }
             , Cmd.none
             )
 
         LoadDebt result ->
-            let
-                leaderboard =
-                    model.leaderboard
-            in
             ( { model
                 | leaderboard =
-                    { leaderboard | debt = RemoteData.load result }
+                    { leaderboard | debt = leaderboard.debt |> Api.updateData result }
               }
             , Cmd.none
             )
 
 
-view : (Msg -> msg) -> Parent a -> Page msg
-view _ { leaderboard } =
+view : Parent a -> Page Global.Msg
+view { leaderboard } =
     let
         viewNetWorth { netWorth } =
             Coins.view netWorth
@@ -99,7 +110,7 @@ view _ { leaderboard } =
                         [ Route.a (id |> Just |> Route.User)
                             []
                             [ Html.div [ HtmlA.class "rank" ] [ Html.span [] [ rank |> String.fromInt |> Html.text ] ]
-                            , Html.div [ HtmlA.class "user-avatar" ] [ User.viewAvatar id entry ]
+                            , Html.div [ HtmlA.class "user-avatar" ] [ User.viewAvatar entry ]
                             , Html.div [ HtmlA.class "user-name" ] [ User.viewName entry ]
                             , Html.div [ HtmlA.class "value" ] [ viewValue value ]
                             ]
@@ -114,10 +125,10 @@ view _ { leaderboard } =
         viewData =
             case leaderboard.board of
                 Route.NetWorth ->
-                    RemoteData.view (body viewNetWorth) leaderboard.netWorth
+                    Api.viewData Api.viewOrError (body viewNetWorth) leaderboard.netWorth
 
                 Route.Debt ->
-                    RemoteData.view (body viewDebt) leaderboard.debt
+                    Api.viewData Api.viewOrError (body viewDebt) leaderboard.debt
 
         tabButton icon name route =
             Html.li []

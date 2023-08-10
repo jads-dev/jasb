@@ -4,6 +4,7 @@ module Util.Maybe exposing
     , ifFalse
     , ifTrue
     , or
+    , split
     , toList
     , when
     , whenNot
@@ -78,3 +79,13 @@ ifDifferent old new =
 
     else
         Just new
+
+
+split : Maybe ( a, b ) -> ( Maybe a, Maybe b )
+split values =
+    case values of
+        Just ( a, b ) ->
+            ( Just a, Just b )
+
+        Nothing ->
+            ( Nothing, Nothing )

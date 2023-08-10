@@ -16,18 +16,18 @@ import FontAwesome.Solid as Icon
 import Html exposing (Html)
 import Html.Attributes as HtmlA
 import Html.Keyed as HtmlK
-import JoeBets.Bet.Maths as Bet
-import JoeBets.Bet.Model as Bet exposing (..)
+import JoeBets.Bet.Maths exposing (..)
+import JoeBets.Bet.Model exposing (..)
 import JoeBets.Bet.Option as Option
 import JoeBets.Bet.PlaceBet.Model as PlaceBet
 import JoeBets.Bet.Stakes as Stakes
 import JoeBets.Coins as Coins
 import JoeBets.Game.Id as Game
-import JoeBets.Game.Model as Game
+import JoeBets.Material as Material
 import JoeBets.Page.Bets.Filters as Filters
 import JoeBets.Page.Bets.Model as Bets
 import JoeBets.Page.Edit.Model as Edit
-import JoeBets.Route as Route
+import JoeBets.Route as Route exposing (Route)
 import JoeBets.User.Auth.Model as Auth
 import JoeBets.User.Model as User
 import Material.IconButton as IconButton
@@ -70,13 +70,15 @@ notLoggedIn =
 hasVotedInBet : Bet -> UserCapability msg -> Bool
 hasVotedInBet bet =
     localUserCapability
-        >> Maybe.map (.id >> Bet.hasAnyStake bet)
+        >> Maybe.map (.id >> hasAnyStake bet)
         >> Maybe.withDefault False
 
 
-view : Time.Context -> UserCapability msg -> Game.Id -> String -> Bet.Id -> Bet -> Html msg
-view timeContext userCapability gameId gameName betId bet =
-    internalView timeContext
+view : (Route -> msg) -> Time.Context -> UserCapability msg -> Game.Id -> String -> Id -> Bet -> Html msg
+view changeUrl timeContext userCapability gameId gameName betId bet =
+    internalView
+        changeUrl
+        timeContext
         userCapability
         Detailed
         Nothing
@@ -87,9 +89,11 @@ view timeContext userCapability gameId gameName betId bet =
         bet
 
 
-viewSummarised : Time.Context -> UserCapability msg -> Maybe User.Id -> Game.Id -> String -> Bet.Id -> Bet -> Html msg
-viewSummarised timeContext userCapability highlight gameId gameName betId bet =
-    internalView timeContext
+viewSummarised : (Route -> msg) -> Time.Context -> UserCapability msg -> Maybe User.Id -> Game.Id -> String -> Id -> Bet -> Html msg
+viewSummarised changeUrl timeContext userCapability highlight gameId gameName betId bet =
+    internalView
+        changeUrl
+        timeContext
         userCapability
         Summarised
         highlight
@@ -100,8 +104,8 @@ viewSummarised timeContext userCapability highlight gameId gameName betId bet =
         bet
 
 
-viewFiltered : Time.Context -> UserCapability msg -> Bets.Subset -> Filters.Resolved -> Game.Id -> String -> Bet.Id -> Bet -> Maybe (Html msg)
-viewFiltered timeContext userCapability subset filters gameId gameName betId bet =
+viewFiltered : (Route -> msg) -> Time.Context -> UserCapability msg -> Bets.Subset -> Filters.Resolved -> Game.Id -> String -> Id -> Bet -> Maybe (Html msg)
+viewFiltered changeUrl timeContext userCapability subset filters gameId gameName betId bet =
     let
         hasVoted =
             hasVotedInBet bet userCapability
@@ -110,13 +114,13 @@ viewFiltered timeContext userCapability subset filters gameId gameName betId bet
             case subset of
                 Bets.Active ->
                     case bet.progress of
-                        Bet.Voting _ ->
+                        Voting _ ->
                             filters.voting
 
-                        Bet.Locked _ ->
+                        Locked _ ->
                             filters.locked
 
-                        Bet.Complete _ ->
+                        Complete _ ->
                             filters.complete
 
                         Cancelled _ ->
@@ -128,7 +132,9 @@ viewFiltered timeContext userCapability subset filters gameId gameName betId bet
                             False
     in
     if progress && (not bet.spoiler || filters.spoilers) && (not hasVoted || filters.hasBet) then
-        internalView timeContext
+        internalView
+            changeUrl
+            timeContext
             userCapability
             Summarised
             Nothing
@@ -148,8 +154,8 @@ type ViewType
     | Detailed
 
 
-internalView : Time.Context -> UserCapability msg -> ViewType -> Maybe User.Id -> Bool -> Game.Id -> String -> Bet.Id -> Bet -> Html msg
-internalView timeContext userCapability viewType highlight hasVoted gameId gameName betId bet =
+internalView : (Route -> msg) -> Time.Context -> UserCapability msg -> ViewType -> Maybe User.Id -> Bool -> Game.Id -> String -> Id -> Bet -> Html msg
+internalView changeUrl timeContext userCapability viewType highlight hasVoted gameId gameName betId bet =
     let
         optionStakes =
             bet.options |> AssocList.values |> List.map .stakes
@@ -224,8 +230,8 @@ internalView timeContext userCapability viewType highlight hasVoted gameId gameN
                 totalStake =
                     stakes |> AssocList.values |> List.map .amount |> List.sum
 
-                ratio =
-                    Bet.ratio totalAmount totalStake
+                computedRatio =
+                    ratio totalAmount totalStake
 
                 ratioDescription =
                     case bet.progress of
@@ -268,7 +274,11 @@ internalView timeContext userCapability viewType highlight hasVoted gameId gameN
                 [ option.image |> Maybe.map (\url -> Html.img [ HtmlA.src url ] []) |> Maybe.withDefault (Html.text "")
                 , Html.div [ HtmlA.class "details" ]
                     [ Html.span [ HtmlA.class "name" ] [ Html.text name ]
-                    , Html.span [ HtmlA.class "button" ] [ IconButton.view (Icon.view betIcon) betDescription action ]
+                    , Html.span [ HtmlA.class "button" ]
+                        [ IconButton.icon (Icon.view betIcon) betDescription
+                            |> IconButton.button action
+                            |> IconButton.view
+                        ]
                     , Stakes.view timeContext (userCapability |> localUserCapability) highlight maxAmount stakes
                     ]
                 , Html.div [ HtmlA.class "stats", HtmlA.title title ]
@@ -281,7 +291,7 @@ internalView timeContext userCapability viewType highlight hasVoted gameId gameN
                         [ HtmlA.class "ratio"
                         , HtmlA.title ratioDescription
                         ]
-                        [ Html.text "", Html.text ratio ]
+                        [ Html.text "", Html.text computedRatio ]
                     ]
                 ]
             )
@@ -357,7 +367,9 @@ internalView timeContext userCapability viewType highlight hasVoted gameId gameN
         adminContent =
             if userCapability |> localUserCapability |> Auth.canManageBets gameId then
                 [ Html.div [ HtmlA.class "admin-controls" ]
-                    [ Route.a (betId |> Edit.Edit |> Edit.Bet gameId |> Route.Edit) [] [ Icon.pen |> Icon.view ]
+                    [ IconButton.icon (Icon.pen |> Icon.view) "Edit"
+                        |> Material.iconButtonLink changeUrl (betId |> Edit.Edit |> Edit.Bet gameId |> Route.Edit)
+                        |> IconButton.view
                     ]
                 ]
 
@@ -396,7 +408,7 @@ internalView timeContext userCapability viewType highlight hasVoted gameId gameN
                 |> List.concat
 
         content =
-            outer [ HtmlA.class "bet", HtmlA.class class, betId |> Bet.idToString |> HtmlA.id ]
+            outer [ HtmlA.class "bet", HtmlA.class class, betId |> idToString |> HtmlA.id ]
                 [ summaryContent |> inner [ HtmlA.class "summary" ]
                 , Html.div [ HtmlA.class "extra" ] extraByProgress
                 , HtmlK.ul [] (bet.options |> AssocList.toList |> List.map viewOption)

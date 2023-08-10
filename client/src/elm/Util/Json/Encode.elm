@@ -9,7 +9,7 @@ module Util.Json.Encode exposing
 
 import AssocList
 import EverySet exposing (EverySet)
-import Json.Encode as Json exposing (..)
+import Json.Encode exposing (..)
 import Time
 
 

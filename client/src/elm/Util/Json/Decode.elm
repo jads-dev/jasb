@@ -11,7 +11,7 @@ module Util.Json.Decode exposing
 import AssocList
 import Dict
 import EverySet exposing (EverySet)
-import Json.Decode as JsonD exposing (..)
+import Json.Decode exposing (..)
 import Json.Decode.Pipeline as JsonD
 
 
@@ -31,13 +31,13 @@ atLeastOne itemDecoder =
 
 assocListFromTupleList : Decoder key -> Decoder value -> Decoder (AssocList.Dict key value)
 assocListFromTupleList decodeKey decodeValue =
-    JsonD.list (JsonD.map2 Tuple.pair (JsonD.index 0 decodeKey) (JsonD.index 1 decodeValue))
-        |> JsonD.map (List.reverse >> AssocList.fromList)
+    list (map2 Tuple.pair (index 0 decodeKey) (index 1 decodeValue))
+        |> map (List.reverse >> AssocList.fromList)
 
 
 assocListFromList : Decoder key -> Decoder value -> Decoder (AssocList.Dict key value)
 assocListFromList decodeKey decodeValue =
-    JsonD.list (JsonD.map2 Tuple.pair decodeKey decodeValue) |> JsonD.map (List.reverse >> AssocList.fromList)
+    list (map2 Tuple.pair decodeKey decodeValue) |> map (List.reverse >> AssocList.fromList)
 
 
 assocListFromObject : (String -> key) -> Decoder value -> Decoder (AssocList.Dict key value)
@@ -57,11 +57,11 @@ unknownValue name value =
     ("Unknown " ++ name ++ ": \"" ++ value ++ "\".") |> fail
 
 
-optionalAsMaybe : String -> JsonD.Decoder a -> Decoder (Maybe a -> b) -> JsonD.Decoder b
+optionalAsMaybe : String -> Decoder a -> Decoder (Maybe a -> b) -> Decoder b
 optionalAsMaybe key valDecoder decoder =
-    JsonD.optional key (valDecoder |> JsonD.map Just) Nothing decoder
+    JsonD.optional key (valDecoder |> map Just) Nothing decoder
 
 
-everySetFromList : JsonD.Decoder value -> JsonD.Decoder (EverySet value)
+everySetFromList : Decoder value -> Decoder (EverySet value)
 everySetFromList =
-    JsonD.list >> JsonD.map EverySet.fromList
+    list >> map EverySet.fromList

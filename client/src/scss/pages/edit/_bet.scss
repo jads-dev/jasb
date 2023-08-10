@@ -3,6 +3,9 @@
     padding: 0;
     margin: 0;
     list-style: none;
+    display: flex;
+    flex-flow: column;
+    gap: 1em;
   }
 
   .progress {
@@ -20,7 +23,8 @@
       display: flex;
       flex-direction: column;
       align-items: center;
-      width: 5em;
+      justify-content: center;
+      width: 7em;
     }
 
     .details {
@@ -29,6 +33,31 @@
       align-items: stretch;
       flex-grow: 1;
       gap: 0.5em;
+    }
+  }
+
+  .contextual-overlay {
+    display: flex;
+    flex-flow: column;
+    align-items: center;
+    gap: 1em;
+
+    p {
+      margin: 0;
+    }
+
+    ol {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+
+      display: flex;
+      flex-flow: column;
+      gap: 0.5em;
+    }
+
+    .controls {
+      align-self: stretch;
     }
   }
 }

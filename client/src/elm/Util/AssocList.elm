@@ -5,7 +5,9 @@ module Util.AssocList exposing
     , findKeyAtIndex
     , fromListWithDerivedKey
     , indexedMap
+    , insertAtEnd
     , keySet
+    , replace
     , sortBy
     , sortWith
     )
@@ -118,3 +120,21 @@ sortBy property =
 sortWith : (( key, value ) -> ( key, value ) -> Order) -> AssocList.Dict key value -> AssocList.Dict key value
 sortWith comparePair =
     AssocList.toList >> List.sortWith (\a b -> comparePair a b |> Order.reverse) >> AssocList.fromList
+
+
+replace : key -> value -> AssocList.Dict key value -> AssocList.Dict key value
+replace target newValue =
+    let
+        replacer key value =
+            if key == target then
+                newValue
+
+            else
+                value
+    in
+    AssocList.map replacer
+
+
+insertAtEnd : key -> value -> AssocList.Dict key value -> AssocList.Dict key value
+insertAtEnd key value assocList =
+    (assocList |> AssocList.toList) ++ [ ( key, value ) ] |> List.reverse |> AssocList.fromList

@@ -1,0 +1,169 @@
+.overlay-editor {
+  display: flex;
+  flex-flow: column;
+  gap: 1em;
+
+  > .fields {
+    display: flex;
+    flex-flow: column;
+    gap: 1em;
+  }
+}
+
+.credit-editor {
+  > h3 {
+    margin: 0;
+  }
+
+  > ul {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+
+    display: flex;
+    flex-flow: column;
+    gap: 0.5em;
+
+    > li {
+      display: grid;
+      grid-template:
+        "delete . gift-button user-switch" auto
+        "reason reason reason reason" auto
+        "user user user user" auto
+        / auto 1fr auto auto;
+      gap: 0.5em;
+      align-items: center;
+
+      > .remove {
+        grid-area: delete;
+      }
+
+      > .user-switch {
+        grid-area: user-switch;
+      }
+
+      > .reason {
+        grid-area: reason;
+      }
+
+      > .user-selector,
+      > .user-name {
+        grid-area: user;
+      }
+
+      > .gift-button {
+        grid-area: gift-button;
+      }
+    }
+  }
+}
+
+.card-type-editor {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-flow: column;
+  gap: 1em;
+
+  > li {
+    display: grid;
+    grid-template:
+      "id edit" auto
+      "name description" auto
+      "active description" auto
+      "cover metadata" auto
+      / auto 1fr;
+    gap: 0.25em;
+    align-items: flex-start;
+    border: 1px solid #888888;
+    padding: 0.25em;
+
+    > .id {
+      grid-area: id;
+      align-self: center;
+    }
+    > .name {
+      grid-area: name;
+    }
+    > .edit {
+      grid-area: edit;
+      justify-self: flex-end;
+    }
+    > .active {
+      grid-area: active;
+    }
+    > .description {
+      grid-area: description;
+    }
+    > .cover {
+      grid-area: cover;
+      max-width: 5em;
+
+      .url,
+      .label {
+        display: none;
+      }
+    }
+    > .metadata {
+      grid-area: metadata;
+    }
+  }
+}
+
+.banner-editor {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-flow: column;
+  gap: 1em;
+
+  > li {
+    display: grid;
+    grid-template:
+      "grip id edit" auto
+      "grip name description" auto
+      "grip active description" auto
+      "grip cover metadata" auto
+      / auto auto 1fr;
+    gap: 0.25em;
+    align-items: flex-start;
+    border: 1px solid #888888;
+    padding: 0.25em;
+
+    > .grip {
+      grid-area: grip;
+      align-self: center;
+    }
+    > .slug {
+      grid-area: id;
+      align-self: center;
+    }
+    > .name {
+      grid-area: name;
+    }
+    > .edit {
+      grid-area: edit;
+      justify-self: flex-end;
+    }
+    > .active {
+      grid-area: active;
+    }
+    > .description {
+      grid-area: description;
+    }
+    > .cover {
+      grid-area: cover;
+      max-width: 5em;
+
+      .url,
+      .label {
+        display: none;
+      }
+    }
+    > .metadata {
+      grid-area: metadata;
+    }
+  }
+}

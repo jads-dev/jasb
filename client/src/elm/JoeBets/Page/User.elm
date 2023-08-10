@@ -6,43 +6,52 @@ module JoeBets.Page.User exposing
     )
 
 import AssocList
-import Browser.Navigation as Navigation
+import Browser.Navigation as Browser
 import FontAwesome as Icon
 import FontAwesome.Solid as Icon
 import Html exposing (Html)
 import Html.Attributes as HtmlA
-import Html.Events as HtmlE
-import Http
 import JoeBets.Api as Api
+import JoeBets.Api.Action as Api
+import JoeBets.Api.Data as Api
+import JoeBets.Api.IdData as Api
+import JoeBets.Api.Path as Api
 import JoeBets.Bet as Bet
 import JoeBets.Bet.Editor.LockMoment as LockMoment
 import JoeBets.Coins as Coins
-import JoeBets.Game as Game
+import JoeBets.Error as Error
 import JoeBets.Game.Id as Game
 import JoeBets.Game.Model as Game
+import JoeBets.Messages as Global
+import JoeBets.Overlay as Overlay
 import JoeBets.Page exposing (Page)
+import JoeBets.Page.Gacha.Collection.Route as Collection
+import JoeBets.Page.Gacha.Route as Route
 import JoeBets.Page.User.Model exposing (..)
 import JoeBets.Route as Route
 import JoeBets.User as User
 import JoeBets.User.Auth.Model as Auth
 import JoeBets.User.Model as User
-import Json.Decode as JsonD
+import Json.Encode as JsonE
 import Material.Button as Button
 import Material.Switch as Switch
 import Time.Model as Time
-import Util.AssocList as AssocList
 import Util.Html as Html
 import Util.Html.Events as HtmlE
 import Util.Json.Decode as JsonD
 import Util.Maybe as Maybe
-import Util.RemoteData as RemoteData
+
+
+wrap : Msg -> Global.Msg
+wrap =
+    Global.UserMsg
 
 
 type alias Parent a =
     { a
         | user : Model
         , auth : Auth.Model
-        , navigationKey : Navigation.Key
+        , navigationKey : Browser.Key
         , origin : String
         , time : Time.Context
     }
@@ -50,99 +59,101 @@ type alias Parent a =
 
 init : Model
 init =
-    Nothing
-
-
-initFromId : User.Id -> UserModel
-initFromId id =
-    { id = id
-    , user = RemoteData.Missing
-    , bets = RemoteData.Missing
+    { user = Api.initIdData
+    , bets = Api.initIdData
     , bankruptcyOverlay = Nothing
     , permissionsOverlay = Nothing
     }
 
 
-load : (Msg -> msg) -> Maybe User.Id -> Parent a -> ( Parent a, Cmd msg )
-load wrap userId ({ user } as model) =
-    let
-        newModel =
-            if (user |> Maybe.map .id) /= userId then
-                { model | user = userId |> Maybe.map initFromId }
+load : Maybe User.Id -> Parent a -> ( Parent a, Cmd Global.Msg )
+load requestedUserId ({ auth, user } as model) =
+    case requestedUserId of
+        Just userId ->
+            let
+                ( userData, loadUser ) =
+                    { path = Api.SpecificUser userId Api.User
+                    , wrap = Load userId >> wrap
+                    , decoder = User.withIdDecoder
+                    }
+                        |> Api.get model.origin
+                        |> Api.getIdData userId user.user
 
-            else
-                model
-    in
-    ( newModel
-    , Api.get model.origin
-        { path = userId |> Maybe.map (\id -> Api.User id Api.UserRoot) |> Maybe.withDefault Api.Users
-        , expect = Http.expectJson (Load >> wrap) User.withIdDecoder
-        }
-    )
+                newUser =
+                    { user
+                        | user = userData
+                        , bankruptcyOverlay = Nothing
+                        , permissionsOverlay = Nothing
+                    }
+            in
+            ( { model | user = newUser }, Cmd.batch [ loadUser ] )
+
+        Nothing ->
+            case auth.localUser |> Maybe.map .id of
+                Just userId ->
+                    ( model
+                    , userId
+                        |> Just
+                        |> Route.User
+                        |> Route.pushUrl model.navigationKey
+                    )
+
+                Nothing ->
+                    ( { model | user = { user | user = Api.initIdData } }
+                    , Cmd.none
+                    )
 
 
-update : (Msg -> msg) -> Msg -> Parent a -> ( Parent a, Cmd msg )
-update wrap msg ({ user, auth, origin } as model) =
+update : Msg -> Parent a -> ( Parent a, Cmd Global.Msg )
+update msg ({ user, auth, origin } as model) =
     case msg of
-        Load result ->
-            case result of
-                Ok userData ->
-                    let
-                        newUser =
-                            { id = userData.id
-                            , user = RemoteData.Loaded userData.user
-                            , bets = RemoteData.Missing
-                            , bankruptcyOverlay = Nothing
-                            , permissionsOverlay = Nothing
-                            }
-
-                        cmd =
-                            if Just newUser.id /= (user |> Maybe.map .id) then
-                                newUser.id |> Just |> Route.User |> Route.pushUrl model.navigationKey
-
-                            else
-                                Cmd.none
-
-                        newAuth =
-                            if Just userData.id == (auth.localUser |> Maybe.map .id) then
+        Load id result ->
+            let
+                newAuth =
+                    case result of
+                        Ok userData ->
+                            if Just id == (auth.localUser |> Maybe.map .id) then
                                 { auth | localUser = Just userData }
 
                             else
                                 auth
-                    in
-                    ( { model | user = Just newUser, auth = newAuth }, cmd )
 
-                Err error ->
-                    ( { model | user = user |> Maybe.map (\u -> { u | user = RemoteData.Failed error }) }
-                    , Cmd.none
-                    )
+                        Err _ ->
+                            auth
+
+                u =
+                    result |> Result.map .user
+            in
+            ( { model
+                | user = { user | user = user.user |> Api.updateIdData id u }
+                , auth = newAuth
+              }
+            , Cmd.none
+            )
 
         TryLoadBets userId ->
             let
-                cmd =
-                    case user of
-                        Just givenUser ->
-                            if givenUser.id == userId && givenUser.bets == RemoteData.Missing then
-                                loadBets wrap origin userId
+                ( bets, cmd ) =
+                    if Api.toMaybeId user.user == Just userId then
+                        { path = Api.SpecificUser userId Api.UserBets
+                        , wrap = LoadBets userId >> wrap
+                        , decoder =
+                            JsonD.assocListFromTupleList Game.idDecoder Game.withBetsDecoder
+                        }
+                            |> Api.get origin
+                            |> Api.getIdDataIfMissing userId user.bets
 
-                            else
-                                Cmd.none
-
-                        Nothing ->
-                            Cmd.none
+                    else
+                        ( user.bets, Cmd.none )
             in
-            ( model, cmd )
+            ( { model | user = { user | bets = bets } }, cmd )
 
         LoadBets userId result ->
             let
-                updateUser givenUser =
-                    if userId == givenUser.id then
-                        { givenUser | bets = RemoteData.load result }
-
-                    else
-                        givenUser
+                bets =
+                    user.bets |> Api.updateIdData userId result
             in
-            ( { model | user = user |> Maybe.map updateUser }, Cmd.none )
+            ( { model | user = { user | bets = bets } }, Cmd.none )
 
         SetBankruptcyToggle enabled ->
             let
@@ -152,130 +163,186 @@ update wrap msg ({ user, auth, origin } as model) =
                 updateOverlay overlay =
                     { overlay | sureToggle = enabled }
             in
-            ( { model | user = user |> Maybe.map updateUser }, Cmd.none )
+            ( { model | user = user |> updateUser }, Cmd.none )
 
-        GoBankrupt ->
-            case user |> Maybe.map .id of
-                Just uid ->
-                    ( model
-                    , Api.post model.origin
-                        { path = Api.User uid Api.Bankrupt
-                        , body = Http.emptyBody
-                        , expect = Http.expectJson (Load >> wrap) User.withIdDecoder
-                        }
-                    )
-
-                Nothing ->
-                    ( model, Cmd.none )
-
-        ToggleBankruptcyOverlay show ->
-            case user of
-                Just givenUser ->
-                    let
-                        bankruptcyOverlay =
-                            if show then
-                                Just
-                                    { sureToggle = False
-                                    , stats = RemoteData.Missing
+        GoBankrupt uid maybeResult ->
+            case user.bankruptcyOverlay of
+                Just overlay ->
+                    case maybeResult of
+                        Nothing ->
+                            let
+                                ( newOverlayAction, cmd ) =
+                                    { path = Api.SpecificUser uid Api.Bankrupt
+                                    , body = JsonE.null
+                                    , wrap = Just >> GoBankrupt uid >> wrap
+                                    , decoder = User.withIdDecoder
                                     }
+                                        |> Api.post model.origin
+                                        |> Api.doAction overlay.action
+                            in
+                            ( { model
+                                | user =
+                                    { user
+                                        | bankruptcyOverlay =
+                                            Just { overlay | action = newOverlayAction }
+                                    }
+                              }
+                            , cmd
+                            )
 
-                            else
-                                Nothing
-                    in
-                    ( { model | user = Just { givenUser | bankruptcyOverlay = bankruptcyOverlay } }
-                    , loadBankruptcyStats wrap model.origin givenUser.id
-                    )
+                        Just result ->
+                            let
+                                ( updatedUser, state ) =
+                                    overlay.action |> Api.handleActionResult result
+
+                                ( changeUser, newOverlay ) =
+                                    case updatedUser of
+                                        Just userWithId ->
+                                            ( Api.updateIdDataValue uid (\_ -> userWithId.user)
+                                            , Nothing
+                                            )
+
+                                        Nothing ->
+                                            ( identity, Just { overlay | action = state } )
+                            in
+                            ( { model
+                                | user =
+                                    { user
+                                        | user = user.user |> changeUser
+                                        , bankruptcyOverlay = newOverlay
+                                    }
+                              }
+                            , Cmd.none
+                            )
 
                 Nothing ->
                     ( model, Cmd.none )
+
+        ToggleBankruptcyOverlay id show ->
+            if Just id == Api.toMaybeId user.user then
+                let
+                    ( bankruptcyOverlay, cmd ) =
+                        if show then
+                            let
+                                ( stats, loadStatsCmd ) =
+                                    { path = Api.SpecificUser id Api.Bankrupt
+                                    , wrap = LoadBankruptcyStats id >> wrap
+                                    , decoder = bankruptcyStatsDecoder
+                                    }
+                                        |> Api.get model.origin
+                                        |> Api.initGetData
+                            in
+                            ( Just
+                                { sureToggle = False
+                                , stats = stats
+                                , action = Api.initAction
+                                }
+                            , loadStatsCmd
+                            )
+
+                        else
+                            ( Nothing, Cmd.none )
+                in
+                ( { model | user = { user | bankruptcyOverlay = bankruptcyOverlay } }
+                , cmd
+                )
+
+            else
+                ( model, Cmd.none )
 
         LoadBankruptcyStats id result ->
-            case user of
-                Just givenUser ->
-                    if givenUser.id == id then
-                        let
-                            updateOverlay overlay =
-                                { overlay | stats = RemoteData.load result }
+            if Just id == Api.toMaybeId user.user then
+                let
+                    updateOverlay overlay =
+                        { overlay | stats = overlay.stats |> Api.updateData result }
 
-                            newOverlay =
-                                givenUser.bankruptcyOverlay |> Maybe.map updateOverlay
-                        in
-                        ( { model | user = Just { givenUser | bankruptcyOverlay = newOverlay } }
-                        , Cmd.none
-                        )
+                    newOverlay =
+                        user.bankruptcyOverlay |> Maybe.map updateOverlay
+                in
+                ( { model | user = { user | bankruptcyOverlay = newOverlay } }
+                , Cmd.none
+                )
 
-                    else
-                        ( model, Cmd.none )
+            else
+                ( model, Cmd.none )
 
-                Nothing ->
-                    ( model, Cmd.none )
+        TogglePermissionsOverlay id show ->
+            if Just id == Api.toMaybeId user.user then
+                let
+                    ( permissionsOverlay, cmd ) =
+                        if show then
+                            let
+                                ( permissions, loadPermissionsCmd ) =
+                                    { path = Api.SpecificUser id Api.Permissions
+                                    , wrap = LoadPermissions id >> wrap
+                                    , decoder = editablePermissionsDecoder
+                                    }
+                                        |> Api.get model.origin
+                                        |> Api.initGetData
+                            in
+                            ( Just { permissions = permissions }
+                            , loadPermissionsCmd
+                            )
 
-        TogglePermissionsOverlay show ->
-            case user of
-                Just givenUser ->
-                    let
-                        permissionsOverlay =
-                            if show then
-                                Just
-                                    { permissions = RemoteData.Missing }
+                        else
+                            ( Nothing, Cmd.none )
+                in
+                ( { model | user = { user | permissionsOverlay = permissionsOverlay } }
+                , cmd
+                )
 
-                            else
-                                Nothing
-                    in
-                    ( { model | user = Just { givenUser | permissionsOverlay = permissionsOverlay } }
-                    , loadPermissions wrap model.origin givenUser.id
-                    )
-
-                Nothing ->
-                    ( model, Cmd.none )
+            else
+                ( model, Cmd.none )
 
         LoadPermissions userId response ->
-            case user of
-                Just givenUser ->
-                    if givenUser.id == userId then
-                        let
-                            updatePermissions overlay =
-                                { overlay | permissions = response |> RemoteData.load }
+            if Just userId == Api.toMaybeId user.user then
+                let
+                    updatePermissions overlay =
+                        { overlay | permissions = overlay.permissions |> Api.updateData response }
 
-                            newOverlay =
-                                givenUser.permissionsOverlay |> Maybe.map updatePermissions
-                        in
-                        ( { model | user = Just { givenUser | permissionsOverlay = newOverlay } }, Cmd.none )
+                    newOverlay =
+                        user.permissionsOverlay |> Maybe.map updatePermissions
+                in
+                ( { model | user = { user | permissionsOverlay = newOverlay } }
+                , Cmd.none
+                )
 
-                    else
-                        ( model, Cmd.none )
-
-                Nothing ->
-                    ( model, Cmd.none )
+            else
+                ( model, Cmd.none )
 
         SetPermissions userId permission ->
-            case user of
-                Just givenUser ->
-                    if givenUser.id == userId then
-                        ( model
-                        , setPermissions wrap model.origin userId permission
-                        )
+            if Just userId == Api.toMaybeId user.user then
+                ( model
+                  -- TODO: NoOping this result is wrong.
+                , { path = Api.SpecificUser userId Api.Permissions
+                  , body = permission |> encodeSetPermissions
+                  , wrap = \_ -> "Set permissions result." |> NoOp |> wrap
+                  , decoder = editablePermissionsDecoder
+                  }
+                    |> Api.post origin
+                )
 
-                    else
-                        ( model, Cmd.none )
+            else
+                ( model, Cmd.none )
 
-                Nothing ->
-                    ( model, Cmd.none )
-
-        NoOp ->
+        NoOp _ ->
             ( model, Cmd.none )
 
 
-view : (Msg -> msg) -> Parent a -> Page msg
-view wrap model =
-    case model.user of
-        Just { id, user, bets, bankruptcyOverlay, permissionsOverlay } ->
+view : Parent a -> Page Global.Msg
+view model =
+    let
+        { bets, bankruptcyOverlay, permissionsOverlay } =
+            model.user
+    in
+    case model.user.user |> Api.idDataToData of
+        Just ( id, user ) ->
             let
                 isLocal =
                     Just id == (model.auth.localUser |> Maybe.map .id)
 
                 htmlTitle =
-                    case user |> RemoteData.toMaybe of
+                    case user |> Api.dataToMaybe of
                         Just u ->
                             [ Html.text "“"
                             , User.viewName u
@@ -288,7 +355,7 @@ view wrap model =
                             [ Html.text (User.idToString id) ]
 
                 title =
-                    case user |> RemoteData.toMaybe of
+                    case user |> Api.dataToMaybe of
                         Just u ->
                             "“" ++ User.nameString u ++ "” (" ++ User.idToString id ++ ")"
 
@@ -298,19 +365,18 @@ view wrap model =
                 body userData =
                     let
                         avatar =
-                            User.viewAvatar id userData
+                            User.viewAvatar userData
 
                         adminControls =
                             if Auth.canManagePermissions model.auth.localUser then
                                 [ [ Html.div [ HtmlA.class "manage-user" ]
-                                        [ Button.view Button.Raised
-                                            Button.Padded
-                                            "Edit Permissions"
-                                            (Icon.userCog |> Icon.view |> Just)
-                                            (TogglePermissionsOverlay True |> wrap |> Just)
+                                        [ Button.filled "Edit Permissions"
+                                            |> Button.button (TogglePermissionsOverlay id True |> wrap |> Just)
+                                            |> Button.icon (Icon.userCog |> Icon.view)
+                                            |> Button.view
                                         ]
                                   ]
-                                , permissionsOverlay |> Maybe.map (viewPermissionsOverlay wrap id) |> Maybe.withDefault []
+                                , permissionsOverlay |> Maybe.map (viewPermissionsOverlay id) |> Maybe.withDefault []
                                 ]
                                     |> List.concat
 
@@ -321,15 +387,18 @@ view wrap model =
                             if isLocal then
                                 [ [ Html.div [ HtmlA.class "bankrupt dangerous" ]
                                         [ Html.h3 [] [ Html.text "Bankruptcy" ]
-                                        , Html.p [] [ Html.text "Going bankrupt will reset your balance to the starting amount, and cancel all your current bets." ]
-                                        , Button.view Button.Raised
-                                            Button.Padded
-                                            "Go Bankrupt"
-                                            (Icon.recycle |> Icon.view |> Just)
-                                            (ToggleBankruptcyOverlay True |> wrap |> Just)
+                                        , Html.p []
+                                            [ Html.text "Going bankrupt will reset your balance to the "
+                                            , Html.text "starting amount, and cancel all your current bets. "
+                                            , Html.text "Your cards will not be affected."
+                                            ]
+                                        , Button.filled "Go Bankrupt"
+                                            |> Button.button (ToggleBankruptcyOverlay id True |> wrap |> Just)
+                                            |> Button.icon (Icon.recycle |> Icon.view)
+                                            |> Button.view
                                         ]
                                   ]
-                                , bankruptcyOverlay |> Maybe.map (viewBankruptcyOverlay wrap) |> Maybe.withDefault []
+                                , bankruptcyOverlay |> Maybe.map (viewBankruptcyOverlay id) |> Maybe.withDefault []
                                 ]
                                     |> List.concat
 
@@ -352,21 +421,52 @@ view wrap model =
                             , ( "+", "Bets", userData.betValue )
                             ]
 
+                        localCardsSection =
+                            if isLocal then
+                                [ Html.li []
+                                    [ Route.a (Route.Forge |> Route.Gacha)
+                                        []
+                                        [ Icon.hammer |> Icon.view
+                                        , Html.text "Forge Cards Of Yourself"
+                                        ]
+                                    ]
+                                ]
+
+                            else
+                                []
+
+                        cardsSection =
+                            [ Html.li []
+                                [ Route.a (Collection.Overview |> Route.CardCollection id)
+                                    []
+                                    [ Icon.layerGroup |> Icon.view
+                                    , Html.text "Card Collection"
+                                    ]
+                                ]
+                                :: localCardsSection
+                                |> Html.ul [ HtmlA.class "gacha-links" ]
+                            ]
+
                         betsSection =
-                            [ Html.details [ HtmlA.class "bets", TryLoadBets id |> wrap |> always |> HtmlE.onToggle ]
+                            [ Html.details [ HtmlA.class "bets", (\_ -> TryLoadBets id |> wrap) |> HtmlE.onToggle ]
                                 [ Html.summary []
                                     [ Html.h3 [] [ Html.text "Bets Placed By This User" ]
                                     , Html.summaryMarker
                                     ]
-                                , Html.div []
-                                    (RemoteData.view (viewBets wrap model.time model.auth id) bets)
+                                , bets
+                                    |> Api.viewSpecificIdData Api.viewOrNothing (viewBets model.time model.auth) id
+                                    |> Html.div []
                                 ]
                             ]
 
                         contents =
-                            [ [ Html.h2 [ HtmlA.class "user" ] [ avatar, Html.span [] htmlTitle ]
-                              , netWorth |> List.map netWorthEntry |> Html.ul [ HtmlA.class "net-worth" ]
+                            [ [ Html.h2 [ HtmlA.class "user" ]
+                                    [ avatar, Html.span [] htmlTitle ]
+                              , netWorth
+                                    |> List.map netWorthEntry
+                                    |> Html.ul [ HtmlA.class "net-worth" ]
                               ]
+                            , cardsSection
                             , betsSection
                             , controls
                             ]
@@ -375,22 +475,29 @@ view wrap model =
             in
             { title = "User " ++ title
             , id = "user"
-            , body = user |> RemoteData.view body
+            , body = user |> Api.viewData Api.viewOrError body
             }
 
         Nothing ->
             { title = "User Profile"
             , id = "user"
-            , body = RemoteData.view (always []) RemoteData.Missing
+            , body =
+                [ Error.view
+                    { reason = Error.UserMistake
+                    , message = "You must be logged in to view your profile."
+                    }
+                ]
             }
 
 
-viewBets : (Msg -> msg) -> Time.Context -> Auth.Model -> User.Id -> AssocList.Dict Game.Id Game.WithBets -> List (Html msg)
-viewBets wrap time auth targetUserId =
+viewBets : Time.Context -> Auth.Model -> User.Id -> AssocList.Dict Game.Id Game.WithBets -> List (Html Global.Msg)
+viewBets time auth targetUserId =
     let
         viewBet gameId game ( id, bet ) =
             Html.li []
-                [ Bet.viewSummarised time
+                [ Bet.viewSummarised
+                    Global.ChangeUrl
+                    time
                     (Bet.readOnlyFromAuth auth)
                     (Just targetUserId)
                     gameId
@@ -423,8 +530,8 @@ viewBets wrap time auth targetUserId =
     AssocList.toList >> List.map viewGame >> Html.ul [ HtmlA.class "game-section" ] >> List.singleton
 
 
-viewBankruptcyOverlay : (Msg -> msg) -> BankruptcyOverlay -> List (Html msg)
-viewBankruptcyOverlay wrap { sureToggle, stats } =
+viewBankruptcyOverlay : User.Id -> BankruptcyOverlay -> List (Html Global.Msg)
+viewBankruptcyOverlay userId { sureToggle, stats } =
     let
         viewStats { amountLost, stakesLost, lockedAmountLost, lockedStakesLost, balanceAfter } =
             [ Html.p []
@@ -446,116 +553,90 @@ viewBankruptcyOverlay wrap { sureToggle, stats } =
             ]
 
         renderedStats =
-            stats |> RemoteData.view viewStats
+            stats |> Api.viewData Api.viewOrError viewStats
 
         controls =
-            [ Html.div [ HtmlA.class "dangerous" ]
-                [ Switch.view (Html.text "I am sure I want to do this.")
-                    sureToggle
+            [ Html.label [ HtmlA.class "dangerous", HtmlA.class "switch" ]
+                [ Html.span [] [ Html.text "I am sure I want to do this." ]
+                , Switch.switch
                     (SetBankruptcyToggle >> wrap |> Just)
+                    sureToggle
+                    |> Switch.view
                 ]
             , Html.div [ HtmlA.class "actions" ]
-                [ Button.view Button.Standard
-                    Button.Padded
-                    "Cancel"
-                    (Icon.times |> Icon.view |> Just)
-                    (ToggleBankruptcyOverlay False |> wrap |> Just)
+                [ Button.text "Cancel"
+                    |> Button.button (ToggleBankruptcyOverlay userId False |> wrap |> Just)
+                    |> Button.icon (Icon.times |> Icon.view)
+                    |> Button.view
                 , Html.div [ HtmlA.class "dangerous" ]
-                    [ Button.view
-                        Button.Raised
-                        Button.Padded
-                        "Go Bankrupt"
-                        (Icon.recycle |> Icon.view |> Just)
-                        (GoBankrupt |> wrap |> Maybe.when sureToggle)
+                    [ Button.filled "Go Bankrupt"
+                        |> Button.button (GoBankrupt userId Nothing |> wrap |> Maybe.when sureToggle)
+                        |> Button.icon (Icon.recycle |> Icon.view)
+                        |> Button.view
                     ]
                 ]
             ]
     in
-    [ Html.div [ HtmlA.class "overlay" ]
-        [ Html.div [ HtmlA.class "background", False |> ToggleBankruptcyOverlay |> wrap |> HtmlE.onClick ] []
-        , [ [ renderedStats, controls ]
-                |> List.concat
-                |> Html.div [ HtmlA.id "bankruptcy-overlay" ]
-          ]
-            |> Html.div [ HtmlA.class "foreground" ]
+    [ Overlay.view (False |> ToggleBankruptcyOverlay userId |> wrap)
+        [ [ renderedStats, controls ]
+            |> List.concat
+            |> Html.div [ HtmlA.id "bankruptcy-overlay" ]
         ]
     ]
 
 
-viewPermissionsOverlay : (Msg -> msg) -> User.Id -> PermissionsOverlay -> List (Html msg)
-viewPermissionsOverlay wrap userId overlay =
+viewPermissionsOverlay : User.Id -> PermissionsOverlay -> List (Html Global.Msg)
+viewPermissionsOverlay userId overlay =
     let
         setPerms perm v =
             SetPermissions userId (perm v) |> wrap
 
-        body { manageBets, manageGames, managePermissions, gameSpecific } =
-            [ Switch.view (Html.text "Manage Games") manageGames (setPerms ManageGames |> Just)
-            , Switch.view (Html.text "Manage Permissions") managePermissions (setPerms ManagePermissions |> Just)
-            , Switch.view (Html.text "Manage All Bets") manageBets (setPerms (ManageBets Nothing) |> Just)
+        body { manageBets, manageGames, managePermissions, manageGacha, gameSpecific } =
+            [ Html.label [ HtmlA.class "switch" ]
+                [ Html.span [] [ Html.text "Manage Games" ]
+                , Switch.switch (setPerms ManageGames |> Just) manageGames
+                    |> Switch.view
+                ]
+            , Html.label [ HtmlA.class "switch" ]
+                [ Html.span [] [ Html.text "Manage Permissions" ]
+                , Switch.switch (setPerms ManagePermissions |> Just) managePermissions
+                    |> Switch.view
+                ]
+            , Html.label [ HtmlA.class "switch" ]
+                [ Html.span [] [ Html.text "Manage Gacha" ]
+                , Switch.switch (setPerms ManageGacha |> Just) manageGacha
+                    |> Switch.view
+                ]
+            , Html.label [ HtmlA.class "switch" ]
+                [ Html.span [] [ Html.text "Manage All Bets" ]
+                , Switch.switch (setPerms (ManageBets Nothing) |> Just) manageBets
+                    |> Switch.view
+                ]
             , gameSpecific |> AssocList.values |> List.map viewGamePermissions |> Html.ul []
             ]
 
         viewGamePermissions { gameId, gameName, permissions } =
             Html.li []
                 [ Html.span [] [ Html.text gameName ]
-                , Html.div []
-                    [ Switch.view (Html.text "Manage")
-                        permissions.canManageBets
+                , Html.label [ HtmlA.class "switch" ]
+                    [ Html.span [] [ Html.text "Manage" ]
+                    , Switch.switch
                         (setPerms (ManageBets (Just gameId)) |> Just)
+                        permissions.manageBets
+                        |> Switch.view
                     ]
                 ]
 
         alwaysBody =
-            [ Button.view Button.Standard
-                Button.Padded
-                "Close"
-                (Icon.times |> Icon.view |> Just)
-                (TogglePermissionsOverlay False |> wrap |> Just)
+            [ Button.text "Close"
+                |> Button.button (TogglePermissionsOverlay userId False |> wrap |> Just)
+                |> Button.icon (Icon.times |> Icon.view)
+                |> Button.view
             ]
     in
-    [ Html.div [ HtmlA.class "overlay" ]
-        [ Html.div [ HtmlA.class "background", TogglePermissionsOverlay False |> wrap |> HtmlE.onClick ] []
-        , [ [ overlay.permissions |> RemoteData.view body, alwaysBody ]
-                |> List.concat
-                |> Html.div [ HtmlA.id "permissions-overlay" ]
-          ]
-            |> Html.div [ HtmlA.class "foreground" ]
+    [ Overlay.view (TogglePermissionsOverlay userId False |> wrap)
+        [ [ overlay.permissions |> Api.viewData Api.viewOrError body, alwaysBody ]
+            |> List.concat
+            |> Html.div [ HtmlA.id "permissions-overlay" ]
         ]
     ]
-
-
-loadBets : (Msg -> msg) -> String -> User.Id -> Cmd msg
-loadBets wrap origin id =
-    Api.get origin
-        { path = Api.User id Api.UserBets
-        , expect =
-            Http.expectJson (LoadBets id >> wrap)
-                (JsonD.assocListFromTupleList Game.idDecoder
-                    Game.withBetsDecoder
-                )
-        }
-
-
-loadBankruptcyStats : (Msg -> msg) -> String -> User.Id -> Cmd msg
-loadBankruptcyStats wrap origin id =
-    Api.get origin
-        { path = Api.User id Api.Bankrupt
-        , expect = Http.expectJson (LoadBankruptcyStats id >> wrap) bankruptcyStatsDecoder
-        }
-
-
-loadPermissions : (Msg -> msg) -> String -> User.Id -> Cmd msg
-loadPermissions wrap origin id =
-    Api.get origin
-        { path = Api.User id Api.Permissions
-        , expect = Http.expectJson (LoadPermissions id >> wrap) editablePermissionsDecoder
-        }
-
-
-setPermissions : (Msg -> msg) -> String -> User.Id -> SetPermission -> Cmd msg
-setPermissions wrap origin id permission =
-    Api.post origin
-        { path = Api.User id Api.Permissions
-        , body = permission |> encodeSetPermissions |> Http.jsonBody
-        , expect = NoOp |> wrap |> always |> Http.expectWhatever
-        }

@@ -10,13 +10,13 @@ module JoeBets.Page.Leaderboard.Model exposing
     )
 
 import AssocList
-import Http
+import JoeBets.Api.Data as Api
+import JoeBets.Api.Model as Api
 import JoeBets.Page.Leaderboard.Route as Route
 import JoeBets.User.Model as User
 import Json.Decode as JsonD
 import Json.Decode.Pipeline as JsonD
 import Util.Json.Decode as JsonD
-import Util.RemoteData exposing (RemoteData)
 
 
 type alias Entry specific =
@@ -59,12 +59,12 @@ debtDecoder =
 
 
 type Msg
-    = LoadNetWorth (Result Http.Error (AssocList.Dict User.Id (Entry NetWorthValue)))
-    | LoadDebt (Result Http.Error (AssocList.Dict User.Id (Entry DebtValue)))
+    = LoadNetWorth (Api.Response (AssocList.Dict User.Id (Entry NetWorthValue)))
+    | LoadDebt (Api.Response (AssocList.Dict User.Id (Entry DebtValue)))
 
 
 type alias Entries specific =
-    RemoteData (AssocList.Dict User.Id (Entry specific))
+    Api.Data (AssocList.Dict User.Id (Entry specific))
 
 
 type alias Model =

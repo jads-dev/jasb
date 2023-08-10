@@ -100,7 +100,8 @@ class Browser implements Store {
 
   get(key: string): void {
     if (this.callback !== undefined) {
-      this.callback({ key, value: this.internalGet(key) });
+      const value = this.internalGet(key);
+      this.callback({ key, ...(value !== undefined ? { value } : {}) });
     }
   }
 

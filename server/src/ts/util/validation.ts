@@ -3,9 +3,56 @@ import { either as Either } from "fp-ts";
 import { StatusCodes } from "http-status-codes";
 import * as Schema from "io-ts";
 import { formatValidationErrors } from "io-ts-reporters";
+import * as Types from "io-ts-types";
 
 import { WebError } from "../server/errors.js";
 import { PlaceholderSecretToken, SecretToken } from "./secret-token.js";
+
+export const addEditRemove = (id: Schema.Mixed, content: Schema.Mixed) => ({
+  remove: Schema.readonlyArray(
+    Schema.strict({
+      id: id,
+      version: Schema.Int,
+    }),
+  ),
+  edit: Schema.readonlyArray(
+    Schema.intersection([
+      Schema.strict({
+        id: id,
+        version: Schema.Int,
+      }),
+      content,
+    ]),
+  ),
+  add: Schema.readonlyArray(content),
+});
+
+const slugRegex = /^[._@\-0-9a-z]+$/;
+export const Slug =
+  <SlugName extends string>(slugName: SlugName) =>
+  <
+    SlugBrand extends {
+      readonly [K in SlugName]: symbol;
+    },
+  >() =>
+    Schema.brand(
+      Schema.string,
+      (slug): slug is Schema.Branded<string, SlugBrand> => slugRegex.test(slug),
+      slugName,
+    );
+
+export const Id =
+  <IdName extends string>(idName: IdName) =>
+  <
+    IdBrand extends {
+      readonly [K in IdName]: symbol;
+    },
+  >() =>
+    Schema.brand(
+      Schema.Int,
+      (id): id is Schema.Branded<Schema.Int, IdBrand> => id >= 0,
+      idName,
+    );
 
 export const Duration = new Schema.Type<Joda.Duration, string, unknown>(
   "Duration",
@@ -91,6 +138,23 @@ export const SecretTokenUri = new Schema.Type<SecretToken, string, unknown>(
   (a) => a.uri,
 );
 
+export const HexAlphaColor = new Schema.Type<Buffer, string, unknown>(
+  "HexAlphaColor",
+  (u): u is Buffer => u instanceof Buffer && u.length == 4,
+  (input, context) =>
+    Either.chain(
+      (value: string): Schema.Validation<Buffer> =>
+        value.startsWith("#") && value.length == 9
+          ? Schema.success(Buffer.from(value.substring(1), "hex"))
+          : Schema.failure(
+              input,
+              context,
+              `not a valid hex colour with alpha: ${value}`,
+            ),
+    )(Schema.string.validate(input, context)),
+  (a) => `#${a.toString("hex")}`,
+);
+
 export const Placeholder = new Schema.Type<
   PlaceholderSecretToken,
   string,
@@ -154,4 +218,30 @@ export function maybeBody<Parsed, Encoded>(
   const result = schema.decode(body);
   return Either.isRight(result) ? result.right : undefined;
 }
+
+export const requireUrlParameter = <Parsed>(
+  schema: Schema.Type<Parsed, string>,
+  description: string,
+  param: string | undefined,
+): Parsed => {
+  if (param !== undefined) {
+    const result = schema.decode(param);
+    if (Either.isRight(result)) {
+      return result.right;
+    }
+    console.log(result);
+  }
+  throw new WebError(
+    StatusCodes.NOT_FOUND,
+    `The ${description} was not found.`,
+  );
+};
+
+export const requireNumberUrlParameter = <Parsed>(
+  schema: Schema.Type<Parsed, number>,
+  description: string,
+  param: string | undefined,
+): Parsed =>
+  requireUrlParameter(Types.NumberFromString.pipe(schema), description, param);
+
 export * as Validation from "./validation.js";

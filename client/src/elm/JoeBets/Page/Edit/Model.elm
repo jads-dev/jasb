@@ -9,7 +9,6 @@ import JoeBets.Bet.Editor.Model as BetEditor
 import JoeBets.Bet.Model as Bet
 import JoeBets.Game.Editor.Model as GameEditor
 import JoeBets.Game.Id as Game
-import JoeBets.Game.Model as Game
 
 
 type EditMode

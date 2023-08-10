@@ -11,18 +11,26 @@ import FontAwesome as Icon
 import FontAwesome.Solid as Icon
 import Html
 import Html.Attributes as HtmlA
-import Http
 import JoeBets.Api as Api
+import JoeBets.Api.Data as Api
+import JoeBets.Api.Path as Api
 import JoeBets.Game as Game
+import JoeBets.Material as Material
+import JoeBets.Messages as Global
 import JoeBets.Page exposing (Page)
 import JoeBets.Page.Bets.Model as Bets
 import JoeBets.Page.Edit.Model as Edit
 import JoeBets.Page.Games.Model exposing (..)
 import JoeBets.Route as Route
 import JoeBets.User.Auth.Model as Auth
+import Material.Button as Button
 import Material.Switch as Switch
 import Time.Model as Time
-import Util.RemoteData as RemoteData
+
+
+wrap : Msg -> Global.Msg
+wrap =
+    Global.GamesMsg
 
 
 type alias Parent a =
@@ -37,37 +45,55 @@ type alias Parent a =
 
 init : Model
 init =
-    { games = RemoteData.Missing
+    { games = Api.initData
     , favouritesOnly = False
     }
 
 
-load : (Msg -> msg) -> Parent a -> ( Parent a, Cmd msg )
-load wrap model =
-    ( model
-    , Api.get model.origin
-        { path = Api.Games
-        , expect = Http.expectJson (Load >> wrap) gamesDecoder
-        }
-    )
+load : Parent a -> ( Parent a, Cmd Global.Msg )
+load ({ games } as model) =
+    let
+        ( gamesData, cmd ) =
+            { path = Api.Games
+            , wrap = Load >> wrap
+            , decoder = gamesDecoder
+            }
+                |> Api.get model.origin
+                |> Api.getData games.games
+    in
+    ( { model | games = { games | games = gamesData } }, cmd )
 
 
-update : Msg -> Parent a -> ( Parent a, Cmd msg )
+update : Msg -> Parent a -> ( Parent a, Cmd Global.Msg )
 update msg ({ games } as model) =
     case msg of
         Load response ->
-            ( { model | games = { games | games = RemoteData.load response } }, Cmd.none )
+            ( { model | games = { games | games = games.games |> Api.updateData response } }
+            , Cmd.none
+            )
 
         SetFavouritesOnly favouritesOnly ->
-            ( { model | games = { games | favouritesOnly = favouritesOnly } }, Cmd.none )
+            ( { model | games = { games | favouritesOnly = favouritesOnly } }
+            , Cmd.none
+            )
 
 
-view : (Msg -> msg) -> (Bets.Msg -> msg) -> Parent a -> Page msg
-view wrap wrapBets { auth, time, games, bets } =
+view : Parent a -> Page Global.Msg
+view { auth, time, games, bets } =
     let
         viewGame ( id, game ) =
             if not games.favouritesOnly || EverySet.member id bets.favourites.value then
-                Html.li [] [ Game.view wrapBets bets time auth.localUser id game ] |> Just
+                Html.li []
+                    [ Game.view
+                        Global.ChangeUrl
+                        Global.BetsMsg
+                        bets
+                        time
+                        auth.localUser
+                        id
+                        game
+                    ]
+                    |> Just
 
             else
                 Nothing
@@ -82,9 +108,12 @@ view wrap wrapBets { auth, time, games, bets } =
             let
                 admin =
                     if Auth.canManageGames auth.localUser then
-                        [ Route.a (Edit.Game Nothing |> Route.Edit)
-                            []
-                            [ Icon.plus |> Icon.view, Html.text " Add Game" ]
+                        [ Button.text "Add Game"
+                            |> Button.icon (Icon.plus |> Icon.view)
+                            |> Material.buttonLink
+                                Global.ChangeUrl
+                                (Edit.Game Nothing |> Route.Edit)
+                            |> Button.view
                         ]
 
                     else
@@ -102,10 +131,12 @@ view wrap wrapBets { auth, time, games, bets } =
     , id = "games"
     , body =
         Html.h2 [] [ Html.text "Games" ]
-            :: Html.div []
-                [ Switch.view (Html.text "Favourite Games Only")
-                    games.favouritesOnly
+            :: Html.label [ HtmlA.class "switch" ]
+                [ Html.span [] [ Html.text "Favourite Games Only" ]
+                , Switch.switch
                     (SetFavouritesOnly >> wrap |> Just)
+                    games.favouritesOnly
+                    |> Switch.view
                 ]
-            :: RemoteData.view body games.games
+            :: Api.viewData Api.viewOrError body games.games
     }

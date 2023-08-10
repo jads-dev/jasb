@@ -13,7 +13,9 @@ module JoeBets.Page.Bets.Model exposing
 
 import AssocList
 import EverySet exposing (EverySet)
-import Http
+import JoeBets.Api.Action as Api
+import JoeBets.Api.Data as Api
+import JoeBets.Api.Model as Api
 import JoeBets.Bet.Editor.EditableBet exposing (EditableBet)
 import JoeBets.Bet.Editor.LockMoment as LockMoment exposing (LockMoment)
 import JoeBets.Bet.Model as Bet
@@ -25,7 +27,6 @@ import JoeBets.Store.Item exposing (Item)
 import Json.Decode as JsonD
 import Json.Decode.Pipeline as JsonD
 import Util.Json.Decode as JsonD
-import Util.RemoteData as RemoteData exposing (RemoteData)
 
 
 type StoreChange
@@ -41,7 +42,7 @@ type Subset
 type alias Selected =
     { id : Game.Id
     , subset : Subset
-    , data : RemoteData Game.WithBets
+    , data : Api.Data Game.WithBets
     }
 
 
@@ -50,7 +51,8 @@ type alias Model =
     , placeBet : PlaceBet.Model
     , filters : AssocList.Dict Game.Id (Item Filters)
     , favourites : Item (EverySet Game.Id)
-    , lockStatus : Maybe (RemoteData GameLockStatus)
+    , lockStatus : Api.Data GameLockStatus
+    , lockAction : Api.ActionState
     }
 
 
@@ -97,15 +99,14 @@ gameLockStatusDecoder =
 
 type LockBetsMsg
     = Open
-    | LockBetsData (RemoteData.Response GameLockStatus)
+    | LockBetsData (Api.Response GameLockStatus)
     | Change Game.Id Bet.Id Int Bool
-    | Changed Game.Id Bet.Id EditableBet
-    | Error Http.Error
+    | Changed Game.Id Bet.Id (Api.Response EditableBet)
     | Close
 
 
 type Msg
-    = Load Game.Id Subset (RemoteData.Response Game.WithBets)
+    = Load Game.Id Subset (Api.Response Game.WithBets)
     | SetFilter Filter Bool
     | ClearFilters
     | SetFavourite Game.Id Bool

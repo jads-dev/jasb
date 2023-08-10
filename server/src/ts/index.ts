@@ -2,6 +2,7 @@ import { default as Cors } from "@koa/cors";
 import { default as Router } from "@koa/router";
 import { default as KeyGrip } from "keygrip";
 import { default as Koa } from "koa";
+import { default as EasyWS } from "koa-easy-ws";
 import { default as Helmet } from "koa-helmet";
 import { default as SourceMapSupport } from "source-map-support";
 
@@ -13,9 +14,10 @@ import { Background } from "./server/background.js";
 import { Config } from "./server/config.js";
 import { Errors } from "./server/errors.js";
 import { ExitCodes } from "./server/exit-codes.js";
+import { DiscordNotifier, NullNotifier } from "./server/external-notifier.js";
 import { Logging } from "./server/logging.js";
-import { DiscordNotifier, NullNotifier } from "./server/notifier.js";
 import { Routes } from "./server/routes.js";
+import { WebSockets } from "./server/web-sockets.js";
 
 SourceMapSupport.install();
 
@@ -37,7 +39,8 @@ const load = async (
     logger,
     store,
     auth: await Auth.init(config.auth, store),
-    notifier,
+    webSockets: new WebSockets(),
+    externalNotifier: notifier,
     imageUpload: await ObjectUpload.init(config.imageUpload),
     avatarCache,
   };
@@ -66,6 +69,10 @@ const start = async (server: Server.State): Promise<void> => {
     "base64url",
   );
 
+  // Incorrect types for easy-ws.
+  // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+  // @ts-expect-error
+  app.use(EasyWS());
   app.use(Errors.middleware(server.logger));
   app.use(Logging.middleware(server.logger));
 
@@ -76,7 +83,7 @@ const start = async (server: Server.State): Promise<void> => {
 
   app.use(root.routes()).use(root.allowedMethods());
 
-  app.listen(
+  const listening = app.listen(
     server.config.listenOn.port,
     server.config.listenOn.address,
     async () => {
@@ -85,6 +92,12 @@ const start = async (server: Server.State): Promise<void> => {
       );
     },
   );
+
+  // This is a workaround to stop websockets being killed. Not ideal but we
+  // should always be behind a proxy anyway, so we'll offload the
+  // responsibility there.
+  listening.requestTimeout = 0;
+  listening.headersTimeout = 0;
 
   process.on("SIGTERM", () => {
     unload(server)

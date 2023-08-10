@@ -25,28 +25,50 @@ header nav {
     }
   }
 
-  mwc-list-item {
-    height: 3em;
+  .user-submenu .avatar {
+    width: 1em;
+    height: 1em;
+    border-radius: 100%;
   }
-
-  .user.submenu {
-    > div > mwc-icon-button > img {
-      width: 0.75em;
-      height: 0.75em;
+  .more-submenu {
+    width: 0.5em;
+    > md-icon-button {
+      margin-left: -0.75em;
     }
   }
   .submenu {
+    flex-grow: 0;
     position: relative;
+  }
+}
 
-    .menu[open] {
-      width: 13em;
-      bottom: 0;
-      top: auto;
-    }
+.auth-error {
+  position: absolute;
+  right: 0;
+  top: 2em;
+  z-index: 1;
+
+  max-width: 30em;
+  margin: 1em;
+
+  @include colors.by-name("card");
+  padding: 0.5em;
+  border-radius: 0.5em;
+
+  display: grid;
+  grid-template:
+    "dismiss . title" auto
+    "error error error" auto
+    / auto 1fr auto;
+  gap: 0.25em;
+  align-items: center;
+
+  > h3 {
+    grid-area: title;
+    margin: 0;
   }
 
-  .error {
-    @include colors.by-name("bad");
-    align-self: flex-end;
+  > .error {
+    grid-area: error;
   }
 }

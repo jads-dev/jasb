@@ -13,9 +13,10 @@ import Html.Attributes as HtmlA
 import JoeBets.Coins as Coins
 import JoeBets.Game.Id as Game
 import JoeBets.Game.Model as Game exposing (Game)
+import JoeBets.Material as Material
 import JoeBets.Page.Bets.Model as Bets
 import JoeBets.Page.Edit.Model as Edit
-import JoeBets.Route as Route
+import JoeBets.Route as Route exposing (Route)
 import JoeBets.User as User
 import JoeBets.User.Auth.Model as Auth
 import JoeBets.User.Model as User
@@ -44,8 +45,8 @@ viewManagers { managers } =
     Html.span [ HtmlA.class "bet-managers" ] modsContent
 
 
-view : (Bets.Msg -> msg) -> Bets.Model -> Time.Context -> Maybe User.WithId -> Game.Id -> Game -> Html msg
-view wrap { favourites } time localUser id { name, cover, bets, progress, staked } =
+view : (Route -> msg) -> (Bets.Msg -> msg) -> Bets.Model -> Time.Context -> Maybe User.WithId -> Game.Id -> Game -> Html msg
+view changeUrl wrap { favourites } time localUser id { name, cover, bets, progress, staked } =
     let
         progressView =
             case progress of
@@ -95,7 +96,9 @@ view wrap { favourites } time localUser id { name, cover, bets, progress, staked
         adminContent =
             if localUser |> Auth.canManageGames then
                 [ Html.div [ HtmlA.class "admin-controls" ]
-                    [ Route.a (id |> Just |> Edit.Game |> Route.Edit) [] [ Icon.pen |> Icon.view ]
+                    [ IconButton.icon (Icon.pen |> Icon.view) "Add Game"
+                        |> Material.iconButtonLink changeUrl (id |> Just |> Edit.Game |> Route.Edit)
+                        |> IconButton.view
                     ]
                 ]
 
@@ -115,9 +118,10 @@ view wrap { favourites } time localUser id { name, cover, bets, progress, staked
                         ( OutlineIcon.star, True )
             in
             Html.div [ HtmlA.class "favourite-control" ]
-                [ IconButton.view (icon |> Icon.view)
+                [ IconButton.icon (icon |> Icon.view)
                     "Favourite"
-                    (action |> Bets.SetFavourite id |> wrap |> Just)
+                    |> IconButton.button (action |> Bets.SetFavourite id |> wrap |> Just)
+                    |> IconButton.view
                 ]
 
         interactions =

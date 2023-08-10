@@ -1,22 +1,18 @@
 import * as Schema from "io-ts";
 
 import type { Internal } from "../../internal.js";
-import { Users } from "../users/id.js";
+import { Validation } from "../../util/validation.js";
+import { Users } from "../users/core.js";
 import { Stake, Stakes } from "./stakes.js";
 
 /**
- * An ID for an option from the perspective of the API user, this is the slug
- * internally.
+ * A slug for an option.
  */
-interface OptionIdBrand {
-  readonly OptionId: unique symbol;
+interface OptionSlugBrand {
+  readonly OptionSlug: unique symbol;
 }
-export const Id = Schema.brand(
-  Schema.string,
-  (id): id is Schema.Branded<string, OptionIdBrand> => true,
-  "OptionId",
-);
-export type Id = Schema.TypeOf<typeof Id>;
+export const Slug = Validation.Slug("OptionSlug")<OptionSlugBrand>();
+export type Slug = Schema.TypeOf<typeof Slug>;
 
 /**
  * An option that can win the bet, for users to place stakes against.
@@ -25,7 +21,7 @@ export const Option = Schema.readonly(
   Schema.intersection([
     Schema.strict({
       name: Schema.string,
-      stakes: Schema.readonlyArray(Schema.tuple([Users.Id, Stake])),
+      stakes: Schema.readonlyArray(Schema.tuple([Users.Slug, Stake])),
     }),
     Schema.partial({
       image: Schema.string,
@@ -36,8 +32,8 @@ export type Option = Schema.TypeOf<typeof Option>;
 
 export const fromInternal = (
   internal: Internal.Options.Option,
-): [Id, Option] => [
-  internal.slug as Id,
+): [Slug, Option] => [
+  internal.slug,
   {
     name: internal.name,
     ...(internal.image !== null ? { image: internal.image } : {}),

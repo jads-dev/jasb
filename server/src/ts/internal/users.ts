@@ -1,17 +1,17 @@
 import { z } from "zod";
 
-import { zonedDateTime } from "./types.js";
+import { Types } from "./types.js";
 
 const UserBase = z
   .object({
-    slug: z.string(),
+    slug: Types.userSlug,
     name: z.string(),
     discriminator: z.string().nullable(),
-    created: zonedDateTime,
-    balance: z.number().int(),
+    created: Types.zonedDateTime,
+    balance: Types.int,
     avatar_url: z.string().url(),
-    staked: z.number().int(),
-    net_worth: z.number().int(),
+    staked: Types.nonNegativeInt,
+    net_worth: Types.int,
   })
   .strict();
 
@@ -19,23 +19,12 @@ export const User = z
   .object({
     manage_games: z.boolean(),
     manage_permissions: z.boolean(),
-    manage_bets: z.array(z.string()),
+    manage_gacha: z.boolean(),
+    manage_bets: z.array(Types.gameSlug),
   })
   .strict()
   .merge(UserBase);
 export type User = z.infer<typeof User>;
-
-export const Avatar = z
-  .object({
-    id: z.number().int(),
-    discord_user: z.string().nullable(),
-    hash: z.string().nullable(),
-    default_index: z.number().int().nullable(),
-    url: z.string().url(),
-    cached: z.boolean(),
-  })
-  .strict();
-export type Avatar = z.infer<typeof Avatar>;
 
 export const Leaderboard = z
   .object({
@@ -47,9 +36,9 @@ export type Leaderboard = z.infer<typeof Leaderboard>;
 
 export const LoginDetail = z
   .object({
-    user: z.number().int(),
+    user: Types.nonNegativeInt,
     session: z.string(),
-    started: zonedDateTime,
+    started: Types.zonedDateTime,
   })
   .strict();
 export type LoginDetail = z.infer<typeof LoginDetail>;
@@ -64,11 +53,11 @@ export type Summary = z.infer<typeof Summary>;
 
 export const BankruptcyStats = z
   .object({
-    amount_lost: z.number().int(),
-    stakes_lost: z.number().int(),
-    locked_amount_lost: z.number().int(),
-    locked_stakes_lost: z.number().int(),
-    balance_after: z.number().int(),
+    amount_lost: Types.int,
+    stakes_lost: Types.int,
+    locked_amount_lost: Types.int,
+    locked_stakes_lost: Types.int,
+    balance_after: Types.int,
   })
   .strict();
 export type BankruptcyStats = z.infer<typeof BankruptcyStats>;
@@ -79,7 +68,7 @@ export type BankruptcyStats = z.infer<typeof BankruptcyStats>;
  */
 export const SpecificPermissions = z
   .object({
-    game_slug: z.string(),
+    game_slug: Types.gameSlug,
     game_name: z.string(),
     manage_bets: z.boolean(),
   })
@@ -94,6 +83,7 @@ export const EditablePermissions = z
   .object({
     manage_games: z.boolean(),
     manage_permissions: z.boolean(),
+    manage_gacha: z.boolean(),
     manage_bets: z.boolean(),
     game_specific: z.array(SpecificPermissions),
   })
@@ -109,5 +99,14 @@ export const DiscordAccessToken = z
   })
   .strict();
 export type DiscordAccessToken = z.infer<typeof DiscordAccessToken>;
+
+/**
+ * The detail for forging a card.
+ */
+export const ForgeDetail = z.object({
+  name: z.string(),
+  image: z.string(),
+});
+export type ForgeDetail = z.infer<typeof ForgeDetail>;
 
 export * as Users from "./users.js";

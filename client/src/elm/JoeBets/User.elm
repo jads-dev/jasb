@@ -10,9 +10,7 @@ module JoeBets.User exposing
 import Html exposing (Html)
 import Html.Attributes as HtmlA
 import JoeBets.Route as Route
-import JoeBets.User.Auth.Model exposing (RedirectOrLoggedIn(..))
 import JoeBets.User.Model exposing (..)
-import Util.Html as Html
 
 
 type ViewMode
@@ -32,7 +30,7 @@ viewLink : ViewMode -> Id -> UserLikeWithAvatar a -> Html msg
 viewLink viewMode id user =
     Route.a (id |> Just |> Route.User)
         [ HtmlA.classList [ ( "user", True ), ( "permalink", True ), ( "compact", viewMode == Compact ) ] ]
-        [ viewAvatar id user
+        [ viewAvatar user
         , viewName user
         ]
 
@@ -69,8 +67,8 @@ viewName { name, discriminator } =
         (Html.text name :: suffix)
 
 
-viewAvatar : Id -> UserLikeWithAvatar a -> Html msg
-viewAvatar _ user =
+viewAvatar : UserLikeWithAvatar a -> Html msg
+viewAvatar user =
     let
         sharedAttrs =
             [ HtmlA.attribute "loading" "lazy"
@@ -89,6 +87,6 @@ link : WithId -> Html msg
 link { id, user } =
     Route.a (id |> Just |> Route.User)
         [ HtmlA.class "user" ]
-        [ viewAvatar id user
+        [ viewAvatar user
         , viewName user
         ]

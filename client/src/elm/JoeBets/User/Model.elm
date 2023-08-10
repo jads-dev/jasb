@@ -1,5 +1,6 @@
 module JoeBets.User.Model exposing
     ( Id
+    , Permissions
     , Summary
     , SummaryWithId
     , User
@@ -58,6 +59,7 @@ encodeId (Id string) =
 type alias Permissions =
     { manageGames : Bool
     , managePermissions : Bool
+    , manageGacha : Bool
     , manageBets : EverySet Game.Id
     }
 
@@ -66,6 +68,7 @@ defaultPermissions : Permissions
 defaultPermissions =
     { manageGames = False
     , managePermissions = False
+    , manageGacha = False
     , manageBets = EverySet.empty
     }
 
@@ -75,6 +78,7 @@ permissionsDecoder =
     JsonD.succeed Permissions
         |> JsonD.optional "manageGames" JsonD.bool False
         |> JsonD.optional "managePermissions" JsonD.bool False
+        |> JsonD.optional "manageGacha" JsonD.bool False
         |> JsonD.optional "manageBets" (JsonD.everySetFromList Game.idDecoder) EverySet.empty
 
 

@@ -9,7 +9,6 @@ module JoeBets.Store.Codecs exposing
 
 import EverySet exposing (EverySet)
 import JoeBets.Game.Id as Game
-import JoeBets.Game.Model as Game
 import JoeBets.Layout as Layout exposing (Layout)
 import JoeBets.Page.Bets.Filters as Filters exposing (Filters)
 import JoeBets.Page.Bets.Model as Bets

@@ -17,8 +17,11 @@ import FontAwesome.Solid as Icon
 import Html exposing (Html)
 import Html.Attributes as HtmlA
 import Html.Events as HtmlE
-import Http
 import JoeBets.Api as Api
+import JoeBets.Api.Error as Api
+import JoeBets.Api.Model as Api
+import JoeBets.Api.Path as Api
+import JoeBets.Messages as Global
 import JoeBets.Page.Model as Page exposing (Page)
 import JoeBets.Page.Problem.Model as Problem
 import JoeBets.Route as Route exposing (Route)
@@ -29,10 +32,14 @@ import JoeBets.User.Auth.Route exposing (..)
 import JoeBets.User.Model as User exposing (User)
 import JoeBets.User.Notifications as Notifications
 import JoeBets.User.Notifications.Model as Notifications
-import Json.Decode as JsonD
-import Util.Http.StatusCodes as Http
+import Json.Encode as JsonE
+import Material.IconButton as IconButton
 import Util.Maybe as Maybe
-import Util.RemoteData as RemoteData
+
+
+wrap : Msg -> Global.Msg
+wrap =
+    Global.AuthMsg
 
 
 type alias Parent a =
@@ -53,8 +60,8 @@ type InitiatedBy
     | System
 
 
-handleLogInResponse : (Msg -> msg) -> InitiatedBy -> Result Error RedirectOrLoggedIn -> msg
-handleLogInResponse wrap redirect result =
+handleLogInResponse : InitiatedBy -> Api.Response RedirectOrLoggedIn -> Global.Msg
+handleLogInResponse redirect result =
     case result of
         Ok continue ->
             case continue of
@@ -73,8 +80,8 @@ handleLogInResponse wrap redirect result =
             error |> Failed |> Login |> wrap
 
 
-init : (Msg -> msg) -> String -> Route -> ( Model, Cmd msg )
-init wrap origin route =
+init : String -> Route -> ( Model, Cmd Global.Msg )
+init origin route =
     let
         cmd =
             case route of
@@ -84,11 +91,9 @@ init wrap origin route =
                 _ ->
                     Api.post origin
                         { path = Api.Auth Api.Login
-                        , body = Http.emptyBody
-                        , expect =
-                            expectJsonOrUnauthorised
-                                (handleLogInResponse wrap System)
-                                redirectOrLoggedInDecoder
+                        , body = JsonE.object []
+                        , wrap = handleLogInResponse System
+                        , decoder = redirectOrLoggedInDecoder
                         }
     in
     ( { inProgress = Just LoggingIn
@@ -114,8 +119,8 @@ getLoginRedirect =
     Session.LoginRedirect |> Session.get
 
 
-load : (Msg -> msg) -> Maybe CodeAndState -> Parent a -> ( Parent a, Cmd msg )
-load wrap maybeCodeAndState ({ auth } as model) =
+load : Maybe CodeAndState -> Parent a -> ( Parent a, Cmd Global.Msg )
+load maybeCodeAndState ({ auth } as model) =
     case maybeCodeAndState of
         Nothing ->
             ( model, Cmd.none )
@@ -124,17 +129,15 @@ load wrap maybeCodeAndState ({ auth } as model) =
             ( { model | auth = { auth | inProgress = Just LoggingIn } }
             , Api.post model.origin
                 { path = Api.Auth Api.Login
-                , body = codeAndState |> encodeCodeAndState |> Http.jsonBody
-                , expect =
-                    expectJsonOrUnauthorised
-                        (handleLogInResponse wrap User)
-                        redirectOrLoggedInDecoder
+                , body = codeAndState |> encodeCodeAndState
+                , wrap = handleLogInResponse User
+                , decoder = redirectOrLoggedInDecoder
                 }
             )
 
 
-update : (Msg -> msg) -> msg -> (Notifications.Msg -> msg) -> Msg -> Parent a -> ( Parent a, Cmd msg )
-update wrap noOp wrapNotifications msg ({ route, auth, page, problem } as model) =
+update : Msg -> Parent a -> ( Parent a, Cmd Global.Msg )
+update msg ({ route, auth, page, problem } as model) =
     case msg of
         Login progress ->
             case progress of
@@ -144,39 +147,45 @@ update wrap noOp wrapNotifications msg ({ route, auth, page, problem } as model)
                         [ setLoginRedirect route
                         , Api.post model.origin
                             { path = Api.Auth Api.Login
-                            , body = Http.emptyBody
-                            , expect =
-                                expectJsonOrUnauthorised
-                                    (handleLogInResponse wrap User)
-                                    redirectOrLoggedInDecoder
+                            , body = JsonE.object []
+                            , wrap = handleLogInResponse User
+                            , decoder = redirectOrLoggedInDecoder
                             }
                         ]
                     )
 
                 FinishNotLoggedIn ->
-                    ( { model
-                        | auth =
+                    let
+                        newAuth =
                             { auth
                                 | inProgress = Nothing
                                 , localUser = Nothing
                             }
-                      }
-                    , deleteLoginRedirect
+                    in
+                    ( { model | auth = newAuth }
+                    , Cmd.batch
+                        [ deleteLoginRedirect
+                        , Notifications.changeAuthed newAuth
+                        ]
                     )
 
                 Continue { redirect } ->
                     ( model, Navigation.load redirect )
 
                 Failed error ->
-                    ( { model
-                        | auth =
+                    let
+                        newAuth =
                             { auth
                                 | inProgress = Nothing
                                 , error = Just error
                                 , localUser = Nothing
                             }
-                      }
-                    , deleteLoginRedirect
+                    in
+                    ( { model | auth = newAuth }
+                    , Cmd.batch
+                        [ deleteLoginRedirect
+                        , Notifications.changeAuthed newAuth
+                        ]
                     )
 
         SetLocalUser loggedIn ->
@@ -194,24 +203,19 @@ update wrap noOp wrapNotifications msg ({ route, auth, page, problem } as model)
                         _ ->
                             Cmd.none
 
-                newModel =
-                    { model
-                        | auth =
-                            { auth
-                                | inProgress = Nothing
-                                , localUser = Just loggedIn.user
-                                , error = Nothing
-                            }
+                newAuth =
+                    { auth
+                        | inProgress = Nothing
+                        , localUser = Just loggedIn.user
+                        , error = Nothing
                     }
-
-                ( withNotifications, notificationsCmd ) =
-                    Notifications.update
-                        wrapNotifications
-                        (loggedIn.notifications |> Ok |> Notifications.Load)
-                        newModel
             in
-            ( withNotifications
-            , Cmd.batch [ redirectCmd, notificationsCmd, getLoginRedirect ]
+            ( { model | auth = newAuth, notifications = loggedIn.notifications }
+            , Cmd.batch
+                [ redirectCmd
+                , getLoginRedirect
+                , Notifications.changeAuthed newAuth
+                ]
             )
 
         RedirectAfterLogin maybeRoute ->
@@ -228,23 +232,36 @@ update wrap noOp wrapNotifications msg ({ route, auth, page, problem } as model)
                     ( model, Cmd.none )
 
         Logout ->
-            ( { model
-                | auth =
+            let
+                newAuth =
                     { auth
                         | inProgress = Nothing
                         , localUser = Nothing
                     }
-              }
-            , Api.post model.origin
-                { path = Api.Auth Api.Logout
-                , body = Http.emptyBody
-                , expect = Http.expectWhatever (always noOp)
-                }
+
+                logoutRequest =
+                    Api.post model.origin
+                        { path = Api.Auth Api.Logout
+                        , body = JsonE.object []
+                        , wrap = \_ -> "Logout result" |> Global.NoOp
+                        , decoder = User.idDecoder
+                        }
+            in
+            ( { model | auth = newAuth }
+            , Cmd.batch
+                [ logoutRequest
+                , Notifications.changeAuthed newAuth
+                ]
+            )
+
+        DismissError ->
+            ( { model | auth = { auth | error = Nothing } }
+            , Cmd.none
             )
 
 
-logInOutButton : (Msg -> msg) -> Parent a -> Html msg
-logInOutButton wrap { auth } =
+logInOutButton : Parent a -> Html Global.Msg
+logInOutButton { auth } =
     let
         ( icon, action, text ) =
             case auth.localUser of
@@ -265,8 +282,8 @@ logInOutButton wrap { auth } =
     Html.button [ action ] [ Icon.view icon, Html.text text ]
 
 
-logInButton : (Msg -> msg) -> Model -> Html msg -> Html msg
-logInButton wrap auth content =
+logInButton : Model -> Html Global.Msg -> Html Global.Msg
+logInButton auth content =
     let
         button =
             case auth.localUser of
@@ -286,49 +303,21 @@ logInButton wrap auth content =
         |> Maybe.withDefault content
 
 
-viewError : { a | auth : Model } -> List (Html msg)
+viewError : { a | auth : Model } -> List (Html Global.Msg)
 viewError { auth } =
     case auth.error of
-        Just Unauthorized ->
-            [ Html.div [ HtmlA.class "error" ] [ Html.text "Unauthorized" ] ]
-
-        Just (HttpError error) ->
-            [ Html.div [ HtmlA.class "error" ] [ error |> RemoteData.errorToString |> Html.text ] ]
+        Just error ->
+            [ Html.div [ HtmlA.class "auth-error" ]
+                [ IconButton.icon (Icon.view Icon.close) "Dismiss"
+                    |> IconButton.button (DismissError |> wrap |> Just)
+                    |> IconButton.view
+                , Html.h3 [] [ Html.text "Problem logging in:" ]
+                , Api.viewError error
+                ]
+            ]
 
         Nothing ->
             []
-
-
-expectJsonOrUnauthorised : (Result Error a -> msg) -> JsonD.Decoder a -> Http.Expect msg
-expectJsonOrUnauthorised wrapResult decoder =
-    let
-        handleResponse response =
-            case response of
-                Http.BadUrl_ url ->
-                    url |> Http.BadUrl |> HttpError |> Err
-
-                Http.Timeout_ ->
-                    Http.Timeout |> HttpError |> Err
-
-                Http.NetworkError_ ->
-                    Http.NetworkError |> HttpError |> Err
-
-                Http.BadStatus_ { statusCode } _ ->
-                    if statusCode == Http.unauthorized then
-                        Unauthorized |> Err
-
-                    else
-                        statusCode |> Http.BadStatus |> HttpError |> Err
-
-                Http.GoodStatus_ _ body ->
-                    case JsonD.decodeString decoder body of
-                        Ok value ->
-                            Ok value
-
-                        Err err ->
-                            err |> JsonD.errorToString |> Http.BadBody |> HttpError |> Err
-    in
-    Http.expectStringResponse wrapResult handleResponse
 
 
 updateLocalUser : (User.Id -> User -> User) -> { parent | auth : Model } -> { parent | auth : Model }

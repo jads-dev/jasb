@@ -8,22 +8,25 @@ module JoeBets.Game.Editor exposing
     )
 
 import AssocList
+import Browser.Navigation as Browser
 import FontAwesome as Icon
 import FontAwesome.Solid as Icon
 import Html exposing (Html)
 import Html.Attributes as HtmlA
-import Http
 import JoeBets.Api as Api
+import JoeBets.Api.Action as Api
+import JoeBets.Api.Data as Api
+import JoeBets.Api.Path as Api
 import JoeBets.Editing.Slug as Slug
 import JoeBets.Editing.Uploader as Uploader
+import JoeBets.Editing.Validator as Validator exposing (Validator)
 import JoeBets.Game as Game
 import JoeBets.Game.Editor.Model exposing (..)
 import JoeBets.Game.Id as Game
 import JoeBets.Game.Model as Game exposing (Game)
 import JoeBets.Page.Bets.Model as Bets
-import JoeBets.Page.Edit.Validator as Validator exposing (Validator)
+import JoeBets.Route as Route exposing (Route)
 import JoeBets.User.Auth.Model as Auth
-import Material.Attributes as Material
 import Material.Button as Button
 import Material.TextField as TextField
 import Time
@@ -31,7 +34,6 @@ import Time.Date as Date
 import Time.DateTime as DateTime
 import Time.Model as Time
 import Util.Maybe as Maybe
-import Util.RemoteData as RemoteData
 import Util.Url as Url
 
 
@@ -41,12 +43,13 @@ type alias Parent a =
         , origin : String
         , auth : Auth.Model
         , bets : Bets.Model
+        , navigationKey : Browser.Key
     }
 
 
-empty : Maybe Game.Id -> Model
-empty maybeGameId =
-    { source = maybeGameId |> Maybe.map (\id -> ( id, RemoteData.Missing ))
+empty : Model
+empty =
+    { source = Nothing
     , id = Slug.Auto
     , name = ""
     , cover = Uploader.init
@@ -54,7 +57,33 @@ empty maybeGameId =
     , start = ""
     , finish = ""
     , order = Nothing
+    , saving = Api.initAction
     }
+
+
+fromId : String -> (Msg -> msg) -> Game.Id -> ( Model, Cmd msg )
+fromId origin wrap gameId =
+    let
+        ( data, cmd ) =
+            { path = Api.Game gameId Api.GameRoot
+            , decoder = Game.decoder
+            , wrap = Load gameId >> wrap
+            }
+                |> Api.get origin
+                |> Api.initGetData
+    in
+    ( { source = Just ( gameId, data )
+      , id = Slug.Auto
+      , name = ""
+      , cover = Uploader.init
+      , bets = 0
+      , start = ""
+      , finish = ""
+      , order = Nothing
+      , saving = Api.initAction
+      }
+    , cmd
+    )
 
 
 diff : Model -> Body
@@ -62,12 +91,12 @@ diff model =
     let
         ifDifferent getOld getNew =
             Maybe.ifDifferent
-                (model.source |> Maybe.andThen (Tuple.second >> RemoteData.toMaybe) |> Maybe.map getOld)
+                (model.source |> Maybe.andThen (Tuple.second >> Api.dataToMaybe) |> Maybe.map getOld)
                 (model |> getNew |> Just)
                 |> Maybe.andThen identity
     in
     Body
-        (model.source |> Maybe.andThen (Tuple.second >> RemoteData.toMaybe) |> Maybe.map .version)
+        (model.source |> Maybe.andThen (Tuple.second >> Api.dataToMaybe) |> Maybe.map .version)
         (ifDifferent .name .name)
         (ifDifferent .cover (.cover >> Uploader.toUrl))
         (ifDifferent (.progress >> Game.start) (.start >> Date.fromIso))
@@ -76,23 +105,8 @@ diff model =
 
 
 load : String -> (Msg -> msg) -> Maybe Game.Id -> ( Model, Cmd msg )
-load origin wrap maybeGameId =
-    let
-        model =
-            empty maybeGameId
-
-        cmd =
-            case maybeGameId of
-                Just id ->
-                    Api.get origin
-                        { path = Api.Game id Api.GameRoot
-                        , expect = Http.expectJson (Load id >> wrap) Game.decoder
-                        }
-
-                Nothing ->
-                    Cmd.none
-    in
-    ( model, cmd )
+load origin wrap =
+    Maybe.map (fromId origin wrap) >> Maybe.withDefault ( empty, Cmd.none )
 
 
 isNew : Model -> Bool
@@ -114,7 +128,7 @@ fromGame id game =
                 Game.Finished { start, finish } ->
                     ( Just start, Just finish )
     in
-    { source = Just ( id, RemoteData.Loaded game )
+    { source = Just ( id, Api.initDataFromValue game )
     , id = Slug.Locked id
     , name = game.name
     , cover = game.cover |> Uploader.fromUrl
@@ -122,11 +136,12 @@ fromGame id game =
     , start = startDate |> Maybe.map Date.toIso |> Maybe.withDefault ""
     , finish = finishDate |> Maybe.map Date.toIso |> Maybe.withDefault ""
     , order = game.order
+    , saving = Api.initAction
     }
 
 
 update : (Msg -> msg) -> Msg -> Parent a -> Model -> ( Model, Cmd msg )
-update wrap msg parent model =
+update wrap msg ({ origin, navigationKey } as parent) model =
     case msg of
         Load id result ->
             case result of
@@ -134,20 +149,20 @@ update wrap msg parent model =
                     ( fromGame id game, Cmd.none )
 
                 Err error ->
-                    ( { model | source = Just ( id, RemoteData.Failed error ) }, Cmd.none )
+                    ( { model | source = Just ( id, Api.initDataFromError error ) }, Cmd.none )
 
         Reset ->
             case model.source of
                 Just ( gameId, data ) ->
-                    case data of
-                        RemoteData.Loaded game ->
+                    case data |> Api.dataToMaybe of
+                        Just game ->
                             ( fromGame gameId game, Cmd.none )
 
-                        _ ->
+                        Nothing ->
                             ( model, Cmd.none )
 
                 Nothing ->
-                    ( empty Nothing, Cmd.none )
+                    ( empty, Cmd.none )
 
         ChangeId id ->
             ( { model | id = id |> Url.slugify |> Game.idFromString |> Slug.Manual }, Cmd.none )
@@ -179,6 +194,43 @@ update wrap msg parent model =
             in
             ( { model | order = order }, Cmd.none )
 
+        Save ->
+            let
+                method =
+                    if isNew model then
+                        Api.put
+
+                    else
+                        Api.post
+
+                ( gameId, _ ) =
+                    toGame model
+
+                ( actionState, cmd ) =
+                    { path = Api.GameRoot |> Api.Game gameId
+                    , body = model |> diff |> encodeBody
+                    , wrap = Saved gameId >> wrap
+                    , decoder = Game.decoder
+                    }
+                        |> method origin
+                        |> Api.doAction model.saving
+            in
+            ( { model | saving = actionState }, cmd )
+
+        Saved gameId result ->
+            let
+                ( maybeGame, actionState ) =
+                    model.saving |> Api.handleActionResult result
+
+                redirect _ =
+                    gameId
+                        |> Route.Bets Bets.Active
+                        |> Route.pushUrl navigationKey
+            in
+            ( { model | saving = actionState }
+            , maybeGame |> Maybe.map redirect |> Maybe.withDefault Cmd.none
+            )
+
 
 toGame : Model -> ( Game.Id, Game )
 toGame model =
@@ -197,7 +249,7 @@ toGame model =
                     {} |> Game.Future
 
         { version, created, modified, staked, managers } =
-            case model.source |> Maybe.map Tuple.second |> Maybe.andThen RemoteData.toMaybe of
+            case model.source |> Maybe.map Tuple.second |> Maybe.andThen Api.dataToMaybe of
                 Just source ->
                     { version = source.version + 1
                     , created = source.created
@@ -301,82 +353,77 @@ validator =
         ]
 
 
-view : msg -> (Msg -> msg) -> (Bets.Msg -> msg) -> Parent a -> Model -> List (Html msg)
-view save wrap wrapBets parent model =
+view : (Route -> msg) -> (Msg -> msg) -> (Bets.Msg -> msg) -> Parent a -> Model -> List (Html msg)
+view changeUrl wrap wrapBets parent model =
     let
-        body () =
-            let
-                ( id, game ) =
-                    toGame model
+        ( id, game ) =
+            toGame model
 
-                source =
-                    model.source |> Maybe.map Tuple.second |> Maybe.andThen RemoteData.toMaybe
+        source =
+            model.source |> Maybe.map Tuple.second |> Maybe.andThen Api.dataToMaybe
 
-                preview =
-                    [ Game.view wrapBets parent.bets parent.time parent.auth.localUser id game ]
+        preview =
+            [ Game.view changeUrl wrapBets parent.bets parent.time parent.auth.localUser id game ]
 
-                textField name type_ value action attrs =
-                    TextField.viewWithAttrs name type_ value action (Material.outlined :: attrs)
-            in
-            [ Html.div [ HtmlA.class "core-content" ]
-                [ Html.div [ HtmlA.class "editor" ]
-                    [ Html.h3 [] [ Html.text "Metadata" ]
-                    , Html.div [ HtmlA.class "metadata" ]
-                        [ Html.div [ HtmlA.class "created" ]
-                            [ Html.text "Created: "
-                            , source |> Maybe.map (.created >> DateTime.view parent.time Time.Absolute) |> Maybe.withDefault (Html.text "- (New)")
-                            ]
-                        , Html.div [ HtmlA.class "modified" ]
-                            [ Html.text "Last Modified: "
-                            , source |> Maybe.map (.modified >> DateTime.view parent.time Time.Absolute) |> Maybe.withDefault (Html.text "- (New)")
-                            ]
-                        , Html.div [ HtmlA.class "version" ]
-                            [ Html.text "Version: "
-                            , source |> Maybe.map (.version >> String.fromInt) |> Maybe.withDefault "- (New)" |> Html.text
-                            ]
-                        ]
-                    , Slug.view Game.idFromString Game.idToString (ChangeId >> wrap) model.name model.id
-                    , textField "Name" TextField.Text model.name (ChangeName >> wrap |> Just) [ HtmlA.required True ]
-                    , Validator.view nameValidator model
-                    , Uploader.view (CoverMsg >> wrap) coverUploaderModel model.cover
-                    , Validator.view coverValidator model
-                    , Date.viewEditor "Start"
-                        model.start
-                        (ChangeStart >> wrap |> Just)
-                        [ Material.outlined ]
-                    , Validator.view startValidator model
-                    , Date.viewEditor "Finish"
-                        model.finish
-                        (ChangeFinish >> wrap |> Just)
-                        [ Material.outlined ]
-                    , Validator.view finishValidator model
-                    , textField "Order"
-                        TextField.Number
-                        (model.order |> Maybe.map String.fromInt |> Maybe.withDefault "")
-                        (ChangeOrder >> wrap |> Just)
-                        []
-                    ]
-                , Html.div [ HtmlA.class "preview" ] preview
-                ]
-            , Html.div [ HtmlA.class "controls" ]
-                [ Button.view Button.Standard
-                    Button.Padded
-                    "Reset"
-                    (Icon.undo |> Icon.view |> Just)
-                    (Reset |> wrap |> Just)
-                , Button.view Button.Raised
-                    Button.Padded
-                    "Save"
-                    (Icon.save |> Icon.view |> Just)
-                    (save |> Validator.whenValid validator model)
-                ]
-            ]
+        ifNotSaving =
+            Api.ifNotWorking model.saving
     in
-    model.source
-        |> Maybe.map Tuple.second
-        |> Maybe.map (RemoteData.map (always ()))
-        |> Maybe.withDefault (RemoteData.Loaded ())
-        |> RemoteData.view body
+    [ Html.div [ HtmlA.class "core-content" ]
+        [ Html.div [ HtmlA.class "editor" ]
+            [ Html.h3 [] [ Html.text "Metadata" ]
+            , Html.div [ HtmlA.class "metadata" ]
+                [ Html.div [ HtmlA.class "created" ]
+                    [ Html.text "Created: "
+                    , source |> Maybe.map (.created >> DateTime.view parent.time Time.Absolute) |> Maybe.withDefault (Html.text "- (New)")
+                    ]
+                , Html.div [ HtmlA.class "modified" ]
+                    [ Html.text "Last Modified: "
+                    , source |> Maybe.map (.modified >> DateTime.view parent.time Time.Absolute) |> Maybe.withDefault (Html.text "- (New)")
+                    ]
+                , Html.div [ HtmlA.class "version" ]
+                    [ Html.text "Version: "
+                    , source |> Maybe.map (.version >> String.fromInt) |> Maybe.withDefault "- (New)" |> Html.text
+                    ]
+                ]
+            , Slug.view Game.idFromString Game.idToString (ChangeId >> wrap |> Just |> ifNotSaving) model.name model.id
+            , TextField.outlined "Name" (ChangeName >> wrap |> Just |> ifNotSaving) model.name
+                |> TextField.required True
+                |> Validator.textFieldError nameValidator model
+                |> TextField.view
+            , Uploader.view (CoverMsg >> wrap |> Just |> ifNotSaving) coverUploaderModel model.cover
+            , Validator.view coverValidator model
+            , Date.viewEditor "Start"
+                model.start
+                (ChangeStart >> wrap |> Just |> ifNotSaving)
+                []
+            , Validator.view startValidator model
+            , Date.viewEditor "Finish"
+                model.finish
+                (ChangeFinish >> wrap |> Just |> ifNotSaving)
+                []
+            , Validator.view finishValidator model
+            , TextField.outlined "Order"
+                (ChangeOrder >> wrap |> Just |> ifNotSaving)
+                (model.order |> Maybe.map String.fromInt |> Maybe.withDefault "")
+                |> TextField.view
+            ]
+        , Html.div [ HtmlA.class "preview" ] preview
+        ]
+    , model.source
+        |> Maybe.map (Tuple.second >> Api.viewErrorIfFailed)
+        |> Maybe.withDefault []
+        |> Html.div []
+    , Html.div [ HtmlA.class "controls" ]
+        [ Button.text "Reset"
+            |> Button.button (Reset |> wrap |> Just)
+            |> Button.icon (Icon.undo |> Icon.view)
+            |> Button.view
+        , Button.text "Save"
+            |> Button.button (Save |> wrap |> Validator.whenValid validator model |> ifNotSaving)
+            |> Button.icon (Icon.save |> Icon.view)
+            |> Button.view
+        ]
+    ]
 
 
 coverUploaderModel : Uploader.Model

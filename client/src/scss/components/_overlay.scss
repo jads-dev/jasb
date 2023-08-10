@@ -11,12 +11,12 @@
   }
 
   .background {
-    z-index: 998;
+    z-index: calc((var(--overlay-level, 0) * 2) + 98);
     @include colors.by_name("overlay");
   }
 
   .foreground {
-    z-index: 999;
+    z-index: calc((var(--overlay-level, 0) * 2) + 99);
     max-height: 100vh;
     max-width: 100vw;
     overflow: hidden;

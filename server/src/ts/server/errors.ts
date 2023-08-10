@@ -14,10 +14,13 @@ export class WebError extends Error {
   }
 }
 
-export const handler = (log: Logging.Logger, error: unknown): number => {
+export const handler = (
+  log: Logging.Logger,
+  error: unknown,
+): { status: number; message: string } => {
   if (error instanceof WebError) {
     log.warn(error.message);
-    return error.status;
+    return { status: error.status, message: error.message };
   } else if (error instanceof SchemaValidationError) {
     log.error(error.message, {
       exception: error,
@@ -25,10 +28,16 @@ export const handler = (log: Logging.Logger, error: unknown): number => {
       row: JSON.stringify(error.row, undefined, 2),
       issues: JSON.stringify(error.issues, undefined, 2),
     });
-    return StatusCodes.INTERNAL_SERVER_ERROR;
+    return {
+      status: StatusCodes.INTERNAL_SERVER_ERROR,
+      message: "Unhandled database error.",
+    };
   } else {
     log.error("Unresolved error: ", { exception: error });
-    return StatusCodes.INTERNAL_SERVER_ERROR;
+    return {
+      status: StatusCodes.INTERNAL_SERVER_ERROR,
+      message: "Unhandled server eror.",
+    };
   }
 };
 
@@ -38,11 +47,12 @@ export const middleware =
     try {
       await next();
     } catch (error) {
-      const finalError = handler(log, error);
-      if (finalError === StatusCodes.UNAUTHORIZED) {
+      const { status, message } = handler(log, error);
+      if (status === StatusCodes.UNAUTHORIZED) {
         ctx.cookies.set(Auth.sessionCookieName, null, { signed: true });
       }
-      ctx.status = finalError;
+      ctx.status = status;
+      ctx.body = message;
     }
   };
 

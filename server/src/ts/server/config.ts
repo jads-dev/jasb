@@ -14,11 +14,22 @@ export class InvalidConfigError extends Error {
   }
 }
 
+const GachaRules = Schema.strict({
+  maxPity: Schema.Int,
+  scrapPerRoll: Schema.Int,
+  rewards: Schema.strict({
+    winBetRolls: Schema.Int,
+    loseBetScrap: Schema.Int,
+  }),
+});
+export type GachaRules = Schema.TypeOf<typeof GachaRules>;
+
 const Rules = Schema.strict({
   initialBalance: Schema.Int,
   maxStakeWhileInDebt: Schema.Int,
   notableStake: Schema.Int,
   minStake: Schema.Int,
+  gacha: GachaRules,
 });
 export type Rules = Schema.TypeOf<typeof Rules>;
 
@@ -253,6 +264,14 @@ export const builtIn: Server = {
     maxStakeWhileInDebt: 100 as Schema.Int,
     notableStake: 500 as Schema.Int,
     minStake: 25 as Schema.Int,
+    gacha: {
+      maxPity: 75 as Schema.Int,
+      scrapPerRoll: 5 as Schema.Int,
+      rewards: {
+        winBetRolls: 1 as Schema.Int,
+        loseBetScrap: 2 as Schema.Int,
+      },
+    },
   },
 
   store: {

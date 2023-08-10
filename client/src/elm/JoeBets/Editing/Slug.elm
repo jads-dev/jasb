@@ -8,10 +8,8 @@ module JoeBets.Editing.Slug exposing
     )
 
 import Html exposing (Html)
-import Html.Attributes as HtmlA
-import JoeBets.Page.Edit.Validator as Validator exposing (Validator)
+import JoeBets.Editing.Validator as Validator exposing (Validator)
 import List.Extra as List
-import Material.Attributes as Material
 import Material.TextField as TextField
 import Util.Url as Url
 
@@ -50,26 +48,27 @@ set idFromString name slug =
             name |> Maybe.map (Url.slugify >> idFromString >> Manual) |> Maybe.withDefault Auto
 
 
-view : (String -> id) -> (id -> String) -> (String -> msg) -> String -> Slug id -> Html msg
+view : (String -> id) -> (id -> String) -> Maybe (String -> msg) -> String -> Slug id -> Html msg
 view idFromString idToString changeId name slug =
     let
         value =
             resolve idFromString name slug
 
-        ( title, action ) =
+        ( supportingText, action ) =
             case slug of
                 Locked _ ->
-                    ( [ HtmlA.title "Can't change the id/slug after first save." ], Nothing )
+                    ( "Can't change the id/slug after first save.", Nothing )
 
                 _ ->
-                    ( [], changeId |> Just )
+                    ( "Slugs must be unique, and are limited in length and character set to be used in URLs."
+                    , changeId
+                    )
     in
-    TextField.viewWithAttrs
-        "Id"
-        TextField.Text
-        (idToString value)
+    TextField.outlined "Id"
         action
-        (Material.outlined :: title)
+        (idToString value)
+        |> TextField.supportingText supportingText
+        |> TextField.view
 
 
 validator : (String -> id) -> (value -> ( Slug id, String )) -> List value -> Validator value

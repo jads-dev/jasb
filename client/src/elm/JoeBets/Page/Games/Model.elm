@@ -6,16 +6,17 @@ module JoeBets.Page.Games.Model exposing
     )
 
 import AssocList
+import JoeBets.Api.Data as Api
+import JoeBets.Api.Model as Api
 import JoeBets.Game.Id as Game
 import JoeBets.Game.Model as Game exposing (Game)
 import Json.Decode as JsonD
 import Json.Decode.Pipeline as JsonD
 import Util.Json.Decode as JsonD
-import Util.RemoteData as RemoteData exposing (RemoteData)
 
 
 type alias Model =
-    { games : RemoteData Games
+    { games : Api.Data Games
     , favouritesOnly : Bool
     }
 
@@ -40,5 +41,5 @@ gamesDecoder =
 
 
 type Msg
-    = Load (RemoteData.Response Games)
+    = Load (Api.Response Games)
     | SetFavouritesOnly Bool

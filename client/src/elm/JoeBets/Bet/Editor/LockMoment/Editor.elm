@@ -2,7 +2,6 @@ module JoeBets.Bet.Editor.LockMoment.Editor exposing
     ( Editor
     , EditorMsg(..)
     , Item
-    , SaveState(..)
     , itemFromLockMoment
     , updateEditor
     , viewEditor
@@ -11,23 +10,23 @@ module JoeBets.Bet.Editor.LockMoment.Editor exposing
 import AssocList
 import EverySet
 import FontAwesome as Icon
-import FontAwesome.Attributes as Icon
 import FontAwesome.Solid as Icon
 import Html exposing (Html)
 import Html.Attributes as HtmlA
 import Html.Events as HtmlE
 import Html.Keyed as HtmlK
-import Http
 import JoeBets.Api as Api
+import JoeBets.Api.Action as Api
+import JoeBets.Api.Data as Api
+import JoeBets.Api.Error as Api
+import JoeBets.Api.Path as Api
 import JoeBets.Bet.Editor.LockMoment exposing (..)
 import JoeBets.Editing.Order as Order
 import JoeBets.Editing.Slug as Slug exposing (Slug)
+import JoeBets.Editing.Validator as Validator exposing (Validator)
 import JoeBets.Game.Id as Game
-import JoeBets.Page.Edit.Validator as Validator exposing (Validator)
-import JoeBets.Page.Feed.Model exposing (Msg(..))
+import JoeBets.Overlay as Overlay
 import Json.Encode as JsonE
-import List.Extra as List
-import Material.Attributes as Material
 import Material.Button as Button
 import Material.IconButton as IconButton
 import Material.TextField as TextField
@@ -35,7 +34,6 @@ import Task
 import Time.DateTime as DateTime exposing (DateTime)
 import Util.Json.Encode.Pipeline as JsonE
 import Util.Maybe as Maybe
-import Util.RemoteData as RemoteData
 
 
 type alias EditorId =
@@ -51,7 +49,7 @@ type EditorMsg
     | Remove EditorId
     | CancelEdit
     | SaveEdit
-    | SaveError Http.Error
+    | SaveError Api.Error
 
 
 type alias Item =
@@ -65,16 +63,10 @@ type alias Item =
     }
 
 
-type SaveState
-    = Unsaved
-    | Saving
-    | ErrorSaving Http.Error
-
-
 type alias Editor =
     { lockMoments : AssocList.Dict Int Item
     , nextEditorId : EditorId
-    , saved : SaveState
+    , save : Api.ActionState
     }
 
 
@@ -90,7 +82,7 @@ ifDifferent a b =
 encodeItem : Id -> Maybe String -> Maybe Int -> Maybe Int -> JsonE.Value
 encodeItem id name order version =
     JsonE.startObject
-        |> JsonE.field "id" (id |> encodeId)
+        |> JsonE.field "id" encodeId id
         |> JsonE.maybeField "name" JsonE.string name
         |> JsonE.maybeField "order" JsonE.int order
         |> JsonE.maybeField "version" JsonE.int version
@@ -211,7 +203,7 @@ init lockMoments =
     in
     { lockMoments = items
     , nextEditorId = items |> AssocList.size
-    , saved = Unsaved
+    , save = Api.initAction
     }
 
 
@@ -297,7 +289,7 @@ updateEditor origin wrap updateContext context msg maybeModel =
 
         ShowEditor ->
             ( context.lockMoments
-                |> RemoteData.toMaybe
+                |> Api.dataToMaybe
                 |> Maybe.map (\r -> init r)
             , Cmd.none
             )
@@ -306,7 +298,7 @@ updateEditor origin wrap updateContext context msg maybeModel =
             ( Nothing, Cmd.none )
 
         SaveEdit ->
-            case ( maybeModel, context.lockMoments |> RemoteData.toMaybe ) of
+            case ( maybeModel, context.lockMoments |> Api.dataToMaybe ) of
                 ( Just model, Just previousLockMoments ) ->
                     let
                         handleResult result =
@@ -317,14 +309,16 @@ updateEditor origin wrap updateContext context msg maybeModel =
                                 Err error ->
                                     error |> SaveError |> wrap
 
-                        cmd =
+                        ( save, cmd ) =
                             Api.post origin
                                 { path = Api.Game context.game Api.LockMoments
-                                , body = encodeLockMoments previousLockMoments model.lockMoments |> Http.jsonBody
-                                , expect = Http.expectJson handleResult lockMomentsDecoder
+                                , body = encodeLockMoments previousLockMoments model.lockMoments
+                                , wrap = handleResult
+                                , decoder = lockMomentsDecoder
                                 }
+                                |> Api.doAction model.save
                     in
-                    ( Just { model | saved = Saving }, cmd )
+                    ( Just { model | save = save }, cmd )
 
                 _ ->
                     ( maybeModel, Cmd.none )
@@ -332,7 +326,7 @@ updateEditor origin wrap updateContext context msg maybeModel =
         SaveError problem ->
             let
                 editModel model =
-                    { model | saved = ErrorSaving problem }
+                    { model | save = Api.failAction problem }
             in
             ( maybeModel |> Maybe.map editModel, Cmd.none )
 
@@ -374,33 +368,40 @@ itemsValidator lockMoments =
 viewItem : (EditorMsg -> msg) -> Editor -> EditorId -> Item -> Html msg
 viewItem wrap editor editorId ({ slug, name, order, bets } as item) =
     let
-        textField title type_ value action attrs =
-            TextField.viewWithAttrs title type_ value action (Material.outlined :: attrs)
-
         orderNumber =
             order |> String.toFloat
 
+        whenNotSaving =
+            Api.ifNotWorking editor.save
+
         orderButtonAction modify =
-            orderNumber |> Maybe.map (modify >> String.fromFloat >> SetOrder True editorId >> wrap)
+            orderNumber
+                |> Maybe.map (modify >> String.fromFloat >> SetOrder True editorId >> wrap)
+                |> whenNotSaving
 
         orderEditor =
             Html.div [ HtmlA.class "order" ]
-                [ IconButton.view (Icon.arrowUp |> Icon.view)
+                [ IconButton.icon (Icon.arrowUp |> Icon.view)
                     "Move Up"
-                    (orderButtonAction (\o -> o - 1.5))
-                , textField "Order"
-                    TextField.Number
-                    order
-                    (SetOrder False editorId >> wrap |> Just)
-                    [ HtmlE.onBlur (SetOrder True editorId order |> wrap) ]
-                , IconButton.view (Icon.arrowDown |> Icon.view)
+                    |> IconButton.button (orderButtonAction (\o -> o - 1.5))
+                    |> IconButton.view
+                , TextField.outlined "Order" (SetOrder False editorId >> wrap |> Just) order
+                    |> TextField.attrs [ HtmlE.onBlur (SetOrder True editorId order |> wrap) ]
+                    |> TextField.view
+                , IconButton.icon (Icon.arrowDown |> Icon.view)
                     "Move Down"
-                    (orderButtonAction (\o -> o + 1.5))
+                    |> IconButton.button (orderButtonAction (\o -> o + 1.5))
+                    |> IconButton.view
                 , Validator.view (itemOrderValidator editor.lockMoments) item
                 ]
 
         slugEditor =
-            Slug.view idFromString idToString (Just >> SetSlug editorId >> wrap) name slug
+            Slug.view
+                idFromString
+                idToString
+                (Just >> SetSlug editorId >> wrap |> Just |> whenNotSaving)
+                name
+                slug
     in
     Html.li [ HtmlA.class "lock-moment-editor" ]
         [ orderEditor
@@ -410,11 +411,14 @@ viewItem wrap editor editorId ({ slug, name, order, bets } as item) =
                     [ slugEditor
                     , Validator.view (itemSlugValidator editor.lockMoments) item
                     ]
-                , IconButton.view (Icon.trash |> Icon.view)
+                , IconButton.icon (Icon.trash |> Icon.view)
                     "Delete"
-                    (Remove editorId |> wrap |> Maybe.whenNot (bets > 0))
+                    |> IconButton.button (Remove editorId |> wrap |> Maybe.whenNot (bets > 0) |> whenNotSaving)
+                    |> IconButton.view
                 ]
-            , textField "Name" TextField.Text name (SetName editorId >> wrap |> Just) [ HtmlA.required True ]
+            , TextField.outlined "Name" (SetName editorId >> wrap |> Just |> whenNotSaving) name
+                |> TextField.required True
+                |> TextField.view
             , Validator.view itemNameValidator name
             ]
         ]
@@ -425,22 +429,6 @@ viewEditor wrap context maybeModel =
     case maybeModel of
         Just model ->
             let
-                savingState =
-                    case model.saved of
-                        ErrorSaving error ->
-                            [ Html.p [ HtmlA.class "error" ]
-                                [ error |> RemoteData.errorToString |> Html.text
-                                ]
-                            ]
-
-                        Saving ->
-                            [ Html.div [ HtmlA.class "loading" ]
-                                [ Icon.spinner |> Icon.styled [ Icon.spinPulse ] |> Icon.view ]
-                            ]
-
-                        Unsaved ->
-                            []
-
                 editorContent _ =
                     [ Html.h3 [] [ Html.text "Lock Moments" ]
                     , Html.p []
@@ -458,41 +446,35 @@ viewEditor wrap context maybeModel =
                         |> List.map (\( editorId, item ) -> ( String.fromInt editorId, viewItem wrap model editorId item ))
                         |> HtmlK.ol [ HtmlA.class "editors" ]
                     , Html.div [ HtmlA.class "moments-actions" ]
-                        [ Button.view Button.Standard
-                            Button.Padded
-                            "Add New Lock Moment"
-                            (Icon.add |> Icon.view |> Just)
-                            (Add Nothing |> wrap |> Just)
+                        [ Button.text "Add New Lock Moment"
+                            |> Button.button (Add Nothing |> wrap |> Just)
+                            |> Button.icon (Icon.add |> Icon.view)
+                            |> Button.view
                         ]
-                    , Html.div [ HtmlA.class "save-state" ] savingState
+                    , Api.viewAction [] model.save |> Html.div [ HtmlA.class "save-state" ]
                     ]
 
                 canSave =
-                    RemoteData.isLoaded context.lockMoments
-                        && (model.saved /= Saving)
+                    Api.isLoaded context.lockMoments
+                        && (model.save |> Api.isWorking |> not)
                         && Validator.valid itemsValidator model.lockMoments
             in
-            [ Html.div [ HtmlA.class "overlay" ]
-                [ Html.div [ HtmlA.class "background", CancelEdit |> wrap |> HtmlE.onClick ] []
-                , [ [ context.lockMoments |> RemoteData.view editorContent
-                    , [ Html.div [ HtmlA.class "controls" ]
-                            [ Button.view Button.Standard
-                                Button.Padded
-                                "Cancel"
-                                (Icon.times |> Icon.view |> Just)
-                                (CancelEdit |> wrap |> Just)
-                            , Button.view Button.Raised
-                                Button.Padded
-                                "Save"
-                                (Icon.times |> Icon.view |> Just)
-                                (SaveEdit |> wrap |> Maybe.when canSave)
-                            ]
-                      ]
+            [ Overlay.view (CancelEdit |> wrap)
+                [ [ context.lockMoments |> Api.viewData Api.viewOrError editorContent
+                  , [ Html.div [ HtmlA.class "controls" ]
+                        [ Button.text "Cancel"
+                            |> Button.button (CancelEdit |> wrap |> Just)
+                            |> Button.icon (Icon.times |> Icon.view)
+                            |> Button.view
+                        , Button.filled "Save"
+                            |> Button.button (SaveEdit |> wrap |> Maybe.when canSave)
+                            |> Button.icon (Icon.save |> Icon.view)
+                            |> Button.view
+                        ]
                     ]
-                        |> List.concat
-                        |> Html.div [ HtmlA.id "lock-moments-editor" ]
                   ]
-                    |> Html.div [ HtmlA.class "foreground" ]
+                    |> List.concat
+                    |> Html.div [ HtmlA.id "lock-moments-editor" ]
                 ]
             ]
 

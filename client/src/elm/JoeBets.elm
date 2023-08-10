@@ -2,7 +2,7 @@ module JoeBets exposing (main)
 
 import Browser
 import Browser.Events as Browser
-import Browser.Navigation as Navigation
+import Browser.Navigation as Browser
 import Html
 import Html.Attributes as HtmlA
 import JoeBets.Layout as Layout
@@ -11,24 +11,18 @@ import JoeBets.Model exposing (..)
 import JoeBets.Navigation as Navigation
 import JoeBets.Page.About as About
 import JoeBets.Page.Bet as Bet
-import JoeBets.Page.Bet.Model as Bet
 import JoeBets.Page.Bets as Bets
 import JoeBets.Page.Bets.Model as Bets
 import JoeBets.Page.Edit as Edit
-import JoeBets.Page.Edit.Model as Edit
-import JoeBets.Page.Edit.Msg as Edit
 import JoeBets.Page.Feed as Feed
-import JoeBets.Page.Feed.Model as Feed
+import JoeBets.Page.Gacha as Gacha
+import JoeBets.Page.Gacha.Collection as Collection
+import JoeBets.Page.Gacha.Forge as Forge
 import JoeBets.Page.Games as Games
-import JoeBets.Page.Games.Model as Games
 import JoeBets.Page.Leaderboard as Leaderboard
-import JoeBets.Page.Leaderboard.Model as Leaderboard
-import JoeBets.Page.Leaderboard.Route as Leaderboard
 import JoeBets.Page.Model as Page
 import JoeBets.Page.Problem as Problem
-import JoeBets.Page.Problem.Model as Problem
 import JoeBets.Page.User as User
-import JoeBets.Page.User.Model as User
 import JoeBets.Route as Route exposing (Route)
 import JoeBets.Settings as Settings
 import JoeBets.Settings.Model as Settings
@@ -37,16 +31,13 @@ import JoeBets.Store.KeyedItem as Store
 import JoeBets.Store.Session as SessionStore
 import JoeBets.Store.Session.Model as SessionStore
 import JoeBets.Theme as Theme
-import JoeBets.User as User
 import JoeBets.User.Auth as Auth
 import JoeBets.User.Auth.Model as Auth
 import JoeBets.User.Notifications as Notifications
-import JoeBets.User.Notifications.Model as Notifications
+import Json.Decode as JsonD
 import Task
 import Time
-import Time.Model as Time
 import Url exposing (Url)
-import Util.Html as Html
 
 
 main : Program Flags Model Msg
@@ -61,23 +52,20 @@ main =
         }
 
 
-init : Flags -> Url -> Navigation.Key -> ( Model, Cmd Msg )
+init : Flags -> Url -> Browser.Key -> ( Model, Cmd Msg )
 init flags url key =
     let
         route =
             Route.fromUrl url
 
-        origin =
-            url.host
-
         ( auth, authCmd ) =
-            Auth.init AuthMsg origin route
+            Auth.init flags.base route
 
         store =
             flags.store |> Store.init
 
         initModel =
-            { origin = origin
+            { origin = flags.base
             , navigationKey = key
             , time = { zone = Time.utc, now = Time.millisToPosix 0 }
             , route = route
@@ -91,6 +79,9 @@ init flags url key =
             , bet = Bet.init
             , games = Games.init
             , leaderboard = Leaderboard.init
+            , gacha = Gacha.init Nothing
+            , forge = Forge.init
+            , collection = Collection.init
             , edit = Edit.init
             , settings = Settings.init store
             , problem = Problem.init
@@ -115,8 +106,8 @@ onUrlRequest urlRequest =
         Browser.Internal url ->
             url |> Route.fromUrl |> ChangeUrl
 
-        Browser.External _ ->
-            NoOp
+        Browser.External url ->
+            "External URL requested: " ++ url |> NoOp
 
 
 onUrlChange : Url -> Msg
@@ -128,7 +119,9 @@ update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
         ChangeUrl route ->
-            ( model, route |> Route.toUrl |> Navigation.pushUrl model.navigationKey )
+            ( model
+            , route |> Route.toUrl |> Browser.pushUrl model.navigationKey
+            )
 
         UrlChanged route ->
             load route model
@@ -148,22 +141,25 @@ update msg model =
             ( { model | time = { time | zone = zone } }, Cmd.none )
 
         AuthMsg authMsg ->
-            Auth.update AuthMsg NoOp NotificationsMsg authMsg model
+            Auth.update authMsg model
 
         NotificationsMsg notificationsMsg ->
-            Notifications.update NotificationsMsg notificationsMsg model
+            Notifications.update notificationsMsg model
 
         FeedMsg feedMsg ->
-            Feed.update FeedMsg feedMsg model
+            Feed.update feedMsg model
 
         UserMsg userMsg ->
-            User.update UserMsg userMsg model
+            User.update userMsg model
+
+        CollectionMsg collectionMsg ->
+            Collection.update collectionMsg model
 
         BetsMsg betsMsg ->
-            Bets.update BetsMsg betsMsg model
+            Bets.update betsMsg model
 
         BetMsg betMsg ->
-            Bet.update BetMsg betMsg model
+            Bet.update betMsg model
 
         GamesMsg betsMsg ->
             Games.update betsMsg model
@@ -171,8 +167,11 @@ update msg model =
         LeaderboardMsg leaderboardMsg ->
             Leaderboard.update leaderboardMsg model
 
+        GachaMsg gachaMsg ->
+            Gacha.update gachaMsg model
+
         EditMsg editMsg ->
-            Edit.update EditMsg editMsg model
+            Edit.update editMsg model
 
         SettingsMsg settingsMsg ->
             Settings.update settingsMsg model
@@ -183,12 +182,12 @@ update msg model =
         NavigationMsg navigationMsg ->
             Navigation.update navigationMsg model
 
-        NoOp ->
+        NoOp _ ->
             ( model, Cmd.none )
 
 
 subscriptions : Model -> Sub Msg
-subscriptions model =
+subscriptions _ =
     let
         storeFromResult result =
             case result of
@@ -200,8 +199,8 @@ subscriptions model =
                         Store.BetsItem change ->
                             change |> Bets.ReceiveStoreChange |> BetsMsg
 
-                Err _ ->
-                    NoOp
+                Err error ->
+                    "Error with local storage: " ++ JsonD.errorToString error |> NoOp
 
         sessionStoreFromResult result =
             case result of
@@ -210,13 +209,13 @@ subscriptions model =
                         SessionStore.LoginRedirectValue value ->
                             value |> Auth.RedirectAfterLogin |> AuthMsg
 
-                Err _ ->
-                    NoOp
+                Err error ->
+                    "Error with session storage: " ++ JsonD.errorToString error |> NoOp
     in
     Sub.batch
         [ Time.every 10000 SetTime
         , Browser.onVisibilityChange ChangeVisibility
-        , Notifications.subscriptions NotificationsMsg model
+        , Notifications.subscriptions
         , Store.changedValues storeFromResult
         , SessionStore.retrievedValues sessionStoreFromResult
         ]
@@ -228,44 +227,49 @@ view model =
         { title, id, body } =
             case model.page of
                 Page.About ->
-                    About.view AuthMsg model
+                    About.view model
 
                 Page.Feed ->
-                    Feed.view FeedMsg False model
+                    Feed.view model
 
                 Page.User ->
-                    User.view UserMsg model
+                    User.view model
+
+                Page.Collection ->
+                    Collection.view model
 
                 Page.Bet ->
-                    Bet.view BetMsg BetsMsg model
+                    Bet.view model
 
                 Page.Bets ->
-                    Bets.view BetsMsg model
+                    Bets.view model
 
                 Page.Games ->
-                    Games.view GamesMsg BetsMsg model
+                    Games.view model
 
                 Page.Leaderboard ->
-                    Leaderboard.view LeaderboardMsg model
+                    Leaderboard.view model
+
+                Page.Gacha ->
+                    Gacha.view model
 
                 Page.Edit ->
-                    Edit.view EditMsg BetsMsg model
+                    Edit.view model
 
                 Page.Problem ->
                     Problem.view model
 
         combinedBody =
             [ [ Html.header []
-                    [ Html.div []
-                        [ Html.h1 [ HtmlA.title "Joseph Anderson Stream Bets" ] [ Html.text "JASB" ]
-                        , Navigation.view model
-                        ]
+                    [ Html.h1 [ HtmlA.title "Joseph Anderson Stream Bets" ] [ Html.text "JASB" ]
+                        :: Navigation.view model
+                        |> Html.div []
                     ]
               , Html.div [ HtmlA.class "core" ]
                     [ Html.div [ HtmlA.class "page", HtmlA.id id ] body
                     ]
-              , Notifications.view NotificationsMsg model
               ]
+            , Notifications.view model
             , Settings.view SettingsMsg model
             ]
     in
@@ -293,30 +297,34 @@ load route oldRouteModel =
             ( { model | page = Page.About }, Cmd.none )
 
         Route.Feed ->
-            Feed.load FeedMsg Nothing { model | page = Page.Feed }
+            Feed.load { model | page = Page.Feed }
 
         Route.Auth maybeCodeAndState ->
-            Auth.load AuthMsg maybeCodeAndState model
+            Auth.load maybeCodeAndState model
 
         Route.User maybeId ->
-            User.load UserMsg maybeId { model | page = Page.User }
+            User.load maybeId { model | page = Page.User }
+
+        Route.CardCollection id collectionRoute ->
+            Collection.load id collectionRoute { model | page = Page.Collection }
 
         Route.Bets subset id ->
-            Bets.load BetsMsg id subset { model | page = Page.Bets }
+            Bets.load id subset { model | page = Page.Bets }
 
         Route.Bet gameId betId ->
-            Bet.load BetMsg gameId betId { model | page = Page.Bet }
+            Bet.load gameId betId { model | page = Page.Bet }
 
         Route.Games ->
-            Games.load GamesMsg { model | page = Page.Games }
+            Games.load { model | page = Page.Games }
 
         Route.Leaderboard board ->
-            Leaderboard.load LeaderboardMsg
-                board
-                { model | page = Page.Leaderboard }
+            Leaderboard.load board { model | page = Page.Leaderboard }
+
+        Route.Gacha gacha ->
+            Gacha.load gacha { model | page = Page.Gacha }
 
         Route.Edit target ->
-            Edit.load EditMsg target { model | page = Page.Edit }
+            Edit.load target { model | page = Page.Edit }
 
         Route.Problem path ->
             Problem.load path { model | page = Page.Problem }

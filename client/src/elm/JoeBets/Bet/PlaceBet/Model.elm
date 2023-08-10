@@ -6,11 +6,11 @@ module JoeBets.Bet.PlaceBet.Model exposing
     , Target
     )
 
-import Http
+import JoeBets.Api.Action as Api
+import JoeBets.Api.Error as Api
 import JoeBets.Bet.Model as Bet exposing (Bet)
 import JoeBets.Bet.Option as Option
 import JoeBets.Game.Id as Game
-import JoeBets.Game.Model as Game
 import JoeBets.Page.User.Model as User
 import JoeBets.User.Model as User
 
@@ -33,15 +33,14 @@ type Msg
     | ChangeMessage String
     | Place User.WithId Int (Maybe String)
     | Withdraw User.Id
-    | SetError Http.Error
+    | SetError Api.Error
 
 
 type alias Overlay =
     { target : Target
     , amount : String
     , message : String
-    , sent : Bool
-    , error : Maybe Http.Error
+    , action : Api.ActionState
     }
 
 

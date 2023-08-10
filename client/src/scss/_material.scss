@@ -1,69 +1,110 @@
 @use "./_colors.scss";
 
 #jasb {
-  --mdc-typography-font-family: "Roboto Flex", sans-serif;
-  --mdc-typography-button-font-size: 1em;
-  --mdc-typography-button-text-transform: none;
+  --md-switch-track-height: 1em;
+  --md-switch-track-width: 2em;
 
-  --mdc-menu-item-height: 2em;
+  --md-elevated-button-container-shape: 0.25em;
+  --md-filled-button-container-shape: 0.25em;
+  --md-filled-tonal-button-container-shape: 0.25em;
+  --md-outlined-button-container-shape: 0.25em;
+  --md-text-button-container-shape: 0.25em;
 
-  --mdc-icon-size: 0.75em;
-  --mdc-icon-button-size: 1.5em;
+  --md-ref-typeface-plain: "Roboto Flex";
 
-  --mdc-shape-small: 0.1em;
-  --mdc-shape-medium: 0.1em;
-  --mdc-shape-large: 0.1em;
+  --md-outlined-icon-button-container-size: 2.5em;
+  --md-outlined-icon-button-icon-size: 1.5em;
 
-  --mdc-theme-primary: #{colors.by-name("primary")};
-  --mdc-theme-on-primary: #{colors.by-name("on-primary")};
+  --md-icon-button-container-size: 2.5em;
+  --md-icon-button-icon-size: 1.5em;
+}
 
-  --mdc-theme-secondary: #{colors.by-name("secondary")};
-  --mdc-theme-on-secondary: #{colors.by-name("on-secondary")};
+md-outlined-text-field,
+md-outlined-select {
+  width: 100%;
+}
 
-  --mdc-theme-surface: #{colors.by-name("card")};
-  --mdc-theme-on-surface: #{colors.by-name("on-card")};
+md-outlined-text-field[type="color"] {
+  height: 4em;
+}
 
-  --mdc-theme-background: #{colors.by-name("background")};
-  --mdc-theme-on-background: #{colors.by-name("on-background")};
-  --mdc-theme-text-icon-on-background: #{colors.by-name("on-background")};
+#jasb.dark-theme,
+#jasb.auto-theme {
+  --md-sys-color-background: #17130a;
+  --md-sys-color-on-background: #ebe1d1;
+  --md-sys-color-surface: #17130a;
+  --md-sys-color-surface-dim: #17130a;
+  --md-sys-color-surface-bright: #3e392d;
+  --md-sys-color-surface-container-lowest: #110e06;
+  --md-sys-color-surface-container-low: #1f1b11;
+  --md-sys-color-surface-container: #231f15;
+  --md-sys-color-surface-container-high: #2e2a1f;
+  --md-sys-color-surface-container-highest: #393429;
+  --md-sys-color-on-surface: #ebe1d1;
+  --md-sys-color-surface-variant: #4e4633;
+  --md-sys-color-on-surface-variant: #d1c5ac;
+  --md-sys-color-inverse-surface: #ebe1d1;
+  --md-sys-color-inverse-on-surface: #353025;
+  --md-sys-color-outline: #9a9079;
+  --md-sys-color-outline-variant: #4e4633;
+  --md-sys-color-shadow: #000000;
+  --md-sys-color-scrim: #000000;
+  --md-sys-color-surface-tint: #efc120;
+  --md-sys-color-primary: #ffd551;
+  --md-sys-color-on-primary: #3d2f00;
+  --md-sys-color-primary-container: #d5ab00;
+  --md-sys-color-on-primary-container: #2e2300;
+  --md-sys-color-inverse-primary: #745b00;
+  --md-sys-color-secondary: #ddc480;
+  --md-sys-color-on-secondary: #3d2f00;
+  --md-sys-color-secondary-container: #4c3c04;
+  --md-sys-color-on-secondary-container: #e9cf8a;
+  --md-sys-color-tertiary: #bee868;
+  --md-sys-color-on-tertiary: #253600;
+  --md-sys-color-tertiary-container: #95bd43;
+  --md-sys-color-on-tertiary-container: #1b2900;
+  --md-sys-color-error: #ffb4ab;
+  --md-sys-color-on-error: #690005;
+  --md-sys-color-error-container: #93000a;
+  --md-sys-color-on-error-container: #ffdad6;
+}
 
-  --mdc-button-disabled-fill-color: #{colors.by-name("disabled")};
-  --mdc-button-disabled-ink-color: #{colors.by-name("on-disabled")};
-
-  --mdc-text-field-outlined-disabled-border-color: colors.by_name(
-    "on-disabled"
-  );
-  --mdc-text-field-disabled-ink-color: #{colors.by_name("disabled")};
-  --mdc-text-field-outlined-idle-border-color: #{colors.by_name("on-background")};
-  --mdc-text-field-outlined-hover-border-color: #{colors.by_name(
-      "on-background"
-    )};
-  --mdc-text-field-label-ink-color: #{colors.by_name("on-background")};
-  --mdc-text-field-ink-color: #{colors.by_name("on-background")};
-
-  --mdc-tab-text-label-color-default: #{colors.by-name("on-background")};
-  --mdc-tab-color-default: #{colors.by-name("on-background")};
-
-  --mdc-select-outlined-disabled-border-color: #{colors.by_name("on-disabled")};
-  --mdc-select-disabled-ink-color: #{colors.by_name("disabled")};
-  --mdc-select-outlined-idle-border-color: #{colors.by_name("on-background")};
-  --mdc-select-outlined-hover-border-color: #{colors.by_name("on-background")};
-  --mdc-select-label-ink-color: #{colors.by_name("on-background")};
-  --mdc-select-ink-color: #{colors.by_name("on-background")};
-
-  --mdc-theme-text-primary-on-background: #{colors.by-name("on-background")};
-  --mdc-theme-text-secondary-on-background: #{colors.by-name("on-disabled")};
-
-  --mdc-checkbox-unchecked-color: #{colors.by-name("on-disabled")};
-
-  --mdc-theme-text-disabled-on-light: #{colors.by-name("disabled")};
-
-  --mdc-switch-selected-track-color: #{colors.by-name("primary")};
-  --mdc-switch-selected-handle-color: #{colors.by-name("primary")};
-  --mdc-switch-selected-hover-track-color: #{colors.by-name("primary")};
-  --mdc-switch-selected-hover-handle-color: #{colors.by-name("primary")};
-  --mdc-switch-selected-focus-track-color: #{colors.by-name("primary")};
-  --mdc-switch-selected-focus-handle-color: #{colors.by-name("primary")};
-  --mdc-switch-selected-pressed-track-color: #{colors.by-name("primary")};
-  --mdc-switch-selected-pressed-handle-color: #{colors.by-name("primary")};
+#jasb.light-theme {
+  --md-sys-color-background: #fff8f1;
+  --md-sys-color-on-background: #1e1b14;
+  --md-sys-color-surface: #fff8f1;
+  --md-sys-color-surface-dim: #e1d9cd;
+  --md-sys-color-surface-bright: #fff8f1;
+  --md-sys-color-surface-container-lowest: #ffffff;
+  --md-sys-color-surface-container-low: #fbf3e6;
+  --md-sys-color-surface-container: #f5ede0;
+  --md-sys-color-surface-container-high: #efe7db;
+  --md-sys-color-surface-container-highest: #e9e1d5;
+  --md-sys-color-on-surface: #1e1b14;
+  --md-sys-color-surface-variant: #ede1cb;
+  --md-sys-color-on-surface-variant: #4d4636;
+  --md-sys-color-inverse-surface: #343028;
+  --md-sys-color-inverse-on-surface: #f8f0e3;
+  --md-sys-color-outline: #7f7664;
+  --md-sys-color-outline-variant: #d0c5b0;
+  --md-sys-color-shadow: #000000;
+  --md-sys-color-scrim: #000000;
+  --md-sys-color-surface-tint: #745b00;
+  --md-sys-color-primary: #745b00;
+  --md-sys-color-on-primary: #ffffff;
+  --md-sys-color-primary-container: #ffdd7f;
+  --md-sys-color-on-primary-container: #574400;
+  --md-sys-color-inverse-primary: #e8c354;
+  --md-sys-color-secondary: #6c5d32;
+  --md-sys-color-on-secondary: #ffffff;
+  --md-sys-color-secondary-container: #fbe5af;
+  --md-sys-color-on-secondary-container: #574920;
+  --md-sys-color-tertiary: #52660e;
+  --md-sys-color-on-tertiary: #ffffff;
+  --md-sys-color-tertiary-container: #d2ea85;
+  --md-sys-color-on-tertiary-container: #3c4c00;
+  --md-sys-color-error: #ba1a1a;
+  --md-sys-color-on-error: #ffffff;
+  --md-sys-color-error-container: #ffdad6;
+  --md-sys-color-on-error-container: #410002;
 }

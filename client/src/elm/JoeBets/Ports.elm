@@ -1,8 +1,11 @@
 port module JoeBets.Ports exposing
-    ( sessionStoreCmd
+    ( copyImageCmd
+    , sessionStoreCmd
     , sessionStoreSub
     , storeCmd
     , storeSub
+    , webSocketCmd
+    , webSocketSub
     )
 
 import Json.Decode as JsonD
@@ -19,3 +22,12 @@ port sessionStoreCmd : JsonE.Value -> Cmd msg
 
 
 port sessionStoreSub : (JsonD.Value -> msg) -> Sub msg
+
+
+port webSocketCmd : JsonE.Value -> Cmd msg
+
+
+port webSocketSub : (JsonD.Value -> msg) -> Sub msg
+
+
+port copyImageCmd : JsonE.Value -> Cmd msg

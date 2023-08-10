@@ -6,7 +6,7 @@ import EverySet exposing (..)
 setMembership : Bool -> item -> EverySet item -> EverySet item
 setMembership desiredMembership =
     if desiredMembership then
-        EverySet.insert
+        insert
 
     else
-        EverySet.remove
+        remove

@@ -298,3 +298,4 @@ CREATE TYPE RemoveLockMoment AS (
   slug TEXT,
   "version" INTEGER
 );
+

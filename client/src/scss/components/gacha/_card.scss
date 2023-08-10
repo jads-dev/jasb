@@ -1,0 +1,337 @@
+@use "./card/_qualities.scss";
+@use "./card/_rarities.scss";
+@use "./card/_banners.scss";
+
+.card {
+  aspect-ratio: 5 / 7.5;
+  width: 16em;
+
+  text-rendering: optimizeLegibility;
+  image-rendering: optimizeQuality;
+  backface-visibility: hidden;
+
+  position: relative;
+
+  $border-size: 0.75em;
+  border: #{$border-size} solid transparent;
+  background-clip: padding-box;
+  isolation: isolate;
+
+  &::before {
+    display: block;
+    content: "";
+    position: absolute;
+    inset: 0 0 0 0;
+    z-index: 0;
+    border-radius: 1em;
+    margin: -#{$border-size};
+    background: var(
+      --banner-border,
+      linear-gradient(
+        130deg,
+        #888888 0%,
+        #dfdfdf 35%,
+        #7c7c7c 70%,
+        #e1e1e1 100%
+      )
+    );
+  }
+
+  > .face {
+    position: absolute;
+    inset: 0 0 0 0;
+    z-index: 1;
+    padding: 0.5em 0;
+    background-image: var(--paper);
+    border-radius: 0.5em;
+
+    gap: 0.5em;
+    display: grid;
+    grid-template:
+      ".    title" auto
+      "img  img" auto
+      "desc desc" 1fr
+      "qual qual" auto
+      / 1fr auto;
+
+    > .title {
+      grid-area: title;
+      padding: 0 0.5em;
+
+      h2 {
+        font-size: 1.5em;
+      }
+    }
+
+    > .image {
+      grid-area: img;
+      > img {
+        width: 100%;
+      }
+    }
+
+    > .description {
+      grid-area: desc;
+      padding: 0 0.5em;
+
+      p {
+        margin: 0;
+        text-align: center;
+      }
+
+      overflow-y: auto;
+    }
+
+    > .qualities {
+      grid-area: qual;
+
+      margin: 0;
+      display: flex;
+      flex-flow: row wrap;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 0.25em;
+      list-style: none;
+      padding: 0 0.5em;
+
+      .quality {
+        &::after {
+          display: block;
+          content: "";
+          background-size: contain;
+          width: 2em;
+          height: 2em;
+        }
+
+        .name {
+          display: none;
+        }
+      }
+    }
+
+    .rarity {
+      font-size: 0.75em;
+      justify-self: flex-start;
+
+      .name {
+        display: none;
+      }
+
+      &::after {
+        display: block;
+        content: "";
+
+        position: absolute;
+        left: 0;
+        right: 0;
+        bottom: -2em;
+
+        background-image: var(--rarity-stars);
+        background-size: contain;
+        background-repeat: no-repeat;
+        background-position: 50% 50%;
+        height: 3em;
+      }
+
+      .icon {
+        position: absolute;
+        left: 1em;
+        bottom: 1em;
+
+        opacity: 20%;
+
+        mix-blend-mode: color-dodge;
+        background-image: linear-gradient(
+          125deg,
+          #f09 30%,
+          #fc8b00,
+          #ff0,
+          #00ff8a,
+          #00cfff,
+          #cc4cfa 70%
+        );
+        background-size: 40em 40em;
+        background-attachment: fixed;
+
+        > .mask {
+          position: absolute;
+          inset: 0 0 0 0;
+
+          mix-blend-mode: multiply;
+          background-color: #000;
+          background-image: var(--rarity-icon);
+          background-size: cover;
+
+          &::after {
+            position: absolute;
+            inset: 0 0 0 0;
+
+            display: block;
+            content: "";
+            mix-blend-mode: color-burn;
+            background-position: center;
+            background-attachment: fixed;
+            background-image: linear-gradient(45deg, #333 40%, #ddd 60%, #333);
+          }
+        }
+
+        width: 5em;
+        height: 5em;
+      }
+    }
+
+    .serial {
+      position: absolute;
+      transform: rotate(0.25turn);
+      top: 41em;
+      right: -4em;
+      font-size: 0.4em;
+      color: #000000;
+    }
+  }
+
+  &.placeholder {
+    opacity: 0.2;
+
+    &::after {
+      content: "SAMPLE";
+      position: absolute;
+      z-index: 2;
+      top: 1em;
+      left: -0.5em;
+      font-size: 7.5em;
+      transform: rotate(0.15turn);
+      transform-origin: 50% 50%;
+      opacity: 0.5;
+    }
+  }
+}
+
+.card-types,
+.cards {
+  display: flex;
+  flex-flow: row wrap;
+  justify-content: center;
+  padding: 0;
+  list-style: none;
+  gap: 3em;
+}
+
+.highlight {
+  display: flex;
+  flex-flow: column;
+  gap: 2em;
+
+  .message {
+    display: flex;
+    flex-flow: row;
+    align-items: center;
+    justify-content: center;
+
+    p {
+      margin: 0;
+    }
+  }
+}
+
+.card-container {
+  display: flex;
+  gap: 1em;
+  justify-content: center;
+
+  .card-controls {
+    display: flex;
+    flex-flow: column;
+    justify-content: flex-start;
+    list-style: none;
+    padding: 0;
+    margin: 0;
+  }
+}
+
+.card-set {
+  $slice-size: 1em;
+
+  list-style: none;
+  padding: 0;
+  display: flex;
+  flex-flow: row wrap;
+  gap: 0.5em;
+
+  > li {
+    overflow: visible;
+    max-width: $slice-size;
+    margin-bottom: 1em;
+
+    &:hover {
+      z-index: 2;
+      margin-top: 1em;
+      margin-bottom: 0;
+    }
+
+    &:only-child:hover,
+    &.placeholder:hover {
+      margin-top: 0;
+      margin-bottom: 1em;
+    }
+
+    &:last-of-type {
+      max-width: unset;
+    }
+  }
+}
+
+.card-detail-overlay {
+  display: flex;
+  flex-flow: column;
+  gap: 0.5em;
+
+  > .card-details {
+    display: flex;
+    flex-flow: column;
+    gap: 1em;
+
+    > h3 {
+      font-size: 1em;
+      margin: 0;
+    }
+
+    > .qualities {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+
+      display: grid;
+      grid-template-columns: auto 1fr;
+      gap: 0.5em;
+
+      > li {
+        display: contents;
+      }
+    }
+
+    > .credits {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+
+      display: grid;
+      grid-template-columns: auto 1fr;
+      gap: 0.5em;
+
+      > li {
+        display: contents;
+      }
+    }
+  }
+
+  > .controls {
+    display: flex;
+    flex-flow: row;
+    justify-content: space-between;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    gap: 0.5em;
+  }
+}

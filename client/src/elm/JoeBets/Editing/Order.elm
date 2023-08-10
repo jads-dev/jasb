@@ -5,7 +5,7 @@ module JoeBets.Editing.Order exposing
     )
 
 import AssocList
-import JoeBets.Page.Edit.Validator as Validator exposing (Validator)
+import JoeBets.Editing.Validator as Validator exposing (Validator)
 import List.Extra as List
 import Util.AssocList as AssocList
 

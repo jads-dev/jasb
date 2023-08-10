@@ -1,5 +1,6 @@
 @use "sass:color";
 @use "../_colors.scss";
+@use "../_util.scss";
 
 #user {
   max-width: 50em;
@@ -78,6 +79,18 @@
     h3,
     h4 {
       margin: 0;
+    }
+  }
+
+  .gacha-links {
+    list-style: none;
+    padding: 0;
+    display: flex;
+    flex-flow: column;
+    align-items: center;
+
+    a {
+      @include util.icon-aside;
     }
   }
 

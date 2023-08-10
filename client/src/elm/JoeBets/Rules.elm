@@ -1,8 +1,10 @@
 module JoeBets.Rules exposing
     ( initialBalance
+    , maxPity
     , maxStakeWhileInDebt
     , minStake
     , notableStake
+    , scrapPerRoll
     )
 
 
@@ -24,3 +26,13 @@ notableStake =
 minStake : Int
 minStake =
     25
+
+
+maxPity : Int
+maxPity =
+    75
+
+
+scrapPerRoll : Int
+scrapPerRoll =
+    5

@@ -23,6 +23,10 @@
   display: grid;
   grid-template-columns: [left] 1fr [right] minmax(min-content, 10em);
 
+  > .loading {
+    grid-column: 1 / span 2;
+  }
+
   .lock-moments {
     display: contents;
 
@@ -57,6 +61,20 @@
     margin-bottom: -1em;
     padding-top: 1em;
     padding-bottom: 1em;
+  }
+
+  .empty {
+    @include left;
+    text-align: center;
+    margin-top: 1em;
+    margin-bottom: -1em;
+    padding-top: 1em;
+    padding-bottom: 1em;
+  }
+
+  .final-actions {
+    @include left;
+    margin-top: 2em;
   }
 
   .game-detail {
@@ -104,17 +122,16 @@
       align-self: stretch;
       display: grid;
       justify-content: flex-end;
-      grid-template-columns: repeat(auto-fit, 9em);
+      grid-template-columns: repeat(auto-fit, 8em);
       gap: 0.5em;
 
-      > div {
+      > label {
         @include colors.by-name("secondary");
         border-radius: 0.5em;
         padding: 0.5em;
 
-        > label {
-          justify-content: space-between;
-          width: 100%;
+        > span {
+          flex-grow: 1;
         }
       }
     }

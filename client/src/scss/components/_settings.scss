@@ -1,4 +1,8 @@
 #client-settings {
+  display: flex;
+  flex-flow: column;
+  gap: 1em;
+
   .default-filters > ul {
     list-style: none;
     padding: 0;

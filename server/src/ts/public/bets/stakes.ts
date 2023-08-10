@@ -2,7 +2,7 @@ import * as Schema from "io-ts";
 
 import type { Internal } from "../../internal.js";
 import { Validation } from "../../util/validation.js";
-import { Users } from "../users/id.js";
+import { Users } from "../users/core.js";
 
 /**
  * A stake on an option on the bet, by a user.
@@ -23,8 +23,8 @@ export type Stake = Schema.TypeOf<typeof Stake>;
 
 export const fromInternal = (
   internal: Internal.Stakes.Stake,
-): [Users.Id, Stake] => [
-  internal.user.slug as Users.Id,
+): [Users.Slug, Stake] => [
+  internal.user.slug,
   {
     user: {
       name: internal.user.name,
@@ -34,7 +34,7 @@ export const fromInternal = (
       avatar: internal.user.avatar_url,
     },
     at: internal.made_at,
-    amount: internal.amount as Schema.Int,
+    amount: internal.amount,
     ...(internal.message !== null ? { message: internal.message } : {}),
   },
 ];

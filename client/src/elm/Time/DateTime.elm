@@ -128,18 +128,18 @@ viewEditor name value action attrs =
             { value | time = str } |> toMsg
     in
     Html.div [ HtmlA.class "date-time" ]
-        [ TextField.viewWithAttrs
-            (name ++ " Date")
-            TextField.Date
-            value.date
+        [ TextField.outlined (name ++ " Date")
             (action |> Maybe.map fromDate)
-            attrs
-        , TextField.viewWithAttrs
-            (name ++ " Time")
-            TextField.Time
-            value.time
+            value.date
+            |> TextField.date
+            |> TextField.attrs attrs
+            |> TextField.view
+        , TextField.outlined (name ++ " Time")
             (action |> Maybe.map fromTime)
-            attrs
+            value.time
+            |> TextField.time
+            |> TextField.attrs attrs
+            |> TextField.view
         ]
 
 

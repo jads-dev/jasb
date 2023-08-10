@@ -2,6 +2,7 @@ module JoeBets.Page.About exposing (view)
 
 import Html
 import Html.Attributes as HtmlA
+import JoeBets.Messages as Global
 import JoeBets.Page exposing (Page)
 import JoeBets.Route as Route
 import JoeBets.Rules as Rules
@@ -14,8 +15,8 @@ type alias Parent a =
     { a | auth : Auth.Model }
 
 
-view : (Auth.Msg -> msg) -> Parent a -> Page msg
-view wrap { auth } =
+view : Parent a -> Page Global.Msg
+view { auth } =
     { title = "Joseph Anderson Stream Bets"
     , id = "about"
     , body =
@@ -30,7 +31,7 @@ view wrap { auth } =
                 ]
             , Html.p []
                 [ Html.text "You need to be "
-                , Auth.logInButton wrap auth (Html.text "logged in")
+                , Auth.logInButton auth (Html.text "logged in")
                 , Html.text " with Discord to vote."
                 ]
             , Html.p [ HtmlA.class "warning" ]

@@ -12,7 +12,6 @@ module JoeBets.Game.Model exposing
 import AssocList
 import JoeBets.Bet.Editor.LockMoment as LockMoment
 import JoeBets.Bet.Model as Bet exposing (Bet)
-import JoeBets.Bet.Option exposing (Option)
 import JoeBets.Game.Progress as Progress
 import JoeBets.User.Model as User
 import Json.Decode as JsonD

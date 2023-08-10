@@ -6,21 +6,16 @@ import { Iterables } from "../util/iterables.js";
 import { Validation } from "../util/validation.js";
 import { Bets } from "./bets.js";
 import { LockMoments } from "./editor/lock-moments.js";
-import { Users } from "./users/id.js";
+import { Users } from "./users/core.js";
 
 /**
- * An ID for a user from the perspective of the API user, this is the slug
- * internally.
+ * A slug for a game.
  */
-interface GameIdBrand {
-  readonly GameId: unique symbol;
+interface GameSlugBrand {
+  readonly GameSlug: unique symbol;
 }
-export const Id = Schema.brand(
-  Schema.string,
-  (id): id is Schema.Branded<string, GameIdBrand> => true,
-  "GameId",
-);
-export type Id = Schema.TypeOf<typeof Id>;
+export const Slug = Validation.Slug("GameSlug")<GameSlugBrand>();
+export type Slug = Schema.TypeOf<typeof Slug>;
 
 /**
  * The progress details of a game that is a future game, not yet started.
@@ -74,7 +69,7 @@ export const Game = Schema.intersection([
       version: Schema.Int,
       created: Validation.DateTime,
       modified: Validation.DateTime,
-      managers: Schema.readonlyArray(Schema.tuple([Users.Id, Users.Summary])),
+      managers: Schema.readonlyArray(Schema.tuple([Users.Slug, Users.Summary])),
     }),
   ),
   Schema.partial({ order: Schema.Int }),
@@ -90,9 +85,9 @@ export const WithBets = Schema.intersection([
     Schema.strict({
       bets: Schema.readonlyArray(
         Schema.tuple([
-          LockMoments.Id,
+          LockMoments.Slug,
           Schema.string,
-          Schema.readonlyArray(Schema.tuple([Bets.Id, Bets.Bet])),
+          Schema.readonlyArray(Schema.tuple([Bets.Slug, Bets.Bet])),
         ]),
       ),
     }),
@@ -119,9 +114,9 @@ export type WithBetStats = Schema.TypeOf<typeof WithBetStats>;
  */
 export const Library = Schema.readonly(
   Schema.strict({
-    future: Schema.readonlyArray(Schema.tuple([Id, WithBetStats])),
-    current: Schema.readonlyArray(Schema.tuple([Id, WithBetStats])),
-    finished: Schema.readonlyArray(Schema.tuple([Id, WithBetStats])),
+    future: Schema.readonlyArray(Schema.tuple([Slug, WithBetStats])),
+    current: Schema.readonlyArray(Schema.tuple([Slug, WithBetStats])),
+    finished: Schema.readonlyArray(Schema.tuple([Slug, WithBetStats])),
   }),
 );
 export type Library = Schema.TypeOf<typeof Library>;
@@ -156,14 +151,14 @@ const progressFromInternal = (internal: Internal.Game): Progress => {
   }
 };
 
-export const fromInternal = (internal: Internal.Game): [Id, Game] => [
-  internal.slug as Id,
+export const fromInternal = (internal: Internal.Game): [Slug, Game] => [
+  internal.slug,
   {
     name: internal.name,
     cover: internal.cover,
     progress: progressFromInternal(internal),
-    ...(internal.order !== null ? { order: internal.order as Schema.Int } : {}),
-    version: internal.version as Schema.Int,
+    ...(internal.order !== null ? { order: internal.order } : {}),
+    version: internal.version,
     created: internal.created,
     modified: internal.modified,
     managers: internal.managers.map(Users.summaryFromInternal),
@@ -172,27 +167,27 @@ export const fromInternal = (internal: Internal.Game): [Id, Game] => [
 
 export const withBetStatsFromInternal = (
   internal: Internal.Game & Internal.Games.BetStats,
-): [Id, WithBetStats] => [
-  internal.slug as Id,
+): [Slug, WithBetStats] => [
+  internal.slug,
   {
     ...fromInternal(internal)[1],
-    bets: internal.bets as Schema.Int,
-    staked: internal.staked as Schema.Int,
+    bets: internal.bets,
+    staked: internal.staked,
   },
 ];
 
 export const withBetsFromInternal = (
   internal: Internal.Game & Internal.Games.WithBets,
-): [Id, WithBets] => {
+): [Slug, WithBets] => {
   const betsByLockMoment = [
     ...Iterables.groupBy((bet) => bet.lock_moment_slug, internal.bets),
   ];
   return [
-    internal.slug as Id,
+    internal.slug,
     {
       ...fromInternal(internal)[1],
       bets: betsByLockMoment.map(([lockMomentSlug, bets]) => [
-        lockMomentSlug as LockMoments.Id,
+        lockMomentSlug,
         bets[0]?.lock_moment_name ?? "",
         bets.map(Bets.fromInternal),
       ]),

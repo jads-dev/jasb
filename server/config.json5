@@ -21,6 +21,14 @@
     maxStakeWhileInDebt: 100,
     notableStake: 500,
     minStake: 25,
+    gacha: {
+      maxPity: 75,
+      scrapPerRoll: 5,
+      rewards: {
+        winBetRolls: 1,
+        loseBetScrap: 2,
+      }
+    },
   },
 
   store: {

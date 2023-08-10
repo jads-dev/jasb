@@ -5,18 +5,20 @@ module JoeBets.Game.Editor.Model exposing
     , encodeBody
     )
 
+import JoeBets.Api.Action as Api
+import JoeBets.Api.Data as Api
+import JoeBets.Api.Model as Api
 import JoeBets.Editing.Slug exposing (Slug)
 import JoeBets.Editing.Uploader as Uploader exposing (Uploader)
 import JoeBets.Game.Id as Game
-import JoeBets.Game.Model as Game exposing (Game)
+import JoeBets.Game.Model exposing (Game)
 import Json.Encode as JsonE
 import Time.Date as Date exposing (Date)
 import Util.Json.Encode as JsonE
-import Util.RemoteData as RemoteData exposing (RemoteData)
 
 
 type alias Model =
-    { source : Maybe ( Game.Id, RemoteData Game )
+    { source : Maybe ( Game.Id, Api.Data Game )
     , id : Slug Game.Id
     , name : String
     , cover : Uploader
@@ -24,6 +26,7 @@ type alias Model =
     , start : String
     , finish : String
     , order : Maybe Int
+    , saving : Api.ActionState
     }
 
 
@@ -50,7 +53,7 @@ encodeBody { version, name, cover, started, finished, order } =
 
 
 type Msg
-    = Load Game.Id (RemoteData.Response Game)
+    = Load Game.Id (Api.Response Game)
     | Reset
     | ChangeId String
     | ChangeName String
@@ -58,3 +61,5 @@ type Msg
     | ChangeStart String
     | ChangeFinish String
     | ChangeOrder String
+    | Save
+    | Saved Game.Id (Api.Response Game)

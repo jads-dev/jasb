@@ -1,6 +1,5 @@
 module JoeBets.User.Auth.Model exposing
-    ( Error(..)
-    , LoggedIn
+    ( LoggedIn
     , LoginProgress(..)
     , Model
     , Msg(..)
@@ -8,6 +7,7 @@ module JoeBets.User.Auth.Model exposing
     , Redirect
     , RedirectOrLoggedIn(..)
     , canManageBets
+    , canManageGacha
     , canManageGames
     , canManagePermissions
     , redirectDecoder
@@ -15,19 +15,13 @@ module JoeBets.User.Auth.Model exposing
     )
 
 import EverySet
-import Http
+import JoeBets.Api.Error as Api
 import JoeBets.Game.Id as Game
-import JoeBets.Game.Model as Game
 import JoeBets.Route exposing (Route)
 import JoeBets.User.Model as User exposing (User)
 import JoeBets.User.Notifications.Model as Notifications exposing (Notification)
 import Json.Decode as JsonD
 import Json.Decode.Pipeline as JsonD
-
-
-type Error
-    = HttpError Http.Error
-    | Unauthorized
 
 
 type Progress
@@ -37,19 +31,29 @@ type Progress
 
 type alias Model =
     { inProgress : Maybe Progress
-    , error : Maybe Error
+    , error : Maybe Api.Error
     , localUser : Maybe User.WithId
     }
 
 
+hasPermission : (User.Permissions -> Bool) -> Maybe { a | user : User } -> Bool
+hasPermission getPerm =
+    Maybe.map (.user >> .permissions >> getPerm) >> Maybe.withDefault False
+
+
 canManageGames : Maybe { a | user : User } -> Bool
 canManageGames =
-    Maybe.map (.user >> .permissions >> .manageGames) >> Maybe.withDefault False
+    hasPermission .manageGames
 
 
 canManagePermissions : Maybe { a | user : User } -> Bool
 canManagePermissions =
-    Maybe.map (.user >> .permissions >> .managePermissions) >> Maybe.withDefault False
+    hasPermission .managePermissions
+
+
+canManageGacha : Maybe { a | user : User } -> Bool
+canManageGacha =
+    hasPermission .manageGacha
 
 
 canManageBets : Game.Id -> Maybe { a | user : User } -> Bool
@@ -66,13 +70,14 @@ type Msg
     | SetLocalUser LoggedIn
     | RedirectAfterLogin (Maybe Route)
     | Logout
+    | DismissError
 
 
 type LoginProgress
     = Start
     | FinishNotLoggedIn
     | Continue Redirect
-    | Failed Error
+    | Failed Api.Error
 
 
 type alias LoggedIn =

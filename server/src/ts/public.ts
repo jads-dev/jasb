@@ -5,5 +5,6 @@ export { Leaderboard } from "./public/leaderboard.js";
 export { Notifications, Notification } from "./public/notifications.js";
 export { Users, User } from "./public/users.js";
 export { Editor } from "./public/editor.js";
+export { Gacha } from "./public/gacha.js";
 
 export * as Public from "./public.js";

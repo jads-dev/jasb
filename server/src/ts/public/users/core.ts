@@ -1,20 +1,16 @@
 import * as Schema from "io-ts";
 
 import type { Internal } from "../../internal.js";
+import { Validation } from "../../util/validation.js";
 
 /**
- * An ID for a user from the perspective of the API user, this is the slug
- * internally.
+ * The slug for a user.
  */
-interface UserIdBrand {
-  readonly UserId: unique symbol;
+interface UserSlugBrand {
+  readonly UserSlug: unique symbol;
 }
-export const Id = Schema.brand(
-  Schema.string,
-  (id): id is Schema.Branded<string, UserIdBrand> => true,
-  "UserId",
-);
-export type Id = Schema.TypeOf<typeof Id>;
+export const Slug = Validation.Slug("UserSlug")<UserSlugBrand>();
+export type Slug = Schema.TypeOf<typeof Slug>;
 
 /**
  * A summary of a user for displaying information about them.
@@ -33,9 +29,9 @@ export const Summary = Schema.readonly(
 export type Summary = Schema.TypeOf<typeof Summary>;
 
 export const summaryFromInternal = (
-  internal: Internal.Users.Summary,
-): [Id, Summary] => [
-  internal.slug as Id,
+  internal: Internal.Users.Summary | Internal.Users.User,
+): [Slug, Summary] => [
+  internal.slug as Slug,
   {
     name: internal.name,
     ...(internal.discriminator !== null
@@ -45,4 +41,4 @@ export const summaryFromInternal = (
   },
 ];
 
-export * as Users from "./id.js";
+export * as Users from "./core.js";

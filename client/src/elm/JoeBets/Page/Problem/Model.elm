@@ -11,4 +11,4 @@ type Model
 
 
 type Msg
-    = NoOp
+    = NoOp String

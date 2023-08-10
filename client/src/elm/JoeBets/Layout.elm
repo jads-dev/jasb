@@ -10,7 +10,9 @@ module JoeBets.Layout exposing
     )
 
 import FontAwesome as Icon
+import FontAwesome.Layering as Icon
 import FontAwesome.Solid as Icon
+import FontAwesome.Transforms as Icon
 import Html
 import Html.Attributes as HtmlA
 import Json.Decode as JsonD
@@ -81,23 +83,37 @@ decoder =
     JsonD.string |> JsonD.andThen fromStringJson
 
 
-selectItem : Layout -> Select.ItemModel Layout msg
-selectItem layout =
+selectItem : Layout -> Layout -> Select.Option msg
+selectItem selected layout =
     let
         ( icon, name, description ) =
             case layout of
                 Auto ->
-                    ( Icon.rulerCombined, "Auto", "Automatically choose layout based on screen size." )
+                    ( Icon.layers []
+                        [ Icon.display
+                            |> Icon.transform
+                                [ Icon.shrink 4
+                                , Icon.left 5
+                                ]
+                            |> Icon.view
+                        , Icon.mobileScreen
+                            |> Icon.transform
+                                [ Icon.shrink 4
+                                , Icon.right 5
+                                , Icon.down 5
+                                ]
+                            |> Icon.view
+                        ]
+                    , "Auto"
+                    , "Automatically choose layout based on screen size."
+                    )
 
                 Wide ->
-                    ( Icon.expandAlt, "Wide", "Display all the detail available." )
+                    ( Icon.view Icon.expandAlt, "Wide", "Display all the detail available." )
 
                 Narrow ->
-                    ( Icon.compressAlt, "Narrow", "Remove some details to help fit smaller screens." )
+                    ( Icon.view Icon.compressAlt, "Narrow", "Remove some details to help fit smaller screens." )
     in
-    { id = layout
-    , icon = icon |> Icon.view |> Just
-    , primary = [ Html.text name ]
-    , secondary = [ Html.text "(", Html.text description, Html.text ")" ] |> Just
-    , meta = Nothing
-    }
+    Select.option name (selected == layout) (toString layout)
+        |> Select.icon icon
+        |> Select.optionSupportingText description True

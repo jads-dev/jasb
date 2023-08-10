@@ -5,7 +5,7 @@ import { Types } from "./types.js";
 
 export const Option = z
   .object({
-    slug: z.string(),
+    slug: Types.optionSlug,
     name: z.string(),
     image: z.string().nullable(),
     stakes: z.array(Stakes.Stake),
@@ -14,16 +14,16 @@ export const Option = z
   .strict();
 export type Option = z.infer<typeof Option>;
 
-export const EditableOption = Option.merge(
+export const Editable = Option.merge(
   z
     .object({
-      order: z.number().int(),
-      version: z.number().int().nonnegative(),
+      order: Types.int,
+      version: Types.nonNegativeInt,
       created: Types.zonedDateTime,
       modified: Types.zonedDateTime,
     })
     .strict(),
 );
-export type EditableOption = z.infer<typeof EditableOption>;
+export type Editable = z.infer<typeof Editable>;
 
 export * as Options from "./options.js";

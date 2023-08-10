@@ -1,3 +1,4 @@
+/* eslint-disable no-undef */
 import * as zlib from "node:zlib";
 
 import { default as HtmlWebpackInjectPreload } from "@principalstudio/html-webpack-inject-preload";
@@ -72,6 +73,14 @@ export const generateConfig = (env, argv) => {
             filename: "assets/images/[name].[hash][ext]",
           },
         },
+        // Video assets.
+        {
+          test: /\.(webm|mp4)$/,
+          type: "asset",
+          generator: {
+            filename: "assets/videos/[name].[hash][ext]",
+          },
+        },
         // Styles.
         {
           test: /\.s?css$/,
@@ -133,6 +142,11 @@ export const generateConfig = (env, argv) => {
         template: "./src/html/index.html",
         scriptLoading: "module",
         inject: "body",
+        base:
+          process.env["JASB_URL"] ??
+          (production
+            ? "https://jasb.900000000.xyz/"
+            : "http://localhost:8080/"),
       }),
       new HtmlWebpackInjectPreload({
         files: [
@@ -236,6 +250,7 @@ export const generateConfig = (env, argv) => {
         // Forward to the server.
         "/api/**": {
           target: inDocker ? "http://server:8081" : "http://localhost:8081",
+          ws: true,
         },
         // As we are an SPA, this lets us route all requests to the index.
         "**": {

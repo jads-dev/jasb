@@ -9,24 +9,23 @@ module JoeBets.Route exposing
     , toUrl
     )
 
-import Browser.Navigation as Navigation
+import Browser.Navigation as Browser
 import Html exposing (Html)
 import Html.Attributes as HtmlA
 import JoeBets.Bet.Model as Bet
 import JoeBets.Game.Id as Game
-import JoeBets.Game.Model as Game
 import JoeBets.Page.Bets.Model as Bets
 import JoeBets.Page.Edit.Model as Edit
+import JoeBets.Page.Gacha.Collection.Route as Collection
+import JoeBets.Page.Gacha.Route as Gacha
 import JoeBets.Page.Leaderboard.Route as Leaderboard
 import JoeBets.User.Auth.Route as Auth
 import JoeBets.User.Model as User
 import Json.Decode as JsonD
-import Json.Decode.Pipeline as JsonD
 import Json.Encode as JsonE
 import Url exposing (Url)
 import Url.Builder
 import Url.Parser as Parser exposing ((</>), (<?>))
-import Util.Json.Decode as JsonD
 import Util.Maybe as Maybe
 
 
@@ -35,10 +34,12 @@ type Route
     | Feed
     | Auth (Maybe Auth.CodeAndState)
     | User (Maybe User.Id)
+    | CardCollection User.Id Collection.Route
     | Bets Bets.Subset Game.Id
     | Bet Game.Id Bet.Id
     | Games
     | Leaderboard Leaderboard.Board
+    | Gacha Gacha.Route
     | Edit Edit.Target
     | Problem String
 
@@ -63,7 +64,20 @@ toUrlWithGivenRoot root route =
                     ( [ "auth" ], [], Nothing )
 
                 User maybeId ->
-                    ( "user" :: (maybeId |> Maybe.map User.idToString |> Maybe.toList), [], Nothing )
+                    ( "user"
+                        :: (maybeId |> Maybe.map User.idToString |> Maybe.toList)
+                    , []
+                    , Nothing
+                    )
+
+                CardCollection userId collectionRoute ->
+                    ( "user"
+                        :: User.idToString userId
+                        :: "cards"
+                        :: Collection.routeToListOfStrings collectionRoute
+                    , []
+                    , Nothing
+                    )
 
                 Bets subset id ->
                     let
@@ -75,7 +89,7 @@ toUrlWithGivenRoot root route =
                                 Bets.Suggestions ->
                                     [ "suggestions" ]
                     in
-                    ( [ "games", id |> Game.idToString ] ++ end, [], Nothing )
+                    ( "games" :: Game.idToString id :: end, [], Nothing )
 
                 Bet gameId betId ->
                     ( [ "games", gameId |> Game.idToString, betId |> Bet.idToString ], [], Nothing )
@@ -84,7 +98,13 @@ toUrlWithGivenRoot root route =
                     ( [ "games" ], [], Nothing )
 
                 Leaderboard board ->
-                    ( [ "leaderboard", Leaderboard.boardToString board ]
+                    ( "leaderboard" :: Leaderboard.boardToListOfStrings board
+                    , []
+                    , Nothing
+                    )
+
+                Gacha gacha ->
+                    ( "cards" :: Gacha.routeToListOfStrings gacha
                     , []
                     , Nothing
                     )
@@ -119,15 +139,10 @@ toUrlWithGivenRoot root route =
 fromUrl : Url -> Route
 fromUrl url =
     let
-        boardParser board =
-            board
-                |> Leaderboard.boardToString
-                >> Parser.s
-                >> Parser.map (Leaderboard board)
-
         parser =
             Parser.oneOf
                 [ Parser.s "user" </> User.idParser |> Parser.map (Just >> User)
+                , Parser.s "user" </> User.idParser </> Parser.s "cards" </> Collection.routeParser |> Parser.map CardCollection
                 , Parser.s "user" |> Parser.map (Nothing |> User)
                 , Parser.s "games" |> Parser.map Games
                 , Parser.s "games" </> Parser.s "new" |> Parser.map (Nothing |> Edit.Game >> Edit)
@@ -138,10 +153,9 @@ fromUrl url =
                 , Parser.s "games" </> Game.idParser </> Parser.s "edit" |> Parser.map (Just >> Edit.Game >> Edit)
                 , Parser.s "games" </> Game.idParser </> Bet.idParser |> Parser.map Bet
                 , Parser.s "games" </> Game.idParser </> Bet.idParser </> Parser.s "edit" |> Parser.map (\g b -> Edit.Bet g (Edit.Edit b) |> Edit)
-                , Parser.s "leaderboard" |> Parser.map (Leaderboard Leaderboard.NetWorth)
-                , Parser.s "leaderboard" </> boardParser Leaderboard.NetWorth
-                , Parser.s "leaderboard" </> boardParser Leaderboard.Debt
+                , Parser.s "leaderboard" </> Leaderboard.boardParser |> Parser.map Leaderboard
                 , Parser.s "feed" |> Parser.map Feed
+                , Parser.s "cards" </> Gacha.routeParser |> Parser.map Gacha
                 , Parser.s "auth" <?> Auth.codeAndStateParser |> Parser.map Auth
                 , Parser.top |> Parser.map About
                 ]
@@ -149,14 +163,14 @@ fromUrl url =
     url |> Parser.parse parser |> Maybe.withDefault (Problem url.path)
 
 
-pushUrl : Navigation.Key -> Route -> Cmd msg
+pushUrl : Browser.Key -> Route -> Cmd msg
 pushUrl navigationKey =
-    toUrl >> Navigation.pushUrl navigationKey
+    toUrl >> Browser.pushUrl navigationKey
 
 
-replaceUrl : Navigation.Key -> Route -> Cmd msg
+replaceUrl : Browser.Key -> Route -> Cmd msg
 replaceUrl navigationKey =
-    toUrl >> Navigation.replaceUrl navigationKey
+    toUrl >> Browser.replaceUrl navigationKey
 
 
 a : Route -> List (Html.Attribute msg) -> List (Html msg) -> Html msg

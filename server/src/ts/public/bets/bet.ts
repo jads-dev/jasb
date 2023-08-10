@@ -2,21 +2,17 @@ import * as Schema from "io-ts";
 
 import type { Internal } from "../../internal.js";
 import { Expect } from "../../util/expect.js";
+import { Validation } from "../../util/validation.js";
 import { Option, Options } from "./options.js";
 
 /**
- * An ID for a bet from the perspective of the API user, this is the slug
- * internally.
+ * A slug for a bet.
  */
-interface BetIdBrand {
-  readonly BetId: unique symbol;
+interface BetSlugBrand {
+  readonly BetSlug: unique symbol;
 }
-export const Id = Schema.brand(
-  Schema.string,
-  (id): id is Schema.Branded<string, BetIdBrand> => true,
-  "BetId",
-);
-export type Id = Schema.TypeOf<typeof Id>;
+export const Slug = Validation.Slug("BetSlug")<BetSlugBrand>();
+export type Slug = Schema.TypeOf<typeof Slug>;
 
 /**
  * The progress details of a bet that is has open voting.
@@ -45,7 +41,7 @@ export type Locked = Schema.TypeOf<typeof Locked>;
 export const Complete = Schema.readonly(
   Schema.strict({
     state: Schema.literal("Complete"),
-    winners: Schema.readonlyArray(Options.Id),
+    winners: Schema.readonlyArray(Options.Slug),
   }),
 );
 export type Complete = Schema.TypeOf<typeof Complete>;
@@ -76,7 +72,7 @@ export const Bet = Schema.readonly(
     description: Schema.string,
     spoiler: Schema.boolean,
     progress: Progress,
-    options: Schema.readonlyArray(Schema.tuple([Options.Id, Option])),
+    options: Schema.readonlyArray(Schema.tuple([Options.Slug, Option])),
   }),
 );
 export type Bet = Schema.TypeOf<typeof Bet>;
@@ -102,7 +98,7 @@ const progressFromInternal = (
         .map((option) => option.slug);
       return {
         state: "Complete",
-        winners: winners.map((w) => w as Options.Id),
+        winners: winners,
       };
     }
 
@@ -116,8 +112,8 @@ const progressFromInternal = (
 
 export const fromInternal = (
   internal: Internal.Bets.WithOptions,
-): [Id, Bet] => [
-  internal.slug as Id,
+): [Slug, Bet] => [
+  internal.slug,
   {
     name: internal.name,
     description: internal.description,

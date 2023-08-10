@@ -1,12 +1,10 @@
-import type { AxiosResponse } from "axios";
-import { default as Axios } from "axios";
-import { StatusCodes } from "http-status-codes";
 import { OciError } from "oci-sdk";
 
 import type { ObjectUploader } from "../../data/object-upload.js";
 import type { AvatarCache } from "../../internal.js";
 import { Iterables } from "../../util/iterables.js";
 import { Promises } from "../../util/promises.js";
+import { Urls } from "../../util/urls.js";
 import type { Logging } from "../logging.js";
 import type { Server } from "../model.js";
 
@@ -73,9 +71,8 @@ async function removeFromCacheBatch(
   avatarCache: ObjectUploader,
   batchSize: number,
 ): Promise<number> {
-  const noLongerNeeded = await server.store.avatarCacheGarbageCollection(
-    batchSize,
-  );
+  const noLongerNeeded =
+    await server.store.avatarCacheGarbageCollection(batchSize);
   const deleted = [
     ...Iterables.filterUndefined(
       await Promise.all(
@@ -112,30 +109,6 @@ async function deleteCached(
   }
 }
 
-async function fetch(
-  url: string,
-): Promise<AxiosResponse<ArrayBuffer> | undefined> {
-  try {
-    return await Axios.get<ArrayBuffer>(url, {
-      responseType: "arraybuffer",
-    });
-  } catch (error) {
-    if (
-      Axios.isAxiosError(error) &&
-      error.response?.status === StatusCodes.NOT_FOUND
-    ) {
-      return undefined;
-    } else {
-      throw error;
-    }
-  }
-}
-
-const extractFilename = (url: string) => {
-  const pathname = new URL(url).pathname;
-  return pathname.substring(pathname.lastIndexOf("/") + 1);
-};
-
 async function cache(
   logger: Logging.Logger,
   avatarCache: ObjectUploader,
@@ -143,11 +116,12 @@ async function cache(
 ): Promise<{ oldUrl: string; newUrl: string } | undefined> {
   try {
     const response = await fetch(meta.url);
-    if (response !== undefined) {
+    const contentType = response.headers.get("Content-Type") ?? "";
+    if (response.ok) {
       const url = await avatarCache.upload(
-        extractFilename(meta.url),
-        response.headers["content-type"] ?? "",
-        new Uint8Array(response.data),
+        Urls.extractFilename(meta.url),
+        contentType,
+        new Uint8Array(await response.arrayBuffer()),
         {
           source_url: meta.url,
           source_service: "discord",

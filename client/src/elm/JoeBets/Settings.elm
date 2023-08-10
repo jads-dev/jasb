@@ -8,8 +8,8 @@ import FontAwesome as Icon
 import FontAwesome.Solid as Icon
 import Html exposing (Html)
 import Html.Attributes as HtmlA
-import Html.Events as HtmlE
 import JoeBets.Layout as Layout
+import JoeBets.Overlay as Overlay
 import JoeBets.Page.Bets.Filters as Filters
 import JoeBets.Settings.Model exposing (..)
 import JoeBets.Store as Store
@@ -17,11 +17,9 @@ import JoeBets.Store.Codecs as Codecs
 import JoeBets.Store.Item as Item
 import JoeBets.Store.KeyedItem as Store exposing (KeyedItem)
 import JoeBets.Theme as Theme
-import Material.Attributes as Material
 import Material.IconButton as IconButton
 import Material.Select as Select
 import Material.Switch as Switch
-import Util.Maybe as Maybe
 
 
 type alias Parent a =
@@ -86,63 +84,65 @@ view wrap { settings } =
 
             viewFilter title description value filter =
                 Html.li [ HtmlA.title description ]
-                    [ Switch.view (Html.text title) value (setFilter filter |> Just) ]
+                    [ Html.label [ HtmlA.class "switch" ]
+                        [ Html.span [] [ Html.text title ]
+                        , Switch.switch (setFilter filter |> Just) value
+                            |> Switch.view
+                        ]
+                    ]
 
-            themeSelectModel =
-                { label = "Theme"
-                , idToString = Theme.toString
-                , idFromString = Theme.fromString
-                , selected = Just settings.theme.value
-                , wrap = Maybe.withDefault Theme.Auto >> SetTheme >> wrap
-                , disabled = False
-                , fullWidth = True
-                , fixedPosition = True
-                , attrs = [ Material.outlined ]
-                }
+            selectTheme =
+                Theme.fromString
+                    >> Maybe.withDefault Theme.Auto
+                    >> SetTheme
+                    >> wrap
+                    |> Just
 
-            layoutSelectModel =
-                { label = "Layout"
-                , idToString = Layout.toString
-                , idFromString = Layout.fromString
-                , selected = Just settings.layout.value
-                , wrap = Maybe.withDefault Layout.Auto >> SetLayout >> wrap
-                , disabled = False
-                , fullWidth = True
-                , fixedPosition = True
-                , attrs = [ Material.outlined ]
-                }
+            themeSelect =
+                Theme.all
+                    |> List.map (Theme.selectItem settings.theme.value)
+                    |> Select.outlined "Theme" selectTheme
+                    |> Select.fixed
+                    |> Select.supportingText "What theme to use for the site." True
+                    |> Select.leadingIcon (Icon.palette |> Icon.view)
+                    |> Select.view
+
+            selectLayout =
+                Layout.fromString
+                    >> Maybe.withDefault Layout.Auto
+                    >> SetLayout
+                    >> wrap
+                    |> Just
+
+            layoutSelect =
+                Layout.all
+                    |> List.map (Layout.selectItem settings.layout.value)
+                    |> Select.outlined "Layout" selectLayout
+                    |> Select.fixed
+                    |> Select.supportingText "What layout to use for the site." True
+                    |> Select.leadingIcon (Icon.rulerCombined |> Icon.view)
+                    |> Select.view
         in
-        [ Html.div [ HtmlA.id "client-settings", HtmlA.class "overlay" ]
-            [ Html.div [ HtmlA.class "background", False |> SetVisibility |> wrap |> HtmlE.onClick ] []
-            , Html.div [ HtmlA.class "foreground" ]
-                [ Html.div []
-                    [ Html.div [ HtmlA.class "title" ]
-                        [ Html.h2 [] [ Html.text "Settings" ]
-                        , IconButton.view (Icon.times |> Icon.view)
-                            "Close"
-                            (False |> SetVisibility |> wrap |> Just)
-                        ]
-                    , Html.div [ HtmlA.class "default-filters" ]
-                        [ Html.h3 [] [ Html.text "Default Filters" ]
-                        , Html.p [] [ Html.text "On games you haven't set them on, what will the filters will be. Each game's filters will be remembered separately on top of this." ]
-                        , Html.ul []
-                            [ viewFilter "Open" "Bets you can still bet on." resolvedFilters.voting Filters.Voting
-                            , viewFilter "Locked" "Bets that are ongoing but you can't bet on." resolvedFilters.locked Filters.Locked
-                            , viewFilter "Finished" "Bets that are resolved." resolvedFilters.complete Filters.Complete
-                            , viewFilter "Cancelled" "Bets that have been cancelled." resolvedFilters.cancelled Filters.Cancelled
-                            , viewFilter "Have Bet" "Bets that you have a stake in." resolvedFilters.hasBet Filters.HasBet
-                            , viewFilter "Spoilers" "Bets that give serious spoilers for the game." resolvedFilters.spoilers Filters.Spoilers
-                            ]
-                        ]
-                    , Html.div [ HtmlA.class "theme" ]
-                        [ Html.h3 [] [ Html.text "Theme" ]
-                        , Html.p [] [ Html.text "What theme to use for the site." ]
-                        , Theme.all |> List.map Theme.selectItem |> Select.view themeSelectModel
-                        ]
-                    , Html.div [ HtmlA.class "layout" ]
-                        [ Html.h3 [] [ Html.text "Layout" ]
-                        , Html.p [] [ Html.text "What layout to use for the site." ]
-                        , Layout.all |> List.map Layout.selectItem |> Select.view layoutSelectModel
+        [ Overlay.view (False |> SetVisibility |> wrap)
+            [ Html.div [ HtmlA.id "client-settings" ]
+                [ Html.div [ HtmlA.class "title" ]
+                    [ Html.h2 [] [ Html.text "Settings" ]
+                    , IconButton.icon (Icon.times |> Icon.view) "Close"
+                        |> IconButton.button (False |> SetVisibility |> wrap |> Just)
+                        |> IconButton.view
+                    ]
+                , Html.div [ HtmlA.class "theme" ] [ themeSelect ]
+                , Html.div [ HtmlA.class "layout" ] [ layoutSelect ]
+                , Html.div [ HtmlA.class "default-filters" ]
+                    [ Html.h3 [] [ Html.text "Default Filters" ]
+                    , Html.p [] [ Html.text "On games you haven't set them on, what will the filters will be. Each game's filters will be remembered separately on top of this." ]
+                    , Html.ul []
+                        [ viewFilter "Open" "Bets you can still bet on." resolvedFilters.voting Filters.Voting
+                        , viewFilter "Locked" "Bets that are ongoing but you can't bet on." resolvedFilters.locked Filters.Locked
+                        , viewFilter "Finished" "Bets that are resolved." resolvedFilters.complete Filters.Complete
+                        , viewFilter "Cancelled" "Bets that have been cancelled." resolvedFilters.cancelled Filters.Cancelled
+                        , viewFilter "Have Bet" "Bets that you have a stake in." resolvedFilters.hasBet Filters.HasBet
+                        , viewFilter "Spoilers" "Bets that give serious spoilers for the game." resolvedFilters.spoilers Filters.Spoilers
                         ]
                     ]
                 ]

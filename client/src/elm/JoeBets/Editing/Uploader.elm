@@ -1,7 +1,6 @@
 module JoeBets.Editing.Uploader exposing
     ( Model
     , Msg(..)
-    , State
     , Uploader
     , fromUrl
     , init
@@ -14,18 +13,18 @@ module JoeBets.Editing.Uploader exposing
 import File exposing (File)
 import File.Select as Select
 import FontAwesome as Icon
-import FontAwesome.Attributes as Icon
 import FontAwesome.Solid as Icon
 import Html exposing (Html)
 import Html.Attributes as HtmlA
-import Http
 import JoeBets.Api as Api
+import JoeBets.Api.Action as Api
+import JoeBets.Api.Model as Api
+import JoeBets.Api.Path as Api
 import Json.Decode as JsonD
 import Json.Decode.Pipeline as JsonD
-import Material.Attributes as Material
 import Material.IconButton as IconButton
 import Material.TextField as TextField
-import Util.RemoteData as RemoteData
+import Maybe
 
 
 type alias Parent a =
@@ -38,13 +37,7 @@ type Msg
     = ChangeUrl String
     | RequestFile
     | Upload File
-    | ShowError Http.Error
-
-
-type State
-    = Ready
-    | Busy
-    | Error Http.Error
+    | Uploaded (Api.Response UploadedResponse)
 
 
 type alias Model =
@@ -55,7 +48,7 @@ type alias Model =
 
 type alias Uploader =
     { url : String
-    , state : State
+    , upload : Api.ActionState
     }
 
 
@@ -72,14 +65,14 @@ decoder =
 init : Uploader
 init =
     { url = ""
-    , state = Ready
+    , upload = Api.initAction
     }
 
 
 fromUrl : String -> Uploader
 fromUrl url =
     { url = url
-    , state = Ready
+    , upload = Api.initAction
     }
 
 
@@ -104,61 +97,62 @@ update wrap msg { origin } { types } uploader =
 
         Upload file ->
             let
-                handleResponse result =
-                    case result of
-                        Ok { url } ->
-                            ChangeUrl url
-
-                        Err error ->
-                            ShowError error
+                ( upload, cmd ) =
+                    { path = Api.Upload
+                    , body = file
+                    , wrap = Uploaded >> wrap
+                    , decoder = decoder
+                    }
+                        |> Api.postFile origin
+                        |> Api.doAction uploader.upload
             in
-            ( uploader
-            , Api.post origin
-                { path = Api.Upload
-                , body = [ file |> Http.filePart "file" ] |> Http.multipartBody
-                , expect = Http.expectJson (handleResponse >> wrap) decoder
-                }
+            ( { uploader | upload = upload }, cmd )
+
+        Uploaded result ->
+            let
+                ( response, upload ) =
+                    uploader.upload |> Api.handleActionResult result
+            in
+            ( { uploader
+                | url =
+                    response
+                        |> Maybe.map .url
+                        |> Maybe.withDefault uploader.url
+                , upload = upload
+              }
+            , Cmd.none
             )
 
-        ShowError error ->
-            ( { uploader | state = Error error }, Cmd.none )
 
-
-view : (Msg -> msg) -> Model -> Uploader -> Html msg
-view wrap { label } { url, state } =
+view : Maybe (Msg -> msg) -> Model -> Uploader -> Html msg
+view wrap { label } { url, upload } =
     let
-        ifNotBusy value =
-            case state of
-                Busy ->
-                    Nothing
-
-                _ ->
-                    Just value
-
         uploadIcon =
             Icon.upload
-                |> ifNotBusy
-                |> Maybe.withDefault (Icon.spinner |> Icon.styled [ Icon.spinPulse ])
                 |> Icon.view
+                |> Api.orSpinner upload
 
-        error =
-            case state of
-                Error e ->
-                    [ Html.p [ HtmlA.class "error" ] [ e |> RemoteData.errorToString |> Html.text ] ]
+        applyIfGiven maybeWrap value =
+            maybeWrap |> Maybe.map (\w -> value >> w)
 
-                _ ->
-                    []
+        ifGiven maybeWrap value =
+            maybeWrap |> Maybe.map (\w -> value |> w)
 
         core =
-            Html.div []
-                [ TextField.viewWithAttrs label
-                    TextField.Url
-                    url
-                    (ChangeUrl >> wrap |> ifNotBusy)
-                    [ Material.outlined ]
-                , IconButton.view uploadIcon
-                    ("Upload " ++ label)
-                    (RequestFile |> wrap |> ifNotBusy)
-                ]
+            TextField.outlined label
+                (ChangeUrl |> applyIfGiven wrap |> Api.ifNotWorking upload)
+                url
+                |> TextField.url
+                |> TextField.trailingIcon
+                    (IconButton.icon uploadIcon
+                        ("Upload " ++ label)
+                        |> IconButton.button (RequestFile |> ifGiven wrap |> Api.ifNotWorking upload)
+                        |> IconButton.view
+                    )
+                |> TextField.supportingText "Please avoid hotlinking images, upload them."
+                |> TextField.view
+
+        action =
+            Api.viewAction [] upload
     in
-    [ [ core ], error ] |> List.concat |> Html.div [ HtmlA.class "uploader" ]
+    core :: action |> Html.div [ HtmlA.class "uploader" ]

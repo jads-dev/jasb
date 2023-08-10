@@ -15,7 +15,7 @@ export const leaderboardApi = (server: Server.State): Router => {
       ),
     server.config.performance.leaderboardCacheDuration,
   );
-  router.get("/net-worth", async (ctx) => {
+  router.get("/", async (ctx) => {
     ctx.body = Schema.readonlyArray(Leaderboard.NetWorthEntry).encode(
       await netWorthLeaderboardCache.get(),
     );

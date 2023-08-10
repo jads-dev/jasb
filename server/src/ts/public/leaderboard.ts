@@ -10,7 +10,7 @@ const Entry = Schema.readonly(
   Schema.intersection([
     Users.Summary,
     Schema.strict({
-      id: Users.Id,
+      id: Users.Slug,
       rank: Schema.Int,
     }),
   ]),
@@ -44,7 +44,7 @@ export const DebtEntry = Schema.readonly(
 export type DebtEntry = Schema.TypeOf<typeof DebtEntry>;
 
 const baseFromInternal = (internal: Internal.Users.Leaderboard): Entry => ({
-  id: internal.slug as Users.Id,
+  id: internal.slug,
 
   name: internal.name,
   ...(internal.discriminator !== null

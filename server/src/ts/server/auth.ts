@@ -50,7 +50,7 @@ export class Auth {
     origin: string,
     code: string,
   ): Promise<{
-    user: [Users.Id, Users.User];
+    user: [Users.Slug, Users.User];
     notifications: Notifications.Notification[];
     session: SecretToken;
     expires: Joda.ZonedDateTime;
@@ -114,8 +114,8 @@ export class Auth {
     }
   }
 
-  async logout(userId: string, session: SecretToken): Promise<void> {
-    const accessToken = await this.store.logout(userId, session);
+  async logout(userSlug: Users.Slug, session: SecretToken): Promise<void> {
+    const accessToken = await this.store.logout(userSlug, session);
     if (accessToken != null) {
       const { clientId, clientSecret } = this.config.discord;
       const credentials = Buffer.from(`${clientId}:${clientSecret}`).toString(

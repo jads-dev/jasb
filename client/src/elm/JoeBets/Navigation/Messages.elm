@@ -1,8 +1,8 @@
 module JoeBets.Navigation.Messages exposing (Msg(..))
 
-import Material.Menu as Menu
+import JoeBets.Navigation.Model exposing (..)
 
 
 type Msg
-    = SetMoreSubmenuState Menu.State
-    | SetUserSubmenuState Menu.State
+    = OpenSubMenu SubMenu
+    | CloseSubMenu SubMenu

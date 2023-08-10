@@ -1,0 +1,19 @@
+@mixin banner($slug, $border) {
+  &.banner-#{$slug} {
+    --banner-border: #{$border};
+  }
+}
+
+.card {
+  @include banner(
+    "joms",
+    linear-gradient(
+      120deg,
+      #ff5656 0%,
+      #ff1d1d 20%,
+      #c10000 40%,
+      #ff4040 55%,
+      #e90000 100%
+    )
+  );
+}

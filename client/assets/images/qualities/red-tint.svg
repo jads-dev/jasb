@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512">
+  <defs>
+    <filter id="a">
+      <feColorMatrix in="SourceGraphic" values="1 1 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0" />
+    </filter>
+  </defs>
+</svg>

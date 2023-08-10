@@ -14,6 +14,8 @@
 @use "./components/_settings.scss";
 @use "./components/_monocoins.scss";
 @use "./components/_bet.scss";
+@use "./components/_gacha.scss";
+@use "./components/_place-bet.scss";
 @use "./pages/_about.scss";
 @use "./pages/_feed.scss";
 @use "./pages/_games.scss";
@@ -22,6 +24,7 @@
 @use "./pages/_bet.scss" as bet-page;
 @use "./pages/_user.scss" as user-page;
 @use "./pages/_edit.scss";
+@use "./pages/_gacha.scss" as gacha-page;
 
 body {
   margin: 0;
@@ -127,10 +130,16 @@ h2 {
   margin: 0 auto 0 auto;
   border-radius: 1em;
   background-color: #{colors.by_name("tint")};
+  min-width: 10em;
+  max-width: 100%;
+  box-sizing: border-box;
 }
 
 .dangerous {
-  --mdc-theme-primary: #{colors.by_name("bad")};
+  --md-sys-color-primary: #{colors.by_name("bad")};
+  --md-sys-color-on-primary: #{colors.by_name("on-bad")};
+  --md-sys-color-secondary-container: #{colors.by_name("bad")};
+  --md-sys-color-on-secondary-container: #{colors.by_name("on-bad")};
 }
 
 details {
@@ -166,7 +175,8 @@ details {
   }
 }
 
-.errors {
+.validation-errors {
+  color: #{colors.by_name("bad")};
   list-style: none;
   padding: 0;
   margin: 0;
@@ -174,6 +184,56 @@ details {
   display: flex;
   flex-flow: row wrap;
   gap: 1em;
+}
 
-  color: #{colors.by_name("bad")};
+.error {
+  border: 0.1em solid #{colors.by_name("bad")};
+  padding: 0.25em;
+
+  display: grid;
+  grid-template:
+    "icon reason" auto
+    "icon message" auto
+    "details details" auto
+    / auto 1fr;
+  align-items: center;
+  gap: 0.25em;
+
+  > .icon {
+    grid-area: icon;
+    color: #{colors.by_name("bad")};
+  }
+
+  > .reason {
+    grid-area: reason;
+  }
+
+  > .message {
+    grid-area: message;
+  }
+
+  > .details {
+    grid-area: details;
+    border-top: 0.1em dashed #{colors.by_name("bad")};
+    padding-top: 0.25em;
+  }
+}
+
+.loading {
+  align-self: stretch;
+
+  display: flex;
+  flex-flow: column;
+  align-items: center;
+  gap: 0.5em;
+
+  .load-description {
+    text-align: center;
+    font-size: 1.5em;
+  }
+}
+
+.switch {
+  display: flex;
+  gap: 0.5em;
 }

@@ -5,18 +5,13 @@ import { Bets } from "../../public/bets.js";
 import { Validation } from "../../util/validation.js";
 
 /**
- * An ID for a lock moment from the perspective of the API user, this is the
- * slug internally.
+ * A slug for a lock moment.
  */
-interface LockMomentIdBrand {
-  readonly LockMomentId: unique symbol;
+interface LockMomentSlugBrand {
+  readonly LockMomentSlug: unique symbol;
 }
-export const Id = Schema.brand(
-  Schema.string,
-  (id): id is Schema.Branded<string, LockMomentIdBrand> => true,
-  "LockMomentId",
-);
-export type Id = Schema.TypeOf<typeof Id>;
+export const Slug = Validation.Slug("LockMomentSlug")<LockMomentSlugBrand>();
+export type Slug = Schema.TypeOf<typeof Slug>;
 
 /**
  * The details for a lock moment.
@@ -38,7 +33,7 @@ export type LockMoment = Schema.TypeOf<typeof LockMoment>;
  */
 export const BetLockStatus = Schema.readonly(
   Schema.strict({
-    betId: Bets.Id,
+    betId: Bets.Slug,
     betName: Schema.string,
     betVersion: Schema.Int,
     locked: Schema.boolean,
@@ -47,7 +42,7 @@ export const BetLockStatus = Schema.readonly(
 export type BetLockStatus = Schema.TypeOf<typeof BetLockStatus>;
 
 export const LockMomentStatuses = Schema.tuple([
-  Id,
+  Slug,
   LockMoment,
   Schema.readonlyArray(BetLockStatus),
 ]);
@@ -58,8 +53,8 @@ export type GameLockStatus = Schema.TypeOf<typeof GameLockStatus>;
 
 export const fromInternal = (
   internal: Internal.Bets.LockMoment,
-): [Id, LockMoment] => [
-  internal.slug as Id,
+): [Slug, LockMoment] => [
+  internal.slug as Slug,
   {
     name: internal.name,
     order: internal.order as Schema.Int,
@@ -74,7 +69,7 @@ export const fromInternal = (
 export const betLockStatusFromInternal = (
   internal: Internal.Bets.LockStatus,
 ): BetLockStatus => ({
-  betId: internal.bet_slug as Bets.Id,
+  betId: internal.bet_slug,
   betName: internal.bet_name,
   betVersion: internal.bet_version as Schema.Int,
   locked: internal.locked,

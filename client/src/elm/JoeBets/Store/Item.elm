@@ -53,7 +53,7 @@ initial key decoder encode defaultValue =
     Codec
         { key = key
         , version = 0
-        , decoder = decoderForVersion 0 decoder ("Negative version number." |> JsonD.fail |> always)
+        , decoder = decoderForVersion 0 decoder (\_ -> "Negative version number." |> JsonD.fail)
         , encode = encode
         , defaultValue = defaultValue
         }

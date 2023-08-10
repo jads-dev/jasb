@@ -25,14 +25,14 @@ startObject =
     ObjectPipeline []
 
 
-field : String -> Value -> ObjectPipeline -> ObjectPipeline
-field name value (ObjectPipeline fields) =
-    (( name, value ) :: fields) |> ObjectPipeline
+field : String -> (value -> Value) -> value -> ObjectPipeline -> ObjectPipeline
+field name encodeValue value (ObjectPipeline fields) =
+    (( name, encodeValue value ) :: fields) |> ObjectPipeline
 
 
 maybeField : String -> (value -> Value) -> Maybe value -> ObjectPipeline -> ObjectPipeline
 maybeField name encodeValue maybeValue =
-    maybeValue |> Maybe.map (encodeValue >> field name) |> Maybe.withDefault identity
+    maybeValue |> Maybe.map (field name encodeValue) |> Maybe.withDefault identity
 
 
 mergeObject : ObjectPipeline -> ObjectPipeline -> ObjectPipeline

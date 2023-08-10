@@ -5,10 +5,9 @@ module JoeBets.Page.User.Model exposing
     , GamePermissions
     , Model
     , Msg(..)
-    , Permissions
+    , PerGamePermissions
     , PermissionsOverlay
     , SetPermission(..)
-    , UserModel
     , apply
     , bankruptcyStatsDecoder
     , editablePermissionsDecoder
@@ -18,33 +17,34 @@ module JoeBets.Page.User.Model exposing
     )
 
 import AssocList
-import Http
+import JoeBets.Api.Action as Api
+import JoeBets.Api.Data as Api
+import JoeBets.Api.IdData as Api
+import JoeBets.Api.Model as Api
 import JoeBets.Game.Id as Game
 import JoeBets.Game.Model as Game
 import JoeBets.User.Model as User exposing (User)
 import Json.Decode as JsonD
 import Json.Decode.Pipeline as JsonD
 import Json.Encode as JsonE
-import Util.AssocList as AssocList
 import Util.Json.Decode as JsonD
-import Util.RemoteData exposing (RemoteData)
 
 
-type alias Permissions =
-    { canManageBets : Bool
+type alias PerGamePermissions =
+    { manageBets : Bool
     }
 
 
-permissionsDecoder : JsonD.Decoder Permissions
+permissionsDecoder : JsonD.Decoder PerGamePermissions
 permissionsDecoder =
-    JsonD.succeed Permissions
-        |> JsonD.required "canManageBets" JsonD.bool
+    JsonD.succeed PerGamePermissions
+        |> JsonD.required "manageBets" JsonD.bool
 
 
 type alias GamePermissions =
     { gameId : Game.Id
     , gameName : String
-    , permissions : Permissions
+    , permissions : PerGamePermissions
     }
 
 
@@ -77,13 +77,15 @@ bankruptcyStatsDecoder =
 
 type alias BankruptcyOverlay =
     { sureToggle : Bool
-    , stats : RemoteData BankruptcyStats
+    , stats : Api.Data BankruptcyStats
+    , action : Api.ActionState
     }
 
 
 type alias EditablePermissions =
     { manageGames : Bool
     , managePermissions : Bool
+    , manageGacha : Bool
     , manageBets : Bool
     , gameSpecific : AssocList.Dict Game.Id GamePermissions
     }
@@ -94,6 +96,7 @@ editablePermissionsDecoder =
     JsonD.succeed EditablePermissions
         |> JsonD.required "manageGames" JsonD.bool
         |> JsonD.required "managePermissions" JsonD.bool
+        |> JsonD.required "manageGacha" JsonD.bool
         |> JsonD.required "manageBets" JsonD.bool
         |> JsonD.required "gameSpecific" (JsonD.assocListFromList (JsonD.field "gameId" Game.idDecoder) gamePermissionsDecoder)
 
@@ -101,6 +104,7 @@ editablePermissionsDecoder =
 type SetPermission
     = ManageGames Bool
     | ManagePermissions Bool
+    | ManageGacha Bool
     | ManageBets (Maybe Game.Id) Bool
 
 
@@ -113,6 +117,9 @@ encodeSetPermissions setPermissions =
         ManagePermissions v ->
             JsonE.object [ ( "managePermissions", JsonE.bool v ) ]
 
+        ManageGacha v ->
+            JsonE.object [ ( "manageGacha", JsonE.bool v ) ]
+
         ManageBets Nothing v ->
             JsonE.object [ ( "manageBets", JsonE.bool v ) ]
 
@@ -124,34 +131,29 @@ encodeSetPermissions setPermissions =
 
 
 type alias PermissionsOverlay =
-    { permissions : RemoteData EditablePermissions }
+    { permissions : Api.Data EditablePermissions }
 
 
 type alias Model =
-    Maybe UserModel
-
-
-type alias UserModel =
-    { id : User.Id
-    , user : RemoteData User
-    , bets : RemoteData (AssocList.Dict Game.Id Game.WithBets)
+    { user : Api.IdData User.Id User
+    , bets : Api.IdData User.Id (AssocList.Dict Game.Id Game.WithBets)
     , bankruptcyOverlay : Maybe BankruptcyOverlay
     , permissionsOverlay : Maybe PermissionsOverlay
     }
 
 
 type Msg
-    = Load (Result Http.Error User.WithId)
+    = Load User.Id (Api.Response User.WithId)
     | TryLoadBets User.Id
-    | LoadBets User.Id (Result Http.Error (AssocList.Dict Game.Id Game.WithBets))
-    | ToggleBankruptcyOverlay Bool
+    | LoadBets User.Id (Api.Response (AssocList.Dict Game.Id Game.WithBets))
+    | ToggleBankruptcyOverlay User.Id Bool
     | SetBankruptcyToggle Bool
-    | LoadBankruptcyStats User.Id (Result Http.Error BankruptcyStats)
-    | GoBankrupt
-    | TogglePermissionsOverlay Bool
-    | LoadPermissions User.Id (Result Http.Error EditablePermissions)
+    | LoadBankruptcyStats User.Id (Api.Response BankruptcyStats)
+    | GoBankrupt User.Id (Maybe (Api.Response User.WithId))
+    | TogglePermissionsOverlay User.Id Bool
+    | LoadPermissions User.Id (Api.Response EditablePermissions)
     | SetPermissions User.Id SetPermission
-    | NoOp
+    | NoOp String
 
 
 type Change

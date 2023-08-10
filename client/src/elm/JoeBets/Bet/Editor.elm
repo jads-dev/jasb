@@ -7,15 +7,18 @@ module JoeBets.Bet.Editor exposing
     )
 
 import AssocList
+import Browser.Navigation as Browser
 import EverySet
 import FontAwesome as Icon
 import FontAwesome.Solid as Icon
 import Html exposing (Html)
 import Html.Attributes as HtmlA
-import Html.Events as HtmlE
 import Html.Keyed as HtmlK
-import Http
 import JoeBets.Api as Api
+import JoeBets.Api.Action as Api
+import JoeBets.Api.Data as Api
+import JoeBets.Api.IdData as Api
+import JoeBets.Api.Path as Api
 import JoeBets.Bet as Bet
 import JoeBets.Bet.Editor.EditableBet as EditableBet exposing (EditableBet)
 import JoeBets.Bet.Editor.LockMoment as LockMoment
@@ -24,48 +27,63 @@ import JoeBets.Bet.Editor.LockMoment.Selector as LockMoment
 import JoeBets.Bet.Editor.Model exposing (..)
 import JoeBets.Bet.Model as Bet
 import JoeBets.Bet.Option as Option
-import JoeBets.Editing.Order as Order
 import JoeBets.Editing.Slug as Slug
 import JoeBets.Editing.Uploader as Uploader
+import JoeBets.Editing.Validator as Validator exposing (Validator)
 import JoeBets.Game.Id as Game
-import JoeBets.Game.Model as Game
+import JoeBets.Overlay as Overlay
 import JoeBets.Page.Edit.Model as Edit
-import JoeBets.Page.Edit.Validator as Validator exposing (Validator)
+import JoeBets.Route as Route exposing (Route)
 import JoeBets.User as User
 import JoeBets.User.Auth.Model as Auth
 import JoeBets.User.Model as User
 import Json.Encode as JsonE
 import List.Extra as List
-import Material.Attributes as Material
 import Material.Button as Button
 import Material.IconButton as IconButton
 import Material.Switch as Switch
-import Material.TextArea as TextArea
 import Material.TextField as TextField
 import Time.DateTime as DateTime
 import Time.Model as Time
 import Util.AssocList as AssocList
 import Util.EverySet as EverySet
 import Util.Maybe as Maybe
-import Util.RemoteData as RemoteData
 
 
 type alias Parent a =
     { a
         | origin : String
+        , navigationKey : Browser.Key
     }
 
 
-empty : User.Id -> Bool -> Game.Id -> Edit.EditMode -> Model
-empty _ canManageBets gameId editMode =
+empty : String -> (Msg -> msg) -> Bool -> Game.Id -> Edit.EditMode -> ( Model, Cmd msg )
+empty origin wrap canManageBets gameId editMode =
     let
-        ( source, id ) =
+        ( source, id, loadBetCmd ) =
             case editMode of
                 Edit.Edit toEditId ->
-                    ( Just { id = toEditId, bet = RemoteData.Missing }, Slug.Locked toEditId )
+                    let
+                        ( state, requestCmd ) =
+                            { path = Api.Game gameId (Api.Bet toEditId Api.Edit)
+                            , wrap = Load gameId toEditId Initial >> wrap
+                            , decoder = EditableBet.decoder
+                            }
+                                |> Api.get origin
+                                |> Api.initGetIdData toEditId
+                    in
+                    ( state, Slug.Locked toEditId, requestCmd )
 
                 _ ->
-                    ( Nothing, Slug.Auto )
+                    ( Api.initIdData, Slug.Auto, Cmd.none )
+
+        ( lockMoments, lockMomentsCmd ) =
+            { path = Api.Game gameId Api.LockMoments
+            , wrap = LoadLockMoments gameId >> wrap
+            , decoder = LockMoment.lockMomentsDecoder
+            }
+                |> Api.get origin
+                |> Api.initGetData
 
         mode =
             if not canManageBets || editMode == Edit.Suggest then
@@ -74,25 +92,27 @@ empty _ canManageBets gameId editMode =
             else
                 EditBet
     in
-    { mode = mode
-    , source = source
-    , gameId = gameId
-    , id = id
-    , name = ""
-    , description = ""
-    , spoiler = True
-    , lockMoments = RemoteData.Missing
-    , lockMomentEditor = Nothing
-    , lockMoment = Nothing
-    , options = AssocList.empty
-    , contextualOverlay = Nothing
-    , internalIdCounter = 0
-    }
+    ( { mode = mode
+      , source = source
+      , gameId = gameId
+      , id = id
+      , name = ""
+      , description = ""
+      , spoiler = True
+      , lockMoments = lockMoments
+      , lockMomentEditor = Nothing
+      , lockMoment = Nothing
+      , options = AssocList.empty
+      , contextualOverlay = Nothing
+      , internalIdCounter = 0
+      }
+    , Cmd.batch [ loadBetCmd, lockMomentsCmd ]
+    )
 
 
 isNew : Model -> Bool
 isNew { source } =
-    source == Nothing
+    Api.isIdDataUnstarted source
 
 
 load : String -> User.WithId -> (Msg -> msg) -> Game.Id -> Edit.EditMode -> ( Model, Cmd msg )
@@ -100,28 +120,8 @@ load origin localUser wrap gameId editMode =
     let
         canManageBets =
             Auth.canManageBets gameId (Just localUser)
-
-        model =
-            empty localUser.id canManageBets gameId editMode
-
-        getBetCmd =
-            case editMode of
-                Edit.Edit id ->
-                    Api.get origin
-                        { path = Api.Game gameId (Api.Bet id Api.Edit)
-                        , expect = Http.expectJson (Load gameId id >> wrap) EditableBet.decoder
-                        }
-
-                _ ->
-                    Cmd.none
-
-        getLockMomentsCmd =
-            Api.get origin
-                { path = Api.Game gameId Api.LockMoments
-                , expect = Http.expectJson (LoadLockMoments gameId >> wrap) LockMoment.lockMomentsDecoder
-                }
     in
-    ( model, Cmd.batch [ getBetCmd, getLockMomentsCmd ] )
+    empty origin wrap canManageBets gameId editMode
 
 
 fromSource : Bet.Id -> EditableBet -> Model -> Model
@@ -138,43 +138,59 @@ fromSource bet editableBet model =
                 |> List.map initOptionFromEditable
                 |> AssocList.fromList
                 |> AssocList.sortBy (\_ v -> v.order)
-        , source = Just { id = bet, bet = RemoteData.Loaded editableBet }
+        , source = model.source |> Api.updateIdDataValue bet (\_ -> editableBet)
     }
 
 
-update : (Msg -> msg) -> User.WithId -> Msg -> Parent a -> Model -> ( Model, Cmd msg )
-update wrap localUser msg ({ origin } as parent) model =
+update : (Msg -> msg) -> Msg -> Parent a -> Model -> ( Model, Cmd msg )
+update wrap msg ({ origin, navigationKey } as parent) model =
     case msg of
-        Load game bet result ->
-            case result of
-                Ok editableBet ->
-                    if model.gameId == game && (model.source |> Maybe.map .id) == Just bet then
-                        ( model |> fromSource bet editableBet
-                        , Cmd.none
-                        )
+        Load game bet loadReason result ->
+            if model.gameId == game then
+                let
+                    source =
+                        model.source |> Api.updateIdData bet result
 
-                    else
-                        ( model, Cmd.none )
+                    withSource =
+                        { model | source = source }
+                in
+                case loadReason of
+                    Initial ->
+                        let
+                            updateEditorFields =
+                                case result of
+                                    Ok editableBet ->
+                                        fromSource bet editableBet
 
-                Err errorMsg ->
-                    ( { model | source = Just { id = bet, bet = RemoteData.Failed errorMsg } }
-                    , Cmd.none
-                    )
+                                    Err _ ->
+                                        identity
+                        in
+                        ( withSource |> updateEditorFields, Cmd.none )
+
+                    Change ->
+                        ( withSource, Cmd.none )
+
+            else
+                ( model, Cmd.none )
 
         LoadLockMoments game result ->
             let
-                closeIfSaving editor =
-                    case editor |> Maybe.map .saved of
-                        Just LockMoment.Saving ->
-                            Nothing
+                isSaving =
+                    Maybe.map .save
+                        >> Maybe.map Api.isWorking
+                        >> Maybe.withDefault False
 
-                        _ ->
-                            editor
+                closeIfSaving editor =
+                    if isSaving editor then
+                        Nothing
+
+                    else
+                        editor
 
                 setIf m =
                     if model.gameId == game then
                         { m
-                            | lockMoments = RemoteData.load result
+                            | lockMoments = m.lockMoments |> Api.updateData result
                             , lockMomentEditor = m.lockMomentEditor |> closeIfSaving
                         }
 
@@ -197,9 +213,9 @@ update wrap localUser msg ({ origin } as parent) model =
             ( { model | lockMomentEditor = editor }, cmd )
 
         Reset ->
-            case model.source of
-                Just { id, bet } ->
-                    case bet |> RemoteData.toMaybe of
+            case model.source |> Api.idDataToData of
+                Just ( id, bet ) ->
+                    case bet |> Api.dataToMaybe of
                         Just editableBet ->
                             ( model |> fromSource id editableBet, Cmd.none )
 
@@ -216,9 +232,7 @@ update wrap localUser msg ({ origin } as parent) model =
                                 EditSuggestion ->
                                     Edit.Suggest
                     in
-                    ( empty localUser.id False model.gameId editMode
-                    , Cmd.none
-                    )
+                    empty origin wrap False model.gameId editMode
 
         SetMode mode ->
             ( { model | mode = mode }, Cmd.none )
@@ -239,8 +253,8 @@ update wrap localUser msg ({ origin } as parent) model =
             ( { model | lockMoment = lockMoment }, Cmd.none )
 
         SetLocked locked ->
-            case model.source |> Maybe.andThen (.bet >> RemoteData.toMaybe) of
-                Just bet ->
+            case model.source |> Api.idDataToMaybe of
+                Just ( betId, bet ) ->
                     let
                         action =
                             if locked then
@@ -249,17 +263,16 @@ update wrap localUser msg ({ origin } as parent) model =
                             else
                                 Api.Unlock
 
-                        betId =
-                            resolveId model
-
-                        request =
-                            Api.post origin
-                                { path = action |> Api.Bet betId |> Api.Game model.gameId
-                                , body = [ ( "version", JsonE.int bet.version ) ] |> JsonE.object |> Http.jsonBody
-                                , expect = Http.expectJson (Load model.gameId betId >> wrap) EditableBet.decoder
-                                }
+                        ( source, request ) =
+                            { path = action |> Api.Bet betId |> Api.Game model.gameId
+                            , body = [ ( "version", JsonE.int bet.version ) ] |> JsonE.object
+                            , wrap = Load model.gameId betId Change >> wrap
+                            , decoder = EditableBet.decoder
+                            }
+                                |> Api.post origin
+                                |> Api.getIdData betId model.source
                     in
-                    ( model, request )
+                    ( { model | source = source }, request )
 
                 Nothing ->
                     ( model, Cmd.none )
@@ -268,20 +281,19 @@ update wrap localUser msg ({ origin } as parent) model =
             ( { model | contextualOverlay = { winners = EverySet.empty } |> CompleteOverlay |> Just }, Cmd.none )
 
         RevertComplete ->
-            case model.source |> Maybe.andThen (.bet >> RemoteData.toMaybe) of
-                Just bet ->
+            case model.source |> Api.idDataToMaybe of
+                Just ( betId, bet ) ->
                     let
-                        betId =
-                            resolveId model
-
-                        request =
-                            Api.post origin
-                                { path = Api.RevertComplete |> Api.Bet betId |> Api.Game model.gameId
-                                , body = [ ( "version", JsonE.int bet.version ) ] |> JsonE.object |> Http.jsonBody
-                                , expect = Http.expectJson (Load model.gameId betId >> wrap) EditableBet.decoder
-                                }
+                        ( source, request ) =
+                            { path = Api.RevertComplete |> Api.Bet betId |> Api.Game model.gameId
+                            , body = [ ( "version", JsonE.int bet.version ) ] |> JsonE.object
+                            , wrap = Load model.gameId betId Change >> wrap
+                            , decoder = EditableBet.decoder
+                            }
+                                |> Api.post origin
+                                |> Api.getIdData betId model.source
                     in
-                    ( model, request )
+                    ( { model | source = source }, request )
 
                 Nothing ->
                     ( model, Cmd.none )
@@ -290,20 +302,19 @@ update wrap localUser msg ({ origin } as parent) model =
             ( { model | contextualOverlay = { reason = "" } |> CancelOverlay |> Just }, Cmd.none )
 
         RevertCancel ->
-            case model.source |> Maybe.andThen (.bet >> RemoteData.toMaybe) of
-                Just bet ->
+            case model.source |> Api.idDataToMaybe of
+                Just ( betId, bet ) ->
                     let
-                        betId =
-                            resolveId model
-
-                        request =
-                            Api.post origin
-                                { path = Api.RevertCancel |> Api.Bet betId |> Api.Game model.gameId
-                                , body = [ ( "version", JsonE.int bet.version ) ] |> JsonE.object |> Http.jsonBody
-                                , expect = Http.expectJson (Load model.gameId betId >> wrap) EditableBet.decoder
-                                }
+                        ( source, request ) =
+                            { path = Api.RevertCancel |> Api.Bet betId |> Api.Game model.gameId
+                            , body = [ ( "version", JsonE.int bet.version ) ] |> JsonE.object
+                            , wrap = Load model.gameId betId Change >> wrap
+                            , decoder = EditableBet.decoder
+                            }
+                                |> Api.post origin
+                                |> Api.getIdData betId model.source
                     in
-                    ( model, request )
+                    ( { model | source = source }, request )
 
                 Nothing ->
                     ( model, Cmd.none )
@@ -358,8 +369,8 @@ update wrap localUser msg ({ origin } as parent) model =
                                         imageUploaderModel
                                         option.image
 
-                                replaceImageInOption =
-                                    { option | image = image } |> Just |> always
+                                replaceImageInOption _ =
+                                    { option | image = image } |> Just
 
                                 newOptions =
                                     model.options |> AssocList.update internalId replaceImageInOption
@@ -412,31 +423,26 @@ update wrap localUser msg ({ origin } as parent) model =
 
         ResolveOverlay commit ->
             let
-                makeChangeRequest path body ({ gameId, source } as m) =
-                    case source |> Maybe.andThen (.bet >> RemoteData.toMaybe) of
-                        Just bet ->
-                            let
-                                betId =
-                                    resolveId m
+                changeRequestFromBet path body m ( betId, bet ) =
+                    { path = path |> Api.Bet betId |> Api.Game m.gameId
+                    , body = body bet
+                    , wrap = Load m.gameId betId Change >> wrap
+                    , decoder = EditableBet.decoder
+                    }
+                        |> Api.post origin
+                        |> Api.getIdData betId m.source
 
-                                request =
-                                    Api.post origin
-                                        { path = path |> Api.Bet betId |> Api.Game gameId
-                                        , body = body bet |> Http.jsonBody
-                                        , expect = Http.expectJson (Load gameId betId >> wrap) EditableBet.decoder
-                                        }
-                            in
-                            request
+                makeChangeRequest path body m =
+                    m.source
+                        |> Api.idDataToMaybe
+                        |> Maybe.map (changeRequestFromBet path body m)
 
-                        Nothing ->
-                            Cmd.none
-
-                cmd =
+                fromOverlay overlay =
                     if commit then
-                        case model.contextualOverlay of
-                            Just (CancelOverlay { reason }) ->
+                        case overlay of
+                            CancelOverlay { reason } ->
                                 if String.isEmpty reason then
-                                    Cmd.none
+                                    Nothing
 
                                 else
                                     let
@@ -449,9 +455,9 @@ update wrap localUser msg ({ origin } as parent) model =
                                         body
                                         model
 
-                            Just (CompleteOverlay { winners }) ->
+                            CompleteOverlay { winners } ->
                                 if EverySet.isEmpty winners then
-                                    Cmd.none
+                                    Nothing
 
                                 else
                                     let
@@ -464,13 +470,15 @@ update wrap localUser msg ({ origin } as parent) model =
                                         body
                                         model
 
-                            Nothing ->
-                                Cmd.none
-
                     else
-                        Cmd.none
+                        Nothing
+
+                ( source, cmd ) =
+                    model.contextualOverlay
+                        |> Maybe.andThen fromOverlay
+                        |> Maybe.withDefault ( model.source, Cmd.none )
             in
-            ( { model | contextualOverlay = Nothing }, cmd )
+            ( { model | source = source, contextualOverlay = Nothing }, cmd )
 
         ChangeCancelReason reason ->
             let
@@ -500,6 +508,52 @@ update wrap localUser msg ({ origin } as parent) model =
             in
             ( { model | contextualOverlay = model.contextualOverlay |> Maybe.map updateOverlay }, Cmd.none )
 
+        Save ->
+            case model |> diff |> Result.map encodeDiff of
+                Ok encoded ->
+                    let
+                        method =
+                            if isNew model then
+                                Api.put
+
+                            else
+                                Api.post
+
+                        betId =
+                            resolveId model
+
+                        ( source, cmd ) =
+                            { path = Api.BetRoot |> Api.Bet betId |> Api.Game model.gameId
+                            , body = encoded
+                            , wrap = Saved betId >> wrap
+                            , decoder = EditableBet.decoder
+                            }
+                                |> method origin
+                                |> Api.getIdData betId model.source
+                    in
+                    ( { model | source = source }, cmd )
+
+                Err _ ->
+                    -- TODO: This should never happen because of validators, but still.
+                    ( model, Cmd.none )
+
+        Saved betId result ->
+            let
+                source =
+                    model.source |> Api.updateIdData betId result
+
+                redirect =
+                    case result of
+                        Ok _ ->
+                            betId
+                                |> Route.Bet model.gameId
+                                |> Route.pushUrl navigationKey
+
+                        Err _ ->
+                            Cmd.none
+            in
+            ( { model | source = source }, redirect )
+
 
 nameValidator : Validator Model
 nameValidator =
@@ -509,18 +563,6 @@ nameValidator =
 descriptionValidator : Validator Model
 descriptionValidator =
     Validator.fromPredicate "Description must not be empty." (.description >> String.isEmpty)
-
-
-optionOrderValidator : AssocList.Dict String OptionEditor -> Validator OptionEditor
-optionOrderValidator lockMoments =
-    Order.validator (.order >> toFloat >> Just) lockMoments
-
-
-optionSlugValidator : AssocList.Dict String OptionEditor -> Validator OptionEditor
-optionSlugValidator lockMoments =
-    lockMoments
-        |> AssocList.values
-        |> Slug.validator Option.idFromString (\{ id, name } -> ( id, name ))
 
 
 optionsValidator : Validator Model
@@ -581,22 +623,23 @@ newSourceInfo localUser =
     }
 
 
-view : msg -> (Msg -> msg) -> Time.Context -> User.WithId -> Model -> List (Html msg)
-view save wrap time localUser model =
+view : (Route -> msg) -> (Msg -> msg) -> Time.Context -> User.WithId -> Model -> List (Html msg)
+view changeUrl wrap time localUser model =
     let
         coreContent =
-            viewCoreContent save wrap time localUser model
+            viewCoreContent changeUrl wrap time localUser model
     in
     [ instructions
     , model.source
-        |> Maybe.map (.bet >> RemoteData.view (toSourceInfo time >> coreContent))
+        |> Api.idDataToData
+        |> Maybe.map (Tuple.second >> Api.viewData Api.viewOrError (toSourceInfo time >> coreContent))
         |> Maybe.withDefault (coreContent (newSourceInfo localUser))
         |> Html.div [ HtmlA.class "core-content" ]
     ]
 
 
-viewCoreContent : msg -> (Msg -> msg) -> Time.Context -> User.WithId -> Model -> SourceInfo msg -> List (Html msg)
-viewCoreContent save wrap time localUser model { author, created, modified, version, progress } =
+viewCoreContent : (Route -> msg) -> (Msg -> msg) -> Time.Context -> User.WithId -> Model -> SourceInfo msg -> List (Html msg)
+viewCoreContent changeUrl wrap time localUser model { author, created, modified, version, progress } =
     let
         betId =
             resolveId model
@@ -605,10 +648,9 @@ viewCoreContent save wrap time localUser model { author, created, modified, vers
             toBet localUser.id model
 
         preview =
-            [ Html.h3 [] [ Html.text "Preview" ], Bet.view time Nothing model.gameId "" betId bet ]
-
-        textField name type_ value action attrs =
-            TextField.viewWithAttrs name type_ value action (Material.outlined :: attrs)
+            [ Html.h3 [] [ Html.text "Preview" ]
+            , Bet.view changeUrl time Nothing model.gameId "" betId bet
+            ]
 
         progressOverlay =
             case model.contextualOverlay of
@@ -625,9 +667,13 @@ viewCoreContent save wrap time localUser model { author, created, modified, vers
                                             in
                                             ( id
                                             , Html.li []
-                                                [ Switch.view (Html.text option.name)
-                                                    (winners |> EverySet.member optionId)
-                                                    (SetWinner optionId >> wrap |> Just)
+                                                [ Html.label [ HtmlA.class "switch" ]
+                                                    [ Html.span [] [ Html.text option.name ]
+                                                    , Switch.switch
+                                                        (SetWinner optionId >> wrap |> Just)
+                                                        (winners |> EverySet.member optionId)
+                                                        |> Switch.view
+                                                    ]
                                                 ]
                                             )
                                     in
@@ -642,100 +688,97 @@ viewCoreContent save wrap time localUser model { author, created, modified, vers
                                     )
 
                                 CancelOverlay { reason } ->
-                                    ( [ textField "Reason for cancellation"
-                                            TextField.Text
-                                            reason
+                                    ( [ TextField.outlined "Reason for cancellation"
                                             (ChangeCancelReason >> wrap |> Just)
-                                            [ HtmlA.required True ]
+                                            reason
+                                            |> TextField.required True
+                                            |> TextField.view
                                       ]
                                     , { icon = Icon.ban, title = "Cancel & Refund Bet", dangerous = True }
                                     , reason |> String.isEmpty |> not
                                     )
                     in
-                    [ Html.div [ HtmlA.class "overlay" ]
-                        [ Html.div [ HtmlA.class "contextual-overlay" ]
-                            [ Html.div [] editor
-                            , Html.div [ HtmlA.class "actions" ]
-                                [ Button.view Button.Standard
-                                    Button.Padded
-                                    "Cancel"
-                                    (Icon.times |> Icon.view |> Just)
-                                    (ResolveOverlay False |> wrap |> Just)
-                                , Html.div [ HtmlA.classList [ ( "dangerous", actionDetails.dangerous ) ] ]
-                                    [ Button.view
-                                        Button.Raised
-                                        Button.Padded
-                                        actionDetails.title
-                                        (actionDetails.icon |> Icon.view |> Just)
-                                        (ResolveOverlay True |> wrap |> Maybe.when valid)
+                    [ [ editor
+                            ++ [ Html.div [ HtmlA.class "controls" ]
+                                    [ Button.text "Cancel"
+                                        |> Button.button (ResolveOverlay False |> wrap |> Just)
+                                        |> Button.icon (Icon.times |> Icon.view)
+                                        |> Button.view
+                                    , Html.div [ HtmlA.classList [ ( "dangerous", actionDetails.dangerous ) ] ]
+                                        [ Button.filled actionDetails.title
+                                            |> Button.button (ResolveOverlay True |> wrap |> Maybe.when valid)
+                                            |> Button.icon (actionDetails.icon |> Icon.view)
+                                            |> Button.view
+                                        ]
                                     ]
-                                ]
-                            ]
-                        ]
+                               ]
+                            |> Html.div [ HtmlA.class "contextual-overlay" ]
+                      ]
+                        |> Overlay.view (False |> ResolveOverlay |> wrap)
                     ]
 
                 Nothing ->
                     []
 
+        isSaving =
+            Api.isIdDataLoading model.source
+
+        ifNotSaving =
+            Api.ifNotIdDataLoading model.source
+
+        ifNotNewAndNotSaving =
+            Maybe.whenNot (isNew model) >> ifNotSaving
+
         cancel =
             Html.div [ HtmlA.class "dangerous" ]
-                [ Button.view Button.Raised
-                    Button.Padded
-                    "Cancel & Refund Bet"
-                    (Icon.ban |> Icon.view |> Just)
-                    (Cancel |> wrap |> Just)
+                [ Button.filledTonal "Cancel & Refund Bet"
+                    |> Button.button (Cancel |> wrap |> ifNotNewAndNotSaving)
+                    |> Button.icon (Icon.ban |> Icon.view)
+                    |> Button.view
                 ]
 
         ( progressDescription, progressButtons ) =
             case progress of
                 EditableBet.Voting ->
                     ( "Bet open for voting."
-                    , [ Button.view
-                            Button.Raised
-                            Button.Padded
-                            "Lock Bet"
-                            (Icon.lock |> Icon.view |> Just)
-                            (SetLocked True |> wrap |> Just)
+                    , [ Button.filledTonal "Lock Bet"
+                            |> Button.button (SetLocked True |> wrap |> ifNotNewAndNotSaving)
+                            |> Button.icon (Icon.lock |> Icon.view)
+                            |> Button.view
                       , cancel
                       ]
                     )
 
                 EditableBet.Locked ->
                     ( "Bet locked."
-                    , [ Button.view
-                            Button.Raised
-                            Button.Padded
-                            "Unlock Bet"
-                            (Icon.unlock |> Icon.view |> Just)
-                            (SetLocked False |> wrap |> Just)
-                      , Button.view Button.Raised
-                            Button.Padded
+                    , [ Button.filledTonal "Unlock Bet"
+                            |> Button.button (SetLocked False |> wrap |> ifNotNewAndNotSaving)
+                            |> Button.icon (Icon.unlock |> Icon.view)
+                            |> Button.view
+                      , Button.filledTonal
                             "Declare Winner(s) For Bet"
-                            (Icon.check |> Icon.view |> Just)
-                            (Complete |> wrap |> Just)
+                            |> Button.button (Complete |> wrap |> ifNotNewAndNotSaving)
+                            |> Button.icon (Icon.check |> Icon.view)
+                            |> Button.view
                       , cancel
                       ]
                     )
 
                 EditableBet.Complete _ ->
                     ( "Bet complete."
-                    , [ Button.view
-                            Button.Raised
-                            Button.Padded
-                            "Revert Complete"
-                            (Icon.undo |> Icon.view |> Just)
-                            (RevertComplete |> wrap |> Just)
+                    , [ Button.filledTonal "Revert Complete"
+                            |> Button.button (RevertComplete |> wrap |> ifNotNewAndNotSaving)
+                            |> Button.icon (Icon.undo |> Icon.view)
+                            |> Button.view
                       ]
                     )
 
                 EditableBet.Cancelled _ ->
                     ( "Bet cancelled."
-                    , [ Button.view
-                            Button.Raised
-                            Button.Padded
-                            "Revert Cancel"
-                            (Icon.undo |> Icon.view |> Just)
-                            (RevertCancel |> wrap |> Just)
+                    , [ Button.filledTonal "Revert Cancel"
+                            |> Button.button (RevertCancel |> wrap |> ifNotNewAndNotSaving)
+                            |> Button.icon (Icon.undo |> Icon.view)
+                            |> Button.view
                       ]
                     )
     in
@@ -754,46 +797,45 @@ viewCoreContent save wrap time localUser model { author, created, modified, vers
         , Html.p [] [ Html.text progressDescription ]
         , Html.div [ HtmlA.class "progress" ] (progressButtons ++ progressOverlay)
         , Html.h3 [] [ Html.text "Edit" ]
-        , Slug.view Bet.idFromString Bet.idToString (SetId >> wrap) model.name model.id
-        , textField "Name" TextField.Text model.name (SetName >> wrap |> Just) [ HtmlA.required True ]
-        , Validator.view nameValidator model
-        , TextArea.view
-            [ "Description" |> HtmlA.attribute "label"
-            , SetDescription >> wrap |> HtmlE.onInput
-            , HtmlA.required True
-            , Material.outlined
-            , HtmlA.value model.description
-            ]
-            []
-        , Validator.view descriptionValidator model
-        , LockMoment.selector (EditLockMoments >> wrap)
+        , Slug.view Bet.idFromString Bet.idToString (SetId >> wrap |> Just |> ifNotSaving) model.name model.id
+        , TextField.outlined "Name" (SetName >> wrap |> Just |> ifNotSaving) model.name
+            |> TextField.required True
+            |> Validator.textFieldError nameValidator model
+            |> TextField.view
+        , TextField.outlined "Description" (SetDescription >> wrap |> Maybe.whenNot isSaving) model.description
+            |> TextField.textArea
+            |> TextField.required True
+            |> Validator.textFieldError descriptionValidator model
+            |> TextField.view
+        , LockMoment.selector (EditLockMoments >> wrap |> Just |> ifNotSaving)
             (model |> lockMomentContext)
-            (SetLockMoment >> wrap)
+            (SetLockMoment >> wrap |> Just |> ifNotSaving)
             model.lockMoment
-        , Switch.view (Html.text "Is Spoiler") model.spoiler (SetSpoiler >> wrap |> Just)
+        , Html.label [ HtmlA.class "switch" ]
+            [ Html.span [] [ Html.text "Is Spoiler" ]
+            , Switch.switch (SetSpoiler >> wrap |> Just |> ifNotSaving) model.spoiler
+                |> Switch.view
+            ]
         , model.options
             |> AssocList.toList
-            |> List.map (viewOption wrap)
+            |> List.map (viewOption (wrap |> Just |> ifNotSaving))
             |> HtmlK.ol []
         , Html.div [ HtmlA.class "option-controls" ]
-            [ Button.view Button.Standard
-                Button.Padded
-                "Add"
-                (Icon.plus |> Icon.view |> Just)
-                (NewOption |> wrap |> Just)
+            [ Button.text "Add"
+                |> Button.button (NewOption |> wrap |> Just |> ifNotSaving)
+                |> Button.icon (Icon.plus |> Icon.view)
+                |> Button.view
             ]
         , Validator.view optionsValidator model
         , Html.div [ HtmlA.class "controls" ]
-            [ Button.view Button.Standard
-                Button.Padded
-                "Reset"
-                (Icon.undo |> Icon.view |> Just)
-                (Reset |> wrap |> Just)
-            , Button.view Button.Raised
-                Button.Padded
-                "Save"
-                (Icon.save |> Icon.view |> Just)
-                (save |> Validator.whenValid validator model)
+            [ Button.text "Reset"
+                |> Button.button (Reset |> wrap |> Just |> ifNotSaving)
+                |> Button.icon (Icon.undo |> Icon.view)
+                |> Button.view
+            , Button.filled "Save"
+                |> Button.button (Save |> wrap |> Validator.whenValid validator model |> ifNotSaving)
+                |> Button.icon (Icon.save |> Icon.view)
+                |> Button.view
             ]
         ]
         :: Html.div [ HtmlA.class "preview" ] preview
@@ -834,31 +876,43 @@ optionNameValidator =
     Validator.fromPredicate "Name must not be empty." String.isEmpty
 
 
-viewOption : (Msg -> msg) -> ( String, OptionEditor ) -> ( String, Html msg )
-viewOption wrap ( internalId, { id, name, image, order } ) =
+viewOption : Maybe (Msg -> msg) -> ( String, OptionEditor ) -> ( String, Html msg )
+viewOption maybeWrap ( internalId, { id, name, image, order } ) =
     let
         wrapChangeOption =
-            ChangeOption internalId >> wrap
+            ChangeOption internalId
 
-        textField label type_ value action attrs =
-            TextField.viewWithAttrs label type_ value action (Material.outlined :: attrs)
+        wrapIfGiven value =
+            maybeWrap |> Maybe.map (\w -> value |> wrapChangeOption |> w)
+
+        applyWrapIfGiven value =
+            maybeWrap |> Maybe.map (\w -> value >> wrapChangeOption >> w)
 
         content =
             Html.li [ HtmlA.class "option-editor" ]
                 [ Html.div [ HtmlA.class "order" ]
-                    [ IconButton.view (Icon.arrowUp |> Icon.view) "Move Up" (order - 1 |> String.fromInt |> SetOptionOrder |> wrapChangeOption |> Just)
-                    , textField "Order" TextField.Number (String.fromInt order) (SetOptionOrder >> wrapChangeOption |> Just) []
-                    , IconButton.view (Icon.arrowDown |> Icon.view) "Move Down" (order + 1 |> String.fromInt |> SetOptionOrder |> wrapChangeOption |> Just)
+                    [ IconButton.icon (Icon.arrowUp |> Icon.view) "Move Up"
+                        |> IconButton.button (order - 1 |> String.fromInt |> SetOptionOrder |> wrapIfGiven)
+                        |> IconButton.view
+                    , TextField.outlined "Order" (SetOptionOrder |> applyWrapIfGiven) (String.fromInt order)
+                        |> TextField.view
+                    , IconButton.icon (Icon.arrowDown |> Icon.view) "Move Down"
+                        |> IconButton.button (order + 1 |> String.fromInt |> SetOptionOrder |> wrapIfGiven)
+                        |> IconButton.view
                     ]
                 , Html.div [ HtmlA.class "details" ]
                     [ Html.div [ HtmlA.class "inline" ]
                         [ Html.span [ HtmlA.class "fullwidth" ]
-                            [ Slug.view Option.idFromString Option.idToString (SetOptionId >> wrapChangeOption) name id ]
-                        , IconButton.view (Icon.trash |> Icon.view) "Delete" (DeleteOption |> wrapChangeOption |> Just)
+                            [ Slug.view Option.idFromString Option.idToString (SetOptionId |> applyWrapIfGiven) name id ]
+                        , IconButton.icon (Icon.trash |> Icon.view) "Delete"
+                            |> IconButton.button (DeleteOption |> wrapIfGiven)
+                            |> IconButton.view
                         ]
-                    , textField "Name" TextField.Text name (SetOptionName >> wrapChangeOption |> Just) [ HtmlA.required True ]
-                    , Validator.view optionNameValidator name
-                    , Uploader.view (OptionImageUploaderMsg >> wrapChangeOption) imageUploaderModel image
+                    , TextField.outlined "Name" (SetOptionName |> applyWrapIfGiven) name
+                        |> TextField.required True
+                        |> Validator.textFieldError optionNameValidator name
+                        |> TextField.view
+                    , Uploader.view (OptionImageUploaderMsg |> applyWrapIfGiven) imageUploaderModel image
                     ]
                 ]
     in

@@ -1,31 +1,57 @@
 module JoeBets.User.Notifications.Model exposing
     ( BetResult(..)
     , BetReverted
+    , GachaAmount
+    , GachaGiftedCard
+    , GachaGiftedCardReason(..)
+    , GachaGiftedReason(..)
     , Gifted
     , GiftedReason(..)
+    , Id
     , Model
+    , Msg(..)
     , Notification(..)
     , Reference
     , RefundReason(..)
     , Refunded
     , RevertFrom(..)
+    , SpecialReason
     , betFinishedDecoder
     , betResultDecoder
     , decoder
+    , encodeId
     , getId
     , giftedDecoder
     , giftedReasonDecoder
+    , idDecoder
+    , idFromInt
+    , idParser
+    , idToInt
     , refundReasonDecoder
     , refundedDecoder
     )
 
+import JoeBets.Api.Model as Api
 import JoeBets.Bet.Model as Bet
 import JoeBets.Bet.Option as Option
+import JoeBets.Gacha.Balance.Rolls as Balance
+import JoeBets.Gacha.Balance.Scrap as Balance
+import JoeBets.Gacha.Banner as Banner
+import JoeBets.Gacha.Card as Card
 import JoeBets.Game.Id as Game
-import JoeBets.Game.Model as Game
 import Json.Decode as JsonD
 import Json.Decode.Pipeline as JsonD
+import Json.Encode as JsonE
+import Url.Parser as Url
 import Util.Json.Decode as JsonD
+
+
+type Msg
+    = Request
+    | Load (Api.Response Model)
+    | Append (Result JsonD.Error Notification)
+    | SetRead Id
+    | NoOp String
 
 
 type alias Model =
@@ -43,9 +69,56 @@ type alias Reference a =
     }
 
 
+type Id
+    = Id Int
+
+
+idToInt : Id -> Int
+idToInt (Id int) =
+    int
+
+
+encodeId : Id -> JsonE.Value
+encodeId =
+    idToInt >> JsonE.int
+
+
+idParser : Url.Parser (Id -> a) a
+idParser =
+    Url.custom "CARDT TYPE ID" (String.toInt >> Maybe.map Id)
+
+
+idDecoder : JsonD.Decoder Id
+idDecoder =
+    JsonD.int |> JsonD.map Id
+
+
+idFromInt : Int -> Id
+idFromInt =
+    Id
+
+
+type alias GachaAmount =
+    { rolls : Maybe Balance.Rolls
+    , scrap : Maybe Balance.Scrap
+    }
+
+
+gachaAmountDecoder : JsonD.Decoder GachaAmount
+gachaAmountDecoder =
+    JsonD.succeed GachaAmount
+        |> JsonD.optionalAsMaybe "rolls" Balance.rollsDecoder
+        |> JsonD.optionalAsMaybe "scrap" Balance.scrapDecoder
+
+
+type alias SpecialReason =
+    { reason : String }
+
+
 type GiftedReason
     = AccountCreated
     | Bankruptcy
+    | SpecialGifted SpecialReason
 
 
 giftedReasonDecoder : JsonD.Decoder GiftedReason
@@ -62,11 +135,15 @@ giftedReasonDecoder =
                 _ ->
                     JsonD.unknownValue "gift reason" name
     in
-    JsonD.string |> JsonD.andThen fromName
+    JsonD.oneOf
+        [ JsonD.string |> JsonD.andThen fromName
+        , JsonD.field "special" JsonD.string
+            |> JsonD.map (SpecialReason >> SpecialGifted)
+        ]
 
 
 type alias Gifted =
-    { id : Int
+    { id : Id
     , amount : Int
     , reason : GiftedReason
     }
@@ -75,7 +152,7 @@ type alias Gifted =
 giftedDecoder : JsonD.Decoder Gifted
 giftedDecoder =
     JsonD.succeed Gifted
-        |> JsonD.required "id" JsonD.int
+        |> JsonD.required "id" idDecoder
         |> JsonD.required "amount" JsonD.int
         |> JsonD.required "reason" giftedReasonDecoder
 
@@ -103,7 +180,7 @@ refundReasonDecoder =
 
 
 type alias Refunded =
-    { id : Int
+    { id : Id
     , gameId : Game.Id
     , gameName : String
     , betId : Bet.Id
@@ -118,7 +195,7 @@ type alias Refunded =
 refundedDecoder : JsonD.Decoder Refunded
 refundedDecoder =
     JsonD.succeed Refunded
-        |> JsonD.required "id" JsonD.int
+        |> JsonD.required "id" idDecoder
         |> JsonD.required "gameId" Game.idDecoder
         |> JsonD.required "gameName" JsonD.string
         |> JsonD.required "betId" Bet.idDecoder
@@ -152,7 +229,7 @@ betResultDecoder =
 
 
 type alias BetFinished =
-    { id : Int
+    { id : Id
     , gameId : Game.Id
     , gameName : String
     , betId : Bet.Id
@@ -161,13 +238,14 @@ type alias BetFinished =
     , optionName : String
     , result : BetResult
     , amount : Int
+    , gachaAmount : GachaAmount
     }
 
 
 betFinishedDecoder : JsonD.Decoder BetFinished
 betFinishedDecoder =
     JsonD.succeed BetFinished
-        |> JsonD.required "id" JsonD.int
+        |> JsonD.required "id" idDecoder
         |> JsonD.required "gameId" Game.idDecoder
         |> JsonD.required "gameName" JsonD.string
         |> JsonD.required "betId" Bet.idDecoder
@@ -176,6 +254,7 @@ betFinishedDecoder =
         |> JsonD.required "optionName" JsonD.string
         |> JsonD.required "result" betResultDecoder
         |> JsonD.required "amount" JsonD.int
+        |> JsonD.optional "gachaAmount" gachaAmountDecoder { rolls = Nothing, scrap = Nothing }
 
 
 type RevertFrom
@@ -201,7 +280,7 @@ revertFromDecoder =
 
 
 type alias BetReverted =
-    { id : Int
+    { id : Id
     , gameId : Game.Id
     , gameName : String
     , betId : Bet.Id
@@ -210,13 +289,14 @@ type alias BetReverted =
     , optionName : String
     , reverted : RevertFrom
     , amount : Int
+    , gachaAmount : GachaAmount
     }
 
 
 betRevertedDecoder : JsonD.Decoder BetReverted
 betRevertedDecoder =
     JsonD.succeed BetReverted
-        |> JsonD.required "id" JsonD.int
+        |> JsonD.required "id" idDecoder
         |> JsonD.required "gameId" Game.idDecoder
         |> JsonD.required "gameName" JsonD.string
         |> JsonD.required "betId" Bet.idDecoder
@@ -225,6 +305,85 @@ betRevertedDecoder =
         |> JsonD.required "optionName" JsonD.string
         |> JsonD.required "reverted" revertFromDecoder
         |> JsonD.required "amount" JsonD.int
+        |> JsonD.optional "gachaAmount" gachaAmountDecoder { rolls = Nothing, scrap = Nothing }
+
+
+type GachaGiftedReason
+    = Historic
+    | SpecialGachaGifted SpecialReason
+
+
+gachaGiftedReasonDecoder : JsonD.Decoder GachaGiftedReason
+gachaGiftedReasonDecoder =
+    let
+        fromName name =
+            case name of
+                "Historic" ->
+                    JsonD.succeed Historic
+
+                _ ->
+                    JsonD.unknownValue "gacha gift reason" name
+    in
+    JsonD.oneOf
+        [ JsonD.string |> JsonD.andThen fromName
+        , JsonD.field "special" JsonD.string
+            |> JsonD.map (SpecialReason >> SpecialGachaGifted)
+        ]
+
+
+type alias GachaGifted =
+    { id : Id
+    , amount : GachaAmount
+    , reason : GachaGiftedReason
+    }
+
+
+gachaGiftedDecoder : JsonD.Decoder GachaGifted
+gachaGiftedDecoder =
+    JsonD.succeed GachaGifted
+        |> JsonD.required "id" idDecoder
+        |> JsonD.required "amount" gachaAmountDecoder
+        |> JsonD.required "reason" gachaGiftedReasonDecoder
+
+
+type GachaGiftedCardReason
+    = SelfMade
+    | SpecialGachaGiftedCard SpecialReason
+
+
+gachaGiftedCardReasonDecoder : JsonD.Decoder GachaGiftedCardReason
+gachaGiftedCardReasonDecoder =
+    let
+        fromName name =
+            case name of
+                "SelfMade" ->
+                    JsonD.succeed SelfMade
+
+                _ ->
+                    JsonD.unknownValue "gacha gift card reason" name
+    in
+    JsonD.oneOf
+        [ JsonD.string |> JsonD.andThen fromName
+        , JsonD.field "special" JsonD.string
+            |> JsonD.map (SpecialReason >> SpecialGachaGiftedCard)
+        ]
+
+
+type alias GachaGiftedCard =
+    { id : Id
+    , reason : GachaGiftedCardReason
+    , banner : Banner.Id
+    , card : Card.Id
+    }
+
+
+gachaGiftedCardDecoder : JsonD.Decoder GachaGiftedCard
+gachaGiftedCardDecoder =
+    JsonD.succeed GachaGiftedCard
+        |> JsonD.required "id" idDecoder
+        |> JsonD.required "reason" gachaGiftedCardReasonDecoder
+        |> JsonD.required "banner" Banner.idDecoder
+        |> JsonD.required "card" Card.idDecoder
 
 
 type Notification
@@ -232,9 +391,11 @@ type Notification
     | Refund Refunded
     | BetFinish BetFinished
     | BetRevert BetReverted
+    | GachaGift GachaGifted
+    | GachaGiftCard GachaGiftedCard
 
 
-getId : Notification -> Int
+getId : Notification -> Id
 getId notification =
     case notification of
         Gift { id } ->
@@ -247,6 +408,12 @@ getId notification =
             id
 
         BetRevert { id } ->
+            id
+
+        GachaGift { id } ->
+            id
+
+        GachaGiftCard { id } ->
             id
 
 
@@ -266,6 +433,12 @@ decoder =
 
                 "BetReverted" ->
                     betRevertedDecoder |> JsonD.map BetRevert
+
+                "GachaGifted" ->
+                    gachaGiftedDecoder |> JsonD.map GachaGift
+
+                "GachaGiftedCard" ->
+                    gachaGiftedCardDecoder |> JsonD.map GachaGiftCard
 
                 _ ->
                     JsonD.unknownValue "notification" name

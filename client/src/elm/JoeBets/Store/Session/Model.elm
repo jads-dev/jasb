@@ -8,10 +8,8 @@ module JoeBets.Store.Session.Model exposing
     , valueDecoder
     )
 
-import JoeBets.Api exposing (AuthPath(..))
 import JoeBets.Route as Route exposing (Route)
 import Json.Decode as JsonD
-import Json.Decode.Pipeline as JsonD
 import Json.Encode as JsonE
 import Util.Json.Decode as JsonD
 

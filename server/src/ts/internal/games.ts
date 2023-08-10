@@ -1,32 +1,32 @@
 import { z } from "zod";
 
 import { Bets, Users } from "../internal.js";
-import { localDate, zonedDateTime } from "./types.js";
+import { Types } from "./types.js";
 
 export const Progress = z.enum(["Future", "Current", "Finished"]);
 export type Progress = z.infer<typeof Progress>;
 
 export const Game = z
   .object({
-    slug: z.string(),
+    slug: Types.gameSlug,
     name: z.string(),
     cover: z.string(),
-    started: localDate.nullable(),
-    finished: localDate.nullable(),
+    started: Types.localDate.nullable(),
+    finished: Types.localDate.nullable(),
     progress: Progress,
-    order: z.number().int().nullable(),
+    order: Types.int.nullable(),
     managers: z.array(Users.Summary),
-    version: z.number().int().nonnegative(),
-    created: zonedDateTime,
-    modified: zonedDateTime,
+    version: Types.nonNegativeInt,
+    created: Types.zonedDateTime,
+    modified: Types.zonedDateTime,
   })
   .strict();
 export type Game = z.infer<typeof Game>;
 
 export const BetStats = z
   .object({
-    bets: z.number().int().nonnegative(),
-    staked: z.number().int().nonnegative(),
+    bets: Types.nonNegativeInt,
+    staked: Types.nonNegativeInt,
   })
   .strict();
 export type BetStats = z.infer<typeof BetStats>;

@@ -1,142 +1,65 @@
 module JoeBets.Api exposing
-    ( AuthPath(..)
-    , BetPath(..)
-    , GamePath(..)
-    , OptionPath(..)
-    , Path(..)
-    , UserPath(..)
+    ( BodyRequest
+    , Request
     , delete
     , get
     , post
+    , postFile
     , put
+    , relativeUrl
     , request
     )
 
+import File exposing (File)
 import Http
+import JoeBets.Api.Error as Error
+import JoeBets.Api.Model exposing (..)
+import JoeBets.Api.Path exposing (..)
 import JoeBets.Bet.Model as Bets
 import JoeBets.Bet.Option as Option
+import JoeBets.Gacha.Banner as Banner
+import JoeBets.Gacha.Card as Card
+import JoeBets.Gacha.CardType as CardType
 import JoeBets.Game.Id as Game
-import JoeBets.Game.Model as Game
 import JoeBets.Page.Leaderboard.Route as Leaderboard
 import JoeBets.User.Model as User
+import JoeBets.User.Notifications.Model as Notifications
+import Json.Decode as JsonD
+import Json.Encode as JsonE
 import Url.Builder
 import Util.Maybe as Maybe
 
 
-type AuthPath
-    = Login
-    | Logout
+type alias GeneralRequest value msg =
+    { method : String
+    , path : Path
+    , body : Http.Body
+    , decoder : JsonD.Decoder value
+    , wrap : Response value -> msg
+    }
 
 
-type UserPath
-    = UserRoot
-    | Notifications (Maybe Int)
-    | UserBets
-    | Bankrupt
-    | Permissions
+type alias Request value msg =
+    { path : Path
+    , decoder : JsonD.Decoder value
+    , wrap : Response value -> msg
+    }
 
 
-type BetPath
-    = BetRoot
-    | Edit
-    | Complete
-    | RevertComplete
-    | Lock
-    | Unlock
-    | Cancel
-    | RevertCancel
-    | BetFeed
-    | Option Option.Id OptionPath
+type alias BodyRequest value msg =
+    { path : Path
+    , body : JsonE.Value
+    , decoder : JsonD.Decoder value
+    , wrap : Response value -> msg
+    }
 
 
-type OptionPath
-    = Stake
-
-
-type GamePath
-    = GameRoot
-    | Bets
-    | LockStatus
-    | LockMoments
-    | Bet Bets.Id BetPath
-    | Suggestions
-
-
-type Path
-    = Auth AuthPath
-    | Users
-    | User User.Id UserPath
-    | Games
-    | Game Game.Id GamePath
-    | Leaderboard Leaderboard.Board
-    | Feed
-    | Upload
-
-
-get : String -> { path : Path, expect : Http.Expect msg } -> Cmd msg
-get origin { path, expect } =
-    request origin "GET" { path = path, body = Http.emptyBody, expect = expect }
-
-
-post : String -> { path : Path, body : Http.Body, expect : Http.Expect msg } -> Cmd msg
-post origin =
-    request origin "POST"
-
-
-put : String -> { path : Path, body : Http.Body, expect : Http.Expect msg } -> Cmd msg
-put origin =
-    request origin "PUT"
-
-
-delete : String -> { path : Path, body : Http.Body, expect : Http.Expect msg } -> Cmd msg
-delete origin =
-    request origin "DELETE"
-
-
-request : String -> String -> { path : Path, body : Http.Body, expect : Http.Expect msg } -> Cmd msg
-request origin method { path, body, expect } =
-    Http.riskyRequest
-        { method = method
-        , headers = []
-        , url = url origin path
-        , body = body
-        , expect = expect
-        , timeout = Nothing
-        , tracker = Nothing
-        }
-
-
-url : String -> Path -> String
-url _ path =
-    Url.Builder.absolute ("api" :: pathToStringList path) []
-
-
-pathToStringList : Path -> List String
-pathToStringList path =
-    case path of
-        Auth authPath ->
-            "auth" :: authPathToStringList authPath
-
-        Users ->
-            [ "users" ]
-
-        User id usersPath ->
-            "users" :: User.idToString id :: userPathToStringList usersPath
-
-        Games ->
-            [ "games" ]
-
-        Game id gamesPath ->
-            "games" :: Game.idToString id :: gamePathToStringList gamesPath
-
-        Leaderboard board ->
-            [ "leaderboard", Leaderboard.boardToString board ]
-
-        Feed ->
-            [ "feed" ]
-
-        Upload ->
-            [ "upload" ]
+type alias FileBodyRequest value msg =
+    { path : Path
+    , body : File
+    , decoder : JsonD.Decoder value
+    , wrap : Response value -> msg
+    }
 
 
 authPathToStringList : AuthPath -> List String
@@ -152,11 +75,15 @@ authPathToStringList path =
 userPathToStringList : UserPath -> List String
 userPathToStringList path =
     case path of
-        UserRoot ->
+        User ->
             []
 
-        Notifications maybeInt ->
-            "notifications" :: (maybeInt |> Maybe.map String.fromInt |> Maybe.toList)
+        Notifications maybeId ->
+            "notifications"
+                :: (maybeId
+                        |> Maybe.map (Notifications.idToInt >> String.fromInt)
+                        |> Maybe.toList
+                   )
 
         UserBets ->
             [ "bets" ]
@@ -229,3 +156,224 @@ optionPathToStringList path =
     case path of
         Stake ->
             [ "stake" ]
+
+
+bannerPathToStringList : BannerPath -> List String
+bannerPathToStringList path =
+    case path of
+        Banner ->
+            []
+
+        Roll ->
+            [ "roll" ]
+
+        EditableCardTypes ->
+            [ "card-types", "edit" ]
+
+        CardTypesWithCards ->
+            [ "card-types" ]
+
+        DetailedCardType cardTypeId ->
+            [ "card-types", cardTypeId |> CardType.idToInt |> String.fromInt ]
+
+        GiftCardType cardTypeId ->
+            [ "card-types", cardTypeId |> CardType.idToInt |> String.fromInt, "gift" ]
+
+
+bannersPathToStringList : BannersPath -> List String
+bannersPathToStringList path =
+    case path of
+        BannersRoot ->
+            []
+
+        EditableBanners ->
+            [ "edit" ]
+
+        SpecificBanner bannerId bannerPath ->
+            Banner.idToString bannerId :: bannerPathToStringList bannerPath
+
+
+cardPathToStringList : CardPath -> List String
+cardPathToStringList path =
+    case path of
+        Card ->
+            []
+
+        Highlight ->
+            [ "highlight" ]
+
+
+cardsPathToStringList : CardsPath -> List String
+cardsPathToStringList path =
+    case path of
+        UserCards maybeBannerId ->
+            case maybeBannerId of
+                Just bannerId ->
+                    [ "banners", Banner.idToString bannerId ]
+
+                Nothing ->
+                    []
+
+        ForgedCardTypes ->
+            [ "forged" ]
+
+        ForgeCardType ->
+            [ "forge" ]
+
+        RetireForged cardTypeId ->
+            [ "forged"
+            , cardTypeId |> CardType.idToInt |> String.fromInt
+            , "retire"
+            ]
+
+        SpecificCard bannerId cardId cardPath ->
+            "banners"
+                :: Banner.idToString bannerId
+                :: (cardId |> Card.idToInt |> String.fromInt)
+                :: cardPathToStringList cardPath
+
+        Highlights ->
+            [ "highlights" ]
+
+
+gachaPathToStringList : GachaPath -> List String
+gachaPathToStringList path =
+    case path of
+        Cards userId cardPath ->
+            "cards" :: User.idToString userId :: cardsPathToStringList cardPath
+
+        Balance ->
+            [ "balance" ]
+
+        Banners bannersPath ->
+            "banners" :: bannersPathToStringList bannersPath
+
+        Rarities ->
+            [ "rarities" ]
+
+
+pathToStringList : Path -> List String
+pathToStringList path =
+    case path of
+        Auth authPath ->
+            "auth" :: authPathToStringList authPath
+
+        Users ->
+            [ "users" ]
+
+        SpecificUser id usersPath ->
+            "users" :: User.idToString id :: userPathToStringList usersPath
+
+        UserSearch _ ->
+            [ "users", "search" ]
+
+        Games ->
+            [ "games" ]
+
+        Game id gamesPath ->
+            "games" :: Game.idToString id :: gamePathToStringList gamesPath
+
+        Leaderboard board ->
+            "leaderboard" :: Leaderboard.boardToListOfStrings board
+
+        Feed ->
+            [ "feed" ]
+
+        Gacha gachaPath ->
+            "gacha" :: gachaPathToStringList gachaPath
+
+        Upload ->
+            [ "upload" ]
+
+
+pathToQueryList : Path -> List Url.Builder.QueryParameter
+pathToQueryList path =
+    case path of
+        UserSearch query ->
+            [ Url.Builder.string "q" query ]
+
+        _ ->
+            []
+
+
+url : String -> Path -> String
+url base path =
+    Url.Builder.crossOrigin
+        base
+        ("api" :: pathToStringList path)
+        (pathToQueryList path)
+
+
+relativeUrl : Path -> String
+relativeUrl path =
+    Url.Builder.relative
+        ("api" :: pathToStringList path)
+        (pathToQueryList path)
+
+
+request : String -> GeneralRequest value msg -> Cmd msg
+request base { method, path, body, wrap, decoder } =
+    Http.riskyRequest
+        { method = method
+        , headers = []
+        , url = url base path
+        , body = body
+        , expect = Error.expectJsonOrError method wrap decoder
+        , timeout = Nothing
+        , tracker = Nothing
+        }
+
+
+get : String -> Request value msg -> Cmd msg
+get base { path, decoder, wrap } =
+    request base
+        { method = "GET"
+        , path = path
+        , body = Http.emptyBody
+        , wrap = wrap
+        , decoder = decoder
+        }
+
+
+post : String -> BodyRequest value msg -> Cmd msg
+post base { path, body, decoder, wrap } =
+    request base
+        { method = "POST"
+        , path = path
+        , body = Http.jsonBody body
+        , wrap = wrap
+        , decoder = decoder
+        }
+
+
+put : String -> BodyRequest value msg -> Cmd msg
+put base { path, body, decoder, wrap } =
+    request base
+        { method = "PUT"
+        , path = path
+        , body = Http.jsonBody body
+        , wrap = wrap
+        , decoder = decoder
+        }
+
+
+delete : String -> Request value msg -> Cmd msg
+delete base { path, decoder, wrap } =
+    request base
+        { method = "DELETE"
+        , path = path
+        , body = Http.emptyBody
+        , wrap = wrap
+        , decoder = decoder
+        }
+
+
+postFile : String -> FileBodyRequest value msg -> Cmd msg
+postFile base { path, body, decoder, wrap } =
+    request base
+        { method = "POST"
+        , path = path
+        , body = [ body |> Http.filePart "file" ] |> Http.multipartBody
+        , wrap = wrap
+        , decoder = decoder
+        }

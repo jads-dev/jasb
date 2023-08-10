@@ -1,16 +1,16 @@
 import { default as Router } from "@koa/router";
 import { StatusCodes } from "http-status-codes";
 import * as Schema from "io-ts";
-import { koaBody as Body } from "koa-body";
 
 import { Internal } from "../../internal.js";
 import { Editor, Games } from "../../public.js";
-import { Validation } from "../../util/validation.js";
+import { requireUrlParameter, Validation } from "../../util/validation.js";
 import { WebError } from "../errors.js";
 import type { Server } from "../model.js";
 import { ResultCache } from "../result-cache.js";
 import { requireSession } from "./auth.js";
 import { betsApi } from "./bets.js";
+import { body } from "./util.js";
 
 const GameBody = {
   name: Schema.string,
@@ -32,7 +32,7 @@ const LockMomentBody = {
 const EditLockMomentBody = Schema.partial({
   remove: Schema.readonlyArray(
     Schema.strict({
-      id: Schema.string,
+      id: Editor.LockMoments.Slug,
       version: Schema.Int,
     }),
   ),
@@ -40,7 +40,7 @@ const EditLockMomentBody = Schema.partial({
     Schema.intersection([
       Schema.partial(LockMomentBody),
       Schema.strict({
-        id: Schema.string,
+        id: Editor.LockMoments.Slug,
         version: Schema.Int,
       }),
     ]),
@@ -49,7 +49,7 @@ const EditLockMomentBody = Schema.partial({
     Schema.intersection([
       Schema.strict(LockMomentBody),
       Schema.strict({
-        id: Schema.string,
+        id: Editor.LockMoments.Slug,
       }),
     ]),
   ),
@@ -79,37 +79,51 @@ export const gamesApi = (server: Server.State): Router => {
   });
 
   // Get Game.
-  router.get("/:gameId", async (ctx) => {
-    const game = await server.store.getGame(ctx.params["gameId"] ?? "");
-    if (game === undefined) {
+  router.get("/:gameSlug", async (ctx) => {
+    const gameSlug = requireUrlParameter(
+      Games.Slug,
+      "game",
+      ctx.params["gameSlug"],
+    );
+    const internalGame = await server.store.getGame(gameSlug);
+    if (internalGame === undefined) {
       throw new WebError(StatusCodes.NOT_FOUND, "Game not found.");
     }
-    ctx.body = Games.WithBetStats.encode(
-      Games.withBetStatsFromInternal(game)[1],
-    );
+    const [, game] = Games.withBetStatsFromInternal(internalGame);
+    ctx.body = Games.WithBetStats.encode(game);
   });
 
   // Get Game with Bets.
-  router.get("/:gameId/bets", async (ctx) => {
-    const gameId = ctx.params["gameId"] ?? "";
-    const [game, bets] = await Promise.all([
-      server.store.getGame(gameId),
-      server.store.getBets(gameId),
+  router.get("/:gameSlug/bets", async (ctx) => {
+    const gameSlug = requireUrlParameter(
+      Games.Slug,
+      "game",
+      ctx.params["gameSlug"],
+    );
+    const [internalGame, internalBets] = await Promise.all([
+      server.store.getGame(gameSlug),
+      server.store.getBets(gameSlug),
     ]);
-    if (game === undefined) {
+    if (internalGame === undefined) {
       throw new WebError(StatusCodes.NOT_FOUND, "Game not found.");
     }
-    ctx.body = Games.WithBets.encode(
-      Games.withBetsFromInternal({ ...game, bets: [...bets] })[1],
-    );
+    const [, gameWithBets] = Games.withBetsFromInternal({
+      ...internalGame,
+      bets: [...internalBets],
+    });
+    ctx.body = Games.WithBets.encode(gameWithBets);
   });
 
   // Get lock status of bets.
-  router.get("/:gameId/lock/status", async (ctx) => {
-    const gameId = ctx.params["gameId"] ?? "";
+  router.get("/:gameSlug/lock/status", async (ctx) => {
+    const gameSlug = requireUrlParameter(
+      Games.Slug,
+      "game",
+      ctx.params["gameSlug"],
+    );
     const [lockMoments, betLockStatuses] = await Promise.all([
-      server.store.getLockMoments(gameId),
-      server.store.getBetsLockStatus(gameId),
+      server.store.getLockMoments(gameSlug),
+      server.store.getBetsLockStatus(gameSlug),
     ]);
     ctx.body = Editor.LockMoments.GameLockStatus.encode(
       Editor.LockMoments.gameLockStatusFromInternal(
@@ -120,31 +134,38 @@ export const gamesApi = (server: Server.State): Router => {
   });
 
   // Get lock moments.
-  router.get("/:gameId/lock", async (ctx) => {
-    const gameId = ctx.params["gameId"] ?? "";
+  router.get("/:gameSlug/lock", async (ctx) => {
+    const gameSlug = requireUrlParameter(
+      Games.Slug,
+      "game",
+      ctx.params["gameSlug"],
+    );
     ctx.body = Schema.readonlyArray(
-      Schema.tuple([Editor.LockMoments.Id, Editor.LockMoments.LockMoment]),
+      Schema.tuple([Editor.LockMoments.Slug, Editor.LockMoments.LockMoment]),
     ).encode(
-      (await server.store.getLockMoments(gameId)).map(
+      (await server.store.getLockMoments(gameSlug)).map(
         Editor.LockMoments.fromInternal,
       ),
     );
   });
 
   // Edit lock moments.
-  router.post("/:gameId/lock", Body(), async (ctx) => {
+  router.post("/:gameSlug/lock", body, async (ctx) => {
     const sessionCookie = requireSession(ctx.cookies);
-    const gameId = ctx.params["gameId"] ?? "";
-    console.log(ctx.request);
+    const gameSlug = requireUrlParameter(
+      Games.Slug,
+      "game",
+      ctx.params["gameSlug"],
+    );
     const body = Validation.body(EditLockMomentBody, ctx.request.body);
     ctx.body = Schema.readonlyArray(
-      Schema.tuple([Editor.LockMoments.Id, Editor.LockMoments.LockMoment]),
+      Schema.tuple([Editor.LockMoments.Slug, Editor.LockMoments.LockMoment]),
     ).encode(
       (
         await server.store.editLockMoments(
           sessionCookie.user,
           sessionCookie.session,
-          gameId,
+          gameSlug,
           body.remove,
           body.edit,
           body.add,
@@ -154,13 +175,18 @@ export const gamesApi = (server: Server.State): Router => {
   });
 
   // Create Game.
-  router.put("/:gameId", Body(), async (ctx) => {
+  router.put("/:gameSlug", body, async (ctx) => {
     const sessionCookie = requireSession(ctx.cookies);
+    const gameSlug = requireUrlParameter(
+      Games.Slug,
+      "game",
+      ctx.params["gameSlug"],
+    );
     const body = Validation.body(CreateGameBody, ctx.request.body);
     const game = await server.store.addGame(
       sessionCookie.user,
       sessionCookie.session,
-      ctx.params["gameId"] ?? "",
+      gameSlug,
       body.name,
       body.cover,
       body.started,
@@ -171,14 +197,19 @@ export const gamesApi = (server: Server.State): Router => {
   });
 
   // Edit Game.
-  router.post("/:gameId", Body(), async (ctx) => {
+  router.post("/:gameSlug", body, async (ctx) => {
     const sessionCookie = requireSession(ctx.cookies);
+    const gameSlug = requireUrlParameter(
+      Games.Slug,
+      "game",
+      ctx.params["gameSlug"],
+    );
     const body = Validation.body(EditGameBody, ctx.request.body);
     const game = await server.store.editGame(
       sessionCookie.user,
       sessionCookie.session,
       body.version,
-      ctx.params["gameId"] ?? "",
+      gameSlug,
       body.name,
       body.cover,
       body.started,
@@ -189,7 +220,7 @@ export const gamesApi = (server: Server.State): Router => {
   });
 
   const bets = betsApi(server);
-  router.use("/:gameId/bets/:betId", bets.routes(), bets.allowedMethods());
+  router.use("/:gameSlug/bets/:betSlug", bets.routes(), bets.allowedMethods());
 
   return router;
 };

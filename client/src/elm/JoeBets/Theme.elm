@@ -81,8 +81,8 @@ decoder =
     JsonD.string |> JsonD.andThen fromStringJson
 
 
-selectItem : Theme -> Select.ItemModel Theme msg
-selectItem theme =
+selectItem : Theme -> Theme -> Select.Option msg
+selectItem selected theme =
     let
         ( icon, name, description ) =
             case theme of
@@ -95,9 +95,6 @@ selectItem theme =
                 Light ->
                     ( Icon.sun, "Light", "Dark text on a light background." )
     in
-    { id = theme
-    , icon = icon |> Icon.view |> Just
-    , primary = [ Html.text name ]
-    , secondary = [ Html.text "(", Html.text description, Html.text ")" ] |> Just
-    , meta = Nothing
-    }
+    Select.option name (selected == theme) (toString theme)
+        |> Select.icon (Icon.view icon)
+        |> Select.optionSupportingText description True

@@ -6,7 +6,7 @@ import { Bets } from "./bets.js";
 import { Games } from "./games.js";
 import { Users } from "./users.js";
 
-const idAndName = <T extends Schema.Mixed>(id: T) =>
+const slugAndName = <T extends Schema.Mixed>(id: T) =>
   Schema.tuple([id, Schema.string]);
 
 /**
@@ -15,8 +15,8 @@ const idAndName = <T extends Schema.Mixed>(id: T) =>
 const NewBet = Schema.readonly(
   Schema.strict({
     type: Schema.literal("NewBet"),
-    game: idAndName(Games.Id),
-    bet: idAndName(Bets.Id),
+    game: slugAndName(Games.Slug),
+    bet: slugAndName(Bets.Slug),
     spoiler: Schema.boolean,
   }),
 );
@@ -28,13 +28,15 @@ type NewBet = Schema.TypeOf<typeof NewBet>;
 const BetComplete = Schema.readonly(
   Schema.strict({
     type: Schema.literal("BetComplete"),
-    game: idAndName(Games.Id),
-    bet: idAndName(Bets.Id),
+    game: slugAndName(Games.Slug),
+    bet: slugAndName(Bets.Slug),
     spoiler: Schema.boolean,
-    winners: Schema.readonlyArray(idAndName(Bets.Options.Id)),
+    winners: Schema.readonlyArray(slugAndName(Bets.Options.Slug)),
     highlighted: Schema.readonly(
       Schema.strict({
-        winners: Schema.readonlyArray(Schema.tuple([Users.Id, Users.Summary])),
+        winners: Schema.readonlyArray(
+          Schema.tuple([Users.Slug, Users.Summary]),
+        ),
         amount: Schema.Int,
       }),
     ),
@@ -50,11 +52,11 @@ type BetComplete = Schema.TypeOf<typeof BetComplete>;
 const NotableStake = Schema.readonly(
   Schema.strict({
     type: Schema.literal("NotableStake"),
-    game: idAndName(Games.Id),
-    bet: idAndName(Bets.Id),
+    game: slugAndName(Games.Slug),
+    bet: slugAndName(Bets.Slug),
     spoiler: Schema.boolean,
-    option: idAndName(Bets.Options.Id),
-    user: Schema.tuple([Users.Id, Users.Summary]),
+    option: slugAndName(Bets.Options.Slug),
+    user: Schema.tuple([Users.Slug, Users.Summary]),
     message: Schema.string,
     stake: Schema.Int,
   }),
@@ -94,7 +96,7 @@ export const fromInternal = (internal: Internal.Feed.Item): Event => {
         bet: idAndNameFromInternal(event.bet),
         spoiler: event.spoiler,
         winners: event.winners.map((w) =>
-          idAndNameFromInternal<Bets.Options.Id>(w),
+          idAndNameFromInternal<Bets.Options.Slug>(w),
         ),
         highlighted: {
           winners: event.highlighted.winners.map(Users.summaryFromInternal),

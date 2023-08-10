@@ -14,10 +14,10 @@ import { LockMoments } from "./lock-moments.js";
 export const EditableOption = Schema.intersection([
   Schema.readonly(
     Schema.strict({
-      id: Options.Id,
+      id: Options.Slug,
       name: Schema.string,
       order: Schema.Int,
-      stakes: Schema.readonlyArray(Schema.tuple([Users.Id, Stake])),
+      stakes: Schema.readonlyArray(Schema.tuple([Users.Slug, Stake])),
       version: Schema.Int,
       created: Validation.DateTime,
       modified: Validation.DateTime,
@@ -44,14 +44,14 @@ export type Progress = Schema.TypeOf<typeof Progress>;
 export const EditableBet = Schema.intersection([
   Schema.readonly(
     Schema.strict({
-      id: Bets.Id,
+      id: Bets.Slug,
       name: Schema.string,
       description: Schema.string,
       spoiler: Schema.boolean,
-      lockMoment: LockMoments.Id,
+      lockMoment: LockMoments.Slug,
       progress: Progress,
       options: Schema.readonlyArray(EditableOption),
-      author: Schema.tuple([Users.Id, Users.Summary]),
+      author: Schema.tuple([Users.Slug, Users.Summary]),
       version: Schema.Int,
       created: Validation.DateTime,
       modified: Validation.DateTime,
@@ -65,9 +65,9 @@ export const EditableBet = Schema.intersection([
 export type EditableBet = Schema.TypeOf<typeof EditableBet>;
 
 const editableOptionFromInternal = (
-  internal: Internal.Options.EditableOption,
+  internal: Internal.Options.Editable,
 ): EditableOption => ({
-  id: internal.slug as Options.Id,
+  id: internal.slug,
   name: internal.name,
   ...(internal.image !== null ? { image: internal.image } : {}),
   order: internal.order as Schema.Int,
@@ -79,13 +79,13 @@ const editableOptionFromInternal = (
 });
 
 export const fromInternal = (
-  internal: Internal.Bets.EditableBet,
+  internal: Internal.Bets.Editable,
 ): EditableBet => ({
-  id: internal.slug as Bets.Id,
+  id: internal.slug,
   name: internal.name,
   description: internal.description,
   spoiler: internal.spoiler,
-  lockMoment: internal.lock_moment_slug as LockMoments.Id,
+  lockMoment: internal.lock_moment_slug,
   progress: internal.progress,
   ...(internal.resolved !== null ? { resolved: internal.resolved } : {}),
   ...(internal.cancelled_reason !== null
@@ -93,7 +93,7 @@ export const fromInternal = (
     : {}),
   options: internal.options.map(editableOptionFromInternal),
   author: [
-    internal.author_slug as Users.Id,
+    internal.author_slug,
     {
       name: internal.author_name,
       ...(internal.author_discriminator !== null
@@ -102,7 +102,7 @@ export const fromInternal = (
       avatar: internal.author_avatar_url,
     },
   ],
-  version: internal.version as Schema.Int,
+  version: internal.version,
   created: internal.created,
   modified: internal.modified,
 });

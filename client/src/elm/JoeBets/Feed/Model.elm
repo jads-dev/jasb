@@ -1,4 +1,4 @@
-module JoeBets.Page.Feed.Model exposing
+module JoeBets.Feed.Model exposing
     ( BetComplete
     , Event(..)
     , IdAndName
@@ -10,15 +10,15 @@ module JoeBets.Page.Feed.Model exposing
     , relevantGame
     )
 
+import JoeBets.Api.Data as Api
+import JoeBets.Api.Model as Api
 import JoeBets.Bet.Model as Bet
 import JoeBets.Bet.Option as Option
 import JoeBets.Game.Id as Game
-import JoeBets.Game.Model as Game
 import JoeBets.User.Model as User
 import Json.Decode as JsonD
 import Json.Decode.Pipeline as JsonD
 import Util.Json.Decode as JsonD
-import Util.RemoteData as RemoteData exposing (RemoteData)
 
 
 type alias IdAndName id =
@@ -155,13 +155,13 @@ type alias Item =
 
 
 type Msg
-    = Load (RemoteData.Response (List Item))
+    = Load (Api.Response (List Item))
     | RevealSpoilers Int
     | SetFavouritesOnly Bool
 
 
 type alias Model =
-    { items : RemoteData (List Item)
+    { items : Api.Data (List Item)
     , favouritesOnly : Bool
     }
 

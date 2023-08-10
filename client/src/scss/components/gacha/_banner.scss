@@ -1,0 +1,80 @@
+@use "../../_colors.scss";
+
+#gacha {
+  width: min(40em, 100%);
+}
+
+.banners {
+  list-style: none;
+  padding: 0;
+
+  display: flex;
+  flex-flow: column;
+  grid: 1em;
+  margin: 0;
+  gap: 2em;
+
+  align-self: stretch;
+}
+
+.banner {
+  display: grid;
+  grid-template:
+    "type . roll" auto
+    "title title roll" auto
+    "description description description" auto
+    / auto 1fr auto;
+
+  box-sizing: border-box;
+
+  border-radius: 0 0 2em 0;
+  border: 0.1em solid #{colors.by-name("on-secondary-background")};
+
+  background-image: var(--cover);
+  background-size: cover;
+
+  color: var(--foreground-color);
+  background-color: var(--background-color);
+
+  width: 100%;
+  min-height: 10em;
+
+  align-items: center;
+
+  > .title {
+    font-size: 3em;
+    grid-area: title;
+    padding: 0 0.3em;
+    text-align: left;
+  }
+
+  > .description {
+    grid-area: description;
+    margin: 0;
+    padding: 0 1em 1em 1em;
+  }
+
+  > .cover {
+    display: none;
+  }
+
+  > .roll {
+    grid-area: roll;
+    display: grid;
+    grid-template-columns: auto auto;
+    gap: 0.25em 0.5em;
+  }
+
+  > .type {
+    grid-area: type;
+    display: flex;
+    align-self: flex-start;
+    justify-self: flex-start;
+
+    > div {
+      @include colors.by-name("secondary-background");
+      padding: 0.5em;
+      border-radius: 0 0 0.5em 0;
+    }
+  }
+}

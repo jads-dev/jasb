@@ -1,12 +1,12 @@
 module JoeBets.Bet.Editor.Model exposing
     ( ContextualOverlay(..)
+    , LoadReason(..)
     , Mode(..)
     , Model
     , Msg(..)
     , OptionChange(..)
     , OptionDiff
     , OptionEditor
-    , Source
     , diff
     , encodeCancelAction
     , encodeCompleteAction
@@ -21,7 +21,9 @@ module JoeBets.Bet.Editor.Model exposing
 
 import AssocList
 import EverySet exposing (EverySet)
-import Http
+import JoeBets.Api.Data as Api
+import JoeBets.Api.IdData as Api
+import JoeBets.Api.Model as Api
 import JoeBets.Bet.Editor.EditableBet as EditableBet exposing (EditableBet, EditableOption)
 import JoeBets.Bet.Editor.LockMoment as LockMoment
 import JoeBets.Bet.Editor.LockMoment.Editor as LockMoment
@@ -30,24 +32,16 @@ import JoeBets.Bet.Option as Option
 import JoeBets.Editing.Slug as Slug exposing (Slug)
 import JoeBets.Editing.Uploader as Uploader exposing (Uploader)
 import JoeBets.Game.Id as Game
-import JoeBets.Game.Model as Game
 import JoeBets.User.Model as User
 import Json.Encode as JsonE
 import Util.AssocList as AssocList
 import Util.Json.Encode.Pipeline as JsonE
 import Util.Maybe as Maybe
-import Util.RemoteData as RemoteData exposing (RemoteData)
 
 
 type Mode
     = EditBet
     | EditSuggestion
-
-
-type alias Source =
-    { id : Bet.Id
-    , bet : RemoteData EditableBet
-    }
 
 
 type alias OptionEditor =
@@ -88,12 +82,12 @@ type ContextualOverlay
 type alias Model =
     { gameId : Game.Id
     , mode : Mode
-    , source : Maybe Source
+    , source : Api.IdData Bet.Id EditableBet
     , id : Slug Bet.Id
     , name : String
     , description : String
     , spoiler : Bool
-    , lockMoments : RemoteData LockMoment.LockMoments
+    , lockMoments : Api.Data LockMoment.LockMoments
     , lockMomentEditor : Maybe LockMoment.Editor
     , lockMoment : Maybe LockMoment.Id
     , options : AssocList.Dict String OptionEditor
@@ -116,7 +110,7 @@ toBet : User.Id -> Model -> Bet
 toBet _ { source, name, description, spoiler, lockMoments, lockMoment, options } =
     let
         maybeSourceBet =
-            source |> Maybe.andThen (.bet >> RemoteData.toMaybe)
+            source |> Api.idDataToMaybe |> Maybe.map Tuple.second
 
         toOption option =
             let
@@ -137,7 +131,7 @@ toBet _ { source, name, description, spoiler, lockMoments, lockMoment, options }
         fromEditableProgress editableProgress =
             case editableProgress of
                 EditableBet.Voting ->
-                    Bet.Voting { lockMoment = Maybe.map2 LockMoment.name (lockMoments |> RemoteData.toMaybe) lockMoment |> Maybe.withDefault "" }
+                    Bet.Voting { lockMoment = Maybe.map2 LockMoment.name (lockMoments |> Api.dataToMaybe) lockMoment |> Maybe.withDefault "" }
 
                 EditableBet.Locked ->
                     Bet.Locked {}
@@ -173,9 +167,14 @@ toBet _ { source, name, description, spoiler, lockMoments, lockMoment, options }
     }
 
 
+type LoadReason
+    = Initial
+    | Change
+
+
 type Msg
-    = Load Game.Id Bet.Id (Result Http.Error EditableBet)
-    | LoadLockMoments Game.Id (Result Http.Error LockMoment.LockMoments)
+    = Load Game.Id Bet.Id LoadReason (Api.Response EditableBet)
+    | LoadLockMoments Game.Id (Api.Response LockMoment.LockMoments)
     | EditLockMoments LockMoment.EditorMsg
     | SetMode Mode
     | SetId String
@@ -194,6 +193,8 @@ type Msg
     | ChangeCancelReason String
     | SetWinner Option.Id Bool
     | ResolveOverlay Bool
+    | Save
+    | Saved Bet.Id (Api.Response EditableBet)
 
 
 type OptionChange
@@ -217,7 +218,7 @@ encodeOptionDiff : OptionDiff -> JsonE.Value
 encodeOptionDiff { version, id, name, image, order } =
     JsonE.startObject
         |> JsonE.maybeField "version" JsonE.int version
-        |> JsonE.field "id" (id |> Option.encodeId)
+        |> JsonE.field "id" Option.encodeId id
         |> JsonE.maybeField "name" JsonE.string name
         |> JsonE.maybeField "image" (Maybe.map JsonE.string >> Maybe.withDefault JsonE.null) image
         |> JsonE.maybeField "order" JsonE.int order
@@ -252,9 +253,9 @@ encodeDiff { version, name, description, spoiler, lockMoment, removeOptions, edi
 
 diff : Model -> Result String Diff
 diff { source, name, description, spoiler, lockMoment, options } =
-    case source of
-        Just existing ->
-            case existing.bet |> RemoteData.toMaybe of
+    case source |> Api.idDataToData of
+        Just ( _, existingBet ) ->
+            case existingBet |> Api.dataToMaybe of
                 Just bet ->
                     let
                         withId newOption =
@@ -366,8 +367,8 @@ type alias CompleteAction =
 encodeCompleteAction : CompleteAction -> JsonE.Value
 encodeCompleteAction { version, winners } =
     JsonE.startObject
-        |> JsonE.field "version" (version |> JsonE.int)
-        |> JsonE.field "winners" (winners |> EverySet.toList |> JsonE.list Option.encodeId)
+        |> JsonE.field "version" JsonE.int version
+        |> JsonE.field "winners" (JsonE.list Option.encodeId) (winners |> EverySet.toList)
         |> JsonE.finishObject
 
 
@@ -380,6 +381,6 @@ type alias CancelAction =
 encodeCancelAction : CancelAction -> JsonE.Value
 encodeCancelAction { version, reason } =
     JsonE.startObject
-        |> JsonE.field "version" (version |> JsonE.int)
-        |> JsonE.field "reason" (reason |> JsonE.string)
+        |> JsonE.field "version" JsonE.int version
+        |> JsonE.field "reason" JsonE.string reason
         |> JsonE.finishObject

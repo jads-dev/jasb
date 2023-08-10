@@ -69,7 +69,10 @@ fromPosix posix =
 -}
 viewEditor : String -> String -> Maybe (String -> msg) -> List (Html.Attribute msg) -> Html.Html msg
 viewEditor name value action attrs =
-    TextField.viewWithAttrs (name ++ " Date") TextField.Date value action attrs
+    TextField.outlined (name ++ " Date") action value
+        |> TextField.date
+        |> TextField.attrs attrs
+        |> TextField.view
 
 
 {-| Render as HTML.
