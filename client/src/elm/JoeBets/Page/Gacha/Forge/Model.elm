@@ -1,10 +1,12 @@
 module JoeBets.Page.Gacha.Forge.Model exposing
-    ( Forged(..)
+    ( ForgeResponse
+    , Forged(..)
     , Model
     , Msg(..)
     , encodeForgeRequest
     , forgeRequestFromModel
     , forgeRequestValidator
+    , forgeResponseDecoder
     , forgedDecoder
     , quoteValidator
     )
@@ -13,10 +15,25 @@ import JoeBets.Api.Action as Api
 import JoeBets.Api.Data as Api
 import JoeBets.Api.Model as Api
 import JoeBets.Editing.Validator as Validator exposing (Validator)
+import JoeBets.Gacha.Balance as Balance exposing (Balance)
 import JoeBets.Gacha.CardType as CardType
 import JoeBets.Gacha.Rarity as Rarity
 import Json.Decode as JsonD
+import Json.Decode.Pipeline as JsonD
 import Json.Encode as JsonE
+
+
+type alias ForgeResponse =
+    { forged : CardType.WithId
+    , balance : Balance
+    }
+
+
+forgeResponseDecoder : JsonD.Decoder ForgeResponse
+forgeResponseDecoder =
+    JsonD.succeed ForgeResponse
+        |> JsonD.required "forged" CardType.withIdDecoder
+        |> JsonD.required "balance" Balance.decoder
 
 
 type Forged
@@ -35,7 +52,7 @@ forgedDecoder =
 type Msg
     = SetQuote String
     | SetRarity (Maybe Rarity.Id)
-    | Forge (Api.Process CardType.WithId)
+    | Forge (Api.Process ForgeResponse)
     | ConfirmRetire (Maybe CardType.Id)
     | Retire CardType.Id (Api.Process CardType.WithId)
     | LoadExisting (Api.Response (List Forged))

@@ -199,6 +199,9 @@ cardPathToStringList path =
         Card ->
             []
 
+        RecycleValue ->
+            [ "value" ]
+
         Highlight ->
             [ "highlight" ]
 

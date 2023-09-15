@@ -79,6 +79,7 @@ type BannersPath
 
 type CardPath
     = Card
+    | RecycleValue
     | Highlight
 
 

@@ -52,21 +52,21 @@ const baseFromInternal = (internal: Internal.Users.Leaderboard): Entry => ({
     : {}),
   avatar: internal.avatar_url,
 
-  rank: internal.rank as Schema.Int,
+  rank: internal.rank,
 });
 
 export const netWorthEntryFromInternal = (
   internal: Internal.Users.Leaderboard,
 ): NetWorthEntry => ({
   ...baseFromInternal(internal),
-  netWorth: internal.net_worth as Schema.Int,
+  netWorth: internal.net_worth,
 });
 
 export const debtEntryFromInternal = (
   internal: Internal.Users.Leaderboard,
 ): DebtEntry => ({
   ...baseFromInternal(internal),
-  debt: internal.balance as Schema.Int,
+  debt: internal.balance,
 });
 
 export * as Leaderboard from "./leaderboard.js";

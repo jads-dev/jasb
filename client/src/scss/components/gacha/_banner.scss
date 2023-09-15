@@ -10,7 +10,6 @@
 
   display: flex;
   flex-flow: column;
-  grid: 1em;
   margin: 0;
   gap: 2em;
 
@@ -32,6 +31,7 @@
 
   background-image: var(--cover);
   background-size: cover;
+  background-position: center center;
 
   color: var(--foreground-color);
   background-color: var(--background-color);
@@ -42,16 +42,29 @@
   align-items: center;
 
   > .title {
-    font-size: 3em;
+    font-size: 2em;
     grid-area: title;
     padding: 0 0.3em;
     text-align: left;
+    display: flex;
+
+    > h3 {
+      margin: 0;
+      padding: 0.1em;
+      background-color: #88888888;
+    }
   }
 
   > .description {
     grid-area: description;
-    margin: 0;
-    padding: 0 1em 1em 1em;
+    padding: 0 1em 1em 0.6em;
+    display: flex;
+
+    > p {
+      margin: 0;
+      padding: 0.1em;
+      background-color: #88888888;
+    }
   }
 
   > .cover {

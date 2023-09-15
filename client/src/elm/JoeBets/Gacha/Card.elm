@@ -185,4 +185,4 @@ highlightsDecoder =
                 (JsonD.index 0 Banner.idDecoder)
                 (JsonD.index 2 highlightedDecoder)
     in
-    JsonD.list entryDecoder |> JsonD.map AssocList.fromList
+    JsonD.list entryDecoder |> JsonD.map (List.reverse >> AssocList.fromList)

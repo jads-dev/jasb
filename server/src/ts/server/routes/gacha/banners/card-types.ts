@@ -18,20 +18,13 @@ const {
   remove: removeCredits,
   edit: editCredits,
   add: addCredits,
-} = Validation.addEditRemove(
-  Credits.Id,
-  Schema.readonly(
-    Schema.intersection([
-      Schema.strict({
-        reason: Schema.string,
-      }),
-      Schema.union([
-        Schema.strict({ user: Users.Slug }),
-        Schema.strict({ name: Schema.string }),
-      ]),
-    ]),
-  ),
-);
+} = Validation.addEditRemove(Credits.Id, {
+  reason: Schema.string,
+  credited: Schema.union([
+    Schema.strict({ user: Users.Slug }),
+    Schema.strict({ name: Schema.string }),
+  ]),
+});
 
 const CardTypeBody = {
   name: Schema.string,

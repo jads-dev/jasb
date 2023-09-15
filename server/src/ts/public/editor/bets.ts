@@ -70,10 +70,10 @@ const editableOptionFromInternal = (
   id: internal.slug,
   name: internal.name,
   ...(internal.image !== null ? { image: internal.image } : {}),
-  order: internal.order as Schema.Int,
+  order: internal.order,
   ...(internal.won ? { won: true } : {}),
   stakes: internal.stakes.map(Stakes.fromInternal),
-  version: internal.version as Schema.Int,
+  version: internal.version,
   created: internal.created,
   modified: internal.modified,
 });

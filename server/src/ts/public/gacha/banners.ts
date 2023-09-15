@@ -91,7 +91,7 @@ export const editableFromInternal = (
       background: internal.background_color,
       foreground: internal.foreground_color,
     },
-    version: internal.version as Schema.Int,
+    version: internal.version,
     created: internal.created,
     modified: internal.modified,
   },

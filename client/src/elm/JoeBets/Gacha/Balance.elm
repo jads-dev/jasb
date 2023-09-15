@@ -1,7 +1,9 @@
 module JoeBets.Gacha.Balance exposing
     ( Balance
+    , Value
     , decoder
     , empty
+    , valueDecoder
     )
 
 import JoeBets.Gacha.Balance.Guarantees exposing (..)
@@ -9,6 +11,7 @@ import JoeBets.Gacha.Balance.Rolls exposing (..)
 import JoeBets.Gacha.Balance.Scrap exposing (..)
 import Json.Decode as JsonD
 import Json.Decode.Pipeline as JsonD
+import Util.Json.Decode as JsonD
 
 
 type alias Balance =
@@ -29,3 +32,18 @@ decoder =
         |> JsonD.required "rolls" rollsDecoder
         |> JsonD.required "guarantees" guaranteesDecoder
         |> JsonD.required "scrap" scrapDecoder
+
+
+type alias Value =
+    { rolls : Maybe Rolls
+    , guarantees : Maybe Guarantees
+    , scrap : Maybe Scrap
+    }
+
+
+valueDecoder : JsonD.Decoder Value
+valueDecoder =
+    JsonD.succeed Value
+        |> JsonD.optionalAsMaybe "rolls" rollsDecoder
+        |> JsonD.optionalAsMaybe "guarantees" guaranteesDecoder
+        |> JsonD.optionalAsMaybe "scrap" scrapDecoder

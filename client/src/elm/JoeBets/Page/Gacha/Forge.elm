@@ -102,7 +102,7 @@ load model =
 
 
 update : Msg -> Parent a -> ( Parent a, Cmd Global.Msg )
-update msg ({ forge } as model) =
+update msg ({ gacha, forge } as model) =
     case msg of
         SetQuote quote ->
             ( { model | forge = { forge | quote = quote } }, Cmd.none )
@@ -124,7 +124,7 @@ update msg ({ forge } as model) =
                                                 [ ( "quote", forge.quote |> JsonE.string )
                                                 , ( "rarity", rarity |> Rarity.encodeId )
                                                 ]
-                                        , decoder = CardType.withIdDecoder
+                                        , decoder = forgeResponseDecoder
                                         , wrap = Api.Finish >> Forge >> wrap
                                         }
                                         |> Api.doAction forge.forge
@@ -138,7 +138,7 @@ update msg ({ forge } as model) =
 
                 Api.Finish result ->
                     let
-                        ( maybeData, actionState ) =
+                        ( maybeResponse, actionState ) =
                             forge.forge |> Api.handleActionResult result
 
                         replaceWithNew new old =
@@ -153,12 +153,17 @@ update msg ({ forge } as model) =
                                     else
                                         old
 
-                        insert existing new =
-                            existing |> List.map (replaceWithNew new)
+                        insert existing { forged } =
+                            existing |> List.map (replaceWithNew forged)
 
                         updateExisting existing =
-                            maybeData
+                            maybeResponse
                                 |> Maybe.map (insert existing)
+                                |> Maybe.withDefault existing
+
+                        updateBalance existing =
+                            maybeResponse
+                                |> Maybe.map .balance
                                 |> Maybe.withDefault existing
                     in
                     ( { model
@@ -166,6 +171,11 @@ update msg ({ forge } as model) =
                             { forge
                                 | forge = actionState
                                 , existing = forge.existing |> Api.mapData updateExisting
+                            }
+                        , gacha =
+                            { gacha
+                                | balance =
+                                    gacha.balance |> Api.mapData updateBalance
                             }
                       }
                     , Cmd.none

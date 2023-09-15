@@ -15,9 +15,29 @@ export const Balance = Schema.readonly(
 export type Balance = Schema.TypeOf<typeof Balance>;
 
 export const fromInternal = (internal: Internal.Balance): Balance => ({
-  rolls: internal.rolls as Schema.Int,
-  guarantees: internal.guarantees as Schema.Int,
-  scrap: internal.scrap as Schema.Int,
+  rolls: internal.rolls,
+  guarantees: internal.guarantees,
+  scrap: internal.scrap,
+});
+
+/**
+ * A relative gacha value.
+ */
+export const Value = Schema.readonly(
+  Schema.partial({
+    rolls: Schema.Int,
+    guarantees: Schema.Int,
+    scrap: Schema.Int,
+  }),
+);
+export type Value = Schema.TypeOf<typeof Value>;
+
+export const valueFromInternal = (
+  internal: Internal.Balances.Value,
+): Value => ({
+  ...(internal.rolls !== null ? { rolls: internal.rolls } : {}),
+  ...(internal.guarantees !== null ? { guarantees: internal.guarantees } : {}),
+  ...(internal.scrap !== null ? { scrap: internal.scrap } : {}),
 });
 
 export * as Balances from "./balances.js";

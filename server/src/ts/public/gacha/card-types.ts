@@ -39,7 +39,7 @@ export const optionalByRarity = (
   internal: Internal.CardTypes.OptionalForRarity,
 ): WithId | Rarities.WithSlug =>
   internal.id !== null
-    ? fromInternal(internal as Internal.CardTypes.CardType)
+    ? fromInternal(internal)
     : Rarities.fromInternal(internal.rarity);
 
 /**

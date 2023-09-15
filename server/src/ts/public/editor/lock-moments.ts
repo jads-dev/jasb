@@ -57,10 +57,10 @@ export const fromInternal = (
   internal.slug as Slug,
   {
     name: internal.name,
-    order: internal.order as Schema.Int,
-    bets: internal.bet_count as Schema.Int,
+    order: internal.order,
+    bets: internal.bet_count,
 
-    version: internal.version as Schema.Int,
+    version: internal.version,
     created: internal.created,
     modified: internal.modified,
   },
@@ -71,7 +71,7 @@ export const betLockStatusFromInternal = (
 ): BetLockStatus => ({
   betId: internal.bet_slug,
   betName: internal.bet_name,
-  betVersion: internal.bet_version as Schema.Int,
+  betVersion: internal.bet_version,
   locked: internal.locked,
 });
 

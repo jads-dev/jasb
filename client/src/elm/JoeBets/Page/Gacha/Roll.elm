@@ -4,7 +4,6 @@ module JoeBets.Page.Gacha.Roll exposing
     , view
     )
 
-import AssocList
 import EverySet
 import FontAwesome as Icon
 import FontAwesome.Solid as Icon
@@ -18,7 +17,6 @@ import JoeBets.Api.Model as Api
 import JoeBets.Api.Path as Api
 import JoeBets.Gacha.Balance.Rolls as Balance
 import JoeBets.Gacha.Banner as Banner
-import JoeBets.Gacha.Card as Card
 import JoeBets.Material as Material
 import JoeBets.Messages as Global
 import JoeBets.Page exposing (Page)

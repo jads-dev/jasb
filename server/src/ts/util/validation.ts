@@ -8,7 +8,10 @@ import * as Types from "io-ts-types";
 import { WebError } from "../server/errors.js";
 import { PlaceholderSecretToken, SecretToken } from "./secret-token.js";
 
-export const addEditRemove = (id: Schema.Mixed, content: Schema.Mixed) => ({
+export const addEditRemove = <Props extends Schema.Props>(
+  id: Schema.Mixed,
+  content: Props,
+) => ({
   remove: Schema.readonlyArray(
     Schema.strict({
       id: id,
@@ -21,10 +24,10 @@ export const addEditRemove = (id: Schema.Mixed, content: Schema.Mixed) => ({
         id: id,
         version: Schema.Int,
       }),
-      content,
+      Schema.partial(content),
     ]),
   ),
-  add: Schema.readonlyArray(content),
+  add: Schema.readonlyArray(Schema.strict(content)),
 });
 
 const slugRegex = /^[._@\-0-9a-z]+$/;

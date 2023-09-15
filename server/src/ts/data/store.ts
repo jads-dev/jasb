@@ -1175,7 +1175,7 @@ export class Store {
     sessionId: SecretToken,
     cardTypeId: Public.Gacha.CardTypes.Id,
   ): Promise<Gacha.CardType> {
-    return await this.withClient(
+    return await this.inTransaction(
       async (client) =>
         await client.one(
           Queries.cardType(sqlFragment`
@@ -1198,7 +1198,7 @@ export class Store {
     cardQuote: string,
     cardRaritySlug: Public.Gacha.Rarities.Slug,
   ): Promise<Gacha.CardType> {
-    return await this.withClient(
+    return await this.inTransaction(
       async (client) =>
         await client.one(
           Queries.cardType(sqlFragment`
@@ -1298,28 +1298,18 @@ export class Store {
       return result.rows;
     });
   }
-  async gachaSetHighlight(
-    userSlug: Public.Users.Slug,
-    sessionId: SecretToken,
-    cardId: Public.Gacha.Cards.Id,
-    highlighted: false,
-  ): Promise<undefined>;
-  async gachaSetHighlight(
-    userSlug: Public.Users.Slug,
-    sessionId: SecretToken,
-    cardId: Public.Gacha.Cards.Id,
-    highlighted: true,
-  ): Promise<Gacha.Cards.Highlighted>;
+
   async gachaSetHighlight(
     userSlug: Public.Users.Slug,
     sessionId: SecretToken,
     cardId: Public.Gacha.Cards.Id,
     highlighted: boolean,
-  ): Promise<Gacha.Cards.Highlighted | undefined> {
+  ): Promise<Gacha.Cards.Highlighted> {
     return await this.inTransaction(async (client) => {
-      const result = await client.maybeOne(
+      return await client.one(
         Queries.highlighted(sqlFragment`
-          SELECT * FROM jasb.gacha_set_highlight(
+          SELECT *
+          FROM jasb.gacha_set_highlight(
             ${userSlug},
             ${sessionId.uri},
             ${this.config.auth.sessionLifetime.toString()},
@@ -1328,7 +1318,6 @@ export class Store {
           )
         `),
       );
-      return result ?? undefined;
     });
   }
 
@@ -1407,6 +1396,30 @@ export class Store {
         ),
       );
       return finalResult.rows;
+    });
+  }
+
+  async gachaRecycleValue(
+    userSlug: Public.Users.Slug,
+    bannerSlug: Public.Gacha.Banners.Slug,
+    cardId: Public.Gacha.Cards.Id,
+  ): Promise<Gacha.Balances.Value> {
+    return await this.inTransaction(async (client) => {
+      return await client.one(
+        Queries.recycleValue(sqlFragment`
+          SELECT 
+            gacha_cards.* 
+          FROM 
+            gacha_cards INNER JOIN
+            gacha_card_types ON gacha_cards.type = gacha_card_types.id INNER JOIN
+            gacha_banners ON gacha_card_types.banner = gacha_banners.id INNER JOIN
+            users ON gacha_cards.owner = users.id
+          WHERE 
+            gacha_cards.id = ${cardId} AND
+            gacha_banners.slug = ${bannerSlug} AND
+            users.slug = ${userSlug} 
+        `),
+      );
     });
   }
 
@@ -1701,13 +1714,15 @@ export class Store {
     raritySlug: Public.Gacha.Rarities.Slug,
     credits: readonly {
       reason: string;
-      user?: Public.Users.Slug;
-      name?: string;
+      credited: {
+        user?: Public.Users.Slug;
+        name?: string;
+      };
     }[],
   ): Promise<Gacha.CardTypes.Editable> {
     return await this.inTransaction(async (client) => {
       const addUnnest = Slonik.sql.unnest(
-        credits.map(({ reason, user, name }) => [
+        credits.map(({ reason, credited: { user, name } }) => [
           reason,
           user ?? null,
           name ?? null,
@@ -1754,14 +1769,15 @@ export class Store {
     editCredits: readonly {
       id: Public.Gacha.Credits.Id;
       reason?: string | null;
-      user?: Public.Users.Slug | null;
-      name?: string | null;
+      credited?: { user?: Public.Users.Slug | null; name?: string | null };
       version: number;
     }[],
     addCredits: readonly {
       reason: string;
-      user?: Public.Users.Slug | null;
-      name?: string | null;
+      credited: {
+        user?: Public.Users.Slug | null;
+        name?: string | null;
+      };
     }[],
   ): Promise<Gacha.CardTypes.Editable> {
     return await this.inTransaction(async (client) => {
@@ -1770,20 +1786,20 @@ export class Store {
         ["int4", "int4"],
       );
       const editUnnest = Slonik.sql.unnest(
-        editCredits.map(({ id, reason, user, name, version }) => [
+        editCredits.map(({ id, reason, credited, version }) => [
           id,
           reason ?? null,
-          user ?? null,
-          name ?? null,
+          credited?.user ?? null,
+          credited?.name ?? null,
           version,
         ]),
         ["int4", "text", "text", "text", "int4"],
       );
       const addUnnest = Slonik.sql.unnest(
-        addCredits.map(({ reason, user, name }) => [
+        addCredits.map(({ reason, credited }) => [
           reason,
-          user ?? null,
-          name ?? null,
+          credited.user ?? null,
+          credited.name ?? null,
         ]),
         ["text", "text", "text"],
       );
@@ -1846,19 +1862,18 @@ export class Store {
 
   async avatarCacheGarbageCollection(
     garbageCollectBatchSize: number,
-  ): Promise<readonly string[]> {
+  ): Promise<readonly AvatarCache.Meta[]> {
     return await this.withClient(async (client) => {
       const results = await client.query(
         Queries.avatarMeta(sqlFragment`
           SELECT avatars.*
           FROM 
-            jasb.avatars LEFT JOIN 
-            jasb.users ON avatars.id = users.avatar
+            jasb.avatars LEFT JOIN jasb.users ON avatars.id = users.avatar
           WHERE avatars.cached AND users.id IS NULL
           LIMIT ${garbageCollectBatchSize}
         `),
       );
-      return results.rows.map((row) => row.url);
+      return results.rows;
     });
   }
 
@@ -1879,7 +1894,7 @@ export class Store {
   }
 
   async updateCachedAvatars(
-    cached: readonly { oldUrl: string; newUrl: string }[],
+    cached: readonly { meta: AvatarCache.Meta; newUrl: string }[],
   ): Promise<number> {
     const result = await this.inTransaction(
       async (client) =>
@@ -1890,10 +1905,10 @@ export class Store {
               url = cached.new_url,
               cached = TRUE
             FROM ${Slonik.sql.unnest(
-              cached.map(({ oldUrl, newUrl }) => [oldUrl, newUrl]),
-              ["text", "text"],
-            )} AS cached(old_url, new_url) 
-            WHERE avatars.cached IS NOT TRUE AND avatars.url = cached.old_url
+              cached.map(({ meta, newUrl }) => [meta.id, newUrl]),
+              ["int4", "text"],
+            )} AS cached(id, new_url) 
+            WHERE avatars.cached IS NOT TRUE AND avatars.id = cached.id
             RETURNING avatars.id
           `),
         ),
@@ -1901,13 +1916,18 @@ export class Store {
     return result.affected;
   }
 
-  async deleteCachedAvatars(deleted: readonly string[]): Promise<number> {
+  async deleteCachedAvatars(
+    deleted: readonly AvatarCache.Meta[],
+  ): Promise<number> {
     const result = await this.inTransaction(
       async (client) =>
         await client.one(
           Queries.count(sqlFragment`
             DELETE FROM jasb.avatars 
-            WHERE url = ANY(${Slonik.sql.array(deleted, "text")})
+            WHERE id = ANY(${Slonik.sql.array(
+              deleted.map(({ id }) => id),
+              "int4",
+            )})
             RETURNING avatars.id
           `),
         ),

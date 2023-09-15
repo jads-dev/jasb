@@ -50,6 +50,7 @@ const typedSql = Slonik.createSqlTag({
     editable_permissions: Users.EditablePermissions,
     avatar_meta: AvatarCache.Meta,
     balance: Gacha.Balances.Balance,
+    gacha_value: Gacha.Balances.Value,
     banner: Gacha.Banners.Banner,
     editable_banner: Gacha.Banners.Editable,
     detailed_card_type: Gacha.CardTypes.Detailed,
@@ -560,10 +561,12 @@ export const avatarMeta = (avatarSource: Slonik.SqlFragment) => {
     WITH
       avatars AS (${avatarSource})
     SELECT
+      avatars.id,
       avatars.url,
       avatars.discord_user,
       avatars.hash,
-      avatars.default_index
+      avatars.default_index,
+      avatars.cached
     FROM avatars
   `;
 };
@@ -579,6 +582,22 @@ export const balance = (userSource: Slonik.SqlFragment) => {
       balance.guarantees,
       balance.scrap
     FROM balance
+  `;
+};
+
+export const recycleValue = (cardSource: Slonik.SqlFragment) => {
+  const sql = typedSql("gacha_value");
+  return sql`
+    WITH
+      cards AS (${cardSource})
+    SELECT
+      NULL AS rolls,
+      NULL AS guarantees,
+      gacha_rarities.recycle_scrap_value AS scrap
+    FROM 
+      cards INNER JOIN 
+      gacha_card_types ON cards.type = gacha_card_types.id INNER JOIN
+      gacha_rarities ON gacha_card_types.rarity = gacha_rarities.id
   `;
 };
 
@@ -626,7 +645,6 @@ export const detailedCardType = (cardTypeSource: Slonik.SqlFragment) => {
         SELECT
           credits.card_type,
           jsonb_agg(jsonb_build_object(
-            'id', credits.id,
             'reason', credits.reason,
             'user_slug', users.slug,
             'name', coalesce(credits.name, users.name),

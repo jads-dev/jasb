@@ -76,7 +76,7 @@ async function removeFromCacheBatch(
   const deleted = [
     ...Iterables.filterUndefined(
       await Promise.all(
-        noLongerNeeded.map((url) => deleteCached(logger, avatarCache, url)),
+        noLongerNeeded.map((meta) => deleteCached(logger, avatarCache, meta)),
       ),
     ),
   ];
@@ -87,33 +87,33 @@ async function removeFromCacheBatch(
 async function deleteCached(
   logger: Logging.Logger,
   avatarCache: ObjectUploader,
-  url: string,
-): Promise<string | undefined> {
+  meta: AvatarCache.Meta,
+): Promise<AvatarCache.Meta | undefined> {
   try {
-    await avatarCache.delete(url);
-    return url;
+    await avatarCache.delete(meta.url);
+    return meta;
   } catch (error) {
-    if (error instanceof OciError) {
-      if (error.serviceCode === "NotFound") {
-        return url;
-      }
+    if (error instanceof OciError && error.serviceCode === "ObjectNotFound") {
+      // Already deleted, so remove from the DB.
+      return meta;
+    } else {
+      logger.warn(
+        `Error trying to delete cached avatar: ${(error as Error)?.message}.`,
+        {
+          exception: error,
+          error,
+        },
+      );
+      return undefined;
     }
-    logger.warn(
-      `Error trying to delete cached avatar: ${(error as Error)?.message}.`,
-      {
-        exception: error,
-        error,
-      },
-    );
-    return undefined;
   }
 }
 
 async function cache(
   logger: Logging.Logger,
   avatarCache: ObjectUploader,
-  meta: AvatarCache.Meta & AvatarCache.Url,
-): Promise<{ oldUrl: string; newUrl: string } | undefined> {
+  meta: AvatarCache.Meta,
+): Promise<{ meta: AvatarCache.Meta; newUrl: string } | undefined> {
   try {
     const response = await fetch(meta.url);
     const contentType = response.headers.get("Content-Type") ?? "";
@@ -133,7 +133,7 @@ async function cache(
             : { discord_default_avatar: `${meta.default_index}` }),
         },
       );
-      return { oldUrl: meta.url, newUrl: url.toString() };
+      return { meta, newUrl: url.toString() };
     } else {
       logger.warn(
         `Error trying to cache avatar: could not load avatar from source.`,

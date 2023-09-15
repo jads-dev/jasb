@@ -24,9 +24,10 @@ import AssocList
 import DragDrop
 import EverySet exposing (EverySet)
 import JoeBets.Api.Action as Api
+import JoeBets.Api.Data as Api
 import JoeBets.Api.IdData as Api
 import JoeBets.Api.Model as Api
-import JoeBets.Gacha.Balance exposing (Balance)
+import JoeBets.Gacha.Balance as Balance exposing (Balance)
 import JoeBets.Gacha.Banner as Banner
 import JoeBets.Gacha.Card as Card
 import JoeBets.Gacha.CardType as CardType
@@ -42,6 +43,7 @@ import Util.Json.Decode as JsonD
 
 type RecycleProcess
     = AskConfirmRecycle
+    | GetRecycleValue (Api.Response Balance.Value)
     | ExecuteRecycle
     | CancelRecycle
     | Recycled (Api.Response Balance)
@@ -164,7 +166,10 @@ type alias OrderEditor =
 
 
 type alias RecycleConfirmation =
-    { banner : Banner.Id, card : Card.Id }
+    { banner : Banner.Id
+    , card : Card.Id
+    , value : Api.Data Balance.Value
+    }
 
 
 type alias Model =

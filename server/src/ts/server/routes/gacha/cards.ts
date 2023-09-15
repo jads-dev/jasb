@@ -29,6 +29,12 @@ const ForgeCardBody = Schema.readonly(
     rarity: Rarities.Slug,
   }),
 );
+const ForgeCardResponse = Schema.readonly(
+  Schema.strict({
+    forged: CardTypes.WithId,
+    balance: Balances.Balance,
+  }),
+);
 
 export const cardsApi = (server: Server.State): Router => {
   const router = new Router();
@@ -141,7 +147,14 @@ export const cardsApi = (server: Server.State): Router => {
       body.quote,
       body.rarity,
     );
-    ctx.body = CardTypes.WithId.encode(CardTypes.fromInternal(cardType));
+    const balance = await server.store.gachaGetBalance(
+      sessionCookie.user,
+      sessionCookie.session,
+    );
+    ctx.body = ForgeCardResponse.encode({
+      forged: CardTypes.fromInternal(cardType),
+      balance: Balances.fromInternal(balance),
+    });
   });
 
   // Get the forged card types for the user.
@@ -218,6 +231,31 @@ export const cardsApi = (server: Server.State): Router => {
         cards: cardTypes.map(CardTypes.withCardsFromInternal),
       });
     }
+  });
+
+  // Recycle value of the given card.
+  router.get("/:userSlug/banners/:bannerSlug/:cardId/value", async (ctx) => {
+    const userSlug = requireUrlParameter(
+      Users.Slug,
+      "user",
+      ctx.params["userSlug"],
+    );
+    const bannerSlug = requireUrlParameter(
+      Banners.Slug,
+      "banner",
+      ctx.params["bannerSlug"],
+    );
+    const cardId = Validation.requireNumberUrlParameter(
+      Cards.Id,
+      "card",
+      ctx.params["cardId"],
+    );
+    const value = await server.store.gachaRecycleValue(
+      userSlug,
+      bannerSlug,
+      cardId,
+    );
+    ctx.body = Balances.Value.encode(Balances.valueFromInternal(value));
   });
 
   // Recycle the given card.
@@ -356,29 +394,32 @@ export const cardsApi = (server: Server.State): Router => {
   );
 
   // Remove highlight of the given card.
-  router.delete("/:userSlug/:bannerSlug/:cardId/highlight", async (ctx) => {
-    const sessionCookie = requireSession(ctx.cookies);
-    const userSlug = requireUrlParameter(
-      Users.Slug,
-      "user",
-      ctx.params["userSlug"],
-    );
-    const cardId = Validation.requireNumberUrlParameter(
-      Cards.Id,
-      "card",
-      ctx.params["cardId"],
-    );
-    if (userSlug !== sessionCookie.user) {
-      throw new WebError(StatusCodes.FORBIDDEN, "Not your card.");
-    }
-    await server.store.gachaSetHighlight(
-      sessionCookie.user,
-      sessionCookie.session,
-      cardId,
-      false,
-    );
-    ctx.body = Cards.Id.encode(cardId);
-  });
+  router.delete(
+    "/:userSlug/banners/:bannerSlug/:cardId/highlight",
+    async (ctx) => {
+      const sessionCookie = requireSession(ctx.cookies);
+      const userSlug = requireUrlParameter(
+        Users.Slug,
+        "user",
+        ctx.params["userSlug"],
+      );
+      const cardId = Validation.requireNumberUrlParameter(
+        Cards.Id,
+        "card",
+        ctx.params["cardId"],
+      );
+      if (userSlug !== sessionCookie.user) {
+        throw new WebError(StatusCodes.FORBIDDEN, "Not your card.");
+      }
+      const result = await server.store.gachaSetHighlight(
+        sessionCookie.user,
+        sessionCookie.session,
+        cardId,
+        false,
+      );
+      ctx.body = Cards.Id.encode(result.id);
+    },
+  );
 
   return router;
 };

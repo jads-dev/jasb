@@ -28,7 +28,7 @@ export type User = z.infer<typeof User>;
 
 export const Leaderboard = z
   .object({
-    rank: z.number().int().nonnegative(),
+    rank: Types.nonNegativeInt,
   })
   .strict()
   .merge(UserBase);

@@ -112,8 +112,8 @@ export const fromInternal = (internal: Internal.User): [Slug, User] => [
       : {}),
     avatar: internal.avatar_url,
 
-    balance: internal.balance as Schema.Int,
-    betValue: internal.staked as Schema.Int,
+    balance: internal.balance,
+    betValue: internal.staked,
 
     created: internal.created,
 
@@ -128,11 +128,11 @@ export const bankruptcyStatsFromInternal = ({
   locked_stakes_lost,
   balance_after,
 }: Internal.Users.BankruptcyStats): BankruptcyStats => ({
-  amountLost: amount_lost as Schema.Int,
-  stakesLost: stakes_lost as Schema.Int,
-  lockedAmountLost: locked_amount_lost as Schema.Int,
-  lockedStakesLost: locked_stakes_lost as Schema.Int,
-  balanceAfter: balance_after as Schema.Int,
+  amountLost: amount_lost,
+  stakesLost: stakes_lost,
+  lockedAmountLost: locked_amount_lost,
+  lockedStakesLost: locked_stakes_lost,
+  balanceAfter: balance_after,
 });
 
 export const specificPermissionsFromInternal = ({

@@ -12,4 +12,13 @@ export const Balance = z
   .strict();
 export type Balance = z.infer<typeof Balance>;
 
+export const Value = z
+  .object({
+    rolls: Types.int.nullable(),
+    guarantees: Types.int.nullable(),
+    scrap: Types.int.nullable(),
+  })
+  .strict();
+export type Value = z.infer<typeof Value>;
+
 export * as Balances from "./balances.js";

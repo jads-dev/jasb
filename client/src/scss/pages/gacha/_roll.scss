@@ -22,6 +22,7 @@
   z-index: 10;
 
   @include colors.by-name("card");
+  background-color: #000000;
 
   .advance-button {
     position: absolute;

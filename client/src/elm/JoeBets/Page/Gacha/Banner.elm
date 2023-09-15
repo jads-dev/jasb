@@ -43,8 +43,8 @@ viewInternal id { name, description, cover, type_, colors } extra =
             ]
         ]
         (Html.img [ HtmlA.class "cover", HtmlA.src cover ] []
-            :: Html.h2 [ HtmlA.class "title" ] [ Html.text name ]
-            :: Html.p [ HtmlA.class "description" ] [ Html.text description ]
+            :: Html.div [ HtmlA.class "title" ] [ Html.h3 [] [ Html.text name ] ]
+            :: Html.div [ HtmlA.class "description" ] [ Html.p [] [ Html.text description ] ]
             :: Html.div [ HtmlA.class "type" ]
                 [ Html.div [] [ Html.text type_, Html.text " Banner" ] ]
             :: extra

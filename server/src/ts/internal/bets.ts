@@ -10,9 +10,9 @@ export const LockMoment = z
   .object({
     slug: Types.lockMomentSlug,
     name: z.string(),
-    order: z.number().int(),
-    bet_count: z.number().int(),
-    version: z.number().int().nonnegative(),
+    order: Types.nonNegativeInt,
+    bet_count: Types.nonNegativeInt,
+    version: Types.nonNegativeInt,
     created: Types.zonedDateTime,
     modified: Types.zonedDateTime,
   })

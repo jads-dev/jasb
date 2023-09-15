@@ -578,12 +578,13 @@ CREATE FUNCTION gacha_set_highlight (
     IF highlight THEN
       INSERT INTO gacha_card_highlights (card, owner, "order")
       SELECT
-       card_id,
-       user_id,
-       max(existing."order") + 1
-      FROM gacha_card_highlights AS existing
-      WHERE existing.owner = user_id
-      GROUP BY existing.owner
+       target.card,
+       target.owner,
+       coalesce(max(existing."order"), 0) + 1
+      FROM
+        (VALUES ( card_id, user_id )) AS target (card, owner) LEFT JOIN
+        gacha_card_highlights AS existing ON existing.owner = user_id
+      GROUP BY target.card, target.owner, existing.owner
       RETURNING gacha_card_highlights.* INTO card_highlight;
     ELSE
       DELETE FROM gacha_card_highlights AS highlights
@@ -674,6 +675,8 @@ CREATE FUNCTION gacha_recycle_card (
 ) RETURNS users LANGUAGE plpgsql AS $$
   DECLARE
     user_id users.id%TYPE;
+    card_type_id gacha_card_types.id%TYPE;
+    resulting_scrap users.scrap%TYPE;
     result_user users%ROWTYPE;
   BEGIN
     SELECT validate_session(
@@ -682,17 +685,23 @@ CREATE FUNCTION gacha_recycle_card (
       session_lifetime
     ) INTO user_id;
 
-    DELETE FROM gacha_cards AS cards WHERE cards.owner = user_id AND cards.id = card_id;
+    DELETE FROM gacha_cards AS cards
+    WHERE cards.owner = user_id AND cards.id = card_id
+    RETURNING cards.type INTO card_type_id;
     IF NOT FOUND THEN
       RAISE EXCEPTION USING
         ERRCODE = 'NTFND',
         MESSAGE = 'Card not found.';
     END IF;
 
+    SELECT recycle_scrap_value INTO resulting_scrap
+    FROM gacha_rarities INNER JOIN gacha_card_types ON gacha_rarities.id = gacha_card_types.rarity
+    WHERE gacha_card_types.id = card_type_id;
+
     UPDATE users
     SET
-      scrap = (scrap + 1) % scrap_per_roll,
-      rolls = rolls + ((scrap + 1) / scrap_per_roll)
+      scrap = (scrap + resulting_scrap) % scrap_per_roll,
+      rolls = rolls + ((scrap + resulting_scrap) / scrap_per_roll)
     WHERE users.id = user_id
     RETURNING users.* INTO result_user;
 
@@ -700,7 +709,8 @@ CREATE FUNCTION gacha_recycle_card (
       jsonb_build_object(
         'event', 'GachaRecycleCard',
         'user_slug', user_slug,
-        'card_id', card_id
+        'card_id', card_id,
+        'resulting_scrap', resulting_scrap
       )
     );
 

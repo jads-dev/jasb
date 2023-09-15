@@ -28,6 +28,7 @@ import JoeBets.Gacha.Card as Card
 import JoeBets.Messages as Global
 import JoeBets.Overlay as Overlay
 import JoeBets.Page exposing (Page)
+import JoeBets.Page.Gacha.Balance as Balance
 import JoeBets.Page.Gacha.Banner as Banner
 import JoeBets.Page.Gacha.Card as Card
 import JoeBets.Page.Gacha.Collection.Model exposing (..)
@@ -415,13 +416,44 @@ update msg ({ origin, collection } as model) =
                 ( updatedGacha, updatedCollection, actionCmd ) =
                     case process of
                         AskConfirmRecycle ->
+                            let
+                                ( value, getValue ) =
+                                    { path =
+                                        Api.RecycleValue
+                                            |> Api.SpecificCard banner card
+                                            |> Api.Cards user
+                                            |> Api.Gacha
+                                    , wrap = GetRecycleValue >> RecycleCard user banner card >> wrap
+                                    , decoder = Balance.valueDecoder
+                                    }
+                                        |> Api.get origin
+                                        |> Api.initGetData
+                            in
                             ( gacha
                             , { collection
                                 | recycleConfirmation =
                                     Just
                                         { banner = banner
                                         , card = card
+                                        , value = value
                                         }
+                              }
+                            , getValue
+                            )
+
+                        GetRecycleValue response ->
+                            let
+                                updateExisting existing =
+                                    if existing.banner == banner && existing.card == card then
+                                        { existing | value = existing.value |> Api.updateData response }
+
+                                    else
+                                        existing
+                            in
+                            ( gacha
+                            , { collection
+                                | recycleConfirmation =
+                                    collection.recycleConfirmation |> Maybe.map updateExisting
                               }
                             , Cmd.none
                             )
@@ -475,7 +507,10 @@ update msg ({ origin, collection } as model) =
                                         , recycleConfirmation = Nothing
                                     }
                             in
-                            ( { gacha | balance = gacha.balance |> Api.updateData response }
+                            ( { gacha
+                                | balance = gacha.balance |> Api.updateData response
+                                , detailedCard = Api.initIdData
+                              }
                             , { updateConfirmationAndCards | saving = saving }
                             , Cmd.none
                             )
@@ -598,7 +633,7 @@ viewHighlights maybeContext onClick model collection =
                     ( [], [] )
     in
     [ [ [ Html.div [ HtmlA.class "header" ]
-            (Html.h3 [] [ Html.text "Highlighted Cards" ] :: editButton)
+            (Html.h3 [] [ Html.text "Showcased Cards" ] :: editButton)
         ]
       , description
       , model.saving
@@ -631,13 +666,19 @@ view parent =
 
         confirmRecycle userId =
             case parent.collection.recycleConfirmation of
-                Just { banner, card } ->
+                Just { banner, card, value } ->
                     let
                         saving =
                             parent.collection.saving
 
                         cancel =
                             RecycleCard userId banner card CancelRecycle |> wrap
+
+                        viewedValue =
+                            value
+                                |> Api.dataToMaybe
+                                |> Maybe.map Balance.viewValue
+                                |> Maybe.withDefault (Html.text "scrap proportional to the rarity")
                     in
                     [ Overlay.viewLevel 1
                         cancel
@@ -645,8 +686,8 @@ view parent =
                                 [ Html.text "Are you sure you want to recycle this card? "
                                 , Html.text "There is no way to undo this, it will be gone forever. "
                                 , Html.text "You will get "
-                                , Balance.viewScrap (Balance.scrapFromInt 1)
-                                , Html.text "."
+                                , viewedValue
+                                , Html.text " for recycling the card."
                                 ]
                             ]
                           , Api.viewAction [] saving

@@ -2,6 +2,7 @@ module JoeBets.Page.Gacha.Balance exposing
     ( load
     , update
     , view
+    , viewValue
     )
 
 import FontAwesome as Icon
@@ -105,3 +106,13 @@ view wrap { gacha } { rolls, guarantees, scrap } =
       ]
         |> Html.div [ HtmlA.class "balance" ]
     ]
+
+
+viewValue : Value -> Html msg
+viewValue { rolls, guarantees, scrap } =
+    [ rolls |> Maybe.map viewRolls
+    , guarantees |> Maybe.map viewGuarantees
+    , scrap |> Maybe.map viewScrap
+    ]
+        |> List.filterMap identity
+        |> Html.span [ HtmlA.class "gacha-value" ]

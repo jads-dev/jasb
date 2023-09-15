@@ -3,7 +3,7 @@
 @use "./card/_banners.scss";
 
 .card {
-  aspect-ratio: 5 / 7.5;
+  aspect-ratio: 5 / 8;
   width: 16em;
 
   text-rendering: optimizeLegibility;
@@ -59,7 +59,8 @@
       padding: 0 0.5em;
 
       h2 {
-        font-size: 1.5em;
+        font-size: 1.3em;
+        text-align: right;
       }
     }
 
@@ -73,13 +74,14 @@
     > .description {
       grid-area: desc;
       padding: 0 0.5em;
+      align-self: center;
+      justify-self: center;
+      overflow-y: auto;
 
       p {
         margin: 0;
         text-align: center;
       }
-
-      overflow-y: auto;
     }
 
     > .qualities {
