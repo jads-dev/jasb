@@ -390,29 +390,30 @@ toChanges { items } =
         add { reason, name, user } =
             let
                 userItem { id } =
-                    ( "user", User.encodeId id )
+                    [ ( "user", User.encodeId id ) ]
 
-                target =
+                credited =
                     user.selected
                         |> Maybe.map userItem
-                        |> Maybe.withDefault ( "name", JsonE.string name )
+                        |> Maybe.withDefault [ ( "name", JsonE.string name ) ]
+                        |> JsonE.object
             in
-            [ ( "reason", JsonE.string reason ), target ]
+            [ ( "reason", JsonE.string reason ), ( "credited", credited ) ]
 
         edit { credit } new =
             let
-                target =
+                credited =
                     case new.user.selected of
                         Just { id } ->
                             if credit.id /= Just id then
-                                [ ( "user", User.encodeId id ) ]
+                                [ ( "credited", JsonE.object [ ( "user", User.encodeId id ) ] ) ]
 
                             else
                                 []
 
                         Nothing ->
                             if credit.name /= new.name then
-                                [ ( "name", JsonE.string new.name ) ]
+                                [ ( "credited", JsonE.object [ ( "name", JsonE.string new.name ) ] ) ]
 
                             else
                                 []
@@ -424,7 +425,7 @@ toChanges { items } =
                     else
                         []
             in
-            [ reason, target ] |> List.concat
+            List.append reason credited
 
         foldFunction item ( removes, edits, adds ) =
             if item.removed then
