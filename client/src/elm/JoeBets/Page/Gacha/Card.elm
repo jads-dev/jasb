@@ -25,13 +25,13 @@ import JoeBets.Api.Action as Api
 import JoeBets.Api.Data as Api
 import JoeBets.Api.Error as Api
 import JoeBets.Api.IdData as Api
+import JoeBets.Components.GachaCard as GachaCard
 import JoeBets.Gacha.Banner as Banner
 import JoeBets.Gacha.Card as Card exposing (Card)
 import JoeBets.Gacha.CardType as CardType exposing (CardType)
 import JoeBets.Gacha.CardType.WithCards as CardType
 import JoeBets.Gacha.Credits as Credits
 import JoeBets.Gacha.Quality as Quality
-import JoeBets.Gacha.Rarity as Rarity
 import JoeBets.Messages as Global
 import JoeBets.Overlay as Overlay
 import JoeBets.Page.Gacha.Collection.Model as Collection
@@ -69,81 +69,50 @@ type TypeOrIndividual
 viewInternal : Maybe Global.Msg -> List (Html.Attribute Global.Msg) -> Banner.Id -> CardType -> TypeOrIndividual -> Html Global.Msg
 viewInternal onClick attrs bannerId cardType typeOrIndividual =
     let
-        ( rarityId, rarityData ) =
-            rarity
+        cardTypeAttrs { name, description, image, rarity, layout } =
+            let
+                ( rarityId, _ ) =
+                    rarity
+            in
+            [ GachaCard.name name
+            , GachaCard.description description
+            , GachaCard.image image
+            , GachaCard.rarity rarityId
+            , GachaCard.layout layout
+            , GachaCard.banner bannerId
+            ]
 
-        { name, description, image, rarity } =
-            cardType
-
-        { serialNumber, cssId, qualities, class } =
+        typeOrIndividualAttrs =
             case typeOrIndividual of
                 Card { cardId, individual } ->
-                    let
-                        idToSerial =
-                            Card.idToInt >> String.fromInt >> String.padLeft 10 '0'
-
-                        wrapSerial serial =
-                            [ Html.div
-                                [ HtmlA.class "serial"
-                                , HtmlA.title ("Serial Number: " ++ serial)
-                                ]
-                                [ serial |> Html.text ]
-                            ]
-                    in
-                    { serialNumber = cardId |> idToSerial |> wrapSerial
-                    , cssId = Card.cssId cardId
-                    , qualities = individual.qualities
-                    , class = "instance"
-                    }
+                    [ cardId |> Card.cssId |> HtmlA.id
+                    , GachaCard.serialNumber cardId
+                    , GachaCard.interactive
+                    , individual.qualities
+                        |> AssocList.keys
+                        |> GachaCard.qualities
+                    ]
 
                 CardType { cardTypeId } ->
-                    { serialNumber = []
-                    , cssId = CardType.cssId cardTypeId
-                    , qualities = AssocList.empty
-                    , class = "placeholder"
-                    }
-
-        viewQuality ( qualityId, quality ) =
-            Html.li
-                [ HtmlA.classList
-                    [ ( "quality", True )
-                    , qualityClass qualityId
+                    [ cardTypeId |> CardType.cssId |> HtmlA.id
+                    , GachaCard.sample
                     ]
-                , HtmlA.title quality.name
-                ]
-                [ Html.span [ HtmlA.class "name" ] [ Html.text quality.name ] ]
 
-        face =
-            Html.div [ HtmlA.class "title" ] [ Html.h2 [ HtmlA.title name ] [ Html.text name ] ]
-                :: Html.div [ HtmlA.class "image" ] [ Html.img [ HtmlA.src image ] [] ]
-                :: Html.div [ HtmlA.class "description" ] [ Html.p [] [ Html.text description ] ]
-                :: (qualities |> AssocList.toList |> List.map viewQuality |> Html.ul [ HtmlA.class "qualities" ])
-                :: Html.div [ HtmlA.class "rarity", HtmlA.title rarityData.name ]
-                    [ Html.div [ HtmlA.class "name" ] [ Html.text rarityData.name ]
-                    , Html.div [ HtmlA.class "icon" ] [ Html.div [ HtmlA.class "mask" ] [] ]
-                    ]
-                :: serialNumber
-
-        attrsWithOnClickIfGiven =
+        onClickIfGiven =
             case onClick of
                 Just action ->
-                    HtmlE.onClick action :: attrs
+                    [ HtmlE.onClick action ]
 
                 Nothing ->
-                    attrs
-
-        allAttrs =
-            HtmlA.classList
-                (( "card", True )
-                    :: ( class, True )
-                    :: ( Rarity.class rarityId, True )
-                    :: ( Banner.class bannerId, True )
-                    :: (qualities |> AssocList.keys |> List.map qualityClass)
-                )
-                :: HtmlA.id cssId
-                :: attrsWithOnClickIfGiven
+                    []
     in
-    Html.div allAttrs [ Html.div [ HtmlA.class "face" ] face ]
+    [ typeOrIndividualAttrs
+    , cardTypeAttrs cardType
+    , onClickIfGiven
+    , attrs
+    ]
+        |> List.concat
+        |> GachaCard.view
 
 
 view : Maybe Global.Msg -> List (Html.Attribute Global.Msg) -> User.Id -> Banner.Id -> Card.Id -> Card -> Html Global.Msg
@@ -352,11 +321,7 @@ viewDetailedCardOverlay maybeContext { detailedCard } =
 
         viewDetailedData { ownerId, bannerId, cardId } card =
             [ Html.ul [ HtmlA.class "controls" ]
-                [ Html.li [ HtmlA.class "copy" ]
-                    [ IconButton.icon (Icon.copy |> Icon.view) "Copy Image"
-                        |> IconButton.button (cardId |> Gacha.CopyImage |> wrap |> Just)
-                        |> IconButton.view
-                    ]
+                [ Html.li [ HtmlA.class "spacer" ] []
                 , Html.li [ HtmlA.class "close" ]
                     [ IconButton.icon (Icon.times |> Icon.view) "Close"
                         |> IconButton.button (Just close)

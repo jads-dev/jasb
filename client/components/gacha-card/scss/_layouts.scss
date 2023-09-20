@@ -1,0 +1,157 @@
+@use "./_properties.scss";
+
+:host([layout="normal"]) {
+  .face > .content {
+    display: grid;
+    grid-template:
+      ". name" auto
+      "img img" auto
+      "desc desc" 1fr
+      "qual qual" auto
+      / 1fr auto;
+
+    > .details {
+      display: contents;
+    }
+  }
+}
+
+:host([layout="full-image"]) {
+  .face > .content {
+    display: grid;
+    grid-template:
+      "face" 1fr
+      / 1fr;
+    justify-items: stretch;
+    align-items: stretch;
+
+    > .image {
+      grid-area: face;
+
+      > img {
+        aspect-ratio: unset;
+        object-fit: cover;
+
+        width: 100%;
+        height: 100%;
+        border-radius: calc(properties.by-name("border-radius") / 2);
+      }
+    }
+
+    > .details {
+      grid-area: face;
+      display: grid;
+      grid-template:
+        ". name" auto
+        "desc desc" 1fr
+        "qual qual" auto
+        / 1fr auto;
+
+      justify-items: center;
+      align-items: center;
+
+      color: #000;
+      text-shadow:
+        -0.1em -0.1em 0 #fff,
+        0.1em -0.1em 0 #fff,
+        -0.1em 0.1em 0 #fff,
+        0.1em 0.1em 0 #fff;
+
+      .description {
+        font-size: 1.2em;
+      }
+    }
+  }
+}
+
+.face {
+  > .border {
+    background: var(
+      --border,
+      linear-gradient(130deg, #888 0, #dfdfdf 35%, #7c7c7c 70%, #e1e1e1 100%)
+    );
+    border-radius: properties.by-name("border-radius");
+  }
+
+  > .background {
+    display: grid;
+    grid-template: "bg" 1fr / 1fr;
+
+    &::before,
+    &::after {
+      content: "";
+      grid-area: bg;
+      border-radius: calc(properties.by-name("border-radius") / 2);
+      margin: calc(properties.by-name("border-radius") / 3 * 2);
+    }
+
+    &::before {
+      background: var(--background, #000);
+    }
+
+    &::after {
+      background: url(../../../assets/images/grain.webp);
+      background-size: cover;
+      opacity: 0.15;
+    }
+  }
+
+  > .content {
+    position: relative;
+    border-radius: calc(properties.by-name("border-radius") / 2);
+    margin: calc(properties.by-name("border-radius") / 3 * 2);
+    color: var(--color, #fff);
+
+    justify-items: center;
+    align-items: center;
+
+    > .image {
+      grid-area: img;
+
+      > img {
+        width: 100%;
+        aspect-ratio: 1;
+        object-fit: cover;
+        object-position: center;
+      }
+    }
+
+    > .serial-number {
+      position: absolute;
+      font-size: 0.5em;
+      transform: rotate(0.25turn);
+      top: 30em;
+      right: -3.3em;
+      color: #000000;
+    }
+
+    > .details {
+      > .name {
+        grid-area: name;
+        padding: 0.25em;
+        font-size: 1.4em;
+        font-weight: bold;
+        font-stretch: 25%;
+      }
+
+      > .description {
+        grid-area: desc;
+        text-align: center;
+        padding: 0.5em;
+      }
+
+      > .qualities {
+        position: absolute;
+        bottom: 0;
+        right: 0;
+        grid-area: qual;
+        list-style: none;
+        padding: 0;
+        margin: 0;
+        display: flex;
+        flex-flow: row wrap;
+        padding: 0.5em;
+      }
+    }
+  }
+}

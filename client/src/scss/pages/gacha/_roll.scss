@@ -21,7 +21,7 @@
   inset: 0 0 0 0;
   z-index: 10;
 
-  @include colors.by-name("card");
+  color: #ffffff;
   background-color: #000000;
 
   .advance-button {
@@ -75,27 +75,8 @@
       display: contents;
     }
 
-    .card {
+    gacha-card {
       margin: 2em;
-    }
-
-    .card.unrevealed {
-      & > .face,
-      &::before {
-        filter: brightness(0) invert(1);
-      }
-    }
-
-    .card::after {
-      display: block;
-      content: "";
-      position: absolute;
-      inset: -1.5em -1.5em -1.5em -1.5em;
-      z-index: -1;
-
-      border-radius: 1.5em;
-      background: var(--quality-background, var(--rarity-color));
-      filter: blur(1em);
     }
   }
 }

@@ -32,6 +32,7 @@ export const fromInternal = (internal: Internal.CardTypes.CardType): WithId => [
     description: internal.description,
     image: internal.image,
     rarity: Rarities.fromInternal(internal.rarity),
+    layout: internal.layout,
   },
 ];
 
@@ -82,6 +83,7 @@ export const EditableCardType = Schema.readonly(
     image: Schema.string,
     retired: Schema.boolean,
     rarity: Rarities.Slug,
+    layout: Cards.Layout,
     credits: Credits.EditableById,
     version: Schema.Int,
     created: Validation.DateTime,
@@ -100,6 +102,7 @@ export const editableFromInternal = (
     image: internal.image,
     retired: internal.retired,
     rarity: internal.rarity_slug,
+    layout: internal.layout,
     credits: internal.credits.map(Credits.editableFromInternal),
     version: internal.version,
     created: internal.created,

@@ -1,0 +1,166 @@
+@use "sass:math";
+
+$trans: linear-gradient(
+  180deg,
+  #5bcefa 20%,
+  #f5a9b8 20%,
+  40%,
+  #ffffff 40%,
+  60%,
+  #f5a9b8 60%,
+  80%,
+  #5bcefa 80%
+);
+
+.quality {
+  display: block;
+  content: "";
+}
+
+@mixin quality($slug, $icon, $background) {
+  :host([qualities~="#{$slug}"]) {
+    --quality-background: #{$background};
+  }
+
+  .quality.#{$slug} {
+    &::after {
+      content: "";
+      display: block;
+      width: 2em;
+      height: 2em;
+      background-size: contain;
+      background-image: #{$icon};
+    }
+  }
+}
+
+@include quality(
+  "self",
+  url(../../../assets/images/qualities/self.png),
+  #ffffff
+);
+@include quality(
+  "weeb",
+  url(../../../assets/images/qualities/weeb.png),
+  #fdf9b4
+);
+@include quality(
+  "joms",
+  url(../../../assets/images/qualities/joms.png),
+  #eb0100
+);
+@include quality(
+  "useless",
+  url(../../../assets/images/qualities/useless.png),
+  #555555
+);
+@include quality(
+  "mistake",
+  url(../../../assets/images/qualities/mistake.png),
+  #ff00ff
+);
+@include quality("trans", $trans, $trans);
+
+$primaryColor: #fff;
+$secondaryColor: #333;
+$steps: 20;
+
+:host([qualities~="useless"]) {
+  filter: grayscale(100%);
+}
+
+:host([qualities~="mistake"]) .name {
+  position: relative;
+  margin: 0 auto;
+  color: $primaryColor;
+  transform: scale3d(1, 1, 1);
+
+  &::before,
+  &::after {
+    content: attr(data-name);
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    overflow: hidden;
+    background: $secondaryColor;
+    color: $primaryColor;
+    clip: rect(0, 900px, 0, 0);
+
+    @media (prefers-reduced-motion) {
+      animation: none !important;
+    }
+  }
+
+  &::before {
+    left: 7px;
+    text-shadow: 1px 0 #00ff00;
+    animation: glitch-effect 3s infinite linear alternate-reverse;
+  }
+
+  &::after {
+    left: 3px;
+    text-shadow: -1px 0 #ff0000;
+    animation: glitch-effect 2s infinite linear alternate-reverse;
+  }
+}
+
+@keyframes glitch-effect {
+  @for $i from 0 through $steps {
+    #{percentage($i*math.div(1, $steps))} {
+      clip: rect(random(100) + px, 9999px, random(100) + px, 0);
+    }
+  }
+}
+
+:host([qualities~="weeb"]) .face::after {
+  display: block;
+  content: "";
+  position: absolute;
+  inset: 0 0 0 0;
+  pointer-events: none;
+  background-image: url("../../../assets/images/qualities/weeb-overlay.svg");
+  background-size: 100% 100%;
+}
+
+:host([qualities~="joms"]) .image {
+  filter: url("../../../assets/images/qualities/red-tint.svg#a");
+}
+
+:host([qualities~="self"]) {
+  // TODO: Something?
+}
+
+.quality.trans::after {
+  mask-image: url("../../../assets/images/heart.svg");
+  mask-size: 100% 100%;
+}
+
+:host([qualities~="trans"]) {
+  &:host([layout="full-image"]) .image {
+    position: unset;
+
+    &::after {
+      height: 100%;
+      aspect-ratio: unset;
+    }
+  }
+
+  .image {
+    position: relative;
+
+    &::after {
+      display: block;
+      content: "";
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      aspect-ratio: 1;
+      pointer-events: none;
+      background: #{$trans};
+      background-size: 100%;
+      opacity: 0.5;
+    }
+  }
+}

@@ -6,6 +6,9 @@ import { Credits } from "./credits.js";
 import { Qualities, Quality } from "./qualities.js";
 import { Rarity } from "./rarities.js";
 
+export const Layout = z.enum(["Normal", "FullImage", "LandscapeFullImage"]);
+export type Layout = z.infer<typeof Layout>;
+
 /**
  * The parts of a card that are specific to that instance of a card, as opposed
  * to being a part of the card type.
@@ -25,6 +28,7 @@ export const Shared = z.object({
   description: z.string(),
   image: z.string(),
   rarity: Rarity,
+  layout: Layout,
 });
 export type Shared = z.infer<typeof Shared>;
 

@@ -7,6 +7,7 @@ import JoeBets.Api.Action as Api
 import JoeBets.Api.Model as Api
 import JoeBets.Editing.Uploader as Uploader exposing (Uploader)
 import JoeBets.Gacha.Banner as Banner
+import JoeBets.Gacha.Card.Layout as Card
 import JoeBets.Gacha.CardType as CardType
 import JoeBets.Gacha.Rarity as Rarity
 import JoeBets.Page.Gacha.Edit.CardType.CreditEditor as CreditEditor
@@ -32,6 +33,7 @@ type Msg
     | SetName String
     | SetDescription String
     | SetImage Uploader.Msg
+    | SetLayout (Maybe Card.Layout)
     | SetRarity (Maybe Rarity.Id)
     | SetRetired Bool
     | EditCredit CreditEditor.Msg

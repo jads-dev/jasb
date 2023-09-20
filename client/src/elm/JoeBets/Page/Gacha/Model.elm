@@ -42,7 +42,6 @@ type Msg
     | RollMsg Roll.Msg
     | ForgeMsg Forge.Msg
     | BalanceMsg Balance.Msg
-    | CopyImage Card.Id
 
 
 type alias CardTypePointer =

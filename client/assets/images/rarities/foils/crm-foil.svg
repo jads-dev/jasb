@@ -1,0 +1,53 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="2806" height="3639">
+   <path d="M0 0h2806v3639H0z" />
+   <path id="a"
+      d="M-902.401 176.75c0 48-40 88-54 133-9 26-6 56-6 83v198c0 10-1 21 3 30 9 20 31 18 49 18h134c18 0 38-1 44-22 3-10 2-22 2-33v-193c0-25 3-52-5-77-13-47-55-87-55-137 16-5 17-47-1-49-26-2-52 0-78 0-11 0-26-3-36 1-7 3-8 11-8 17 0 12-3 27 11 31m107-33v17h-102v-17h102m-11 33 1 26 31 64c-10 5-20 14-32 13-15-1-25-15-40-15s-25 14-40 15c-12 1-22-8-32-13l31-64 1-26h80m-55 17c-7 2-9 11-1 14 7 4 24 3 32 1 7-3 7-12 0-15-8-3-23-2-31 0m13 88c19-2 31 18 52 13 7-1 22-15 29-10 5 3 7 9 9 14 7 13 11 27 12 42 2 52 0 104 0 156v95c0 13 1 28-15 31-15 2-31 0-46 0h-87c-13 0-37 5-47-5-6-6-5-15-5-23v-231c0-25 0-59 19-78 7-6 20 5 26 8 22 8 33-11 53-12m-69 28c-13 5-13 34-13 45v137c0 12-1 26 1 38 1 5 4 11 10 9 5-2 6-8 6-13v-174c0-12 5-24 5-35-1-5-5-9-9-7m-5 250c-11 0-9 28-7 36 1 4 3 8 8 8 12-1 9-28 7-36 0-4-3-9-8-8z" />
+   <use fill="#d7d7d7" href="#a" transform="rotate(27.7 -4547.576 3799.648)" />
+   <use fill="#dfdfdf" href="#a" transform="rotate(139.5 -748.39 1948.208)" />
+   <use fill="#d4d4d4" href="#a" transform="rotate(-57.58 -308.384 -773.266)" />
+   <use fill="#c1c1c1" href="#a" transform="rotate(-104.52 42.748 -42.35)" />
+   <use fill="#e4e4e4" href="#a" transform="rotate(-116.43 -145 286.336)" />
+   <use fill="#d9d9d9" href="#a" transform="rotate(130.17 -497.074 1192.41)" />
+   <use fill="#8a8a8a" href="#a" transform="rotate(-159.58 -62.208 1082.966)" />
+   <use fill="#a0a0a0" href="#a" transform="rotate(-56.4 2270.323 99.487)" />
+   <use fill="#8c8c8c" href="#a" transform="rotate(-161.22 8.635 183.654)" />
+   <use fill="#c2c2c2" href="#a" transform="rotate(114.56 -276.003 1286.665)" />
+   <use id="d" x="0" y="0" fill="#9f9f9f" href="#a" transform="rotate(20.85 -3486.788 5352.167)" />
+   <use fill="#c8c8c8" href="#a" transform="rotate(5.48 -21816.866 18117.285)" />
+   <use fill="#e6e6e6" href="#a" transform="rotate(-23.65 6579.488 -2989.504)" />
+   <use fill="#a8a8a8" href="#a" transform="rotate(95.83 -1364.509 2558.643)" />
+   <use fill="#dbdbdb" href="#a" transform="rotate(50.37 -2847.323 4456.079)" />
+   <use fill="#a5a5a5" href="#a" transform="rotate(-.44 49974.996 -244561.93)" />
+   <use fill="silver" stroke="silver" href="#a" transform="rotate(-106.5 618.786 -35.396)" />
+   <use fill="#8d8d8d" href="#a" transform="rotate(68.75 -647.09 2351.644)" />
+   <use fill="#a0a0a0" href="#a" transform="rotate(125.05 -404.432 1743.013)" />
+   <use fill="#fafafa" href="#a" transform="rotate(-176.24 208.026 1436.982)" />
+   <use fill="#898989" href="#a" transform="rotate(144.1 97.86 2237.74)" />
+   <use fill="#838383" href="#a" transform="rotate(135.11 480.022 861.16)" />
+   <use fill="#dfdfdf" href="#a" transform="rotate(-51.42 282.442 -1844.399)" />
+   <use fill="#919191" href="#a" transform="rotate(139.56 187.129 1458.503)" />
+   <use fill="#d3d3d3" href="#a" transform="rotate(61.06 -1013.047 2842.848)" />
+   <use fill="#fdfdfd" href="#a" transform="rotate(54.6 -1749.1 3962.313)" />
+   <use fill="#cfcfcf" href="#a" transform="rotate(81.07 -1171.234 2980.068)" />
+   <use id="b" x="0" y="0" fill="#a8a8a8" href="#a" transform="rotate(72.9 -1000.512 3669.278)" />
+   <use fill="#efefef" href="#a" transform="rotate(-147.18 1241.68 1362.14)" />
+   <use fill="gray" stroke="gray" href="#a" transform="rotate(-151.7 481.665 229.965)" />
+   <use fill="#a6a6a6" href="#a" transform="rotate(77.95 -39.675 2015.936)" />
+   <use fill="#afafaf" href="#a" transform="rotate(144.15 295.954 1638.671)" />
+   <use fill="#b2b2b2" href="#a" transform="rotate(176.2 285.489 1326.25)" />
+   <use fill="#b1b1b1" href="#a" transform="rotate(76.96 -577.224 3540.104)" />
+   <use fill="#f3f3f3" href="#a" transform="rotate(-4.73 4095.983 -34902.323)" />
+   <use fill="#aaa" href="#a" transform="rotate(79.36 383.187 2595.493)" />
+   <use fill="#b4b4b4" href="#a" transform="rotate(117.83 319.14 1616.07)" />
+   <use fill="#f0f0f0" href="#a" transform="rotate(135.03 375.47 1596.372)" />
+   <use fill="#c8c8c8" href="#a" transform="rotate(-70.8 2135.954 -980.505)" />
+   <use fill="#c9c9c9" href="#a" transform="rotate(-57.4 2354.072 -1142.858)" />
+   <use fill="#ececec" href="#a" transform="rotate(150.28 752.43 758.991)" />
+   <use fill="#b5b5b5" href="#a" transform="rotate(85.5 249.267 2634.357)" />
+   <use fill="#b0b0b0" href="#a" transform="rotate(-20.33 4881.94 -7859.738)" />
+   <use fill="#898989" href="#a" transform="rotate(-65.23 1061.648 -2121.56)" />
+   <use id="c" x="0" y="0" href="#b" transform="translate(-1899.906 752.517)" />
+   <use href="#c" transform="translate(0 -3639)" />
+   <use id="e" x="0" y="0" href="#d" transform="translate(2059.932 88.287)" />
+   <use href="#e" transform="translate(-2806)" />
+</svg>

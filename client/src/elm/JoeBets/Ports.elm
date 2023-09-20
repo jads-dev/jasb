@@ -1,6 +1,5 @@
 port module JoeBets.Ports exposing
-    ( copyImageCmd
-    , sessionStoreCmd
+    ( sessionStoreCmd
     , sessionStoreSub
     , storeCmd
     , storeSub
@@ -28,6 +27,3 @@ port webSocketCmd : JsonE.Value -> Cmd msg
 
 
 port webSocketSub : (JsonD.Value -> msg) -> Sub msg
-
-
-port copyImageCmd : JsonE.Value -> Cmd msg

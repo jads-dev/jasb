@@ -32,6 +32,7 @@ const CardTypeBody = {
   image: Schema.string,
   retired: Schema.boolean,
   rarity: Rarities.Slug,
+  layout: Cards.Layout,
 };
 const AddCardTypeBody = Schema.readonly(
   Schema.strict({ ...CardTypeBody, credits: addCredits }),
@@ -130,6 +131,7 @@ export const cardTypesApi = (server: Server.State): Router => {
       body.description,
       body.image,
       body.rarity,
+      body.layout,
       body.credits,
     );
     ctx.body = Schema.tuple([CardTypes.Id, CardTypes.EditableCardType]).encode(
@@ -161,6 +163,7 @@ export const cardTypesApi = (server: Server.State): Router => {
       body.description ?? null,
       body.image ?? null,
       body.rarity ?? null,
+      body.layout ?? null,
       body.retired ?? null,
       body.removeCredits ?? [],
       body.editCredits ?? [],

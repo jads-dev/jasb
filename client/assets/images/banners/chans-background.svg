@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" class="Playground__svg">
+  <defs>
+    <filter id="a" width="140%" height="140%" x="-20%" y="-20%"
+      color-interpolation-filters="linearRGB" filterUnits="objectBoundingBox"
+      primitiveUnits="userSpaceOnUse">
+      <feTurbulence baseFrequency="0.035 0.008" result="turbulence" seed="2" stitchTiles="stitch"
+        type="fractalNoise" />
+      <feTurbulence baseFrequency="0.035 0.012" result="turbulence1" seed="1" stitchTiles="stitch"
+        type="fractalNoise" />
+      <feMerge result="merge">
+        <feMergeNode in="turbulence1" />
+        <feMergeNode in="turbulence" />
+      </feMerge>
+      <feColorMatrix in="merge" result="colormatrix" type="saturate" values="1" />
+      <feColorMatrix in="colormatrix" result="colormatrix1"
+        values="1 0 0 0 0 0 1 0 0 0 0 0 1 0 0 0 0 0 10 0" />
+      <feDisplacementMap in="colormatrix1" in2="colormatrix" result="displacementMap" scale="40"
+        xChannelSelector="R" yChannelSelector="G" />
+      <feComposite in="displacementMap" in2="SourceAlpha" operator="in" result="composite1" />
+    </filter>
+  </defs>
+  <svg>
+    <path d="M0 0h320v512H0z" style="filter:url(#a)" />
+  </svg>
+</svg>

@@ -156,7 +156,7 @@ export const usersApi = (server: Server.State): Router => {
   });
 
   // Bankrupt User.
-  router.post("/:userSlug/bankrupt", body, async (ctx) => {
+  router.post("/:userSlug/bankrupt", async (ctx) => {
     const userSlug = requireUrlParameter(
       Users.Slug,
       "user",

@@ -12,7 +12,6 @@ import JoeBets.Api.Data as Api
 import JoeBets.Api.IdData as Api
 import JoeBets.Api.Model as Api
 import JoeBets.Api.Path as Api
-import JoeBets.CopyImage as CopyImage
 import JoeBets.Gacha.Card as Card
 import JoeBets.Gacha.CardType as CardType
 import JoeBets.Gacha.Rarity as Rarity
@@ -233,9 +232,6 @@ update msg ({ origin, gacha } as model) =
 
         BalanceMsg balanceMsg ->
             ( Balance.update balanceMsg model, Cmd.none )
-
-        CopyImage cardId ->
-            ( model, cardId |> Card.cssId |> CopyImage.ofId )
 
 
 view : Parent a -> Page Global.Msg

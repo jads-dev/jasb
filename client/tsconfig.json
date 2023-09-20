@@ -1,7 +1,13 @@
 {
   "$schema": "https://json.schemastore.org/tsconfig",
 
-  "include": ["./src/mts/**/*", "./material/src/mts/**/*", "./assets/*.d.mts"],
+  "include": [
+    "./src/mts/**/*",
+    "./components/**/*",
+    "./components/*.d.mts",
+    "./assets/*.d.mts",
+    "./material/src/mts/**/*"
+  ],
   "exclude": ["node_modules", "dist"],
 
   "compilerOptions": {

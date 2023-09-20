@@ -19,6 +19,7 @@ import JoeBets.Api.Path as Api
 import JoeBets.Editing.Uploader as Uploader
 import JoeBets.Editing.Validator as Validator exposing (Validator)
 import JoeBets.Gacha.Banner as Banner
+import JoeBets.Gacha.Card.Layout as Card
 import JoeBets.Gacha.CardType as CardType exposing (EditableCardType, EditableCardTypes)
 import JoeBets.Gacha.Rarity as Rarity
 import JoeBets.Messages as Global
@@ -114,7 +115,7 @@ updateCardTypesEditor msg ({ gacha } as model) =
                 Just time ->
                     let
                         newCardType =
-                            EditableCardType "" "" "" False (Rarity.idFromString "m") AssocList.empty 0 time time
+                            EditableCardType "" "" "" False (Rarity.idFromString "m") Card.Normal AssocList.empty 0 time time
 
                         startAdd _ _ _ =
                             Editor
@@ -224,11 +225,12 @@ updateCardTypesEditor msg ({ gacha } as model) =
                                             , \_ -> [ ( "credits", add ) ]
                                             )
 
-                                encode { name, description, image, rarity, retired, version } =
+                                encode { name, description, image, rarity, layout, retired, version } =
                                     [ [ ( "name", name |> JsonE.string )
                                       , ( "description", description |> JsonE.string )
                                       , ( "image", image |> JsonE.string )
                                       , ( "rarity", rarity |> Rarity.encodeId )
+                                      , ( "layout", layout |> Card.encodeLayout )
                                       , ( "retired", retired |> JsonE.bool )
                                       ]
                                     , extra version
@@ -294,6 +296,18 @@ updateCardTypesEditor msg ({ gacha } as model) =
                     let
                         edit _ _ ({ cardType } as editor) =
                             { editor | cardType = { cardType | rarity = rarity } }
+                    in
+                    ( updateEditorEdit edit model, Cmd.none )
+
+                Nothing ->
+                    ( model, Cmd.none )
+
+        SetLayout maybeLayout ->
+            case maybeLayout of
+                Just layout ->
+                    let
+                        edit _ _ ({ cardType } as editor) =
+                            { editor | cardType = { cardType | layout = layout } }
                     in
                     ( updateEditorEdit edit model, Cmd.none )
 
@@ -383,6 +397,7 @@ cardTypeEditor rarityContext ({ banner, id, cardType, save, imageUploader, credi
                     |> TextField.required True
                     |> TextField.view
                 , Validator.view nameValidator cardType
+                , Card.layoutSelector (SetLayout >> wrap |> Just |> ifNotSaving) (Just cardType.layout)
                 , Uploader.view (SetImage >> wrap |> Just |> ifNotSaving) imageUploaderModel imageUploader
                 , Validator.view imageValidator cardType
                 , Rarity.selector rarityContext
@@ -462,8 +477,9 @@ viewCardTypeSummary time banner ( id, cardType ) =
         , field "id" "Id" [ Html.text idString ]
         , field "active" "Active" [ retiredIcon |> Icon.view ]
         , field "name" "Name" [ Html.text cardType.name ]
-        , field "cover"
-            "Cover"
+        , field "layout" "Layout" [ cardType.layout |> Card.describeLayout |> .name |> Html.text ]
+        , field "image"
+            "Image"
             [ Html.span [ HtmlA.class "url" ] [ Html.text cardType.image ]
             , Html.img [ HtmlA.title cardType.image, HtmlA.src cardType.image ] []
             ]

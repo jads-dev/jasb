@@ -3,6 +3,7 @@ import * as zlib from "node:zlib";
 
 import { default as HtmlWebpackInjectPreload } from "@principalstudio/html-webpack-inject-preload";
 import { default as CompressionPlugin } from "compression-webpack-plugin";
+import { default as CssMinimizerPlugin } from "css-minimizer-webpack-plugin";
 import { default as HtmlWebpackPlugin } from "html-webpack-plugin";
 import { default as MiniCssExtractPlugin } from "mini-css-extract-plugin";
 import * as sass from "sass";
@@ -15,24 +16,20 @@ export const generateConfig = (env, argv) => {
   const inDocker = process.env["JASB_DEV_ENV"] === "docker";
 
   const styleLoaders = [
-    // Load CSS to inline styles.
     {
       loader: "css-loader",
       options: { sourceMap: !production },
     },
-    // Transform CSS for compatibility.
     {
       loader: "postcss-loader",
       options: {
         sourceMap: !production,
       },
     },
-    // Allow relative URLs.
     {
       loader: "resolve-url-loader",
       options: { sourceMap: !production },
     },
-    // Load SASS to CSS.
     {
       loader: "sass-loader",
       options: {
@@ -57,6 +54,26 @@ export const generateConfig = (env, argv) => {
     },
     module: {
       rules: [
+        // Elm scripts.
+        {
+          test: /\.elm$/,
+          exclude: [/elm-stuff/, /node_modules/],
+          use: [
+            {
+              loader: "elm-webpack-loader",
+              options: {
+                optimize: production,
+                debug: !production,
+              },
+            },
+          ],
+        },
+        // Typescript scripts.
+        {
+          test: /\.[cm]?[tj]s$/,
+          exclude: [/elm-stuff/, /node_modules/],
+          use: "ts-loader",
+        },
         // Font assets.
         {
           test: /\.(woff2)$/,
@@ -81,6 +98,15 @@ export const generateConfig = (env, argv) => {
             filename: "assets/videos/[name].[hash][ext]",
           },
         },
+        // Component styles.
+        {
+          test: /components\/.*\.s?css$/,
+          exclude: [/elm-stuff/, /node_modules/],
+          use: [
+            { loader: "./component-css-loader/src/loader.mjs" },
+            ...styleLoaders,
+          ],
+        },
         // Styles.
         {
           test: /\.s?css$/,
@@ -93,26 +119,6 @@ export const generateConfig = (env, argv) => {
               : { loader: "style-loader" },
             ...styleLoaders,
           ],
-        },
-        // Elm scripts.
-        {
-          test: /\.elm$/,
-          exclude: [/elm-stuff/, /node_modules/],
-          use: [
-            {
-              loader: "elm-webpack-loader",
-              options: {
-                optimize: production,
-                debug: !production,
-              },
-            },
-          ],
-        },
-        // Typescript scripts.
-        {
-          test: /\.[cm]?[tj]s$/,
-          exclude: [/elm-stuff/, /node_modules/],
-          use: "ts-loader",
         },
         // HTML
         {
@@ -136,6 +142,9 @@ export const generateConfig = (env, argv) => {
     plugins: [
       new MiniCssExtractPlugin({
         filename: "assets/styles/[name].[contenthash].css",
+        insert: () => {
+          // Throw away, we use them in components.
+        },
       }),
       new HtmlWebpackPlugin({
         filename: "index.html",
@@ -150,10 +159,6 @@ export const generateConfig = (env, argv) => {
       }),
       new HtmlWebpackInjectPreload({
         files: [
-          {
-            match: /assets\/scripts\/index.*\.js$/,
-            attributes: { as: "script" },
-          },
           {
             match: /assets\/fonts\/.*\.woff2$/,
             attributes: { as: "font", type: "font/woff2" },
@@ -183,9 +188,6 @@ export const generateConfig = (env, argv) => {
         : []),
     ],
     optimization: {
-      splitChunks: {
-        chunks: "all",
-      },
       minimizer: [
         new TerserPlugin({
           test: /assets\/scripts\/.*\.mjs$/,
@@ -234,6 +236,7 @@ export const generateConfig = (env, argv) => {
             },
           },
         }),
+        new CssMinimizerPlugin(),
       ],
     },
     experiments: {

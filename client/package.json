@@ -8,8 +8,8 @@
     ".": "./dist/index.mjs"
   },
   "scripts": {
-    "build": "npx webpack",
-    "dev": "npx webpack serve --mode=development",
+    "build": "NODE_OPTIONS=--experimental-vm-modules npx webpack",
+    "dev": "NODE_OPTIONS=--experimental-vm-modules npx webpack serve --mode=development",
     "docker": "../development/compose.sh run --tty --rm --service-ports --entrypoint /bin/ash client",
     "docker:build": "../development/compose.sh run --rm client run build",
     "docker:dev": "../development/compose.sh up --build --no-log-prefix client"
@@ -18,14 +18,17 @@
     "@fireworks-js/web": "^2.10.7",
     "@fortawesome/fontawesome-svg-core": "^6.1.1",
     "dom-to-image": "^2.6.0",
-    "elm-material": "file:./elm-material"
+    "elm-material": "file:./elm-material",
+    "lit": "^2.8.0"
   },
   "devDependencies": {
     "@principalstudio/html-webpack-inject-preload": "^1.2.7",
     "@types/dom-to-image": "^2.6.4",
     "ajv": "^8.11.0",
+    "component-css-loader": "file:component-css-loader",
     "compression-webpack-plugin": "^10.0.0",
     "css-loader": "^6.7.1",
+    "css-minimizer-webpack-plugin": "^5.0.1",
     "cssnano": "^6.0.1",
     "elm": "^0.19.1-5",
     "elm-analyse": "^0.16.5",
@@ -33,6 +36,7 @@
     "elm-webpack-loader": "^8.0.0",
     "html-loader": "^4.1.0",
     "html-webpack-plugin": "^5.5.0",
+    "lit-scss-loader": "^2.0.1",
     "mini-css-extract-plugin": "^2.6.0",
     "postcss-loader": "^7.0.0",
     "postcss-preset-env": "^9.0.0",

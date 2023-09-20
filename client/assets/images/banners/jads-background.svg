@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512">
+  <defs>
+    <filter id="a">
+      <feTurbulence baseFrequency=".04" numOctaves="5" result="noise" type="fractalNoise" />
+      <feDiffuseLighting in="noise" lighting-color="#fff">
+        <feDistantLight azimuth="45" elevation="60" />
+      </feDiffuseLighting>
+    </filter>
+  </defs>
+  <path d="M0 0h512v512H0z" style="filter:url(#a)invert(1)" />
+</svg>

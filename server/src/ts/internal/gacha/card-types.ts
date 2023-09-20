@@ -11,6 +11,7 @@ export const Editable = z
     name: z.string(),
     description: z.string(),
     image: z.string(),
+    layout: Cards.Layout,
     rarity_slug: Types.raritySlug,
     rarity_name: z.string(),
     retired: z.boolean(),
@@ -42,6 +43,7 @@ export const OptionalForRarity = z.union([
       name: z.null(),
       description: z.null(),
       image: z.null(),
+      layout: z.null(),
       rarity: Rarity,
     })
     .strict(),

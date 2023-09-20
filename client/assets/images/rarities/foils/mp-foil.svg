@@ -1,0 +1,173 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="3760" height="3760">
+   <rect width="3760" height="3760" ry="3.67" />
+   <rect id="b" width="214.23" height="214.24" x="-106.31" y="-107.53" ry="3.62"
+      transform="rotate(-44.97) skewX(.01)" />
+   <path id="a"
+      d="m316.67 183.82 5.43 264.58-183.25 190.93-264.6 5.43-190.92-183.25-5.43-264.6L-138.85 6 125.75.56Z"
+      transform="matrix(.80064 .0177 -.0177 .80064 274.97 9.5)" />
+   <use fill="#cbcbcb" href="#a" />
+   <use fill="#d7d7d7" href="#a" transform="translate(0 537.6)" />
+   <use fill="#656565" href="#a" transform="translate(0 1075.2)" />
+   <use fill="#bababa" href="#a" transform="translate(0 1612.8)" />
+   <use fill="#606060" href="#a" transform="translate(0 2150.4)" />
+   <use fill="#f7f7f7" href="#a" transform="translate(0 2688)" />
+   <use fill="#707070" href="#a" transform="translate(0 3225.6)" />
+   <use fill="#737373" href="#a" transform="translate(537.6)" />
+   <use fill="#e8e8e8" href="#a" transform="translate(537.6 537.6)" />
+   <use fill="#7a7a7a" href="#a" transform="translate(537.6 1075.2)" />
+   <use fill="#bcbcbc" href="#a" transform="translate(537.6 1612.8)" />
+   <use fill="#a0a0a0" href="#a" transform="translate(537.6 2150.4)" />
+   <use fill="#afafaf" href="#a" transform="translate(537.6 2688)" />
+   <use fill="#181818" href="#a" transform="translate(537.6 3225.6)" />
+   <use fill="#989898" href="#a" transform="translate(1075.2)" />
+   <use fill="#131313" href="#a" transform="translate(1075.2 537.6)" />
+   <use fill="#e9e9e9" href="#a" transform="translate(1075.2 1075.2)" />
+   <use fill="#a9a9a9" href="#a" transform="translate(1075.2 1612.8)" />
+   <use fill="#b3b3b3" href="#a" transform="translate(1075.2 2150.4)" />
+   <use fill="#0c0c0c" href="#a" transform="translate(1075.2 2688)" />
+   <use fill="#4a4a4a" href="#a" transform="translate(1075.2 3225.6)" />
+   <use fill="#fdfdfd" href="#a" transform="translate(1612.8)" />
+   <use fill="#6f6f6f" href="#a" transform="translate(1612.8 537.6)" />
+   <use fill="#fff" href="#a" transform="translate(1612.8 1075.2)" />
+   <use fill="#bfbfbf" href="#a" transform="translate(1612.8 1612.8)" />
+   <use fill="#6a6a6a" href="#a" transform="translate(1612.8 2150.4)" />
+   <use fill="#0d0d0d" href="#a" transform="translate(1612.8 2688)" />
+   <use fill="#565656" href="#a" transform="translate(1612.8 3225.6)" />
+   <use fill="#676767" href="#a" transform="translate(2150.4)" />
+   <use fill="#0a0a0a" href="#a" transform="translate(2150.4 537.6)" />
+   <use fill="#505050" href="#a" transform="translate(2150.4 1075.2)" />
+   <use fill="#8a8a8a" href="#a" transform="translate(2150.4 1612.8)" />
+   <use fill="#c4c4c4" href="#a" transform="translate(2150.4 2150.4)" />
+   <use fill="#c8c8c8" href="#a" transform="translate(2150.4 2688)" />
+   <use fill="#333" href="#a" transform="translate(2150.4 3225.6)" />
+   <use fill="#828282" href="#a" transform="translate(2688)" />
+   <use fill="#c6c6c6" href="#a" transform="translate(2688 537.6)" />
+   <use fill="#9a9a9a" href="#a" transform="translate(2688 1075.2)" />
+   <use fill="#a7a7a7" href="#a" transform="translate(2688 1612.8)" />
+   <use fill="#828282" href="#a" transform="translate(2688 2150.4)" />
+   <use fill="#2b2b2b" href="#a" transform="translate(2688 2688)" />
+   <use fill="#7b7b7b" href="#a" transform="translate(2688 3225.6)" />
+   <use fill="#a0a0a0" href="#a" transform="translate(3225.6)" />
+   <use fill="#151515" href="#a" transform="translate(3225.6 537.6)" />
+   <use fill="#d3d3d3" href="#a" transform="translate(3225.6 1075.2)" />
+   <use fill="#999" href="#a" transform="translate(3225.6 1612.8)" />
+   <use fill="#9d9d9d" href="#a" transform="translate(3225.6 2150.4)" />
+   <use fill="#efefef" href="#a" transform="translate(3225.6 2688)" />
+   <use fill="#5c5c5c" href="#a" transform="translate(3225.6 3225.6)" />
+   <use fill="#7f7f7f" href="#b" transform="translate(537.3 537.24)" />
+   <use fill="#959595" href="#b" transform="translate(537.3 1074.48)" />
+   <use fill="#4f4f4f" href="#b" transform="translate(537.3 1611.72)" />
+   <use fill="#fcfcfc" href="#b" transform="translate(537.3 2148.96)" />
+   <use fill="#202020" href="#b" transform="translate(537.3 2686.2)" />
+   <use fill="#8b8b8b" href="#b" transform="translate(537.3 3223.44)" />
+   <use id="j" x="0" y="0" fill="#d3d3d3" href="#b" transform="translate(537.3 3760.68)" />
+   <use fill="#626262" href="#b" transform="translate(1074.6 537.24)" />
+   <use fill="#1a1a1a" href="#b" transform="translate(1074.6 1074.48)" />
+   <use fill="#3f3f3f" href="#b" transform="translate(1074.6 1611.72)" />
+   <use fill="#434343" href="#b" transform="translate(1074.6 2148.96)" />
+   <use fill="#bdbdbd" href="#b" transform="translate(1074.6 2686.2)" />
+   <use fill="#d4d4d4" href="#b" transform="translate(1074.6 3223.44)" />
+   <use id="k" x="0" y="0" fill="#545454" href="#b" transform="translate(1074.6 3760.68)" />
+   <use fill="#e5e5e5" href="#b" transform="translate(1611.9 537.24)" />
+   <use fill="#f6f6f6" href="#b" transform="translate(1611.9 1074.48)" />
+   <use fill="#f2f2f2" href="#b" transform="translate(1611.9 1611.72)" />
+   <use fill="#919191" href="#b" transform="translate(1611.9 2148.96)" />
+   <use fill="#222" href="#b" transform="translate(1611.9 2686.2)" />
+   <use fill="#8e8e8e" href="#b" transform="translate(1611.9 3223.44)" />
+   <use id="l" x="0" y="0" fill="silver" href="#b" transform="translate(1611.9 3760.68)" />
+   <use fill="#b7b7b7" href="#b" transform="translate(2149.2 537.24)" />
+   <use fill="#0c0c0c" href="#b" transform="translate(2149.2 1074.48)" />
+   <use fill="#797979" href="#b" transform="translate(2149.2 1611.72)" />
+   <use fill="#070707" href="#b" transform="translate(2149.2 2148.96)" />
+   <use fill="#434343" href="#b" transform="translate(2149.2 2686.2)" />
+   <use fill="#1b1b1b" href="#b" transform="translate(2149.2 3223.44)" />
+   <use id="m" x="0" y="0" fill="#767676" href="#b" transform="translate(2149.2 3760.68)" />
+   <use fill="#d7d7d7" href="#b" transform="translate(2686.5 537.24)" />
+   <use fill="#626262" href="#b" transform="translate(2686.5 1074.48)" />
+   <use fill="#303030" href="#b" transform="translate(2686.5 1611.72)" />
+   <use fill="#626262" href="#b" transform="translate(2686.5 2148.96)" />
+   <use fill="#e1e1e1" href="#b" transform="translate(2686.5 2686.2)" />
+   <use fill="#6d6d6d" href="#b" transform="translate(2686.5 3223.44)" />
+   <use id="n" x="0" y="0" fill="#f9f9f9" href="#b" transform="translate(2686.5 3760.68)" />
+   <use fill="#878787" href="#b" transform="translate(3223.8 537.24)" />
+   <use fill="#383838" href="#b" transform="translate(3223.8 1074.48)" />
+   <use fill="#595959" href="#b" transform="translate(3223.8 1611.72)" />
+   <use fill="#7a7a7a" href="#b" transform="translate(3223.8 2148.96)" />
+   <use fill="#141414" href="#b" transform="translate(3223.8 2686.2)" />
+   <use fill="#d3d3d3" href="#b" transform="translate(3223.8 3223.44)" />
+   <use id="o" x="0" y="0" fill="#585858" href="#b" transform="translate(3223.8 3760.68)" />
+   <use id="c" x="0" y="0" fill="#989898" href="#b" transform="translate(3761.1 537.24)" />
+   <use id="d" x="0" y="0" fill="#101010" href="#b" transform="translate(3761.1 1074.48)" />
+   <use id="e" x="0" y="0" fill="#565656" href="#b" transform="translate(3761.1 1611.72)" />
+   <use id="f" x="0" y="0" fill="#151515" href="#b" transform="translate(3761.1 2148.96)" />
+   <use id="g" x="0" y="0" fill="#2e2e2e" href="#b" transform="translate(3761.1 2686.2)" />
+   <use id="h" x="0" y="0" fill="#090909" href="#b" transform="translate(3761.1 3223.44)" />
+   <use id="i" x="0" y="0" fill="#232323" href="#b" transform="translate(3761.1 3760.68)" />
+   <use href="#c" transform="translate(-3761.1)" />
+   <use href="#d" transform="translate(-3761.1)" />
+   <use href="#e" transform="translate(-3761.1)" />
+   <use href="#f" transform="translate(-3761.1)" />
+   <use href="#g" transform="translate(-3761.1)" />
+   <use href="#h" transform="translate(-3761.1)" />
+   <use id="p" x="0" y="0" href="#i" transform="translate(-3761.1)" />
+   <use href="#j" transform="translate(0 -3760.68)" />
+   <use href="#k" transform="translate(0 -3760.68)" />
+   <use href="#l" transform="translate(0 -3760.68)" />
+   <use href="#m" transform="translate(0 -3760.68)" />
+   <use href="#n" transform="translate(0 -3760.68)" />
+   <use href="#o" transform="translate(0 -3760.68)" />
+   <use href="#i" transform="translate(0 -3760.68)" />
+   <use href="#p" transform="translate(0 -3760.68)" />
+   <path id="q"
+      d="M151.88 115.53h29.2c5.7 0 11.41 0 15.86 3.81 4.44 3.8 5.7 10.15 2.53 15.23-1.9 2.54-5.7 6.35-8.88 4.44-6.98-2.54 11.42-12.05 0-14.6-10.15-1.9-13.33 10.16-12.06 17.78-5.7-1.27-12.05-.64-15.86 4.44-1.9 2.54-3.17 8.25 0 10.79 5.07 3.17 8.25-8.25 12.06-4.45 2.53 1.9.63 6.35-1.27 8.25-10.16 10.16-18.4-1.27-22.21-10.15-1.27-2.54-3.81-5.08-6.98-2.54-5.72 5.71 2.53 15.23 3.8 20.94.64 5.71-5.07 11.42-5.07 17.77-.64 6.35 4.44 11.42 5.07 17.13.64 6.35-5.7 12.7-5.7 19.04.63 4.44 3.17 8.88 2.53 13.33 0 5.7-2.54 10.78-1.9 16.5.63 5.07 5.07 9.51 5.07 14.59s-4.44 9.52-5.07 13.96c-1.27 6.35 1.9 11.42 1.9 17.13.64 5.08-2.54 9.52-1.9 15.23 0 5.71 4.44 10.16 5.07 15.87 0 5.7-5.07 10.79-5.07 17.13-.64 6.98 5.07 11.42 5.07 17.77 0 5.08-3.8 9.52-5.07 13.96-1.27 8.25-.64 16.5-.64 24.11 0 6.35-3.17 21.58 3.81 25.39 3.8 2.53 9.52 1.26 13.96 1.26 10.79 0 23.48 1.9 34.27-.63 3.8-1.27 7.61-4.44 12.05-5.08 5.71 0 11.43 5.08 17.14 5.71 5.07 0 10.15-3.17 14.6-2.53 5.7 0 10.78 3.17 16.5 1.9 5.07-.63 9.5-5.08 14.59-5.08 5.7 0 10.78 5.08 17.13 5.71 5.08 0 9.52-3.17 14.6-2.53 5.7 0 10.78 3.17 16.5 1.9 5.07-.63 10.15-5.08 15.22-5.08 4.44.64 8.89 4.45 13.96 5.08 10.16 1.9 20.94.63 31.73.63 4.44 0 13.96 1.9 16.5-3.8 2.54-3.81 1.27-9.52 1.27-13.96 0-10.8 1.9-23.48-.64-34.27-1.26-3.8-4.44-7.61-4.44-12.06-.63-5.07 4.44-10.15 4.44-15.23 1.27-7.61-4.44-13.32-4.44-19.67 0-6.34 5.08-11.42 5.08-17.77 0-5.07-2.54-8.88-2.54-13.96 0-5.7 3.17-10.78 1.9-16.5-.63-5.07-5.07-10.15-4.44-15.22 0-4.45 3.81-8.89 4.44-13.33 1.27-6.35-1.9-11.42-1.9-17.13 0-5.08 2.54-9.52 2.54-14.6-.64-5.71-5.08-10.79-5.08-17.13 0-5.71 4.44-10.79 5.08-16.5 0-6.98-6.35-13.33-5.08-19.04.64-5.07 3.81-8.88 4.44-13.32 1.9-10.16.64-20.94.64-31.1 0-5.07 1.9-13.32-1.9-16.5-3.18-3.17-8.89-2.53-12.7-2.53-12.05 0-25.38-1.9-36.8.63-4.44 1.27-8.88 5.08-13.33 5.08-4.44-.64-8.88-4.45-13.32-5.08-6.35-1.27-11.42 1.9-17.14 2.54-5.07 0-9.51-3.17-14.6-3.17-6.34.63-11.41 5.7-17.12 5.7-5.08 0-9.52-4.44-14.6-5.07-5.71-1.27-10.79 1.9-16.5 1.9-4.44.64-9.52-2.53-14.6-2.53-5.7.63-10.78 5.7-16.5 5.7-4.43 0-8.24-3.17-11.41-4.44-5.72-1.9-11.43-1.26-16.5-1.26h-22.21c-3.81 0-7.62-.64-10.79 1.26-5.71 3.18-5.71 20.31-1.27 24.12 7.62 5.7 6.98-12.7 6.98-15.87m86.94 3.81c5.7-1.27 10.78-4.44 16.5-2.54 5.07 1.27 8.88 6.98 13.96 6.98 5.7 0 8.88-5.7 13.96-6.98 5.7-1.9 11.42 1.27 16.5 2.54 1.26 5.71 5.07 13.33 12.05 12.7 12.7-1.28-10.15-15.24 3.17-15.87 10.16-.64 15.23 13.32 8.89 20.3-5.71 6.35-16.5 4.45-24.12 4.45 0-5.71-6.98-22.85-14.59-15.23-5.08 5.07 6.35 7.61 3.8 12.69-1.26 2.54-6.34 2.54-8.88 2.54-8.25 0-20.3 1.9-27.92-.64-8.88-3.8 10.16-13.32-.63-15.86-8.89-1.27-12.7 9.52-12.7 16.5-7.6 0-17.76 1.9-23.47-4.45-6.98-6.98-1.9-21.57 8.88-20.3 12.06 1.27-9.52 13.96 1.9 15.86 6.99 1.27 11.43-6.98 12.7-12.69m147.85-3.8v29.82c0 5.07.64 10.79-3.17 15.23-5.71 6.98-24.75 4.44-20.94-6.98 3.17-7.62 13.32 11.42 15.23 0 1.27-8.89-10.16-12.7-17.14-11.42.64-6.98-2.53-19.04-12.05-17.77-11.43 1.9 7.61 12.69 0 15.23-11.43 3.8-13.96-15.23-6.98-20.94 4.44-3.81 10.15-3.18 15.86-3.18h29.2m-9.53 60.29-4.44 4.44c-1.9 2.54-4.44 10.79 1.9 10.79 2.54-.64 10.8-11.42 11.43-1.9.63 7.6-12.7 10.78-10.8 17.13 1.91 6.98 13.33 8.25 10.8 17.76-2.54 9.52-12.06-9.51-15.23 0-2.54 6.99 6.98 12.7 12.05 13.33 1.9 5.71 5.08 10.79 3.18 16.5-1.9 5.08-7.62 8.88-7.62 13.96 0 5.71 5.71 8.88 7.62 13.96 1.9 5.71-1.27 11.42-3.18 16.5-5.07 1.27-14.6 6.34-12.05 13.33 3.17 9.51 12.69-9.52 15.23 0 2.53 9.51-8.89 10.78-10.8 17.76-1.9 6.98 11.43 9.52 10.8 17.14-.64 9.51-8.89-1.27-11.43-1.9-6.34 0-3.8 8.24-1.9 10.78l4.44 5.08c-8.25 0-13.96-3.81-15.86-11.43-2.54-15.86 0-34.9 0-50.76 5.7 0 23.48-6.35 15.23-15.23-5.08-4.44-7.62 6.98-12.7 4.44-2.53-1.27-2.53-5.71-2.53-8.88-.64-8.25-2.54-19.67.63-27.92 3.81-9.52 13.96 10.15 15.87-.64 1.27-8.88-10.16-12.69-16.5-12.69 0-4.44.63-10.79-1.27-15.23-.64-3.17-4.44-4.44-6.35-1.27-1.9 3.17-1.27 8.25-1.27 11.42v139.6c0 3.82.64 8.26-1.27 11.43-1.9 3.17-7.61 1.9-10.78 1.9H186.78V150.43h149.13c3.8 0 10.15-1.26 13.96.64 3.17 1.9 2.53 6.98 2.53 10.15v29.2c0 3.17-1.27 10.78 3.18 12.05 5.07 1.9 5.7-6.35 5.7-9.52 0-9.52 4.45-18.4 15.87-17.13m-172.6 191.64V168.2h130.09v199.26H251.5c-5.71 0-12.7-.64-19.04.63-1.9 0-5.71 1.9-5.08 4.44 0 3.18 3.18 4.45 5.08 4.45h84.4c6.34 0 19.04 2.53 24.11-1.9 3.8-2.55 3.17-7.62 3.17-11.43V171.38c0-5.08 0-10.8-5.7-12.7-10.8-2.53-24.75 0-35.54 0h-96.46c-3.8 0-8.25 0-10.15 3.18-2.54 3.17-1.27 9.52-1.27 13.96v184.66c0 3.8-1.27 10.78 1.9 13.96 2.54 3.17 10.16 3.8 13.33 1.27 3.17-3.18.64-6.35-2.54-7.62l-3.17-.63M177.9 237.37c-6.98 0-18.4 3.8-17.14 12.7 2.54 10.78 12.7-8.9 15.87.63 3.17 8.25 1.27 19.67 1.27 27.92 0 3.17 0 7.61-3.17 8.88-5.08 2.54-7.62-8.88-12.7-4.44-7.61 8.88 10.16 15.23 15.87 15.23 0 15.86 2.54 34.9-.64 50.76-1.9 7.62-7.61 11.43-15.23 11.43l3.81-5.08c1.9-2.54 4.44-10.79-1.27-10.79-3.17.64-10.79 11.42-12.05 2.54-1.27-8.25 12.69-10.79 10.78-17.77-1.9-6.98-13.32-8.25-10.78-17.76 3.17-9.52 12.05 9.51 15.22 0 3.18-6.99-6.34-12.06-12.05-13.33-1.27-5.08-4.44-10.79-2.54-16.5 1.27-5.08 6.98-8.25 6.98-13.96 0-5.08-5.71-8.88-6.98-13.96-1.9-5.71 1.27-10.79 2.54-16.5 5.7-1.27 15.23-6.34 12.05-13.33-3.17-9.51-12.05 9.52-15.22 0-2.54-9.51 8.88-10.78 10.78-17.76 1.9-6.98-12.05-9.52-10.78-17.77 1.26-8.88 8.88 1.9 12.05 2.54 5.71 0 3.17-8.25 1.27-10.79-.63-1.9-2.54-3.17-3.8-4.44 7.6-.64 13.32 3.17 15.22 11.42 3.18 15.86.64 34.27.64 50.13m.63 156.1c-1.27 7.62 1.9 19.04 11.42 17.77 12.06-1.9-7.61-12.69 0-15.23 11.43-3.8 13.97 15.23 6.99 20.94-4.45 3.81-10.16 3.18-15.23 3.18h-29.83v-31.1c0-5.7 0-11.42 4.44-15.23 6.35-5.07 24.75-1.27 19.67 8.25-3.8 6.98-12.69-11.42-15.23 0-1.26 9.52 10.8 12.7 17.77 11.42m208.14 26.66h-29.19c-5.71 0-11.42.63-15.86-3.18-6.98-5.7-4.45-24.74 6.98-20.94 7.61 2.54-11.43 13.33 0 15.23 9.52 1.27 12.69-10.15 12.05-17.77 6.98 1.27 18.4-1.9 17.14-11.42-1.9-11.42-12.06 7.62-15.23 0-3.81-11.42 15.23-13.96 20.94-6.98 3.8 4.44 3.17 10.15 3.17 15.23v29.83m-147.85-25.39c0 6.98 3.8 17.77 12.69 16.5 10.79-2.54-8.25-12.05.63-15.86 7.62-2.54 19.67-.64 27.92-.64 2.54 0 7.62 0 8.89 2.54 2.54 5.08-8.89 7.62-3.81 12.7 7.61 7.6 14.6-9.53 14.6-15.24 7.61 0 18.4-1.9 24.1 4.45 6.35 6.98 1.28 20.94-8.88 20.3-13.32 0 9.52-14.6-3.17-15.86-6.98-.64-10.79 6.98-12.06 12.69-5.07 1.27-10.78 4.44-16.5 3.17-5.07-1.9-8.24-7.61-13.95-7.61-5.08 0-8.89 5.7-13.96 7.61-5.72 1.27-10.8-1.9-16.5-3.17-.64-5.71-5.08-13.33-12.06-12.7-12.06 1.28 10.15 15.87-3.17 15.87-10.16.64-15.23-13.32-8.25-20.3 5.7-6.35 15.86-4.45 23.48-4.45z"
+      style="fill:#fff" />
+   <use href="#q" />
+   <use href="#q" transform="translate(0 537.6)" />
+   <use href="#q" transform="translate(0 1075.2)" />
+   <use href="#q" transform="translate(0 1612.8)" />
+   <use href="#q" transform="translate(0 2150.4)" />
+   <use href="#q" transform="translate(0 2688)" />
+   <use href="#q" transform="translate(0 3225.6)" />
+   <use href="#q" transform="translate(537.6)" />
+   <use href="#q" transform="translate(537.6 537.6)" />
+   <use href="#q" transform="translate(537.6 1075.2)" />
+   <use href="#q" transform="translate(537.6 1612.8)" />
+   <use href="#q" transform="translate(537.6 2150.4)" />
+   <use href="#q" transform="translate(537.6 2688)" />
+   <use href="#q" transform="translate(537.6 3225.6)" />
+   <use href="#q" transform="translate(1075.2)" />
+   <use href="#q" transform="translate(1075.2 537.6)" />
+   <use href="#q" transform="translate(1075.2 1075.2)" />
+   <use href="#q" transform="translate(1075.2 1612.8)" />
+   <use href="#q" transform="translate(1075.2 2150.4)" />
+   <use href="#q" transform="translate(1075.2 2688)" />
+   <use href="#q" transform="translate(1075.2 3225.6)" />
+   <use href="#q" transform="translate(1612.8)" />
+   <use href="#q" transform="translate(1612.8 537.6)" />
+   <use href="#q" transform="translate(1612.8 1075.2)" />
+   <use href="#q" transform="translate(1612.8 1612.8)" />
+   <use href="#q" transform="translate(1612.8 2150.4)" />
+   <use href="#q" transform="translate(1612.8 2688)" />
+   <use href="#q" transform="translate(1612.8 3225.6)" />
+   <use href="#q" transform="translate(2150.4)" />
+   <use href="#q" transform="translate(2150.4 537.6)" />
+   <use href="#q" transform="translate(2150.4 1075.2)" />
+   <use href="#q" transform="translate(2150.4 1612.8)" />
+   <use href="#q" transform="translate(2150.4 2150.4)" />
+   <use href="#q" transform="translate(2150.4 2688)" />
+   <use href="#q" transform="translate(2150.4 3225.6)" />
+   <use href="#q" transform="translate(2688)" />
+   <use href="#q" transform="translate(2688 537.6)" />
+   <use href="#q" transform="translate(2688 1075.2)" />
+   <use href="#q" transform="translate(2688 1612.8)" />
+   <use href="#q" transform="translate(2688 2150.4)" />
+   <use href="#q" transform="translate(2688 2688)" />
+   <use href="#q" transform="translate(2688 3225.6)" />
+   <use href="#q" transform="translate(3225.6)" />
+   <use href="#q" transform="translate(3225.6 537.6)" />
+   <use href="#q" transform="translate(3225.6 1075.2)" />
+   <use href="#q" transform="translate(3225.6 1612.8)" />
+   <use href="#q" transform="translate(3225.6 2150.4)" />
+   <use href="#q" transform="translate(3225.6 2688)" />
+   <use href="#q" transform="translate(3225.6 3225.6)" />
+</svg>

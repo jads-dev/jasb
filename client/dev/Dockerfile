@@ -8,7 +8,7 @@ VOLUME [ "/jasb" ]
 WORKDIR "/jasb/client"
 
 ENV JASB_DEV_ENV "docker"
-ENV NODE_ENV "development"
+ENV JASB_URL "http://localhost:8080/"
 
 ENTRYPOINT [ "npm" ]
 CMD [ "run", "dev" ]

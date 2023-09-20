@@ -1712,6 +1712,7 @@ export class Store {
     description: string,
     image: string,
     raritySlug: Public.Gacha.Rarities.Slug,
+    layout: Public.Gacha.Cards.Layout,
     credits: readonly {
       reason: string;
       credited: {
@@ -1740,6 +1741,7 @@ export class Store {
              ${description},
              ${image},
              ${raritySlug},
+             ${layout},
              (
                SELECT array_agg(
                  row(reason, "user", name)::AddCredit
@@ -1761,6 +1763,7 @@ export class Store {
     description: string | null,
     image: string | null,
     raritySlug: Public.Gacha.Rarities.Slug | null,
+    layout: Public.Gacha.Cards.Layout | null,
     retired: boolean | null,
     removeCredits: readonly {
       id: Public.Gacha.Credits.Id;
@@ -1816,6 +1819,7 @@ export class Store {
              ${description},
              ${image},
              ${raritySlug},
+             ${layout},
              ${retired},
              (
                SELECT array_agg(

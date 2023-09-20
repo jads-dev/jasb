@@ -94,7 +94,6 @@ $light: (
 
 @mixin dark {
   color-scheme: dark;
-  --paper: url(../../assets/images/paper-dark.svg);
   @each $name, $color in $dark {
     --#{$name}-color: #{$color};
   }
@@ -102,7 +101,6 @@ $light: (
 
 @mixin light {
   color-scheme: light;
-  --paper: url(../../assets/images/paper-light.svg);
   @each $name, $color in $light {
     --#{$name}-color: #{$color};
   }

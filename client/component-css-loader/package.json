@@ -1,0 +1,9 @@
+{
+  "name": "component-css-loader",
+  "version": "1.0.0",
+  "description": "Extract CSS for use in web components.",
+  "module": "src/loader.mjs",
+  "dependencies": {
+    "resolve": "^1.8.1"
+  }
+}

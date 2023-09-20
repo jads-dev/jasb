@@ -21,6 +21,7 @@ module JoeBets.Gacha.CardType exposing
 
 import AssocList
 import JoeBets.Gacha.Banner as Banner
+import JoeBets.Gacha.Card.Layout as Card
 import JoeBets.Gacha.Credits as Credits
 import JoeBets.Gacha.Rarity as Rarity
 import Json.Decode as JsonD
@@ -64,6 +65,7 @@ type alias CardType =
     , description : String
     , image : String
     , rarity : Rarity.WithId
+    , layout : Card.Layout
     }
 
 
@@ -74,6 +76,7 @@ decoder =
         |> JsonD.required "description" JsonD.string
         |> JsonD.required "image" JsonD.string
         |> JsonD.required "rarity" Rarity.withIdDecoder
+        |> JsonD.required "layout" Card.layoutDecoder
 
 
 type alias WithId =
@@ -115,6 +118,7 @@ type alias EditableCardType =
     , image : String
     , retired : Bool
     , rarity : Rarity.Id
+    , layout : Card.Layout
     , credits : Credits.EditableCredits
 
     -- Metadata
@@ -132,6 +136,7 @@ editableDecoder =
         |> JsonD.required "image" JsonD.string
         |> JsonD.required "retired" JsonD.bool
         |> JsonD.required "rarity" Rarity.idDecoder
+        |> JsonD.required "layout" Card.layoutDecoder
         |> JsonD.required "credits" Credits.editablesDecoder
         |> JsonD.required "version" JsonD.int
         |> JsonD.required "created" DateTime.decoder

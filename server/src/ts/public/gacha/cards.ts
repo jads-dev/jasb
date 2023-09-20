@@ -16,12 +16,20 @@ interface CardIdBrand {
 export const Id = Validation.Id("CardId")<CardIdBrand>();
 export type Id = Schema.TypeOf<typeof Id>;
 
+export const Layout = Schema.keyof({
+  Normal: null,
+  FullImage: null,
+  LandscapeFullImage: null,
+});
+export type Layout = Schema.TypeOf<typeof Layout>;
+
 export const Shared = Schema.readonly(
   Schema.strict({
     name: Schema.string,
     description: Schema.string,
     image: Schema.string,
     rarity: Rarities.WithSlug,
+    layout: Layout,
   }),
 );
 export type Shared = Schema.TypeOf<typeof Shared>;
@@ -33,6 +41,7 @@ export const sharedFromInternal = (
   description: internal.description,
   image: internal.image,
   rarity: Rarities.fromInternal(internal.rarity),
+  layout: internal.layout,
 });
 
 export const Individual = Schema.readonly(

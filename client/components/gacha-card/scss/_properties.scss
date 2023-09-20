@@ -1,0 +1,18 @@
+@use "sass:math";
+@use "sass:map";
+
+$prefix: "jasb-gacha-card-";
+
+@mixin set-by-name($name, $value) {
+  --#{$prefix}#{$name}: $value;
+}
+
+@function by-name($name) {
+  @return var(--#{$prefix}#{$name}, map.get($defaults, $name));
+}
+
+$defaults: (
+  "aspect-ratio": math.div(5, 8),
+  "width": 16em,
+  "border-radius": 1em,
+);

@@ -370,6 +370,7 @@ CREATE FUNCTION gacha_add_card_type (
   given_description gacha_card_types.description%TYPE,
   given_image gacha_card_types.image%TYPE,
   given_rarity_slug gacha_rarities.slug%TYPE,
+  given_layout gacha_card_types.layout%TYPE,
   credits AddCredit[]
 ) RETURNS gacha_card_types LANGUAGE plpgsql AS $$
   DECLARE
@@ -400,9 +401,9 @@ CREATE FUNCTION gacha_add_card_type (
     END IF;
 
     INSERT INTO gacha_card_types
-      (name, description, image, rarity, banner, creator)
+      (name, description, image, rarity, layout, banner, creator)
     VALUES
-      (given_name, given_description, given_image, rarity_id, banner_id, user_id)
+      (given_name, given_description, given_image, rarity_id, given_layout, banner_id, user_id)
     RETURNING gacha_card_types.* INTO result;
 
     INSERT INTO gacha_credits (card_type, "user", name, reason)
@@ -439,6 +440,7 @@ CREATE FUNCTION gacha_edit_card_type (
   given_description gacha_card_types.description%TYPE,
   given_image gacha_card_types.image%TYPE,
   given_rarity_slug gacha_rarities.slug%TYPE,
+  given_layout gacha_card_types.layout%TYPE,
   given_retired gacha_card_types.retired%TYPE,
   remove_credits RemoveCredit[],
   edit_credits EditCredit[],
@@ -512,6 +514,7 @@ CREATE FUNCTION gacha_edit_card_type (
       description = coalesce(given_description, description),
       image = coalesce(given_image, image),
       rarity = coalesce(rarity_id, rarity),
+      layout = coalesce(given_layout, layout),
       retired = coalesce(given_retired, retired)
     WHERE gacha_card_types.id = card_type_id AND banner = banner_id
     RETURNING gacha_card_types.* INTO result;

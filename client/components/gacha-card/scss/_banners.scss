@@ -1,0 +1,10 @@
+@mixin banner($slug, $color) {
+  :host([banner="#{$slug}"]) {
+    --background: url(../../../assets/images/banners/#{$slug}-background.svg);
+    --color: #{$color};
+  }
+}
+
+@include banner("joms", #fff);
+@include banner("jads", #fff);
+@include banner("chans", #000);

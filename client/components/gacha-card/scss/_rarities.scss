@@ -1,0 +1,33 @@
+@use "sass:color";
+@use "./_properties.scss";
+
+@mixin rarity($slug, $level, $color, $opacity, $foil-size) {
+  :host([rarity="#{$slug}"]) {
+    --rarity-level: #{$level};
+    --rarity-color: #{$color};
+    --rarity-icon: url(../../../assets/images/rarities/icons/#{$slug}.svg);
+    --rarity-stars: url(../../../assets/images/rarities/stars/#{$level}.svg);
+
+    --shine-foil: url(../../../assets/images/rarities/foils/#{$slug}-foil.svg);
+    --shine-foil-size: #{$foil-size};
+    --shine-opacity: #{$opacity};
+  }
+}
+
+@include rarity("m", 1, #ffffff, 0.4, 2.5em 5em);
+@include rarity("jb", 2, #06ba63, 0.6, 3em 4.8em);
+@include rarity("pt", 3, #003fd2, 0.6, 10em 10em);
+@include rarity("crm", 4, #af008f, 0.8, 12em 16em);
+@include rarity("mp", 5, #ecd08c, 0.8, properties.by-name("width"));
+
+.rarity {
+  background-image: var(--rarity-stars);
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: contain;
+  height: 2em;
+  position: absolute;
+  bottom: -1.5em;
+  left: 0;
+  right: 0;
+}

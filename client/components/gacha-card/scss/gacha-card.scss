@@ -1,0 +1,93 @@
+@use "./_properties.scss";
+@use "./_layouts.scss";
+@use "./_qualities.scss";
+@use "./_rarities.scss";
+@use "./_banners.scss";
+@use "./_effects.scss";
+
+.card {
+  transform: translate3d(0px, 0px, 0.01px);
+
+  transform-style: preserve-3d;
+  text-rendering: optimizeLegibility;
+  image-rendering: optimizeQuality;
+
+  perspective: 600px;
+  will-change: transform;
+}
+
+:host(.unrevealed),
+:host(.revealed) {
+  .card::before {
+    display: block;
+    content: "";
+    position: absolute;
+    inset: -2.5em;
+    border-radius: 2.5em;
+    background: var(--quality-background, var(--rarity-color));
+    filter: blur(1em);
+    transform: translateZ(-5em);
+  }
+}
+
+:host([sample]) .rotator {
+  opacity: 0.5;
+
+  &::after {
+    content: "SAMPLE";
+    opacity: 0.5;
+    font-size: 6em;
+    position: absolute;
+    left: -0.25em;
+    top: 1.25em;
+    transform: rotate(54deg);
+    transform-origin: 50% 50%;
+  }
+}
+
+:host(.unrevealed) .face {
+  filter: brightness(0) invert(1);
+}
+
+.rotator,
+.effect {
+  border-radius: properties.by-name("border-radius");
+}
+
+.rotator {
+  display: grid;
+  grid-template:
+    "card" 1fr
+    / 1fr;
+
+  will-change: transform, box-shadow;
+
+  transform-origin: center;
+
+  transform: rotateY(var(--rotate-x)) rotateX(var(--rotate-y));
+  transform-style: preserve-3d;
+
+  > * {
+    grid-area: card;
+  }
+}
+
+.side {
+  display: grid;
+  grid-template:
+    "side" 1fr
+    / 1fr;
+
+  backface-visibility: hidden;
+
+  width: properties.by-name("width");
+  aspect-ratio: properties.by-name("aspect-ratio");
+
+  &.reverse {
+    transform: rotateY(180deg) translateZ(1px);
+  }
+
+  > * {
+    grid-area: side;
+  }
+}

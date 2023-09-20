@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" class="Playground__svg">
+  <defs>
+    <filter id="a" width="140%" height="140%" x="-20%" y="-20%"
+      color-interpolation-filters="linearRGB" filterUnits="objectBoundingBox"
+      primitiveUnits="userSpaceOnUse">
+      <feTurbulence baseFrequency="0.009 0.009" numOctaves="3" result="turbulence" seed="4"
+        stitchTiles="stitch" />
+      <feFlood flood-color="#ae0d0d" flood-opacity="1" result="flood" />
+      <feComposite in="flood" in2="turbulence" operator="in" result="composite1" />
+      <feComposite in="composite1" in2="SourceAlpha" operator="in" result="composite2" />
+    </filter>
+  </defs>
+  <svg>
+    <path d="M0 0h320v512H0z" style="fill:#e50000" />
+    <path d="M0 0h320v512H0z" style="filter:url(#a)" />
+  </svg>
+</svg>
