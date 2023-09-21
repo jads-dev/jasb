@@ -34,7 +34,7 @@
 
         width: 100%;
         height: 100%;
-        border-radius: calc(properties.by-name("border-radius") / 2);
+        border-radius: calc(#{properties.by-name("border-radius")} / 2);
       }
     }
 
@@ -81,8 +81,8 @@
     &::after {
       content: "";
       grid-area: bg;
-      border-radius: calc(properties.by-name("border-radius") / 2);
-      margin: calc(properties.by-name("border-radius") / 3 * 2);
+      border-radius: calc(#{properties.by-name("border-radius")} / 2);
+      margin: calc(#{properties.by-name("border-radius")} / 3 * 2);
     }
 
     &::before {
@@ -98,8 +98,8 @@
 
   > .content {
     position: relative;
-    border-radius: calc(properties.by-name("border-radius") / 2);
-    margin: calc(properties.by-name("border-radius") / 3 * 2);
+    border-radius: calc(#{properties.by-name("border-radius")} / 2);
+    margin: calc(#{properties.by-name("border-radius")} / 3 * 2);
     color: var(--color, #fff);
 
     justify-items: center;
@@ -132,6 +132,7 @@
         font-size: 1.4em;
         font-weight: bold;
         font-stretch: 25%;
+        text-align: right;
       }
 
       > .description {
@@ -146,7 +147,6 @@
         right: 0;
         grid-area: qual;
         list-style: none;
-        padding: 0;
         margin: 0;
         display: flex;
         flex-flow: row wrap;

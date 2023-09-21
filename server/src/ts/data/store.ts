@@ -163,26 +163,8 @@ export class Store {
     return result.user_id;
   }
 
-  async getUser(
-    userSlug: Public.Users.Slug,
-    sessionId?: SecretToken,
-  ): Promise<Users.User | undefined> {
+  async getUser(userSlug: Public.Users.Slug): Promise<Users.User | undefined> {
     return await this.withClient(async (client) => {
-      if (sessionId !== undefined) {
-        if (
-          !(await client.query(
-            Queries.userId(sqlFragment`
-              jasb.validate_session(
-                ${userSlug},
-                ${sessionId.uri},
-                ${this.config.auth.sessionLifetime.toString()}
-              )
-            `),
-          ))
-        ) {
-          throw new WebError(StatusCodes.UNAUTHORIZED, "Must be logged in.");
-        }
-      }
       const result = await client.maybeOne(
         Queries.user(sqlFragment`
           SELECT users.* FROM users WHERE users.slug = ${userSlug}

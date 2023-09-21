@@ -19,55 +19,55 @@ export class GachaCard extends LitElement {
    * The serial number of the card.
    */
   @property({ attribute: "serial-number" })
-  serialNumber = undefined;
+  declare serialNumber: string | undefined;
 
   /**
    * The name of the card.
    */
   @property()
-  name = "";
+  declare name: string;
 
   /**
    * The description on the card.
    */
   @property()
-  description = "";
+  declare description: string;
 
   /**
    * The image on the card.
    */
   @property()
-  image = undefined;
+  declare image: string | undefined;
 
   /**
    * The rarity of the card.
    */
   @property()
-  rarity = "m";
+  declare rarity: string;
 
   /**
    * The banner the card is in.
    */
   @property()
-  banner = undefined;
+  declare banner: string | undefined;
 
   /**
    * The layout of the card.
    */
   @property()
-  layout = "normal";
+  declare layout: string;
 
   // /**
   //  * The variant of the card.
   //  */
   // @property()
-  // variant = undefined;
+  // declare variant;
 
   /**
    * Qualities the card has.
    */
   @property({ converter: spaceSeparatedList })
-  qualities: string[] = [];
+  declare qualities: string[];
 
   /**
    * If the card can be interacted with, giving it some movement and
@@ -75,24 +75,40 @@ export class GachaCard extends LitElement {
    * like a physical object.
    */
   @property({ type: Boolean })
-  interactive: boolean = false;
+  declare interactive: boolean;
 
   /**
    * If this card is a sample of a card type, rather than an actual card
    * which exists.
    */
   @property({ type: Boolean })
-  sample: boolean = false;
+  declare sample: boolean;
 
   @state()
-  private _effectFocus: { x: number; y: number } = { x: 50, y: 50 };
+  declare private _effectFocus: { x: number; y: number };
 
   @state()
-  private _effectOpacity = 0;
+  declare private _effectOpacity: number;
 
   #active = false;
   #previousInactiveStep: number | undefined;
   #setNotActive: NodeJS.Timeout | undefined;
+
+  constructor() {
+    super();
+    this.serialNumber = undefined;
+    this.name = "";
+    this.description = "";
+    this.image = undefined;
+    this.rarity = "m";
+    this.banner = undefined;
+    this.layout = "normal";
+    this.qualities = [];
+    this.interactive = false;
+    this.sample = false;
+    this._effectFocus = { x: 50, y: 50 };
+    this._effectOpacity = 0;
+  }
 
   @eventOptions({ passive: true })
   updateMousePosition(event: PointerEvent) {
@@ -187,7 +203,7 @@ export class GachaCard extends LitElement {
                 () =>
                   html`<span class="serial-number">${this.serialNumber}</span>`,
               )}
-              <div class="image"><img src="${this.image}" /></div>
+              <div class="image"><img src="${this.image}" alt="${this.name}" /></div>
               <div class="details">
                 <div class="rarity ${this.rarity}"></div>
                 <span class="name" data-name="${this.name}">${this.name}</span>
@@ -208,5 +224,11 @@ export class GachaCard extends LitElement {
         </div>
       </div>
     `;
+  }
+}
+
+declare global {
+  interface HTMLElementTagNameMap {
+    "gacha-card": GachaCard;
   }
 }

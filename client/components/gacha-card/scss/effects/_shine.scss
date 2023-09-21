@@ -29,7 +29,7 @@
   background-size: 120%, 200%, var(--shine-foil-size);
   background-position:
     center,
-    --effect-focus-x --effect-focus-y,
+    var(--effect-focus-x) var(--effect-focus-y),
     center;
   background-repeat: no-repeat, no-repeat, repeat;
   filter: brightness(var(--shine-brightness, 0.8)) contrast(1.5) saturate(1);
@@ -49,8 +49,8 @@
     grid-area: shine;
   }
 
-  border-radius: calc(properties.by-name("border-radius") / 2);
-  margin: calc(properties.by-name("border-radius") / 3 * 2);
+  border-radius: calc(#{properties.by-name("border-radius")} / 2);
+  margin: calc(#{properties.by-name("border-radius")} / 3 * 2);
 }
 
 .shine:before {

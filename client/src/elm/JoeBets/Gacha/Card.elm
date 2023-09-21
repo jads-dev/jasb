@@ -54,7 +54,7 @@ encodeId =
 
 idParser : Url.Parser (Id -> a) a
 idParser =
-    Url.custom "CARDT TYPE ID" (String.toInt >> Maybe.map Id)
+    Url.custom "CARD TYPE ID" (String.toInt >> Maybe.map Id)
 
 
 idDecoder : JsonD.Decoder Id

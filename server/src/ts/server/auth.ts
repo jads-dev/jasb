@@ -46,60 +46,26 @@ export class Auth {
     };
   }
 
-  async login(
+  async #getDiscordDetails(
     origin: string,
     code: string,
   ): Promise<{
-    user: [Users.Slug, Users.User];
-    notifications: Notifications.Notification[];
-    session: SecretToken;
-    expires: Joda.ZonedDateTime;
+    token: DiscordOAuth.TokenRequestResult;
+    user: DiscordOAuth.User & { global_name?: string };
+    guilds: readonly DiscordOAuth.PartialGuild[];
   }> {
     try {
-      const discordToken = await this.oauth.tokenRequest({
+      const token = await this.oauth.tokenRequest({
         scope: this.config.discord.scopes,
         redirectUri: new URL("/auth", origin).toString(),
         grantType: "authorization_code",
         code,
       });
-
-      const discordUser = (await this.oauth.getUser(
-        discordToken.access_token,
+      const user = (await this.oauth.getUser(
+        token.access_token,
       )) as DiscordOAuth.User & { global_name?: string };
-      const discordGuilds = await this.oauth.getUserGuilds(
-        discordToken.access_token,
-      );
-
-      const jadsId = this.config.discord.guild;
-      const memberOfJads = discordGuilds.some((guild) => guild.id === jadsId);
-      if (!memberOfJads) {
-        throw new WebError(StatusCodes.FORBIDDEN, "Must be a member of JADS.");
-      }
-
-      const login = await this.store.login(
-        discordUser.id,
-        discordUser.username,
-        discordUser.global_name ?? null,
-        discordUser.discriminator !== "0"
-          ? discordUser.discriminator ?? null
-          : null,
-        discordUser.avatar ?? null,
-        discordToken.access_token,
-        discordToken.refresh_token,
-        Joda.Duration.of(discordToken.expires_in, Joda.ChronoUnit.SECONDS),
-      );
-      const user = Users.fromInternal(login.user);
-      const notifications = login.notifications.map(Notifications.fromInternal);
-      const session = SecretToken.fromUri(login.user.session);
-      if (session === undefined) {
-        throw new Error("Invalid secret.");
-      }
-      return {
-        user,
-        notifications,
-        session,
-        expires: login.user.started.plus(this.config.sessionLifetime),
-      };
+      const guilds = await this.oauth.getUserGuilds(token.access_token);
+      return { token, user, guilds };
     } catch (error: unknown) {
       if (error instanceof DiscordOAuth.DiscordHTTPError) {
         console.error(
@@ -112,6 +78,49 @@ export class Auth {
       }
       throw error;
     }
+  }
+
+  async login(
+    origin: string,
+    code: string,
+  ): Promise<{
+    user: [Users.Slug, Users.User];
+    notifications: Notifications.Notification[];
+    session: SecretToken;
+    expires: Joda.ZonedDateTime;
+  }> {
+    const discord = await this.#getDiscordDetails(origin, code);
+
+    const jadsId = this.config.discord.guild;
+    const memberOfJads = discord.guilds.some((guild) => guild.id === jadsId);
+    if (!memberOfJads) {
+      throw new WebError(StatusCodes.FORBIDDEN, "Must be a member of JADS.");
+    }
+
+    const login = await this.store.login(
+      discord.user.id,
+      discord.user.username,
+      discord.user.global_name ?? null,
+      discord.user.discriminator !== "0"
+        ? discord.user.discriminator ?? null
+        : null,
+      discord.user.avatar ?? null,
+      discord.token.access_token,
+      discord.token.refresh_token,
+      Joda.Duration.of(discord.token.expires_in, Joda.ChronoUnit.SECONDS),
+    );
+    const user = Users.fromInternal(login.user);
+    const notifications = login.notifications.map(Notifications.fromInternal);
+    const session = SecretToken.fromUri(login.user.session);
+    if (session === undefined) {
+      throw new Error("Invalid secret session token generated.");
+    }
+    return {
+      user,
+      notifications,
+      session,
+      expires: login.user.started.plus(this.config.sessionLifetime),
+    };
   }
 
   async logout(userSlug: Users.Slug, session: SecretToken): Promise<void> {

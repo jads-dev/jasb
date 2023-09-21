@@ -157,15 +157,13 @@ const evalDependencyGraph = async ({
 
   const cssString = cssModule.toString();
 
-  const result = `
+  return `
     import { css, unsafeCSS } from "lit";
 
     ${assets.join("\n")}
   
     export default css\`${cssString}\`;
   `;
-
-  return result;
 };
 
 function getPublicPath(options, context) {
