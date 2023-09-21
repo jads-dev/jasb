@@ -1,20 +1,54 @@
-import { type CSSResultGroup, html, LitElement, nothing, unsafeCSS } from "lit";
+import {
+  type CSSResultGroup,
+  html,
+  LitElement,
+  type PropertyValues,
+  unsafeCSS,
+} from "lit";
 import {
   customElement,
   eventOptions,
   property,
-  state,
   query,
+  state,
 } from "lit/decorators.js";
 import { styleMap } from "lit/directives/style-map.js";
 import { when } from "lit/directives/when.js";
 
-import { clamp, rescale, spaceSeparatedList } from "./util.mjs";
 import { default as styles } from "../scss/gacha-card.scss?inline";
+import { clamp, roughlyEquals, spaceSeparatedList } from "./util.mjs";
+
+type PercentCoordinates = readonly [x: number, y: number];
+
+const smallChange = 2 ** -6;
+const percentCoordinatesHaveChanged = (
+  newValue: PercentCoordinates,
+  oldValue?: PercentCoordinates,
+) => {
+  if (oldValue === undefined) {
+    return true;
+  } else {
+    const [newX, newY] = newValue;
+    const [oldX, oldY] = oldValue;
+    return (
+      !roughlyEquals(newX, oldX, smallChange) ||
+      !roughlyEquals(newY, oldY, smallChange)
+    );
+  }
+};
 
 @customElement("gacha-card")
 export class GachaCard extends LitElement {
   static override styles: CSSResultGroup = [unsafeCSS(styles)];
+  /**
+   * Percentage of the size of the card from the centre to start interactions
+   * within (50 therefore means within the card).
+   */
+  static interactionBufferZone = 75;
+  /**
+   * The speed in percent per millisecond.
+   */
+  static interpolateSpeed = 10 / 1000;
 
   /**
    * The serial number of the card.
@@ -58,35 +92,6 @@ export class GachaCard extends LitElement {
   @property()
   declare layout: string;
 
-  _animationMode = "multi"
-  _hasEventListener = false
-
-  /**
-   * The animation mode of the card, valid values are ("multi", "single")
-   */
-  @property()
-  get animationMode() {
-    return this._animationMode
-  }
-
-  set animationMode(newValue: string) {
-    const oldValue = this._animationMode;
-    this._animationMode = newValue;
-    this.requestUpdate('animationMode', oldValue); 
-    if (this.animationMode != "multi" && this.animationMode != "single") {
-      if (this._hasEventListener) {
-        window.removeEventListener('mousemove', this.updateMousePosition);
-        this._hasEventListener = false 
-      }
-      this._interpolateToPosition = { x: 0, y: 0 }
-    } else {
-      if (!this._hasEventListener) {
-        window.addEventListener('mousemove', this.updateMousePosition.bind(this));
-        this._hasEventListener = true
-      }
-    }
-  }
-
   /**
    * Qualities the card has.
    */
@@ -108,17 +113,19 @@ export class GachaCard extends LitElement {
   @property({ type: Boolean })
   declare sample: boolean;
 
-  @state()
-  declare private _effectFocus: { x: number; y: number };
+  @state({ hasChanged: percentCoordinatesHaveChanged })
+  declare _effectFocus: PercentCoordinates;
 
-  @state()
-  declare private _effectDistance: number;
-  
-  @state()
-  private _interpolateToPosition = { x: 0, y: 0 }
-  
-  @query('#card')
-  private _card?: HTMLElement;
+  @state({ hasChanged: percentCoordinatesHaveChanged })
+  declare _effectFocusTarget: PercentCoordinates;
+
+  @query("#card")
+  private declare _card: HTMLElement | null;
+
+  #interacting = false;
+  #effectDistanceFromCenter = 0;
+  #eventListener: ((event: MouseEvent) => void) | undefined = undefined;
+  #interpolationRequested = false;
 
   constructor() {
     super();
@@ -132,94 +139,122 @@ export class GachaCard extends LitElement {
     this.qualities = [];
     this.interactive = false;
     this.sample = false;
-    this._effectFocus = { x: 0, y: 0 };
-    this._effectOpacity = 0;
-  }  
+    this._effectFocus = [0, 0];
+  }
 
-  override connectedCallback() {
+  override async connectedCallback() {
     super.connectedCallback();
-    this.interpolate();
-    if (this.animationMode != "multi" && this.animationMode != "single")
-      return
-
-    if (!this._hasEventListener) {
-      window.addEventListener('mousemove', this.updateMousePosition.bind(this));
-      this._hasEventListener = true
-    }
+    await this.updateComplete;
+    this.#handleEventListener(this.interactive);
   }
 
   override disconnectedCallback() {
     super.disconnectedCallback();
-    if (this.animationMode != "multi" && this.animationMode != "single")
-      return
-    if (this._hasEventListener) {
-      window.removeEventListener('mousemove', this.updateMousePosition);
-      this._hasEventListener = false 
+    this.#handleEventListener(false);
+  }
+
+  #handleEventListener(interactive: boolean) {
+    if (interactive) {
+      const card = this._card;
+      if (card !== null && this.#eventListener === undefined) {
+        this.#eventListener = (event: MouseEvent) => {
+          this.updateMousePosition(card, event);
+        };
+        window.addEventListener("pointermove", this.#eventListener);
+      }
+    } else {
+      if (this.#eventListener !== undefined) {
+        window.removeEventListener("pointermove", this.#eventListener);
+        this.#eventListener = undefined;
+      }
     }
   }
 
   @eventOptions({ passive: true })
-  updateMousePosition(event: MouseEvent) {
-    if (this._card !== undefined && this._card !== null) {
-      const { left, top, width, height } = this._card.getBoundingClientRect();
-
-      let x = ((event.clientX - (left + width / 2)) / (width / 2)) * 100;
-      let y = ((event.clientY - (top + height / 2)) / (height / 2)) * 100;
-    
-      if (this.animationMode == "multi") {
-        x = clamp(x, -150, 150)
-        y = clamp(y, -150, 150)
-        
-        if (Math.abs(x) == 150)
-          y = 0
-        if (Math.abs(y) == 150)
-          x = 0
-        
-        x -= (x - 100 * clamp(x / 100, -0.75, 0.75)) * 2
-        y -= (y - 100 * clamp(y / 100, -0.75, 0.75)) * 2
-      } else if (this.animationMode == "single") {
-        if (Math.abs(x) > 100 || Math.abs(y) > 100) {
-          this._interpolateToPosition = {x: 0, y: 0}
-          return
-        }
+  updateMousePosition(card: HTMLElement, event: MouseEvent) {
+    const bufferZone = GachaCard.interactionBufferZone;
+    const { left, top, width, height } = card.getBoundingClientRect();
+    if (width !== 0 && height !== 0) {
+      const x = ((event.clientX - left) / width) * 100 - 50;
+      const y = ((event.clientY - top) / height) * 100 - 50;
+      if (Math.abs(x) <= bufferZone && Math.abs(y) <= bufferZone) {
+        this.#interacting = true;
+        this._effectFocusTarget = [clamp(x, -50, 50), clamp(y, -50, 50)];
+      } else {
+        this.#interacting = false;
+        this._effectFocusTarget = [0, 0];
       }
-      
-      this._interpolateToPosition = {x: x, y: y};
     }
   }
 
-  interpolate() {
-    if (this._effectFocus.x != this._interpolateToPosition.x) {
-      var dx = this._interpolateToPosition.x - this._effectFocus.x
-      this._effectFocus.x += dx * 0.1
+  #interpolateNextFrameIfNeeded(lastTime?: number) {
+    if (!this.#interpolationRequested) {
+      const [focusX, focusY] = this._effectFocus;
+      const [targetX, targetY] = this._effectFocusTarget;
+      if (!roughlyEquals(focusX, targetX) || !roughlyEquals(focusY, targetY)) {
+        requestAnimationFrame((time) => {
+          this.interpolate(time, lastTime);
+        });
+        this.#interpolationRequested = true;
+      } else {
+        this._effectFocus = [targetX, targetY];
+      }
     }
-    
-    if (this._effectFocus.y != this._interpolateToPosition.y) {
-      var dy = this._interpolateToPosition.y - this._effectFocus.y
-      this._effectFocus.y += dy * 0.1
-    }
-    
-    if (this._card !== undefined && this._card !== null) {
-      const { width, height } = this._card.getBoundingClientRect();
-      this._effectDistance = (this._effectFocus.x ** 2 + this._effectFocus.y ** 2) / ((width / 2) ** 2 + (height / 2) ** 2) * 2
+  }
+
+  interpolate(time: number, lastTime?: number) {
+    this.#interpolationRequested = false;
+    if (lastTime !== undefined) {
+      const millisSinceLastFrame = time - lastTime;
+      const rateOfChange = GachaCard.interpolateSpeed * millisSinceLastFrame;
+
+      const [focusX, focusY] = this._effectFocus;
+      const [targetX, targetY] = this._effectFocusTarget;
+
+      const updated = (current: number, want: number, rateOfChange: number) => {
+        const difference = (want - current) * rateOfChange;
+        const updated = current + difference;
+        return difference > 0
+          ? Math.min(want, updated)
+          : Math.max(want, updated);
+      };
+
+      this._effectFocus = [
+        updated(focusX, targetX, rateOfChange),
+        updated(focusY, targetY, rateOfChange),
+      ];
     }
 
-    this.requestUpdate(); 
-    requestAnimationFrame(() => this.interpolate());
+    this.#interpolateNextFrameIfNeeded(time);
+  }
+
+  override willUpdate(changedProperties: PropertyValues<this>): void {
+    if (changedProperties.has("interactive")) {
+      this.#handleEventListener(this.interactive);
+    }
+    if (changedProperties.has("_effectFocus")) {
+      const [x, y] = this._effectFocus;
+      this.#effectDistanceFromCenter = (x ** 2 + y ** 2) / 5000;
+    }
+    if (changedProperties.has("_effectFocusTarget")) {
+      this.#interpolateNextFrameIfNeeded();
+    }
   }
 
   override render() {
+    const [focusX, focusY] = this._effectFocus;
     const customProperties = {
-      "--effect-focus-x": `${this._effectFocus.x}%`,
-      "--effect-focus-y": `${this._effectFocus.y}%`,
-      "--effect-focus-from-center": `${this._effectDistance}`,
-      "--rotate-x": `${-this._effectFocus.x / 10}deg`,
-      "--rotate-y": `${this._effectFocus.y / 10}deg`,
+      "--effect-opacity": `${
+        this.#interacting ? 1 : this.#effectDistanceFromCenter
+      }`,
+      "--effect-focus-x": `${focusX + 50}%`,
+      "--effect-focus-y": `${focusY + 50}%`,
+      "--effect-focus-from-center": `${this.#effectDistanceFromCenter}`,
+      "--rotate-x": `${-focusX / 4}deg`,
+      "--rotate-y": `${focusY / 4}deg`,
     };
     return html`
-      <div 
-        id="card"
-        style="${styleMap(customProperties)}">
+      <div id="card" style="${styleMap(customProperties)}">
         <div class="pivot">
           <div class="side reverse">
             <div class="content"></div>

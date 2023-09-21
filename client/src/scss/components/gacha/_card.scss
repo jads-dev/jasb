@@ -52,18 +52,9 @@
   > li {
     overflow: visible;
     max-width: $slice-size;
-    margin-bottom: 1em;
 
     &:hover {
       z-index: 2;
-      margin-top: 1em;
-      margin-bottom: 0;
-    }
-
-    &:only-child:hover,
-    &.placeholder:hover {
-      margin-top: 0;
-      margin-bottom: 1em;
     }
 
     &:last-of-type {

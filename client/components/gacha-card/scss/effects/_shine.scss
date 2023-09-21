@@ -1,21 +1,5 @@
 @use "../_properties.scss";
 
-:root {
-  --sunpillar-1: hsl(2, 100%, 73%);
-  --sunpillar-2: hsl(53, 100%, 69%);
-  --sunpillar-3: hsl(93, 100%, 69%);
-  --sunpillar-4: hsl(176, 100%, 76%);
-  --sunpillar-5: hsl(228, 100%, 74%);
-  --sunpillar-6: hsl(283, 100%, 73%);
-
-  --sunpillar-clr-1: var(--sunpillar-1);
-  --sunpillar-clr-2: var(--sunpillar-2);
-  --sunpillar-clr-3: var(--sunpillar-3);
-  --sunpillar-clr-4: var(--sunpillar-4);
-  --sunpillar-clr-5: var(--sunpillar-5);
-  --sunpillar-clr-6: var(--sunpillar-6);
-}
-
 // Shine gives a holographic effect.
 .shine {
   background-image: radial-gradient(
@@ -27,10 +11,17 @@
     linear-gradient(-45deg, #fff 15%, #000, #fff 85%), var(--shine-foil);
   background-blend-mode: soft-light, difference, normal;
   background-size: 120%, 200%, var(--shine-foil-size);
+  background-position:
+    center,
+    var(--effect-focus-x) var(--effect-focus-y),
+    center;
   background-repeat: no-repeat, no-repeat, repeat;
   filter: brightness(var(--shine-brightness, 0.8)) contrast(1.5) saturate(1);
   mix-blend-mode: color-dodge;
-  opacity: calc((1.4) * (var(--effect-focus-from-center)));
+  opacity: calc(
+    var(--effect-opacity, 0) * var(--shine-opacity, 1) *
+      (1.5 - var(--effect-focus-from-center))
+  );
 
   display: grid;
   grid-template:
@@ -43,26 +34,8 @@
 
   border-radius: calc(#{properties.by-name("border-radius")} / 2);
   margin: calc(#{properties.by-name("border-radius")} / 3 * 2);
-}
 
-.shine:before {
-  --sunpillar-clr-1: var(--sunpillar-5);
-  --sunpillar-clr-2: var(--sunpillar-6);
-  --sunpillar-clr-3: var(--sunpillar-1);
-  --sunpillar-clr-4: var(--sunpillar-2);
-  --sunpillar-clr-5: var(--sunpillar-3);
-  --sunpillar-clr-6: var(--sunpillar-4);
+  transition: opacity 0.1s;
 
-  transform: translateZ(1px);
-}
-
-.shine:after {
-  --sunpillar-clr-1: var(--sunpillar-6);
-  --sunpillar-clr-2: var(--sunpillar-1);
-  --sunpillar-clr-3: var(--sunpillar-2);
-  --sunpillar-clr-4: var(--sunpillar-3);
-  --sunpillar-clr-5: var(--sunpillar-4);
-  --sunpillar-clr-6: var(--sunpillar-5);
-
-  transform: translateZ(1.2px);
+  will-change: background-image, opacity, background-position, opacity;
 }

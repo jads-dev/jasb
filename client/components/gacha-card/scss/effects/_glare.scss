@@ -1,18 +1,18 @@
-// Glare is an effect like a light from the mouse cursor over the card.
+// Glare is an effect like a reflection from a light over the card.
 .glare {
   transform: translateZ(1.41px);
   overflow: hidden;
 
-  opacity: calc(2 * var(--effect-focus-from-center, 1));
+  opacity: var(--effect-opacity);
 
   background-image: radial-gradient(
-    farthest-corner circle at calc(var(--effect-focus-x) + 50%) calc(var(--effect-focus-y) + 50%),
+    farthest-corner circle at var(--effect-focus-x) var(--effect-focus-y),
     hsla(0, 0%, 100%, 0.8) 10%,
     hsla(0, 0%, 100%, 0.65) 20%,
     hsla(0, 0%, 0%, 0.5) 90%
   );
 
-  will-change: background-image;
+  will-change: background-image, opacity;
 
   mix-blend-mode: soft-light;
 }

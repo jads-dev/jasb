@@ -18,3 +18,9 @@ export const rescale = (
   scaledMin: number,
   scaledMax: number,
 ) => round(scaledMin + ((scaledMax - scaledMin) * (value - min)) / (max - min));
+
+export const roughlyEquals = (
+  value: number,
+  target: number,
+  margin = 2 ** -2,
+): boolean => Math.abs(value - target) < margin;
