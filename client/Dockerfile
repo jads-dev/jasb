@@ -16,10 +16,8 @@ ENV WEBPACK_MODE ${MODE}
 
 COPY ["./package.json", "./package-lock.json", "./"]
 COPY ["./elm-material/package.json", "./elm-material/package-lock.json", "./elm-material/"]
-COPY ["./component-css-loader/package.json", "./component-css-loader/package-lock.json", "./component-css-loader/"]
 RUN ["npm", "ci"]
 
-COPY ["./component-css-loader/src", "./component-css-loader/src"]
 COPY ["./tsconfig.json", "./postcss.config.cjs", "./webpack.config.mjs", "./elm.json", "./"]
 COPY ["./src", "./src"]
 COPY ["./components", "./components"]

@@ -27,12 +27,12 @@ export class WebSockets {
 
     // Bad typing.
     // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-    // @ts-ignore
-    const subscriber: Subscriber = Listen({
+    // @ts-expect-error
+    const subscriber = Listen({
       connectionString: Store.connectionString(store.config.store.source),
-    });
+    }) as Subscriber;
 
-    subscriber.notifications.on(channel, (notificationId: number) =>
+    subscriber.notifications.on(channel, (notificationId: number) => {
       wrapLogErrors(logger, async (): Promise<void> => {
         const notification = await store.getNotification(
           session.user,
@@ -46,10 +46,14 @@ export class WebSockets {
             ),
           ),
         );
-      }),
-    );
+      });
+    });
 
-    socket.on("close", () => wrapLogErrors(logger, subscriber.close));
+    socket.on("close", () => {
+      wrapLogErrors(logger, async () => {
+        await subscriber.close();
+      });
+    });
 
     await subscriber.connect();
     await subscriber.listenTo(channel);

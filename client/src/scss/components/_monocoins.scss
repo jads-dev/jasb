@@ -1,3 +1,4 @@
+@use "../_assets.scss";
 @use "../_colors.scss";
 @use "../_util.scss";
 
@@ -10,7 +11,7 @@
     height: 1em;
 
     content: "";
-    background-image: url("../../../assets/images/monocoin.png");
+    background-image: #{assets.$monocoin};
     background-size: contain;
     background-position: center;
   }

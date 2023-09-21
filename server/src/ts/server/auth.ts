@@ -9,6 +9,11 @@ import { SecretToken } from "../util/secret-token.js";
 import type { Config } from "./config.js";
 import { WebError } from "./errors.js";
 
+type DiscordUser = DiscordOAuth.User & {
+  discriminator?: string | undefined;
+  global_name?: string | undefined;
+};
+
 export class Auth {
   static readonly secure = process.env["NODE_ENV"] !== "development";
   static readonly sessionCookieName = `${
@@ -29,8 +34,8 @@ export class Auth {
     });
   }
 
-  static async init(config: Config.Auth, store: Store): Promise<Auth> {
-    return new Auth(config, store);
+  static init(config: Config.Auth, store: Store): Promise<Auth> {
+    return Promise.resolve(new Auth(config, store));
   }
 
   async redirect(origin: string): Promise<{ url: string; state: string }> {
@@ -51,7 +56,7 @@ export class Auth {
     code: string,
   ): Promise<{
     token: DiscordOAuth.TokenRequestResult;
-    user: DiscordOAuth.User & { global_name?: string };
+    user: DiscordUser;
     guilds: readonly DiscordOAuth.PartialGuild[];
   }> {
     try {
@@ -63,7 +68,7 @@ export class Auth {
       });
       const user = (await this.oauth.getUser(
         token.access_token,
-      )) as DiscordOAuth.User & { global_name?: string };
+      )) as DiscordUser;
       const guilds = await this.oauth.getUserGuilds(token.access_token);
       return { token, user, guilds };
     } catch (error: unknown) {
@@ -101,9 +106,7 @@ export class Auth {
       discord.user.id,
       discord.user.username,
       discord.user.global_name ?? null,
-      discord.user.discriminator !== "0"
-        ? discord.user.discriminator ?? null
-        : null,
+      discord.user.discriminator !== "0" ? discord.user.discriminator : null,
       discord.user.avatar ?? null,
       discord.token.access_token,
       discord.token.refresh_token,
@@ -127,9 +130,9 @@ export class Auth {
     const accessToken = await this.store.logout(userSlug, session);
     if (accessToken != null) {
       const { clientId, clientSecret } = this.config.discord;
-      const credentials = Buffer.from(`${clientId}:${clientSecret}`).toString(
-        "base64",
-      );
+      const credentials = Buffer.from(
+        `${clientId}:${clientSecret.value}`,
+      ).toString("base64");
       try {
         await this.oauth.revokeToken(accessToken, credentials);
       } catch (e) {

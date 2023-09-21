@@ -6,7 +6,7 @@ import type { Notifier } from "./external-notifier.js";
 import type { Logging } from "./logging.js";
 import type { WebSockets } from "./web-sockets.js";
 
-export type State = {
+export interface State {
   config: Config.Server;
   logger: Logging.Logger;
   store: Store;
@@ -15,6 +15,6 @@ export type State = {
   externalNotifier: Notifier;
   imageUpload: ObjectUploader | undefined;
   avatarCache: ObjectUploader | undefined;
-};
+}
 
 export * as Server from "./model.js";

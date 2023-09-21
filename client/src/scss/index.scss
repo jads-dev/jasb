@@ -1,6 +1,7 @@
 @use "../../elm-material/src/scss/_material.scss" as mdc;
 @use "@fortawesome/fontawesome-svg-core/styles.css";
 
+@use "./_assets.scss";
 @use "./_util.scss";
 @use "./_colors.scss";
 @use "./_material.scss";
@@ -56,7 +57,7 @@ img {
   overflow: hidden;
 
   @include colors.by_name("background");
-  background-image: url("../../assets/images/background.svg");
+  background-image: #{assets.$background};
   background-repeat: repeat;
   background-size: 7.5em 1.5em;
 }
@@ -86,7 +87,7 @@ header {
       content: "";
       width: 1em;
       height: 1em;
-      background-image: url("../../assets/images/monocoin.png");
+      background-image: assets.$monocoin;
       background-size: contain;
     }
   }

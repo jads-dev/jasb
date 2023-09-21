@@ -98,7 +98,7 @@ async function deleteCached(
       return meta;
     } else {
       logger.warn(
-        `Error trying to delete cached avatar: ${(error as Error)?.message}.`,
+        `Error trying to delete cached avatar: ${(error as Error).message}.`,
         {
           exception: error,
           error,
@@ -141,7 +141,7 @@ async function cache(
       return undefined;
     }
   } catch (error) {
-    logger.warn(`Error trying to cache avatar: ${(error as Error)?.message}.`, {
+    logger.warn(`Error trying to cache avatar: ${(error as Error).message}.`, {
       exception: error,
       error,
     });

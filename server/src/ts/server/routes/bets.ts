@@ -293,9 +293,6 @@ export const betsApi = (server: Server.State): Router => {
 
   function validateStakeBody(body: unknown): StakeBody {
     const stakeBody = Validation.body(StakeBody, body);
-    if (stakeBody.amount === undefined) {
-      throw new WebError(StatusCodes.BAD_REQUEST, "No amount given.");
-    }
     if (stakeBody.message !== undefined) {
       if (stakeBody.amount < server.config.rules.notableStake) {
         throw new WebError(

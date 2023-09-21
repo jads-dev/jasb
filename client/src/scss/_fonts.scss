@@ -1,9 +1,10 @@
+@use "./_assets.scss";
+
 @font-face {
   font-family: "Roboto Flex";
   src:
-    url("../../assets/fonts/Roboto-Flex.woff2") format("woff2")
-      tech("variations"),
-    url("../../assets/fonts/Roboto-Flex.woff2") format("woff2-variations");
+    #{assets.$roboto-flex} format("woff2") tech("variations"),
+    #{assets.$roboto-flex} format("woff2-variations");
   font-weight: 100 1000;
   font-stretch: 25% 151%;
 }

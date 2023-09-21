@@ -21,8 +21,8 @@ import { WebSockets } from "./server/web-sockets.js";
 
 SourceMapSupport.install();
 
-const init = async (config: Config.Server): Promise<Logging.Logger> =>
-  Logging.init(config.logging);
+const init = (config: Config.Server): Promise<Logging.Logger> =>
+  Promise.resolve(Logging.init(config.logging));
 
 const load = async (
   config: Config.Server,
@@ -72,6 +72,7 @@ const start = async (server: Server.State): Promise<void> => {
   // Incorrect types for easy-ws.
   // eslint-disable-next-line @typescript-eslint/ban-ts-comment
   // @ts-expect-error
+  // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
   app.use(EasyWS());
   app.use(Errors.middleware(server.logger));
   app.use(Logging.middleware(server.logger));
@@ -86,7 +87,7 @@ const start = async (server: Server.State): Promise<void> => {
   const listening = app.listen(
     server.config.listenOn.port,
     server.config.listenOn.address,
-    async () => {
+    () => {
       server.logger.info(
         `Listening on ${server.config.listenOn.address}:${server.config.listenOn.port}.`,
       );

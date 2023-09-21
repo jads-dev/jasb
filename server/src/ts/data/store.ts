@@ -126,21 +126,17 @@ export class Store {
     sessionId: SecretToken,
   ): Promise<string> {
     return await this.withClient(async (client) => {
-      if (
-        await client.query(
-          Queries.userId(sqlFragment`
-            jasb.validate_upload(
-              ${userSlug},
-              ${sessionId.uri},
-              ${this.config.auth.sessionLifetime.toString()}
-            )
-          `),
-        )
-      ) {
-        return userSlug;
-      } else {
-        throw new WebError(StatusCodes.FORBIDDEN, "Not a bet manager.");
-      }
+      // This will throw if not authorized.
+      await client.query(
+        Queries.userId(sqlFragment`
+          jasb.validate_upload(
+            ${userSlug},
+            ${sessionId.uri},
+            ${this.config.auth.sessionLifetime.toString()}
+          )
+        `),
+      );
+      return userSlug;
     });
   }
 
@@ -1953,7 +1949,7 @@ export class Store {
       if (error instanceof Slonik.NotFoundError) {
         throw new WebError(StatusCodes.NOT_FOUND, `Not Found`);
       }
-      if (error?.code !== undefined) {
+      if (error.code !== undefined) {
         switch (error.code) {
           case "UAUTH":
             throw new WebError(

@@ -12,7 +12,6 @@ import JoeBets.Api.Data as Api
 import JoeBets.Api.IdData as Api
 import JoeBets.Api.Model as Api
 import JoeBets.Api.Path as Api
-import JoeBets.Gacha.Card as Card
 import JoeBets.Gacha.CardType as CardType
 import JoeBets.Gacha.Rarity as Rarity
 import JoeBets.Messages as Global

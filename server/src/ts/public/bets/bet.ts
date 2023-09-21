@@ -103,7 +103,7 @@ const progressFromInternal = (
     }
 
     case "Cancelled":
-      return { state: "Cancelled", reason: internal.cancelled_reason! };
+      return { state: "Cancelled", reason: internal.cancelled_reason ?? "" };
 
     default:
       return unknownProgress(internal.progress);

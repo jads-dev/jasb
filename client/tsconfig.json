@@ -3,9 +3,7 @@
 
   "include": [
     "./src/mts/**/*",
-    "./components/**/*",
-    "./components/*.d.mts",
-    "./assets/*.d.mts",
+    "./components/*/mts/**/*",
     "./material/src/mts/**/*"
   ],
   "exclude": ["node_modules", "dist"],
@@ -15,6 +13,7 @@
     "module": "nodenext",
     "target": "es2020",
     "lib": ["dom", "es2020"],
+    "types": ["vite/client"],
     "moduleResolution": "nodenext",
 
     "outDir": "dist",

@@ -1,0 +1,9 @@
+/**
+In subdirectories the paths won't be right as the rewriting treats them all as coming from index.
+If we do it all here, it'll match up.
+*/
+
+$background: url(../../assets/images/background.svg);
+$monocoin: url(../../assets/images/monocoin.png);
+
+$roboto-flex: url(../../assets/fonts/Roboto-Flex.woff2);

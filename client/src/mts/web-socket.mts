@@ -57,7 +57,7 @@ class Manager {
         this.#delay = Manager.#initialDelay;
       }
     });
-    socket.addEventListener("message", (event) => {
+    socket.addEventListener("message", (event: MessageEvent<string>) => {
       if (this.#callback !== undefined) {
         this.#callback(event.data);
       }

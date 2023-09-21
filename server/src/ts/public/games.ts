@@ -132,18 +132,24 @@ const progressFromInternal = (internal: Internal.Game): Progress => {
       return { state: "Future" };
 
     case "Current":
+      if (internal.started === null) {
+        // We have an SQL check constraint, so this should never happen.
+        throw new Error("Must have start to be current.");
+      }
       return {
         state: "Current",
-        // We have an SQL check constraint, so this is not null in this case.
-        start: internal.started!,
+        start: internal.started,
       };
 
     case "Finished":
+      if (internal.started === null || internal.finished === null) {
+        // We have an SQL check constraint, so this should never happen.
+        throw new Error("Must have start and finish to be finished.");
+      }
       return {
         state: "Finished",
-        // We have an SQL check constraint, so these are not null in this case.
-        start: internal.started!,
-        finish: internal.finished!,
+        start: internal.started,
+        finish: internal.finished,
       };
 
     default:

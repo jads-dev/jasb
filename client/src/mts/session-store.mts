@@ -38,6 +38,8 @@ export interface Store {
 }
 
 export const init = (): Store => {
+  // This is a check for browsers not supporting it, while the types assume they do.
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
   if (window.sessionStorage !== undefined) {
     return new Browser(sessionStorage);
   } else {
@@ -90,7 +92,7 @@ class Browser implements Store {
     this.callback = callback;
   }
 
-  private internalGet(key: string): unknown | undefined {
+  private internalGet(key: string): unknown {
     const rawItem = this.backend.getItem(`${Browser.prefix}${key}`);
     if (rawItem !== null) {
       return JSON.parse(rawItem);

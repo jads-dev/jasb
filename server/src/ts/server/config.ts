@@ -204,7 +204,7 @@ export async function load(
   let current: unknown = Server.encode(builtIn);
   for (const file of configPath.split(";")) {
     const raw = await fs.readFile(file);
-    const userConfig = JSON5.parse(raw.toString());
+    const userConfig: unknown = JSON5.parse(raw.toString());
     current = deepMerge(current, userConfig);
   }
   const result = Server.decode(current);
@@ -217,12 +217,12 @@ export async function load(
         );
       }
       config.security.cookies.secret.inSecureEnvironment();
-      config.security.cookies.oldSecrets.map((secret) =>
-        secret.inSecureEnvironment(),
-      );
+      config.security.cookies.oldSecrets.map((secret) => {
+        secret.inSecureEnvironment();
+      });
       config.auth.discord.clientSecret.inSecureEnvironment();
       config.store.source.password?.inSecureEnvironment();
-      config.notifier?.token?.inSecureEnvironment();
+      config.notifier?.token.inSecureEnvironment();
     }
     return config;
   } else {

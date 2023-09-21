@@ -19,14 +19,13 @@ const PermissionsBody = Schema.readonly(
     manageBets: Schema.boolean,
   }),
 );
-type PermissionsBody = Schema.TypeOf<typeof PermissionsBody>;
 
 export const usersApi = (server: Server.State): Router => {
   const router = new Router();
 
   // Get Logged In User.
-  router.get("/", async (ctx) => {
-    const sessionCookie = requireSession(ctx["ctx"].cookies);
+  router.get("/", (ctx) => {
+    const sessionCookie = requireSession(ctx.cookies);
     ctx.redirect(`/api/user/${sessionCookie.user}`);
     ctx.status = StatusCodes.TEMPORARY_REDIRECT;
   });
@@ -98,7 +97,7 @@ export const usersApi = (server: Server.State): Router => {
     // one-time reply.
     const ws: unknown = ctx["ws"];
     if (ws instanceof Function) {
-      const socket: WebSocket = await ws();
+      const socket = (await ws()) as WebSocket;
       const userId = await server.store.validateSession(
         sessionCookie.user,
         sessionCookie.session,
@@ -137,7 +136,7 @@ export const usersApi = (server: Server.State): Router => {
     await server.store.clearNotification(
       sessionCookie.user,
       sessionCookie.session,
-      notificationId ?? "",
+      notificationId,
     );
     ctx.body = Notifications.Id.encode(notificationId);
   });

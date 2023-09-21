@@ -3,7 +3,7 @@ import { z } from "zod";
 import { Types } from "./types.js";
 
 export const GachaAmount = z
-  .object({ rolls: Types.int, scrap: Types.int })
+  .object({ rolls: Types.int.nullable(), scrap: Types.int.nullable() })
   .strict();
 export type GachaAmount = z.infer<typeof GachaAmount>;
 

@@ -1,4 +1,4 @@
-import { type CSSResultGroup, html, LitElement, nothing } from "lit";
+import { type CSSResultGroup, html, LitElement, nothing, unsafeCSS } from "lit";
 import {
   customElement,
   eventOptions,
@@ -8,12 +8,12 @@ import {
 import { styleMap } from "lit/directives/style-map.js";
 import { when } from "lit/directives/when.js";
 
-import { clamp, rescale, spaceSeparatedList } from "../../util.mjs";
-import { default as styles } from "../scss/gacha-card.scss";
+import { clamp, rescale, spaceSeparatedList } from "./util.mjs";
+import { default as styles } from "../scss/gacha-card.scss?inline";
 
 @customElement("gacha-card")
 export class GachaCard extends LitElement {
-  static override styles: CSSResultGroup = [styles];
+  static override styles: CSSResultGroup = [unsafeCSS(styles)];
 
   /**
    * The serial number of the card.
@@ -85,14 +85,14 @@ export class GachaCard extends LitElement {
   declare sample: boolean;
 
   @state()
-  declare private _effectFocus: { x: number; y: number };
+  private declare _effectFocus: { x: number; y: number };
 
   @state()
-  declare private _effectOpacity: number;
+  private declare _effectOpacity: number;
 
   #active = false;
   #previousInactiveStep: number | undefined;
-  #setNotActive: NodeJS.Timeout | undefined;
+  #setNotActive: ReturnType<typeof setTimeout> | undefined;
 
   constructor() {
     super();
@@ -124,7 +124,9 @@ export class GachaCard extends LitElement {
       clearTimeout(this.#setNotActive);
       this.#setNotActive = setTimeout(() => {
         this.#active = false;
-        requestAnimationFrame((time) => this.#resetToInactive(time));
+        requestAnimationFrame((time) => {
+          this.#resetToInactive(time);
+        });
       }, 1000);
     }
   }
@@ -155,7 +157,9 @@ export class GachaCard extends LitElement {
         this._effectFocus.y > 51 ||
         this._effectFocus.y < 49
       ) {
-        requestAnimationFrame((time) => this.#resetToInactive(time));
+        requestAnimationFrame((time) => {
+          this.#resetToInactive(time);
+        });
       } else {
         this._effectOpacity = 0;
         this._effectFocus = { x: 50, y: 50 };
@@ -187,7 +191,9 @@ export class GachaCard extends LitElement {
         <div
           class="rotator"
           @pointermove="${this.interactive
-            ? this.updateMousePosition
+            ? (event: PointerEvent) => {
+                this.updateMousePosition(event);
+              }
             : nothing}"
         >
           <div class="side reverse">
@@ -203,7 +209,9 @@ export class GachaCard extends LitElement {
                 () =>
                   html`<span class="serial-number">${this.serialNumber}</span>`,
               )}
-              <div class="image"><img src="${this.image}" alt="${this.name}" /></div>
+              <div class="image">
+                <img src="${this.image}" alt="${this.name}" />
+              </div>
               <div class="details">
                 <div class="rarity ${this.rarity}"></div>
                 <span class="name" data-name="${this.name}">${this.name}</span>

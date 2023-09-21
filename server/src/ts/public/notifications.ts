@@ -192,10 +192,10 @@ const optionReferenceFromInternal = (
 const gachaAmountFromInternal = (
   internal: Internal.Notifications.GachaAmount,
 ): GachaAmount => ({
-  ...(internal.rolls !== undefined && internal.rolls > 0
+  ...(internal.rolls !== null && internal.rolls > 0
     ? { rolls: internal.rolls }
     : {}),
-  ...(internal.scrap !== undefined && internal.scrap > 0
+  ...(internal.scrap !== null && internal.scrap > 0
     ? { scrap: internal.scrap }
     : {}),
 });

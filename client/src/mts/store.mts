@@ -60,11 +60,13 @@ export interface Store {
 }
 
 export const init = (): Store => {
+  // This is a check for browsers not supporting it, while the types assume they do.
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
   if (window.localStorage !== undefined) {
     try {
       return Browser.createOrMigrate(window.localStorage);
     } catch (e) {
-      console.warn((e as Error)?.message);
+      console.warn((e as Error | undefined)?.message);
       return new Null();
     }
   } else {
@@ -139,7 +141,8 @@ class Browser implements Store {
     window.addEventListener("storage", (storageEvent: StorageEvent) => {
       if (this.callback !== undefined && storageEvent.key !== null) {
         if (storageEvent.newValue !== null) {
-          const item: Item = JSON.parse(storageEvent.newValue);
+          // TODO: We should probably do something safer than assume here.
+          const item: Item = JSON.parse(storageEvent.newValue) as Item;
           const value: Value = {
             key: storageEvent.key.slice(Browser.prefix.length - 1),
             item,
@@ -227,7 +230,8 @@ class Browser implements Store {
   private internalGet(key: string): Item | undefined {
     const rawItem = this.backend.getItem(`${Browser.prefix}${key}`);
     if (rawItem !== null) {
-      return JSON.parse(rawItem);
+      // TODO: We should probably do something safer than assume here.
+      return JSON.parse(rawItem) as Item;
     }
     return undefined;
   }
@@ -247,7 +251,8 @@ class Browser implements Store {
   ): Metadata<typeof Browser.currentMetadataVersion> {
     const rawMetadata = backend.getItem(Browser.prefix + Browser.metadataKey);
     if (rawMetadata !== null) {
-      const metadata = JSON.parse(rawMetadata);
+      // TODO: We should probably do something safer than assume here.
+      const metadata = JSON.parse(rawMetadata) as Metadata;
       return Browser.migrate(metadata);
     } else {
       return Browser.defaultMetadata;

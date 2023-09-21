@@ -1,6 +1,8 @@
+@use "./_assets.scss";
+
 @mixin banner($slug, $color) {
   :host([banner="#{$slug}"]) {
-    --background: url(../../../assets/images/banners/#{$slug}-background.svg);
+    --background: #{assets.banner-background($slug)};
     --color: #{$color};
   }
 }

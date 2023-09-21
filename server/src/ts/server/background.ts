@@ -3,45 +3,48 @@ import { garbageCollect } from "./background/garbage-collect.js";
 import type { Logging } from "./logging.js";
 import type { Server } from "./model.js";
 
-export async function runTasks(server: Server.State) {
+export const runTasks = async (server: Server.State): Promise<void> => {
   const logger = server.logger.child({
     system: "background-task",
   });
-  runTaskRepeatedlyInBackground(
-    server,
-    logger,
-    "Garbage Collection",
-    garbageCollect,
-  );
-  runTaskRepeatedlyInBackground(
-    server,
-    logger,
-    "Avatar Caching",
-    cacheAvatars(server),
-  );
-}
+  await Promise.all([
+    runTaskRepeatedlyInBackground(
+      server,
+      logger,
+      "Garbage Collection",
+      garbageCollect,
+    ),
+    runTaskRepeatedlyInBackground(
+      server,
+      logger,
+      "Avatar Caching",
+      cacheAvatars(server),
+    ),
+  ]);
+};
 
-const runTaskRepeatedlyInBackground = (
+const runTaskRepeatedlyInBackground = async (
   server: Server.State,
   parentLogger: Logging.Logger,
   taskName: string,
   task:
     | ((server: Server.State, logger: Logging.Logger) => Promise<boolean>)
     | undefined,
-) => {
+): Promise<void> => {
   if (task !== undefined) {
     const logger = parentLogger.child({
       task: taskName,
     });
-    runTaskRepeatedly(server, logger, task).catch((error) =>
+    await runTaskRepeatedly(server, logger, task).catch((error) => {
       logger.error(
-        `Unhandled exception in background task ${taskName}: ${(error as Error)
-          ?.message}.`,
+        `Unhandled exception in background task ${taskName}: ${
+          (error as Error).message
+        }.`,
         {
-          exception: error,
+          exception: error as Error,
         },
-      ),
-    );
+      );
+    });
   }
 };
 

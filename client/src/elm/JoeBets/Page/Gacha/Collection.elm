@@ -22,7 +22,6 @@ import JoeBets.Api.IdData as Api
 import JoeBets.Api.Model as Api
 import JoeBets.Api.Path as Api
 import JoeBets.Gacha.Balance as Balance
-import JoeBets.Gacha.Balance.Scrap as Balance
 import JoeBets.Gacha.Banner as Banner
 import JoeBets.Gacha.Card as Card
 import JoeBets.Messages as Global

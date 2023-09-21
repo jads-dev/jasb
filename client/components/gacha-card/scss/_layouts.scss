@@ -1,3 +1,5 @@
+@use "./_assets.scss";
+
 @use "./_properties.scss";
 
 :host([layout="normal"]) {
@@ -90,7 +92,7 @@
     }
 
     &::after {
-      background: url(../../../assets/images/grain.webp);
+      background: #{assets.$grain};
       background-size: cover;
       opacity: 0.15;
     }

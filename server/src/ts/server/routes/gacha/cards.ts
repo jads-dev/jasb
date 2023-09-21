@@ -40,7 +40,7 @@ export const cardsApi = (server: Server.State): Router => {
   const router = new Router();
 
   // Redirect to the card collection for the logged-in user.
-  router.get("/", async (ctx) => {
+  router.get("/", (ctx) => {
     const sessionCookie = requireSession(ctx.cookies);
     ctx.redirect(`/api/user/${sessionCookie.user}`);
     ctx.status = StatusCodes.TEMPORARY_REDIRECT;

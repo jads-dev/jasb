@@ -1,11 +1,11 @@
-export const zip = function* <Items extends unknown[]>(
+export const zip = function* <Item, Items extends Item[]>(
   ...sources: { [Index in keyof Items]: Iterable<Items[Index]> }
 ): Iterable<Items> {
   const iterators = sources.map((source) => source[Symbol.iterator]());
   while (true) {
     const results = iterators.map((source) => source.next());
     if (!results.some((result) => result.done)) {
-      yield results.map((result) => result.value) as Items;
+      yield results.map((result) => result.value as Item) as Items;
     } else {
       return;
     }

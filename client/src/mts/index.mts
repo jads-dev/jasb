@@ -1,8 +1,8 @@
-import "../scss/index.scss";
 import "../../elm-material/src/mts/material.mjs";
 import "@fireworks-js/web";
 import "../../components/gacha-card/mts/gacha-card.mjs";
 
+import { Elm } from "../elm/JoeBets.mjs";
 import * as BaseUrl from "./base-url.mjs";
 import * as SessionStore from "./session-store.mjs";
 import * as Store from "./store.mjs";
@@ -13,12 +13,6 @@ const baseUrl = BaseUrl.discover();
 const store = Store.init();
 const sessionStore = SessionStore.init();
 const webSocketManager = WebSocket.init(baseUrl);
-
-const { Elm } = await import(
-  /* webpackChunkName: "JoeBets" */
-  /* webpackPreload: true */
-  "../elm/JoeBets.mjs"
-);
 
 const app = Elm.JoeBets.init({
   flags: {

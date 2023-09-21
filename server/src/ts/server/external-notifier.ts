@@ -64,7 +64,8 @@ const joinAnd = (
   if (segmentList.length < 2) {
     return segmentList;
   } else {
-    const joints = Array(segmentList.length - 2).fill(joiner);
+    const empty = Array(segmentList.length - 2) as undefined[];
+    const joints = [...empty].map(() => joiner);
     joints.push(and);
     return Iterables.interleave(segmentList, joints);
   }

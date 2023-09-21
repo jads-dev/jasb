@@ -1,23 +1,25 @@
 @use "sass:math";
 
-$trans: linear-gradient(
-  180deg,
-  #5bcefa 20%,
-  #f5a9b8 20%,
-  40%,
-  #ffffff 40%,
-  60%,
-  #f5a9b8 60%,
-  80%,
-  #5bcefa 80%
-);
+@use "./_assets.scss";
 
 .quality {
   display: block;
   content: "";
 }
 
-@mixin quality($slug, $icon, $background) {
+$trans: linear-gradient(
+  180deg,
+  #5bcefa 20%,
+  #f5a9b8 20%,
+  #f5a9b8 40%,
+  #ffffff 40%,
+  #ffffff 60%,
+  #f5a9b8 60%,
+  #f5a9b8 80%,
+  #5bcefa 80%
+);
+
+@mixin quality($slug, $background, $icon-type: "png") {
   :host([qualities~="#{$slug}"]) {
     --quality-background: #{$background};
   }
@@ -29,37 +31,17 @@ $trans: linear-gradient(
       width: 2em;
       height: 2em;
       background-size: contain;
-      background-image: #{$icon};
+      background-image: #{assets.quality-icon($slug, $icon-type)};
     }
   }
 }
 
-@include quality(
-  "self",
-  url(../../../assets/images/qualities/self.png),
-  #ffffff
-);
-@include quality(
-  "weeb",
-  url(../../../assets/images/qualities/weeb.png),
-  #fdf9b4
-);
-@include quality(
-  "joms",
-  url(../../../assets/images/qualities/joms.png),
-  #eb0100
-);
-@include quality(
-  "useless",
-  url(../../../assets/images/qualities/useless.png),
-  #555555
-);
-@include quality(
-  "mistake",
-  url(../../../assets/images/qualities/mistake.png),
-  #ff00ff
-);
-@include quality("trans", $trans, $trans);
+@include quality("self", #ffffff);
+@include quality("weeb", #fdf9b4);
+@include quality("joms", #eb0100);
+@include quality("useless", #555555);
+@include quality("mistake", #ff00ff);
+@include quality("trans", $trans, "svg");
 
 $primaryColor: #fff;
 $secondaryColor: #333;
@@ -119,21 +101,16 @@ $steps: 20;
   position: absolute;
   inset: 0 0 0 0;
   pointer-events: none;
-  background-image: url("../../../assets/images/qualities/weeb-overlay.svg");
+  background-image: #{assets.$weeb-overlay};
   background-size: 100% 100%;
 }
 
 :host([qualities~="joms"]) .image {
-  filter: url("../../../assets/images/qualities/red-tint.svg#a");
+  filter: #{assets.$red-tint};
 }
 
 :host([qualities~="self"]) {
   // TODO: Something?
-}
-
-.quality.trans::after {
-  mask-image: url("../../../assets/images/heart.svg");
-  mask-size: 100% 100%;
 }
 
 :host([qualities~="trans"]) {
