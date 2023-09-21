@@ -27,18 +27,10 @@
     linear-gradient(-45deg, #fff 15%, #000, #fff 85%), var(--shine-foil);
   background-blend-mode: soft-light, difference, normal;
   background-size: 120%, 200%, var(--shine-foil-size);
-  background-position:
-    center,
-    var(--effect-focus-x) var(--effect-focus-y),
-    center;
   background-repeat: no-repeat, no-repeat, repeat;
   filter: brightness(var(--shine-brightness, 0.8)) contrast(1.5) saturate(1);
   mix-blend-mode: color-dodge;
-  opacity: calc(
-    (1.4 * var(--shine-opacity, 1) * var(--effect-opacity, 0)) - var(
-        --effect-focus-from-center
-      )
-  );
+  opacity: calc((1.4) * (var(--effect-focus-from-center)));
 
   display: grid;
   grid-template:

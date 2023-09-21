@@ -5,7 +5,7 @@
 @use "./_banners.scss";
 @use "./_effects.scss";
 
-.card {
+#card {
   transform: translate3d(0px, 0px, 0.01px);
 
   transform-style: preserve-3d;
@@ -18,7 +18,7 @@
 
 :host(.unrevealed),
 :host(.revealed) {
-  .card::before {
+  #card::before {
     display: block;
     content: "";
     position: absolute;
@@ -30,7 +30,7 @@
   }
 }
 
-:host([sample]) .rotator {
+:host([sample]) .pivot {
   opacity: 0.5;
 
   &::after {
@@ -49,12 +49,12 @@
   filter: brightness(0) invert(1);
 }
 
-.rotator,
+.pivot,
 .effect {
   border-radius: properties.by-name("border-radius");
 }
 
-.rotator {
+.pivot {
   display: grid;
   grid-template:
     "card" 1fr

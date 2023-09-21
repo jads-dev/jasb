@@ -4,6 +4,7 @@ import {
   eventOptions,
   property,
   state,
+  query,
 } from "lit/decorators.js";
 import { styleMap } from "lit/directives/style-map.js";
 import { when } from "lit/directives/when.js";
@@ -57,11 +58,11 @@ export class GachaCard extends LitElement {
   @property()
   declare layout: string;
 
-  // /**
-  //  * The variant of the card.
-  //  */
-  // @property()
-  // declare variant;
+  /**
+   * The animation mode of the card, valid values are ("multi", "single")
+   */
+  @property()
+  animationMode = "multi"
 
   /**
    * Qualities the card has.
@@ -85,14 +86,16 @@ export class GachaCard extends LitElement {
   declare sample: boolean;
 
   @state()
-  private declare _effectFocus: { x: number; y: number };
+  declare private _effectFocus: { x: number; y: number };
 
   @state()
-  private declare _effectOpacity: number;
-
-  #active = false;
-  #previousInactiveStep: number | undefined;
-  #setNotActive: ReturnType<typeof setTimeout> | undefined;
+  declare private _effectDistance: number;
+  
+  @state()
+  private interpolateToPosition = { x: 0, y: 0 }
+  
+  @query('#card')
+  private card?: HTMLElement;
 
   constructor() {
     super();
@@ -106,96 +109,88 @@ export class GachaCard extends LitElement {
     this.qualities = [];
     this.interactive = false;
     this.sample = false;
-    this._effectFocus = { x: 50, y: 50 };
+    this._effectFocus = { x: 0, y: 0 };
     this._effectOpacity = 0;
+  }  
+
+  override connectedCallback() {
+    super.connectedCallback();
+    if (this.animationMode != "multi" && this.animationMode != "single")
+      return
+    this.interpolate();
+    window.addEventListener('mousemove', this.updateMousePosition.bind(this));
   }
 
+  override disconnectedCallback() {
+    super.disconnectedCallback();
+    if (this.animationMode != "multi" && this.animationMode != "single")
+      return
+    window.removeEventListener('mousemove', this.updateMousePosition);
+  }
+  
   @eventOptions({ passive: true })
-  updateMousePosition(event: PointerEvent) {
-    this.#active = true;
-    this._effectOpacity = 1;
-    const target = event.target;
-    if (target !== null && target instanceof HTMLElement) {
-      const { left, top, width, height } = target.getBoundingClientRect();
-      this._effectFocus = {
-        x: clamp((100 / width) * (event.clientX - left), 0, 100),
-        y: clamp((100 / height) * (event.clientY - top), 0, 100),
-      };
-      clearTimeout(this.#setNotActive);
-      this.#setNotActive = setTimeout(() => {
-        this.#active = false;
-        requestAnimationFrame((time) => {
-          this.#resetToInactive(time);
-        });
-      }, 1000);
+  updateMousePosition(event: MouseEvent) {
+    if (this.card !== undefined && this.card !== null) {
+      const { left, top, width, height } = this.card.getBoundingClientRect();
+
+      let x = ((event.clientX - (left + width / 2)) / (width / 2)) * 100;
+      let y = ((event.clientY - (top + height / 2)) / (height / 2)) * 100;
+    
+      if (this.animationMode == "multi") {
+        x = clamp(x, -150, 150)
+        y = clamp(y, -150, 150)
+        
+        if (Math.abs(x) == 150)
+          y = 0
+        if (Math.abs(y) == 150)
+          x = 0
+        
+        x -= (x - 100 * clamp(x / 100, -0.75, 0.75)) * 2
+        y -= (y - 100 * clamp(y / 100, -0.75, 0.75)) * 2
+      } else if (this.animationMode == "single") {
+        if (Math.abs(x) > 100 || Math.abs(y) > 100) {
+          this.interpolateToPosition = {x: 0, y: 0}
+          return
+        }
+      }
+      
+      this.interpolateToPosition = {x: x, y: y};
     }
   }
 
-  #resetToInactive(time: number) {
-    if (!this.#active) {
-      if (this.#previousInactiveStep !== undefined) {
-        const step = time - this.#previousInactiveStep;
-        const opacityDownRate = 0.005 * step;
-        const moveRate = 0.05 * step;
-        const towards50 = (value: number) =>
-          clamp(value + (value < 50 ? moveRate : -moveRate), 0, 100);
-        this._effectOpacity = clamp(
-          this._effectOpacity - opacityDownRate,
-          0,
-          1,
-        );
-        this._effectFocus = {
-          x: towards50(this._effectFocus.x),
-          y: towards50(this._effectFocus.y),
-        };
-      }
-      this.#previousInactiveStep = time;
-      if (
-        this._effectOpacity > 0 ||
-        this._effectFocus.x > 51 ||
-        this._effectFocus.x < 49 ||
-        this._effectFocus.y > 51 ||
-        this._effectFocus.y < 49
-      ) {
-        requestAnimationFrame((time) => {
-          this.#resetToInactive(time);
-        });
-      } else {
-        this._effectOpacity = 0;
-        this._effectFocus = { x: 50, y: 50 };
-        this.#previousInactiveStep = undefined;
-      }
-    } else {
-      this.#previousInactiveStep = undefined;
+  interpolate() {
+    if (this._effectFocus.x != this.interpolateToPosition.x) {
+      var dx = this.interpolateToPosition.x - this._effectFocus.x
+      this._effectFocus.x += dx * 0.1
     }
+    
+    if (this._effectFocus.y != this.interpolateToPosition.y) {
+      var dy = this.interpolateToPosition.y - this._effectFocus.y
+      this._effectFocus.y += dy * 0.1
+    }
+    
+    if (this.card !== undefined && this.card !== null) {
+      const { width, height } = this.card.getBoundingClientRect();
+      this._effectDistance = (this._effectFocus.x ** 2 + this._effectFocus.y ** 2) / ((width / 2) ** 2 + (height / 2) ** 2) * 2
+    }
+
+    this.requestUpdate(); 
+    requestAnimationFrame(() => this.interpolate());
   }
 
   override render() {
-    const distanceFromCenter = clamp(
-      Math.sqrt(
-        (this._effectFocus.x - 50) ** 2 + (this._effectFocus.y - 50) ** 2,
-      ) / 50,
-      0,
-      1,
-    );
     const customProperties = {
       "--effect-focus-x": `${this._effectFocus.x}%`,
       "--effect-focus-y": `${this._effectFocus.y}%`,
-      "--effect-focus-from-center": `${distanceFromCenter}`,
-      "--rotate-x": `${rescale(100 - this._effectFocus.x, 0, 100, -10, 10)}deg`,
-      "--rotate-y": `${rescale(this._effectFocus.y, 0, 100, -10, 10)}deg`,
-      "--effect-opacity": this._effectOpacity,
+      "--effect-focus-from-center": `${this._effectDistance}`,
+      "--rotate-x": `${-this._effectFocus.x / 10}deg`,
+      "--rotate-y": `${this._effectFocus.y / 10}deg`,
     };
     return html`
-      <div class="card" style="${styleMap(customProperties)}">
-        <div
-          class="rotator"
-          @pointermove="${this.interactive
-            ? (event: PointerEvent) => {
-                this.updateMousePosition(event);
-              }
-            : nothing}"
-        >
+      <div 
+        id="card"
+        style="${styleMap(customProperties)}">
+        <div class="pivot">
           <div class="side reverse">
             <div class="content"></div>
           </div>
