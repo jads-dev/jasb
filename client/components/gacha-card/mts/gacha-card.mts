@@ -58,11 +58,34 @@ export class GachaCard extends LitElement {
   @property()
   declare layout: string;
 
+  _animationMode = "multi"
+  _hasEventListener = false
+
   /**
    * The animation mode of the card, valid values are ("multi", "single")
    */
   @property()
-  animationMode = "multi"
+  get animationMode() {
+    return this._animationMode
+  }
+
+  set animationMode(newValue: string) {
+    const oldValue = this._animationMode;
+    this._animationMode = newValue;
+    this.requestUpdate('animationMode', oldValue); 
+    if (this.animationMode != "multi" && this.animationMode != "single") {
+      if (this._hasEventListener) {
+        window.removeEventListener('mousemove', this.updateMousePosition);
+        this._hasEventListener = false 
+      }
+      this._interpolateToPosition = { x: 0, y: 0 }
+    } else {
+      if (!this._hasEventListener) {
+        window.addEventListener('mousemove', this.updateMousePosition.bind(this));
+        this._hasEventListener = true
+      }
+    }
+  }
 
   /**
    * Qualities the card has.
@@ -79,7 +102,7 @@ export class GachaCard extends LitElement {
   declare interactive: boolean;
 
   /**
-   * If this card is a sample of a card type, rather than an actual card
+   * If this._card is a sample of a card type, rather than an actual card
    * which exists.
    */
   @property({ type: Boolean })
@@ -92,10 +115,10 @@ export class GachaCard extends LitElement {
   declare private _effectDistance: number;
   
   @state()
-  private interpolateToPosition = { x: 0, y: 0 }
+  private _interpolateToPosition = { x: 0, y: 0 }
   
   @query('#card')
-  private card?: HTMLElement;
+  private _card?: HTMLElement;
 
   constructor() {
     super();
@@ -115,23 +138,30 @@ export class GachaCard extends LitElement {
 
   override connectedCallback() {
     super.connectedCallback();
+    this.interpolate();
     if (this.animationMode != "multi" && this.animationMode != "single")
       return
-    this.interpolate();
-    window.addEventListener('mousemove', this.updateMousePosition.bind(this));
+
+    if (!this._hasEventListener) {
+      window.addEventListener('mousemove', this.updateMousePosition.bind(this));
+      this._hasEventListener = true
+    }
   }
 
   override disconnectedCallback() {
     super.disconnectedCallback();
     if (this.animationMode != "multi" && this.animationMode != "single")
       return
-    window.removeEventListener('mousemove', this.updateMousePosition);
+    if (this._hasEventListener) {
+      window.removeEventListener('mousemove', this.updateMousePosition);
+      this._hasEventListener = false 
+    }
   }
-  
+
   @eventOptions({ passive: true })
   updateMousePosition(event: MouseEvent) {
-    if (this.card !== undefined && this.card !== null) {
-      const { left, top, width, height } = this.card.getBoundingClientRect();
+    if (this._card !== undefined && this._card !== null) {
+      const { left, top, width, height } = this._card.getBoundingClientRect();
 
       let x = ((event.clientX - (left + width / 2)) / (width / 2)) * 100;
       let y = ((event.clientY - (top + height / 2)) / (height / 2)) * 100;
@@ -149,28 +179,28 @@ export class GachaCard extends LitElement {
         y -= (y - 100 * clamp(y / 100, -0.75, 0.75)) * 2
       } else if (this.animationMode == "single") {
         if (Math.abs(x) > 100 || Math.abs(y) > 100) {
-          this.interpolateToPosition = {x: 0, y: 0}
+          this._interpolateToPosition = {x: 0, y: 0}
           return
         }
       }
       
-      this.interpolateToPosition = {x: x, y: y};
+      this._interpolateToPosition = {x: x, y: y};
     }
   }
 
   interpolate() {
-    if (this._effectFocus.x != this.interpolateToPosition.x) {
-      var dx = this.interpolateToPosition.x - this._effectFocus.x
+    if (this._effectFocus.x != this._interpolateToPosition.x) {
+      var dx = this._interpolateToPosition.x - this._effectFocus.x
       this._effectFocus.x += dx * 0.1
     }
     
-    if (this._effectFocus.y != this.interpolateToPosition.y) {
-      var dy = this.interpolateToPosition.y - this._effectFocus.y
+    if (this._effectFocus.y != this._interpolateToPosition.y) {
+      var dy = this._interpolateToPosition.y - this._effectFocus.y
       this._effectFocus.y += dy * 0.1
     }
     
-    if (this.card !== undefined && this.card !== null) {
-      const { width, height } = this.card.getBoundingClientRect();
+    if (this._card !== undefined && this._card !== null) {
+      const { width, height } = this._card.getBoundingClientRect();
       this._effectDistance = (this._effectFocus.x ** 2 + this._effectFocus.y ** 2) / ((width / 2) ** 2 + (height / 2) ** 2) * 2
     }
 
