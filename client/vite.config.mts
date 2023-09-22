@@ -13,6 +13,7 @@ const port = stringPort ? parseInt(stringPort) : 8080;
 const url =
   process.env["JASB_URL"] ??
   (production ? "https://jasb.900000000.xyz/" : `http://localhost:${port}/`);
+const version = process.env["JASB_VERSION"] ?? "dev";
 
 const elmPureFunctions = [
   "F2",
@@ -67,9 +68,12 @@ const spaRedirect = (): Plugin => ({
 export default defineConfig({
   appType: "spa",
   mode: production ? "production" : "development",
-  base: url,
+  base: "/",
   define: {
-    "import.meta.env.JASB_URL": JSON.stringify(url),
+    "import.meta.env.JASB_URL": JSON.stringify(
+      url.endsWith("/") ? url : `${url}/`,
+    ),
+    "import.meta.env.JASB_VERSION": JSON.stringify(version),
   },
   resolve: {
     alias: {

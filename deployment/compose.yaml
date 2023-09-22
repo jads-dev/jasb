@@ -64,6 +64,8 @@ services:
       - frontend
     depends_on:
       - server
+    volumes:
+      - /host/path/to/nginx.conf:/etc/nginx/nginx.conf:ro
     restart: unless-stopped
     profiles:
       - serve

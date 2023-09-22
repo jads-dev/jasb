@@ -34,6 +34,7 @@
     "elm-tooling": "^1.14.1",
     "postcss-preset-env": "^9.0.0",
     "sass": "^1.49.9",
+    "typescript": "^5.2.2",
     "vite": "^4.4.9",
     "vite-plugin-compression2": "^0.10.5",
     "vite-plugin-elm": "^2.8.0"

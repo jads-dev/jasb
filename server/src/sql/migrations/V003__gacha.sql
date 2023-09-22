@@ -54,24 +54,6 @@ CREATE TABLE
 CREATE TRIGGER update_gacha_banner_version BEFORE UPDATE ON gacha_banners
   FOR EACH ROW EXECUTE PROCEDURE update_version();
 
-INSERT INTO gacha_banners (
-  slug,
-  "name",
-  description,
-  cover,
-  foreground_color,
-  background_color,
-  type,
-  active,
-  "order",
-  creator
-) VALUES
-  ('jads', 'JADS', 'Your favourite JADS members.', '', '\xFFFFFFFF', '\x000000FF', 'Standard', FALSE, 0, 4),
-  ('stream-memes', 'Stream Memes', 'Infinite references.', '', '\xFFFFFFFF', '\x000000FF', 'Standard', FALSE, 1, 4),
-  ('joms', 'Joms', 'The very official mascot of JADS.', '', '\x000000FF', '\xFFFFFFFF', 'Standard', FALSE, 2, 4),
-  ('chans', 'Chans', 'She may be an inanimate object, but she’s your waifu.', '', '\xFFFFFFFF', '\x000000FF', 'Standard', FALSE, 3, 4),
-  ('emotes', 'Emotes', 'If you can’t get them as reactions, try getting them as cards.', '', '\xFFFFFFFF', '\x000000FF', 'Standard', FALSE, 4, 4);
-
 CREATE TABLE
   gacha_rarities (
     id INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,

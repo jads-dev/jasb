@@ -10,15 +10,18 @@ WORKDIR /jasb
 
 ARG VERSION
 ARG MODE
+ARG URL
 
 ENV JASB_VERSION ${VERSION}
-ENV WEBPACK_MODE ${MODE}
+ENV JASB_BUILD_MODE ${MODE}
+ENV JASB_URL ${URL}
 
-COPY ["./package.json", "./package-lock.json", "./"]
+COPY ["./package.json", "./package-lock.json", "./elm-tooling.json", "./"]
 COPY ["./elm-material/package.json", "./elm-material/package-lock.json", "./elm-material/"]
 RUN ["npm", "ci"]
 
-COPY ["./tsconfig.json", "./postcss.config.cjs", "./webpack.config.mjs", "./elm.json", "./elm-tooling.json", "./"]
+COPY ["./tsconfig.json", "./postcss.config.cjs", "./vite.config.mts", "./elm.json", "./"]
+COPY ["./index.html", "./"]
 COPY ["./src", "./src"]
 COPY ["./components", "./components"]
 COPY ["./elm-material/src", "./elm-material/src"]
