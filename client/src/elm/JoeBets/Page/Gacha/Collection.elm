@@ -731,7 +731,7 @@ view parent =
               ]
             , confirmRecycle userId
             , Card.viewDetailedCardOverlay maybeContext parent.gacha
-            , Card.viewDetailedCardTypeOverlay maybeContext parent.gacha
+            , Card.viewDetailedCardTypeOverlay parent.gacha
             ]
                 |> List.concat
 
@@ -760,11 +760,11 @@ view parent =
             in
             [ [ User.viewLink User.Full userId user
               , Route.a (Overview |> Route.CardCollection userId) [] [ Html.text "Back to Collection" ]
-              , Banner.viewCollectionBanner userId bannerId banner
-              , Card.viewCardTypes onClick userId bannerId bannerCollection.cardTypes
+              , Banner.viewCollectionBanner False userId bannerId banner
+              , Card.viewCardTypesWithCards onClick False userId bannerId bannerCollection.cardTypes
               ]
             , Card.viewDetailedCardOverlay maybeContext parent.gacha
-            , Card.viewDetailedCardTypeOverlay maybeContext parent.gacha
+            , Card.viewDetailedCardTypeOverlay parent.gacha
             , confirmRecycle userId
             ]
                 |> List.concat

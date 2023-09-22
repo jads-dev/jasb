@@ -24,6 +24,7 @@ import JoeBets.Page.Gacha.Edit.CardType exposing (..)
 import JoeBets.Page.Gacha.Forge as Forge
 import JoeBets.Page.Gacha.Forge.Model as Forge
 import JoeBets.Page.Gacha.Model exposing (..)
+import JoeBets.Page.Gacha.PreviewBanner as PreviewBanner
 import JoeBets.Page.Gacha.Roll as Roll
 import JoeBets.Page.Gacha.Route exposing (..)
 import JoeBets.Page.Model as PageModel
@@ -68,6 +69,7 @@ init route =
     , rarityContext = { rarities = Api.initData }
     , detailedCard = Api.initIdData
     , detailedCardType = Api.initIdData
+    , bannerPreview = Api.initIdData
     }
 
 
@@ -86,18 +88,29 @@ loadRarityContext origin context =
 
 
 load : Route -> Parent a -> ( Parent a, Cmd Global.Msg )
-load route ({ origin, gacha } as model) =
+load route originalModel =
+    let
+        ({ origin, gacha } as model) =
+            let
+                originalGacha =
+                    originalModel.gacha
+            in
+            { originalModel | gacha = { originalGacha | route = route } }
+    in
     case model.auth.localUser of
         Just _ ->
             case route of
                 Roll ->
-                    Roll.load { model | gacha = { gacha | route = route } }
+                    Roll.load model
 
                 Forge ->
-                    Forge.load { model | gacha = { gacha | route = route } }
+                    Forge.load model
+
+                PreviewBanner bannerId ->
+                    PreviewBanner.load bannerId model
 
                 Edit Banner ->
-                    loadBannersEditor { model | gacha = { gacha | route = route } }
+                    loadBannersEditor model
 
                 Edit (CardType bannerId) ->
                     let
@@ -106,13 +119,7 @@ load route ({ origin, gacha } as model) =
 
                         ( updatedModel, cardTypesEditorCmd ) =
                             loadCardTypesEditor bannerId
-                                { model
-                                    | gacha =
-                                        { gacha
-                                            | route = route
-                                            , rarityContext = rarityContext
-                                        }
-                                }
+                                { model | gacha = { gacha | rarityContext = rarityContext } }
                     in
                     ( updatedModel
                     , Cmd.batch [ cardTypesEditorCmd, rarityContextCmd ]
@@ -223,6 +230,15 @@ update msg ({ origin, gacha } as model) =
             , Cmd.none
             )
 
+        LoadBannerPreview bannerId response ->
+            let
+                bannerPreview =
+                    gacha.bannerPreview |> Api.updateIdData bannerId response
+            in
+            ( { model | gacha = { gacha | bannerPreview = bannerPreview } }
+            , Cmd.none
+            )
+
         RollMsg rollMsg ->
             Roll.update rollMsg model
 
@@ -241,6 +257,9 @@ view ({ gacha } as model) =
 
         Forge ->
             Forge.view model
+
+        PreviewBanner bannerId ->
+            PreviewBanner.view bannerId model
 
         Edit Banner ->
             viewBannersEditor model

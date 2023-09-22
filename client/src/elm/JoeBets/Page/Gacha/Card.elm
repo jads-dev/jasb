@@ -2,6 +2,7 @@ module JoeBets.Page.Gacha.Card exposing
     ( ManageOrView(..)
     , view
     , viewCardTypes
+    , viewCardTypesWithCards
     , viewCards
     , viewDetailedCard
     , viewDetailedCardOverlay
@@ -306,11 +307,11 @@ viewDetailedCard maybeContext ownerId bannerId cardId card =
         |> viewDetailedInternal maybeContext bannerId card.cardType
 
 
-viewDetailedCardType : Maybe Collection.ManageContext -> Banner.Id -> CardType.Id -> CardType.Detailed -> Html Global.Msg
-viewDetailedCardType maybeContext bannerId cardTypeId cardType =
+viewDetailedCardType : Banner.Id -> CardType.Id -> CardType.Detailed -> Html Global.Msg
+viewDetailedCardType bannerId cardTypeId cardType =
     { cardTypeId = cardTypeId }
         |> DetailedCardType
-        |> viewDetailedInternal maybeContext bannerId cardType
+        |> viewDetailedInternal Nothing bannerId cardType
 
 
 viewDetailedCardOverlay : Maybe Collection.ManageContext -> Gacha.Model -> List (Html Global.Msg)
@@ -345,8 +346,8 @@ viewDetailedCardOverlay maybeContext { detailedCard } =
         |> Maybe.withDefault []
 
 
-viewDetailedCardTypeOverlay : Maybe Collection.ManageContext -> Gacha.Model -> List (Html Global.Msg)
-viewDetailedCardTypeOverlay maybeContext { detailedCardType } =
+viewDetailedCardTypeOverlay : Gacha.Model -> List (Html Global.Msg)
+viewDetailedCardTypeOverlay { detailedCardType } =
     let
         close =
             Gacha.HideDetailedCardType |> wrap
@@ -360,7 +361,7 @@ viewDetailedCardTypeOverlay maybeContext { detailedCardType } =
                         |> IconButton.view
                     ]
                 ]
-            , viewDetailedCardType maybeContext bannerId cardTypeId cardType
+            , viewDetailedCardType bannerId cardTypeId cardType
             ]
 
         viewGiven ( pointer, cardType ) =
@@ -582,8 +583,8 @@ viewHighlight manageOrView model ownerId highlights index ( cardId, ( bannerId, 
     )
 
 
-viewCardType : Maybe (Collection.OnClick Global.Msg) -> User.Id -> Banner.Id -> CardType.Id -> CardType.WithCards -> Html Global.Msg
-viewCardType onClick userId bannerId cardTypeId cardType =
+viewCardTypeWithCards : Maybe (Collection.OnClick Global.Msg) -> User.Id -> Banner.Id -> CardType.Id -> CardType.WithCards -> Html Global.Msg
+viewCardTypeWithCards onClick userId bannerId cardTypeId cardType =
     let
         contents =
             if AssocList.isEmpty cardType.cards then
@@ -617,14 +618,45 @@ viewCardType onClick userId bannerId cardTypeId cardType =
     HtmlK.ul [ HtmlA.class "card-set" ] contents
 
 
-viewCardTypes : Maybe (Collection.OnClick Global.Msg) -> User.Id -> Banner.Id -> AssocList.Dict CardType.Id CardType.WithCards -> Html Global.Msg
-viewCardTypes onClick user banner =
+viewCardTypesWithCards : Maybe (Collection.OnClick Global.Msg) -> Bool -> User.Id -> Banner.Id -> AssocList.Dict CardType.Id CardType.WithCards -> Html Global.Msg
+viewCardTypesWithCards onClick showNoCards user banner cardTypesWithCards =
     let
         viewListItem ( cardTypeId, cardType ) =
+            if showNoCards || not (AssocList.isEmpty cardType.cards) then
+                Just
+                    ( CardType.cssId cardTypeId
+                    , Html.li [] [ viewCardTypeWithCards onClick user banner cardTypeId cardType ]
+                    )
+
+            else
+                Nothing
+
+        cards =
+            cardTypesWithCards |> AssocList.toList |> List.filterMap viewListItem
+    in
+    if cards |> List.isEmpty |> not then
+        cards |> HtmlK.ol [ HtmlA.class "card-types" ]
+
+    else
+        [ Icon.ghost |> Icon.view, Html.text "No cards yet!" ] |> Html.div [ HtmlA.class "card-types empty" ]
+
+
+viewCardTypes : Maybe (Banner.Id -> CardType.Id -> Global.Msg) -> Banner.Id -> AssocList.Dict CardType.Id CardType -> Html Global.Msg
+viewCardTypes onClick bannerId =
+    let
+        viewListItem ( cardTypeId, cardType ) =
+            let
+                placholderApplied placeholder =
+                    placeholder bannerId cardTypeId
+            in
             ( CardType.cssId cardTypeId
-            , Html.li [] [ viewCardType onClick user banner cardTypeId cardType ]
+            , Html.li []
+                [ viewPlaceholder
+                    (onClick |> Maybe.map placholderApplied)
+                    bannerId
+                    cardTypeId
+                    cardType
+                ]
             )
     in
-    AssocList.toList
-        >> List.map viewListItem
-        >> HtmlK.ol [ HtmlA.class "card-types" ]
+    AssocList.toList >> List.map viewListItem >> HtmlK.ol [ HtmlA.class "card-types" ]

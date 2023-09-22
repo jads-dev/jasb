@@ -58,7 +58,7 @@ export const cardTypesApi = (server: Server.State): Router => {
       "banner",
       ctx.params["bannerSlug"],
     );
-    const cardTypes = await server.store.gachaGetCardTypes(bannerSlug);
+    const cardTypes = await server.store.gachaGetEditableCardTypes(bannerSlug);
     ctx.body = Schema.readonlyArray(
       Schema.tuple([CardTypes.Id, CardTypes.EditableCardType]),
     ).encode(cardTypes.map(CardTypes.editableFromInternal));

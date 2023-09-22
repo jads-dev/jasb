@@ -19,10 +19,10 @@
 .banner {
   display: grid;
   grid-template:
-    "type . roll" auto
-    "title title roll" auto
-    "description description description" auto
-    / auto 1fr auto;
+    "type . roll roll" auto
+    "title title roll roll" auto
+    "description description description preview" auto
+    / auto 1fr auto auto;
 
   box-sizing: border-box;
 
@@ -89,5 +89,18 @@
       padding: 0.5em;
       border-radius: 0 0 0.5em 0;
     }
+  }
+
+  > .preview {
+    grid-area: preview;
+    align-self: center;
+    justify-self: flex-end;
+    margin-right: 0.5em;
+  }
+}
+
+#preview-banner {
+  .banner-container {
+    justify-self: stretch;
   }
 }

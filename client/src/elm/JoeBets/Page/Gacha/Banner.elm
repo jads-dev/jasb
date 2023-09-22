@@ -3,10 +3,13 @@ module JoeBets.Page.Gacha.Banner exposing
     , viewBanners
     , viewCollectionBanner
     , viewCollectionBanners
+    , viewPreviewBanner
     )
 
 import AssocList
 import Color
+import FontAwesome as Icon
+import FontAwesome.Solid as Icon
 import Html exposing (Html)
 import Html.Attributes as HtmlA
 import JoeBets.Api.Data as Api
@@ -14,13 +17,17 @@ import JoeBets.Gacha.Balance as Balance
 import JoeBets.Gacha.Balance.Guarantees as Balance
 import JoeBets.Gacha.Balance.Rolls as Balance
 import JoeBets.Gacha.Banner as Banner exposing (Banner)
+import JoeBets.Material as Material
+import JoeBets.Messages as Global
 import JoeBets.Page.Gacha.Collection.Route as Collection
 import JoeBets.Page.Gacha.Model as Gacha
 import JoeBets.Page.Gacha.Roll.Model as Roll
+import JoeBets.Page.Gacha.Route as Gacha
 import JoeBets.Route as Route
 import JoeBets.User.Model as User
 import List
 import Material.Button as Button
+import Material.IconButton as IconButton
 import Util.Html.Attributes as HtmlA
 import Util.Maybe as Maybe
 
@@ -51,8 +58,8 @@ viewInternal id { name, description, cover, type_, colors } extra =
         )
 
 
-view : (Gacha.Msg -> msg) -> Parent a -> ( Banner.Id, Banner ) -> Html msg
-view wrap { gacha } ( id, banner ) =
+view : Parent a -> ( Banner.Id, Banner ) -> Html Global.Msg
+view { gacha } ( id, banner ) =
     let
         balance =
             gacha.balance |> Api.dataToMaybe |> Maybe.withDefault Balance.empty
@@ -72,7 +79,7 @@ view wrap { gacha } ( id, banner ) =
                 |> Button.button
                     (Roll.DoRoll id amountRolls False
                         |> Gacha.RollMsg
-                        |> wrap
+                        |> Global.GachaMsg
                         |> Maybe.when (canRoll amountRolls)
                     )
                 |> Button.icon Balance.rollIcon
@@ -90,7 +97,7 @@ view wrap { gacha } ( id, banner ) =
                 |> Button.button
                     (Roll.DoRoll id amountRolls True
                         |> Gacha.RollMsg
-                        |> wrap
+                        |> Global.GachaMsg
                         |> Maybe.when (canRoll amountRolls && canGuaranteedRoll amountGuarantees)
                     )
                 |> Button.icon Balance.rollWithGuaranteeIcon
@@ -111,29 +118,64 @@ view wrap { gacha } ( id, banner ) =
             :: rollButton 10
             :: magicButtons
             |> Html.div [ HtmlA.class "roll" ]
+        , IconButton.filledTonal (Icon.view Icon.eye) "View Possible Cards"
+            |> Material.iconButtonLink Global.ChangeUrl (Gacha.PreviewBanner id |> Route.Gacha)
+            |> IconButton.attrs [ HtmlA.class "preview" ]
+            |> IconButton.view
         ]
 
 
-viewBanners : (Gacha.Msg -> msg) -> Parent a -> Banner.Banners -> List (Html msg)
-viewBanners wrap parent banners =
+viewBanners : Parent a -> Banner.Banners -> List (Html Global.Msg)
+viewBanners parent banners =
+    let
+        viewItem ( id, banner ) =
+            [ view parent ( id, banner ) ]
+                |> Html.li [ HtmlA.class "banner-container" ]
+    in
     [ banners
         |> AssocList.toList
-        |> List.map (view wrap parent >> (List.singleton >> Html.li [ HtmlA.class "banner-container" ]))
+        |> List.map viewItem
         |> Html.ol [ HtmlA.class "banners" ]
     ]
 
 
-viewCollectionBanner : User.Id -> Banner.Id -> Banner -> Html msg
-viewCollectionBanner userId bannerId banner =
-    Route.a (Collection.Banner bannerId |> Route.CardCollection userId)
+viewPreviewBanner : Banner.Id -> Banner -> Html msg
+viewPreviewBanner bannerId banner =
+    Route.a (Gacha.PreviewBanner bannerId |> Route.Gacha)
         [ HtmlA.class "banner-container" ]
         [ viewInternal bannerId banner [] ]
 
 
-viewCollectionBanners : User.Id -> Banner.Banners -> Html msg
+viewCollectionBanner : Bool -> User.Id -> Banner.Id -> Banner -> Html Global.Msg
+viewCollectionBanner linkToUser userId bannerId banner =
+    let
+        wrapper =
+            if linkToUser then
+                Route.a (Collection.Banner bannerId |> Route.CardCollection userId)
+
+            else
+                Html.div
+
+        possibleButton =
+            if not linkToUser then
+                [ IconButton.filled (Icon.view Icon.eye) "View Possible Cards"
+                    |> Material.iconButtonLink Global.ChangeUrl (Gacha.PreviewBanner bannerId |> Route.Gacha)
+                    |> IconButton.attrs [ HtmlA.class "preview" ]
+                    |> IconButton.view
+                ]
+
+            else
+                []
+    in
+    wrapper
+        [ HtmlA.class "banner-container" ]
+        [ viewInternal bannerId banner possibleButton ]
+
+
+viewCollectionBanners : User.Id -> Banner.Banners -> Html Global.Msg
 viewCollectionBanners userId =
     let
         fromTuple ( id, banner ) =
-            viewCollectionBanner userId id banner
+            viewCollectionBanner True userId id banner
     in
     AssocList.toList >> List.map fromTuple >> Html.ol [ HtmlA.class "banners" ]

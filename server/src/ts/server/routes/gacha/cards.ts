@@ -211,7 +211,7 @@ export const cardsApi = (server: Server.State): Router => {
     );
     const [user, banner, cardTypes] = await Promise.all([
       server.store.getUser(userSlug),
-      server.store.gachaGetBanner(bannerSlug),
+      server.store.gachaGetEditableBanner(bannerSlug),
       server.store.gachaGetCollectionCards(userSlug, bannerSlug),
     ]);
     if (user === undefined) {

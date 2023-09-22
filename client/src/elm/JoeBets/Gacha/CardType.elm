@@ -1,10 +1,12 @@
 module JoeBets.Gacha.CardType exposing
     ( CardType
+    , CardTypes
     , Detailed
     , EditableCardType
     , EditableCardTypes
     , Id
     , WithId
+    , cardTypesDecoder
     , cssId
     , decoder
     , detailedDecoder
@@ -110,6 +112,15 @@ detailedDecoder =
 fromDetailed : Detailed -> CardType
 fromDetailed =
     .cardType
+
+
+type alias CardTypes =
+    AssocList.Dict Id CardType
+
+
+cardTypesDecoder : JsonD.Decoder CardTypes
+cardTypesDecoder =
+    JsonD.assocListFromTupleList idDecoder decoder
 
 
 type alias EditableCardType =

@@ -1,10 +1,13 @@
 import { default as Router } from "@koa/router";
+import { StatusCodes } from "http-status-codes";
 import * as Schema from "io-ts";
 
 import { Balance } from "../../../public/gacha/balances.js";
 import { Banners } from "../../../public/gacha/banners.js";
+import { CardTypes } from "../../../public/gacha/card-types.js";
 import { Cards } from "../../../public/gacha/cards.js";
 import { Validation } from "../../../util/validation.js";
+import { WebError } from "../../errors.js";
 import type { Server } from "../../model.js";
 import { requireSession } from "../auth.js";
 import { body } from "../util.js";
@@ -41,7 +44,7 @@ export const bannersApi = (server: Server.State): Router => {
 
   // Get all active banners.
   router.get("/", async (ctx) => {
-    const banners = await server.store.gachaGetBanners(true);
+    const banners = await server.store.gachaGetBanners();
     ctx.body = Schema.readonlyArray(
       Schema.tuple([Banners.Slug, Banners.Banner]),
     ).encode(banners.map(Banners.fromInternal));
@@ -63,10 +66,33 @@ export const bannersApi = (server: Server.State): Router => {
 
   // Get editable banners.
   router.get("/edit", async (ctx) => {
-    const results = await server.store.gachaGetBanners(false);
+    const results = await server.store.gachaGetEditableBanners();
     ctx.body = Schema.readonlyArray(
       Schema.tuple([Banners.Slug, Banners.Editable]),
     ).encode(results.map(Banners.editableFromInternal));
+  });
+
+  // Get a banner with its card types to preview.
+  router.get("/:bannerSlug", async (ctx) => {
+    const bannerSlug = Validation.requireUrlParameter(
+      Banners.Slug,
+      "banner",
+      ctx.params["bannerSlug"],
+    );
+    const [banner, cardTypes] = await Promise.all([
+      server.store.gachaGetBanner(bannerSlug),
+      server.store.gachaGetCardTypes(bannerSlug),
+    ]);
+    if (banner === undefined) {
+      throw new WebError(StatusCodes.NOT_FOUND, "Banner not found.");
+    }
+    ctx.body = Schema.strict({
+      banner: Banners.Banner,
+      cardTypes: Schema.readonlyArray(CardTypes.WithId),
+    }).encode({
+      banner: Banners.fromInternal(banner)[1],
+      cardTypes: cardTypes.map(CardTypes.fromInternal),
+    });
   });
 
   // Create new banner.

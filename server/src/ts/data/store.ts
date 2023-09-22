@@ -1459,32 +1459,54 @@ export class Store {
     return result.rows;
   }
 
-  async gachaGetBanners(
-    onlyActive: boolean,
-  ): Promise<readonly Gacha.Banners.Editable[]> {
+  async gachaGetBanners(): Promise<readonly Gacha.Banners.Banner[]> {
     return await this.withClient(async (client) => {
-      const sql = onlyActive
-        ? sqlFragment`
+      const result = await client.query(
+        Queries.banner(sqlFragment`
           SELECT banners.* 
           FROM jasb.gacha_banners AS banners 
           WHERE banners.active
-        `
-        : sqlFragment`
+        `),
+      );
+      return result.rows;
+    });
+  }
+
+  async gachaGetEditableBanners(): Promise<readonly Gacha.Banners.Editable[]> {
+    return await this.withClient(async (client) => {
+      const result = await client.query(
+        Queries.editableBanner(sqlFragment`
           SELECT banners.* 
           FROM jasb.gacha_banners AS banners 
-        `;
-      const result = await client.query(Queries.banner(sql));
+        `),
+      );
       return result.rows;
     });
   }
 
   async gachaGetBanner(
     bannerSlug: string,
-  ): Promise<Gacha.Banners.Editable | undefined> {
+  ): Promise<Gacha.Banners.Banner | undefined> {
     const result = await this.withClient(
       async (client) =>
         await client.maybeOne(
           Queries.banner(sqlFragment`
+            SELECT banners.* 
+            FROM jasb.gacha_banners AS banners 
+            WHERE banners.slug = ${bannerSlug}
+          `),
+        ),
+    );
+    return result ?? undefined;
+  }
+
+  async gachaGetEditableBanner(
+    bannerSlug: string,
+  ): Promise<Gacha.Banners.Editable | undefined> {
+    const result = await this.withClient(
+      async (client) =>
+        await client.maybeOne(
+          Queries.editableBanner(sqlFragment`
             SELECT banners.* 
             FROM jasb.gacha_banners AS banners 
             WHERE banners.slug = ${bannerSlug}
@@ -1499,7 +1521,7 @@ export class Store {
   ): Promise<readonly Gacha.Banners.Editable[]> {
     return await this.withClient(async (client) => {
       const result = await client.query(
-        Queries.banner(sqlFragment`
+        Queries.editableBanner(sqlFragment`
           SELECT DISTINCT ON (banners.id) banners.* 
           FROM 
             jasb.gacha_cards AS cards INNER JOIN
@@ -1529,7 +1551,7 @@ export class Store {
   ): Promise<Gacha.Banners.Editable> {
     return await this.inTransaction(async (client) => {
       return await client.one(
-        Queries.banner(sqlFragment`
+        Queries.editableBanner(sqlFragment`
            SELECT * FROM jasb.gacha_add_banner(
              ${userSlug},
              ${sessionId.uri},
@@ -1563,7 +1585,7 @@ export class Store {
   ): Promise<Gacha.Banners.Editable> {
     return await this.inTransaction(async (client) => {
       return await client.one(
-        Queries.banner(sqlFragment`
+        Queries.editableBanner(sqlFragment`
            SELECT * FROM jasb.gacha_edit_banner(
              ${userSlug},
              ${sessionId.uri},
@@ -1599,7 +1621,7 @@ export class Store {
     return await this.inTransaction(async (client) => {
       const orderUnnest = Slonik.sql.unnest(order, ["text", "int4"]);
       const result = await client.query(
-        Queries.banner(sqlFragment`
+        Queries.editableBanner(sqlFragment`
            SELECT * FROM jasb.gacha_reorder_banners(
              ${userSlug},
              ${sessionId.uri},
@@ -1615,6 +1637,26 @@ export class Store {
   }
 
   async gachaGetCardTypes(
+    bannerSlug: Public.Gacha.Banners.Slug,
+  ): Promise<readonly Gacha.CardTypes.CardType[]> {
+    const result = await this.withClient(
+      async (client) =>
+        await client.query(
+          Queries.cardType(sqlFragment`
+            SELECT 
+              card_types.* 
+            FROM 
+              jasb.gacha_card_types AS card_types INNER JOIN 
+              jasb.gacha_banners AS banners ON card_types.banner = banners.id 
+            WHERE 
+              banners.slug = ${bannerSlug}
+          `),
+        ),
+    );
+    return result.rows;
+  }
+
+  async gachaGetEditableCardTypes(
     bannerSlug: Public.Gacha.Banners.Slug,
   ): Promise<readonly Gacha.CardTypes.Editable[]> {
     const result = await this.withClient(

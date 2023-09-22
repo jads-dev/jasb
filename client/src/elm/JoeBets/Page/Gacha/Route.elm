@@ -48,6 +48,7 @@ editTargetParser =
 
 type Route
     = Roll
+    | PreviewBanner Banner.Id
     | Forge
     | Edit EditTarget
 
@@ -57,6 +58,9 @@ routeToListOfStrings route =
     case route of
         Roll ->
             []
+
+        PreviewBanner bannerId ->
+            [ "banner", bannerId |> Banner.idToString ]
 
         Forge ->
             [ "forge" ]
@@ -71,6 +75,9 @@ routeFromListOfStrings route =
         [] ->
             Just Roll
 
+        "banner" :: bannerIdString :: [] ->
+            bannerIdString |> Banner.idFromString |> PreviewBanner |> Just
+
         "edit" :: editTarget ->
             editTarget |> editTargetFromListOfStrings |> Maybe.map Edit
 
@@ -82,6 +89,7 @@ routeParser : Url.Parser (Route -> a) a
 routeParser =
     Url.oneOf
         [ Url.top |> Url.map Roll
+        , Url.s "banner" </> Banner.idParser |> Url.map PreviewBanner
         , Url.s "forge" |> Url.map Forge
         , Url.s "edit" </> editTargetParser |> Url.map Edit
         ]

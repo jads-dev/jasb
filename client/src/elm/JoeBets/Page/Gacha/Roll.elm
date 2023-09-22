@@ -323,7 +323,7 @@ view ({ auth, gacha, collection } as parent) =
     , body =
         [ [ Html.h2 [] [ Html.text "Roll for Cards" ] ]
         , loggedIn
-        , gacha.banners |> Api.viewData Api.viewOrError (Banner.viewBanners wrapGacha parent)
+        , gacha.banners |> Api.viewData Api.viewOrError (Banner.viewBanners parent)
         , editActions
         , Card.viewDetailedCardOverlay maybeContext gacha
         ]

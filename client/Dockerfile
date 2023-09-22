@@ -18,7 +18,7 @@ COPY ["./package.json", "./package-lock.json", "./"]
 COPY ["./elm-material/package.json", "./elm-material/package-lock.json", "./elm-material/"]
 RUN ["npm", "ci"]
 
-COPY ["./tsconfig.json", "./postcss.config.cjs", "./webpack.config.mjs", "./elm.json", "./"]
+COPY ["./tsconfig.json", "./postcss.config.cjs", "./webpack.config.mjs", "./elm.json", "./elm-tooling.json", "./"]
 COPY ["./src", "./src"]
 COPY ["./components", "./components"]
 COPY ["./elm-material/src", "./elm-material/src"]

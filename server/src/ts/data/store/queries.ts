@@ -615,6 +615,25 @@ export const rarity = (raritySource: Slonik.SqlFragment) => {
 };
 
 export const banner = (bannerSource: Slonik.SqlFragment) => {
+  const sql = typedSql("banner");
+  return sql`
+    WITH
+      banners AS (${bannerSource})
+    SELECT
+      banners.slug,
+      banners.name,
+      banners.description,
+      banners.cover,
+      banners.active,
+      banners.type,
+      banners.foreground_color,
+      banners.background_color
+    FROM banners
+    ORDER BY banners.order
+  `;
+};
+
+export const editableBanner = (bannerSource: Slonik.SqlFragment) => {
   const sql = typedSql("editable_banner");
   return sql`
     WITH
