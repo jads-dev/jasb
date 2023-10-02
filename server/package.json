@@ -42,7 +42,7 @@
     "koa-helmet": "^7.0.2",
     "pg-listen": "^1.7.0",
     "postgres-interval": "^4.0.0",
-    "slonik": "^34.0.1",
+    "slonik": "^37.0.1",
     "source-map-support": "^0.5.20",
     "zod": "^3.18.0"
   },
