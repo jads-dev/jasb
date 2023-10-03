@@ -1,143 +1,389 @@
+import * as OAuth from "@badgateway/oauth2-client";
 import * as Joda from "@js-joda/core";
-import { default as DiscordOAuth } from "discord-oauth2";
+import { Instant } from "@js-joda/core";
+import { either as Either } from "fp-ts";
 import { StatusCodes } from "http-status-codes";
+import * as Schema from "io-ts";
+import * as Jose from "jose";
+import { default as Koa } from "koa";
 
 import type { Store } from "../data/store.js";
+import { Discord } from "../external.js";
 import { Notifications, Users } from "../public.js";
+import { Expect } from "../util/expect.js";
 import { Random } from "../util/random.js";
 import { SecretToken } from "../util/secret-token.js";
+import { Validation } from "../util/validation.js";
+import type { Credential, Credentials } from "./auth/credentials.js";
 import type { Config } from "./config.js";
 import { WebError } from "./errors.js";
 
-type DiscordUser = DiscordOAuth.User & {
-  discriminator?: string | undefined;
-  global_name?: string | undefined;
-};
+export const ExternalServiceToken = Schema.strict({
+  iss: Schema.string,
+  sub: Users.Slug,
+  nonce: Schema.string,
+  iat: Validation.EpochSeconds,
+});
+export type ExternalServiceToken = Schema.TypeOf<typeof ExternalServiceToken>;
+
+export const SessionCookie = Schema.strict({
+  user: Users.Slug,
+  session: Validation.SecretTokenUri,
+  nonce: Schema.string,
+  iat: Validation.EpochSeconds,
+});
+export type SessionCookie = Schema.TypeOf<typeof SessionCookie>;
+
+const State = Schema.readonly(
+  Schema.strict({
+    state: Schema.string,
+    code: Schema.string,
+    nonce: Schema.string,
+    iat: Validation.EpochSeconds,
+  }),
+);
+type State = Schema.TypeOf<typeof State>;
+
+const secure = process.env["NODE_ENV"] !== "development";
+
+interface ResolvedExternalServices {
+  config: Config.ExternalServices;
+  recognised: Map<string, Jose.KeyLike | Uint8Array>;
+}
 
 export class Auth {
-  static readonly secure = process.env["NODE_ENV"] !== "development";
-  static readonly sessionCookieName = `${
-    Auth.secure ? "__Host-" : ""
-  }jasb-session`;
-  static readonly stateCookieName = `${Auth.secure ? "__Host-" : ""}jasb-state`;
+  static readonly discordBase = "https://discord.com/api/v10";
+  static readonly redirectPath = "/auth";
+  static readonly sessionCookieName = `${secure ? "__Host-" : ""}jasb-session`;
+  static readonly stateCookieName = `${secure ? "__Host-" : ""}jasb-state`;
 
-  config: Config.Auth;
-  store: Store;
-  oauth: DiscordOAuth;
+  readonly #config: Config.Auth;
+  readonly #store: Store;
+  readonly #client: OAuth.OAuth2Client;
+  readonly #externalServices: ResolvedExternalServices | undefined;
 
-  private constructor(config: Config.Auth, store: Store) {
-    this.config = config;
-    this.store = store;
-    this.oauth = new DiscordOAuth({
-      clientId: config.discord.clientId,
-      clientSecret: config.discord.clientSecret.value,
+  private constructor(
+    config: Config.Auth,
+    store: Store,
+    externalServices: ResolvedExternalServices | undefined,
+  ) {
+    this.#config = config;
+    this.#store = store;
+    this.#client = new OAuth.OAuth2Client({
+      server: "https://discord.com/oauth2",
+      clientId: this.#config.discord.clientId,
+      clientSecret: this.#config.discord.clientSecret.value,
+      tokenEndpoint: "/api/oauth2/token",
+      authorizationEndpoint: "/oauth2/authorize",
     });
+    this.#externalServices = externalServices;
   }
 
-  static init(config: Config.Auth, store: Store): Promise<Auth> {
-    return Promise.resolve(new Auth(config, store));
-  }
-
-  async redirect(origin: string): Promise<{ url: string; state: string }> {
-    const state = await Random.secureRandomString(24);
+  static async #externalServicesResolve(
+    config: Config.ExternalServices,
+  ): Promise<ResolvedExternalServices> {
+    const recognised = new Map(
+      await Promise.all(
+        Object.entries(config.recognised).map(
+          async ([issuer, { publicKey }]): Promise<
+            [string, Jose.KeyLike | Uint8Array]
+          > => [issuer, await Jose.importJWK(publicKey, "EdDSA")],
+        ),
+      ),
+    );
     return {
-      url: this.oauth.generateAuthUrl({
-        scope: this.config.discord.scopes,
-        redirectUri: new URL("/auth", origin).toString(),
-        state,
-        prompt: "consent",
-      }),
-      state,
+      config,
+      recognised,
     };
   }
 
-  async #getDiscordDetails(
-    origin: string,
-    code: string,
-  ): Promise<{
-    token: DiscordOAuth.TokenRequestResult;
-    user: DiscordUser;
-    guilds: readonly DiscordOAuth.PartialGuild[];
-  }> {
+  static async init(config: Config.Auth, store: Store): Promise<Auth> {
+    return new Auth(
+      config,
+      store,
+      config.externalServices !== undefined
+        ? await Auth.#externalServicesResolve(config.externalServices)
+        : undefined,
+    );
+  }
+
+  protectedHeader(): { alg: string; enc: string } {
+    return { alg: "dir", enc: this.#config.algorithm };
+  }
+
+  async #encrypt(payload: Jose.JWTPayload): Promise<string> {
+    return await new Jose.EncryptJWT(payload)
+      .setProtectedHeader(this.protectedHeader())
+      .encrypt(this.#config.key.value);
+  }
+
+  async #decrypt(
+    ciphertext: string,
+  ): Promise<Jose.JWTDecryptResult | undefined> {
     try {
-      const token = await this.oauth.tokenRequest({
-        scope: this.config.discord.scopes,
-        redirectUri: new URL("/auth", origin).toString(),
-        grantType: "authorization_code",
-        code,
+      const { alg, enc } = this.protectedHeader();
+      return await Jose.jwtDecrypt(ciphertext, this.#config.key.value, {
+        keyManagementAlgorithms: [alg],
+        contentEncryptionAlgorithms: [enc],
       });
-      const user = (await this.oauth.getUser(
-        token.access_token,
-      )) as DiscordUser;
-      const guilds = await this.oauth.getUserGuilds(token.access_token);
-      return { token, user, guilds };
-    } catch (error: unknown) {
-      if (error instanceof DiscordOAuth.DiscordHTTPError) {
-        console.error(
-          JSON.stringify(
-            { message: error.message, response: error.response },
-            undefined,
-            2,
-          ),
-        );
+    } catch (error) {
+      if (error instanceof Jose.errors.JOSEError) {
+        return undefined;
+      } else {
+        throw error;
       }
-      throw error;
+    }
+  }
+
+  async #generateState(): Promise<State> {
+    const [nonce, state, code] = await Promise.all([
+      Random.secureRandomString(32),
+      Random.secureRandomString(64),
+      OAuth.generateCodeVerifier(),
+    ]);
+    return {
+      nonce,
+      state,
+      code,
+      iat: Instant.now(),
+    };
+  }
+
+  async redirect(origin: string): Promise<{ url: string; state: string }> {
+    const state = await this.#generateState();
+    const [encodedState, redirect] = await Promise.all([
+      this.#encrypt(State.encode(state)),
+      this.#client.authorizationCode.getAuthorizeUri({
+        redirectUri: new URL(Auth.redirectPath, origin).toString(),
+        state: state.state,
+        codeVerifier: state.code,
+        scope: ["identify", "guilds.members.read"],
+      }),
+    ]);
+    return { state: encodedState, url: redirect };
+  }
+
+  async #getDiscordDetails(
+    token: OAuth.OAuth2Token,
+  ): Promise<Discord.GuildMember | undefined> {
+    const url = new URL(
+      `users/@me/guilds/${this.#config.discord.guild}/member`,
+      Auth.discordBase,
+    );
+    const result = await fetch(url, {
+      headers: new Headers({
+        Authorization: `Bearer ${token.accessToken}`,
+      }),
+    });
+    if (result.status === StatusCodes.NOT_FOUND) {
+      return undefined;
+    } else {
+      return Validation.maybeBody(Discord.GuildMember, await result.json());
     }
   }
 
   async login(
     origin: string,
-    code: string,
+    stateCookie: string,
+    receivedState: string,
+    receivedCode: string,
   ): Promise<{
     user: [Users.Slug, Users.User];
     notifications: Notifications.Notification[];
-    session: SecretToken;
+    session: string;
     expires: Joda.ZonedDateTime;
   }> {
-    const discord = await this.#getDiscordDetails(origin, code);
-
-    const jadsId = this.config.discord.guild;
-    const memberOfJads = discord.guilds.some((guild) => guild.id === jadsId);
-    if (!memberOfJads) {
-      throw new WebError(StatusCodes.FORBIDDEN, "Must be a member of JADS.");
+    const result = await this.#decrypt(stateCookie);
+    const decoded = Validation.maybeBody(State, result?.payload);
+    if (decoded !== undefined && decoded.state === receivedState) {
+      const token = await this.#client.authorizationCode.getToken({
+        code: receivedCode,
+        redirectUri: new URL(Auth.redirectPath, origin).toString(),
+        codeVerifier: decoded.code,
+      });
+      const discord = await this.#getDiscordDetails(token);
+      if (discord === undefined) {
+        throw new WebError(StatusCodes.FORBIDDEN, "Must be a member of JADS.");
+      }
+      if (discord.pending) {
+        throw new WebError(
+          StatusCodes.FORBIDDEN,
+          "Must be a non-pending member of JADS.",
+        );
+      }
+      const [login, nonce] = await Promise.all([
+        this.#store.login(
+          discord.user.id,
+          discord.user.username,
+          discord.nick ?? discord.user.global_name ?? null,
+          discord.user.discriminator !== "0"
+            ? discord.user.discriminator ?? null
+            : null,
+          discord.avatar ?? discord.user.avatar ?? null,
+          token.accessToken,
+          token.refreshToken ?? "",
+          Joda.Duration.of(token.expiresAt ?? 0, Joda.ChronoUnit.SECONDS),
+        ),
+        Random.secureRandomString(32),
+      ]);
+      const user = Users.fromInternal(login.user);
+      const notifications = login.notifications.map(Notifications.fromInternal);
+      const sessionToken = SecretToken.fromUri(login.user.session);
+      if (sessionToken === undefined) {
+        throw new Error("Invalid secret session token generated.");
+      }
+      const sessionCookie: SessionCookie = {
+        nonce,
+        user: user[0],
+        session: sessionToken,
+        iat: Instant.now(),
+      };
+      return {
+        user,
+        notifications,
+        session: await this.#encrypt(SessionCookie.encode(sessionCookie)),
+        expires: login.user.started.plus(this.#config.sessionLifetime),
+      };
+    } else {
+      throw new Error("Invalid state received.");
     }
+  }
 
-    const login = await this.store.login(
-      discord.user.id,
-      discord.user.username,
-      discord.user.global_name ?? null,
-      discord.user.discriminator !== "0" ? discord.user.discriminator : null,
-      discord.user.avatar ?? null,
-      discord.token.access_token,
-      discord.token.refresh_token,
-      Joda.Duration.of(discord.token.expires_in, Joda.ChronoUnit.SECONDS),
+  async #decodeExternal(
+    token: string,
+  ): Promise<Jose.JWTVerifyResult | undefined> {
+    if (this.#externalServices !== undefined) {
+      const { config, recognised } = this.#externalServices;
+      try {
+        // Unvalidated claims at this point!
+        const { iss } = Jose.decodeJwt(token);
+        const publicKey = iss !== undefined ? recognised.get(iss) : undefined;
+        if (publicKey !== undefined) {
+          return await Jose.jwtVerify(token, publicKey, {
+            algorithms: ["EdDSA"],
+            maxTokenAge: config.tokenLifetime.seconds(),
+            audience: config.identity,
+          });
+        } else {
+          return undefined;
+        }
+      } catch (error) {
+        if (error instanceof Jose.errors.JOSEError) {
+          return undefined;
+        } else {
+          throw error;
+        }
+      }
+    } else {
+      return undefined;
+    }
+  }
+
+  async getCredential(context: Koa.Context): Promise<Credential> {
+    const cookie = context.cookies.get(Auth.sessionCookieName, {
+      signed: true,
+    });
+    if (cookie !== undefined) {
+      const decrypted = await this.#decrypt(cookie);
+      if (decrypted !== undefined) {
+        const result = SessionCookie.decode(decrypted.payload);
+        if (Either.isRight(result)) {
+          const { user, session, iat } = result.right;
+          return iat.plus(this.#config.sessionLifetime).isAfter(Instant.now())
+            ? {
+                credential: "user-session",
+                user,
+                session,
+              }
+            : {
+                credential: "unauthorized",
+                reason: "expired-session",
+              };
+        }
+      }
+      return {
+        credential: "unauthorized",
+        reason: "invalid-session",
+      };
+    } else {
+      const authorization = context.request.headers["Authorization"];
+      if (typeof authorization === "string") {
+        const [scheme, token] = authorization.split(" ");
+        if (scheme === "Bearer" && token !== undefined) {
+          const decoded = await this.#decodeExternal(token);
+          if (decoded !== undefined) {
+            const result = ExternalServiceToken.decode(decoded.payload);
+            if (Either.isRight(result)) {
+              return {
+                credential: "external-service",
+                service: result.right.iss,
+                actingAs: result.right.sub,
+              };
+            } else {
+              throw new WebError(StatusCodes.BAD_REQUEST, "Malformed token.");
+            }
+          } else {
+            throw new WebError(StatusCodes.FORBIDDEN, "Token not accepted.");
+          }
+        } else {
+          throw new WebError(
+            StatusCodes.BAD_REQUEST,
+            "Must provide a bearer token.",
+          );
+        }
+      } else {
+        return {
+          credential: "unauthorized",
+        };
+      }
+    }
+  }
+
+  requireUserSession(
+    credential: Credentials.Identifying,
+  ): Credentials.UserSession {
+    if (credential.credential === "user-session") {
+      return credential;
+    } else {
+      throw new WebError(
+        StatusCodes.FORBIDDEN,
+        "Only user sessions are allowed to use this API.",
+      );
+    }
+  }
+
+  unauthorizedMessage({ reason }: Credentials.Unauthorized): string {
+    switch (reason) {
+      case "invalid-session":
+        return "Your session was invalid, please try logging in again.";
+      case "expired-session":
+        return "Your session has expired, please try logging in again.";
+      case undefined:
+        return "You need to log in to do this.";
+      default:
+        return Expect.exhaustive("credential reason", (reason) =>
+          JSON.stringify(reason),
+        )(reason);
+    }
+  }
+
+  throwUnauthorized(credential: Credentials.Unauthorized): never {
+    throw new WebError(
+      StatusCodes.UNAUTHORIZED,
+      this.unauthorizedMessage(credential),
     );
-    const user = Users.fromInternal(login.user);
-    const notifications = login.notifications.map(Notifications.fromInternal);
-    const session = SecretToken.fromUri(login.user.session);
-    if (session === undefined) {
-      throw new Error("Invalid secret session token generated.");
-    }
-    return {
-      user,
-      notifications,
-      session,
-      expires: login.user.started.plus(this.config.sessionLifetime),
-    };
+  }
+
+  async requireIdentifyingCredential(
+    context: Koa.Context,
+  ): Promise<Credentials.Identifying> {
+    const credential = await this.getCredential(context);
+    return credential.credential !== "unauthorized"
+      ? credential
+      : this.throwUnauthorized(credential);
   }
 
   async logout(userSlug: Users.Slug, session: SecretToken): Promise<void> {
-    const accessToken = await this.store.logout(userSlug, session);
-    if (accessToken != null) {
-      const { clientId, clientSecret } = this.config.discord;
-      const credentials = Buffer.from(
-        `${clientId}:${clientSecret.value}`,
-      ).toString("base64");
-      try {
-        await this.oauth.revokeToken(accessToken, credentials);
-      } catch (e) {
-        // Do nothing, if we can't revoke there isn't much we can do about it.
-      }
-    }
+    await this.#store.logout(userSlug, session);
   }
 }

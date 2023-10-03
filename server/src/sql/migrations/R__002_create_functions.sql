@@ -56,133 +56,98 @@ CREATE OR REPLACE TRIGGER notify_user
 
 DROP FUNCTION IF EXISTS validate_manage_permissions CASCADE;
 CREATE FUNCTION validate_manage_permissions (
-  user_slug users.slug%TYPE,
-  given_session sessions.session%TYPE,
+  credential JSONB,
   session_lifetime INTERVAL
 ) RETURNS users.id%TYPE LANGUAGE plpgsql AS $$
   DECLARE
     user_id users.id%TYPE;
     can_manage_permissions BOOLEAN;
   BEGIN
-    SELECT
-      users.id,
+    user_id = validate_credentials(credential, session_lifetime);
+    SELECT INTO can_manage_permissions
       general_permissions.manage_permissions
-    INTO
-      user_id,
-      can_manage_permissions
-    FROM sessions INNER JOIN
-      users ON sessions."user" = users.id LEFT JOIN
-      general_permissions ON users.id = general_permissions."user"
-    WHERE
-      user_slug = users.slug AND
-      sessions.session = given_session AND
-      (now() - session_lifetime) < sessions.started;
-    IF user_id IS NOT NULL THEN
-      IF can_manage_permissions THEN
-        RETURN user_id;
-      ELSE
-        RAISE EXCEPTION USING
-          ERRCODE = 'FRBDN',
-          MESSAGE = 'Must be able to manage permissions to perform this task.';
-      END IF;
+    FROM general_permissions
+    WHERE general_permissions."user" = user_id;
+    IF can_manage_permissions THEN
+      RETURN user_id;
     ELSE
       RAISE EXCEPTION USING
-        ERRCODE = 'UAUTH',
-        MESSAGE = 'Invalid session.';
+        ERRCODE = 'FRBDN',
+        MESSAGE = 'Missing permission: manage permissions.';
     END IF;
   END;
 $$;
 
 DROP FUNCTION IF EXISTS validate_manage_games CASCADE;
 CREATE FUNCTION validate_manage_games (
-  user_slug users.slug%TYPE,
-  given_session sessions.session%TYPE,
+  credential JSONB,
   session_lifetime INTERVAL
 ) RETURNS users.id%TYPE LANGUAGE plpgsql AS $$
   DECLARE
     user_id users.id%TYPE;
     can_manage_games BOOLEAN;
   BEGIN
-    SELECT
-      users.id,
+    user_id = validate_credentials(credential, session_lifetime);
+    SELECT INTO can_manage_games
       general_permissions.manage_games
-    INTO
-      user_id,
-      can_manage_games
-    FROM sessions INNER JOIN
-      users ON sessions."user" = users.id LEFT JOIN
-      general_permissions ON users.id = general_permissions."user"
-    WHERE
-      user_slug = users.slug AND
-      sessions.session = given_session AND
-      (now() - session_lifetime) < sessions.started;
-    IF user_id IS NOT NULL THEN
-      IF can_manage_games THEN
-        RETURN user_id;
-      ELSE
-        RAISE EXCEPTION USING
-          ERRCODE = 'FRBDN',
-          MESSAGE = 'Must be able to manage games to perform this task.';
-      END IF;
+    FROM general_permissions
+    WHERE general_permissions."user" = user_id;
+    IF can_manage_games THEN
+      RETURN user_id;
     ELSE
       RAISE EXCEPTION USING
-        ERRCODE = 'UAUTH',
-        MESSAGE = 'Invalid session.';
+        ERRCODE = 'FRBDN',
+        MESSAGE = 'Missing permission: manage games.';
     END IF;
   END;
 $$;
 
 DROP FUNCTION IF EXISTS validate_upload CASCADE;
 CREATE FUNCTION validate_upload (
-  user_slug users.slug%TYPE,
-  given_session sessions.session%TYPE,
+  credential JSONB,
   session_lifetime INTERVAL
 ) RETURNS users.id%TYPE LANGUAGE plpgsql AS $$
   DECLARE
     user_id users.id%TYPE;
     can_upload BOOLEAN;
   BEGIN
-    SELECT
-      users.id,
-      (
-        bool_or(general_permissions.manage_games) OR
-        bool_or(general_permissions.manage_bets) OR
-        bool_or(general_permissions.manage_gacha) OR
-        bool_or(specific_permissions.manage_bets)
-      ) AS can_upload
-    INTO
-      user_id,
-      can_upload
-    FROM sessions LEFT JOIN
-      users ON sessions."user" = users.id LEFT JOIN
-      general_permissions ON users.id = general_permissions."user" LEFT JOIN
-      specific_permissions ON users.id = specific_permissions."user"
-    WHERE
-      user_slug = users.slug AND
-      sessions.session = given_session AND
-      (now() - session_lifetime) < sessions.started
-    GROUP BY
-      users.id;
-    IF user_id IS NOT NULL THEN
-      IF can_upload THEN
-        RETURN user_id;
-      ELSE
-        RAISE EXCEPTION USING
-          ERRCODE = 'FRBDN',
-          MESSAGE = 'Must have permissions to manage games or bets.';
-      END IF;
+    user_id = validate_credentials(credential, session_lifetime);
+    WITH
+      general AS (
+        SELECT
+          (
+            bool_or(manage_games) OR
+            bool_or(manage_bets) OR
+            bool_or(manage_gacha)
+          ) AS any_permission
+        FROM general_permissions
+        WHERE "user" = user_id
+        GROUP BY "user"
+      ),
+      specific AS (
+        SELECT
+          bool_or(manage_bets) AS any_permission
+        FROM specific_permissions
+        WHERE "user" = user_id
+        GROUP BY "user"
+      )
+    SELECT INTO can_upload
+      (general.any_permission OR specific.any_permission) AS can_upload
+    FROM
+      general_permissions CROSS JOIN specific_permissions;
+    IF can_upload THEN
+      RETURN user_id;
     ELSE
       RAISE EXCEPTION USING
-        ERRCODE = 'UAUTH',
-        MESSAGE = 'Invalid session.';
+        ERRCODE = 'FRBDN',
+        MESSAGE = 'Missing permission: upload.';
     END IF;
   END;
 $$;
 
 DROP FUNCTION IF EXISTS validate_manage_bets CASCADE;
 CREATE FUNCTION validate_manage_bets (
-  user_slug users.slug%TYPE,
-  given_session sessions.session%TYPE,
+  credential JSONB,
   session_lifetime INTERVAL,
   target_game games.slug%TYPE
 ) RETURNS users.id%TYPE LANGUAGE plpgsql AS $$
@@ -190,70 +155,104 @@ CREATE FUNCTION validate_manage_bets (
     user_id users.id%TYPE;
     can_manage_bets BOOLEAN;
   BEGIN
-    SELECT
-      users.id,
+    user_id = validate_credentials(credential, session_lifetime);
+    SELECT INTO can_manage_bets
       per_game_permissions.manage_bets
-    INTO
-      user_id,
-      can_manage_bets
-    FROM sessions INNER JOIN
-      users ON sessions."user" = users.id LEFT JOIN
-      (
-        per_game_permissions INNER JOIN
-        games ON per_game_permissions.game = games.id
-      ) ON
-        sessions."user" = per_game_permissions."user" AND
-        games.slug = target_game
+    FROM
+      per_game_permissions INNER JOIN
+      games ON per_game_permissions.game = games.id
     WHERE
-      users.slug = user_slug AND
-      sessions.session = given_session AND
-      (now() - session_lifetime) < sessions.started;
-    IF user_id IS NOT NULL THEN
-      IF can_manage_bets THEN
-        RETURN user_id;
-      ELSE
-        RAISE EXCEPTION USING
-          ERRCODE = 'FRBDN',
-          MESSAGE = 'Missing permission: manage bets.';
-      END IF;
+      per_game_permissions."user" = user_id AND
+      per_game_permissions.game = target_game;
+    IF can_manage_bets THEN
+      RETURN user_id;
     ELSE
       RAISE EXCEPTION USING
-        ERRCODE = 'UAUTH',
-        MESSAGE = 'Invalid session.';
+        ERRCODE = 'FRBDN',
+        MESSAGE = 'Missing permission: manage bets for specific game.';
     END IF;
   END;
 $$;
 
-DROP FUNCTION IF EXISTS validate_session CASCADE;
-CREATE FUNCTION validate_session (
-  user_slug users.slug%TYPE,
-  given_session sessions.session%TYPE,
+DROP FUNCTION IF EXISTS validate_credentials CASCADE;
+CREATE FUNCTION validate_credentials (
+  credential JSONB,
   session_lifetime INTERVAL
 ) RETURNS users.id%TYPE LANGUAGE plpgsql AS $$
-  DECLARE
-    user_id users.id%TYPE;
   BEGIN
-    SELECT users.id
-    INTO user_id
-    FROM sessions INNER JOIN users ON sessions."user" = users.id
-    WHERE
-      users.slug = user_slug AND
-      session = given_session AND
-      (now() - session_lifetime) < started;
-    IF user_id IS NOT NULL THEN
-      RETURN user_id;
-    ELSE
-      RAISE EXCEPTION USING
-        ERRCODE = 'UAUTH',
-        MESSAGE = 'Invalid session.';
-    END IF;
+    CASE credential->>'credential'
+      WHEN 'user-session' THEN
+        DECLARE
+          user_id users.id%TYPE;
+          started sessions.started%TYPE;
+        BEGIN
+          SELECT INTO user_id, started
+            users.id,
+            sessions.started
+          FROM sessions INNER JOIN users ON sessions."user" = users.id
+          WHERE
+            users.slug = credential->>'user' AND
+            sessions.session = credential->>'session';
+          IF user_id IS NOT NULL THEN
+            IF now() < (started + session_lifetime) THEN
+              RETURN user_id;
+            ELSE
+              RAISE EXCEPTION USING
+                ERRCODE = 'UAUTH',
+                MESSAGE = 'Expired session.';
+            END IF;
+          ELSE
+            RAISE EXCEPTION USING
+              ERRCODE = 'UAUTH',
+              MESSAGE = 'Invalid session.';
+          END IF;
+        END;
+      WHEN 'external-service' THEN
+        DECLARE
+          user_id users.id%TYPE;
+        BEGIN
+          SELECT users.id
+          INTO user_id
+          FROM users
+          WHERE
+            users.slug = credential->>'actingAs';
+          IF user_id IS NOT NULL THEN
+            RETURN user_id;
+          ELSE
+            RAISE EXCEPTION USING
+              ERRCODE = 'UAUTH',
+              MESSAGE = 'Invalid service credential.';
+          END IF;
+        END;
+      ELSE
+        RAISE EXCEPTION USING
+          ERRCODE = 'UAUTH',
+          MESSAGE = 'Invalid credential type.';
+    END CASE;
+  END;
+$$;
+
+DROP FUNCTION IF EXISTS acting_as_slug CASCADE;
+CREATE FUNCTION acting_as_slug (
+  credential JSONB
+) RETURNS users.slug%TYPE LANGUAGE plpgsql AS $$
+  BEGIN
+    CASE credential->>'credential'
+      WHEN 'user-session' THEN
+        RETURN credential->>'user';
+      WHEN 'external-service' THEN
+        RETURN credential->>'actingAs';
+      ELSE
+        RAISE EXCEPTION USING
+          ERRCODE = 'UAUTH',
+          MESSAGE = 'Invalid credential type.';
+    END CASE;
   END;
 $$;
 
 DROP FUNCTION IF EXISTS add_bet CASCADE;
 CREATE FUNCTION add_bet (
-  user_slug users.slug%TYPE,
-  given_session sessions.session%TYPE,
+  credential JSONB,
   session_lifetime INTERVAL,
   game_slug games.slug%TYPE,
   bet_slug bets.slug%TYPE,
@@ -264,12 +263,13 @@ CREATE FUNCTION add_bet (
   "options" AddOption[]
 ) RETURNS bets LANGUAGE plpgsql AS $$
   DECLARE
+    user_id users.id%TYPE;
     game_id games.id%TYPE;
     author_id users.id%TYPE;
     lock_moment_id lock_moments.id%TYPE;
     bet bets%ROWTYPE;
   BEGIN
-    PERFORM validate_manage_bets(user_slug, given_session, session_lifetime, game_slug);
+    SELECT validate_manage_bets(credential, session_lifetime, game_slug) INTO user_id;
 
     SELECT id INTO game_id FROM games WHERE games.slug = game_slug;
     IF game_id is NULL THEN
@@ -278,7 +278,7 @@ CREATE FUNCTION add_bet (
         MESSAGE = 'Game not found.';
     END IF;
 
-    SELECT id INTO author_id FROM users WHERE users.slug = user_slug;
+    SELECT id INTO author_id FROM users WHERE users.id = user_id;
     IF author_id is NULL THEN
       RAISE EXCEPTION USING
         ERRCODE = 'NTFND',
@@ -325,7 +325,7 @@ CREATE FUNCTION add_bet (
     INSERT INTO audit_logs (event) VALUES (
       jsonb_build_object(
         'event', 'AddBet',
-        'author_slug', user_slug,
+        'author_id', user_id,
         'bet_slug', bet.slug,
         'bet_name', bet.name
       )
@@ -337,8 +337,7 @@ $$;
 
 DROP FUNCTION IF EXISTS add_game CASCADE;
 CREATE FUNCTION add_game (
-  user_slug users.slug%TYPE,
-  given_session sessions.session%TYPE,
+  credential JSONB,
   session_lifetime INTERVAL,
   game_slug games.slug%TYPE,
   given_name games.name%TYPE,
@@ -348,9 +347,10 @@ CREATE FUNCTION add_game (
   given_order games."order"%TYPE
 ) RETURNS games LANGUAGE plpgsql AS $$
   DECLARE
+    user_id users.id%TYPE;
     game games%ROWTYPE;
   BEGIN 
-    PERFORM validate_manage_games(user_slug, given_session, session_lifetime);
+    SELECT validate_manage_games(credential, session_lifetime) INTO user_id;
 
     BEGIN
       INSERT INTO games (slug, name, cover, started, finished, "order")
@@ -372,7 +372,7 @@ CREATE FUNCTION add_game (
     INSERT INTO audit_logs (event) VALUES (
       jsonb_build_object(
         'event', 'AddGame',
-        'author_slug', user_slug,
+        'author_id', user_id,
         'game_slug', game.slug,
         'game_name', game.name
       )
@@ -384,8 +384,7 @@ $$;
 
 DROP FUNCTION IF EXISTS edit_lock_moments CASCADE;
 CREATE FUNCTION edit_lock_moments (
-  user_slug users.slug%TYPE,
-  given_session sessions.session%TYPE,
+  credential JSONB,
   session_lifetime INTERVAL,
   game_slug games.slug%TYPE,
   remove RemoveLockMoment[],
@@ -396,7 +395,7 @@ DECLARE
   game_id games.id%TYPE;
   count INT;
 BEGIN
-  PERFORM validate_manage_bets(user_slug, given_session, session_lifetime, game_slug);
+  PERFORM validate_manage_bets(credential, session_lifetime, game_slug);
 
   SELECT id INTO game_id FROM games WHERE slug = game_slug;
   IF game_id is NULL THEN
@@ -504,8 +503,7 @@ $$;
 
 DROP FUNCTION IF EXISTS bankrupt CASCADE;
 CREATE FUNCTION bankrupt (
-  user_slug users.slug%TYPE,
-  given_session sessions.session%TYPE,
+  credential JSONB,
   session_lifetime INTERVAL,
   initial_balance users.balance%TYPE
 ) RETURNS users LANGUAGE plpgsql AS $$
@@ -514,7 +512,7 @@ CREATE FUNCTION bankrupt (
     result users%ROWTYPE;
     old_balance users.balance%TYPE;
   BEGIN
-    SELECT validate_session(user_slug, given_session, session_lifetime) INTO user_id;
+    SELECT validate_credentials(credential, session_lifetime) INTO user_id;
 
     DELETE FROM stakes
     USING
@@ -543,7 +541,7 @@ CREATE FUNCTION bankrupt (
     INSERT INTO audit_logs (event) VALUES (
       jsonb_build_object(
         'event', 'Bankrupt',
-        'user_slug', user_slug,
+        'user_id', user_id,
         'old_balance', old_balance,
         'new_balance', result.balance
       )
@@ -555,8 +553,7 @@ $$;
 
 DROP FUNCTION IF EXISTS cancel_bet CASCADE;
 CREATE FUNCTION cancel_bet (
-  user_slug users.slug%TYPE,
-  given_session sessions.session%TYPE,
+  credential JSONB,
   session_lifetime INTERVAL,
   old_version bets.version%TYPE,
   game_slug games.slug%TYPE,
@@ -564,9 +561,10 @@ CREATE FUNCTION cancel_bet (
   reason TEXT
 ) RETURNS bets LANGUAGE plpgsql AS $$
   DECLARE
+    user_id users.id%TYPE;
     cancelled_bet bets%ROWTYPE;
   BEGIN
-    PERFORM validate_manage_bets(user_slug, given_session, session_lifetime, game_slug);
+    SELECT validate_manage_bets(credential, session_lifetime, game_slug) INTO user_id;
 
     WITH
       refunds AS (
@@ -621,7 +619,7 @@ CREATE FUNCTION cancel_bet (
     INSERT INTO audit_logs (event) VALUES (
       jsonb_build_object(
         'event', 'CancelBet',
-        'user_slug', user_slug,
+        'user_id', user_id,
         'game_slug', game_slug,
         'bet_slug', bet_slug,
         'reason', reason
@@ -637,8 +635,7 @@ CREATE FUNCTION change_stake (
   min_stake stakes.amount%TYPE,
   notable_stake stakes.amount%TYPE,
   max_bet_while_in_debt stakes.amount%TYPE,
-  user_slug users.slug%TYPE,
-  given_session sessions.session%TYPE,
+  credential JSONB,
   session_lifetime INTERVAL,
   game_slug games.slug%TYPE,
   bet_slug bets.slug%TYPE,
@@ -648,8 +645,7 @@ CREATE FUNCTION change_stake (
 ) RETURNS INTEGER LANGUAGE plpgsql AS $$
   BEGIN
     PERFORM withdraw_stake(
-      user_slug,
-      given_session,
+      credential,
       session_lifetime,
       game_slug,
       bet_slug,
@@ -659,8 +655,7 @@ CREATE FUNCTION change_stake (
       min_stake,
       notable_stake,
       max_bet_while_in_debt,
-      user_slug,
-      given_session,
+      credential,
       session_lifetime,
       game_slug,
       bet_slug,
@@ -673,8 +668,7 @@ $$;
 
 DROP FUNCTION IF EXISTS complete_bet CASCADE;
 CREATE FUNCTION complete_bet (
-  user_slug users.slug%TYPE,
-  given_session sessions.session%TYPE,
+  credential JSONB,
   session_lifetime INTERVAL,
   scrap_per_roll users.scrap%TYPE,
   win_bet_roll_reward users.rolls%TYPE,
@@ -685,9 +679,10 @@ CREATE FUNCTION complete_bet (
   winners TEXT[] -- options.slug%TYPE[]
 ) RETURNS bets LANGUAGE plpgsql AS $$
   DECLARE
+    user_id users.id%TYPE;
     completed_bet bets%ROWTYPE;
   BEGIN
-    PERFORM validate_manage_bets(user_slug, given_session, session_lifetime, game_slug);
+    SELECT validate_manage_bets(credential, session_lifetime, game_slug) INTO user_id;
 
     WITH
       staked AS (
@@ -796,7 +791,7 @@ CREATE FUNCTION complete_bet (
       INSERT INTO audit_logs (event) VALUES (
         jsonb_build_object(
           'event', 'CompleteBet',
-          'user_slug', user_slug,
+          'user_id', user_id,
           'game_slug', game_slug,
           'bet_slug', bet_slug,
           'winners', to_jsonb(winners)
@@ -809,8 +804,7 @@ $$;
 
 DROP FUNCTION IF EXISTS edit_bet CASCADE;
 CREATE FUNCTION edit_bet (
-  user_slug users.slug%TYPE,
-  given_session sessions.session%TYPE,
+  credential JSONB,
   session_lifetime INTERVAL,
   old_version bets.version%TYPE,
   game_slug games.slug%TYPE,
@@ -824,9 +818,10 @@ CREATE FUNCTION edit_bet (
   add_options AddOption[]
 ) RETURNS bets LANGUAGE plpgsql AS $$
   DECLARE
+    user_id users.id%TYPE;
     edited_bet bets%ROWTYPE;
   BEGIN
-    PERFORM validate_manage_bets(user_slug, given_session, session_lifetime, game_slug);
+    SELECT validate_manage_bets(credential, session_lifetime, game_slug) INTO user_id;
 
     SET CONSTRAINTS options_order DEFERRED;
 
@@ -927,7 +922,7 @@ CREATE FUNCTION edit_bet (
     INSERT INTO audit_logs (event) VALUES (
       jsonb_build_object(
         'event', 'EditBet',
-        'user_slug', user_slug,
+        'user_id', user_id,
         'game_slug', game_slug,
         'bet_slug', bet_slug,
         'from_version', old_version
@@ -940,8 +935,7 @@ $$;
 
 DROP FUNCTION IF EXISTS edit_game CASCADE;
 CREATE FUNCTION edit_game (
-  user_slug users.slug%TYPE,
-  given_session sessions.session%TYPE,
+  credential JSONB,
   session_lifetime INTERVAL,
   game_slug games.slug%TYPE,
   old_version games.version%TYPE,
@@ -955,9 +949,10 @@ CREATE FUNCTION edit_game (
   clear_order BOOLEAN
 ) RETURNS games LANGUAGE plpgsql AS $$
   DECLARE
+    user_id users.id%TYPE;
     result games%ROWTYPE;
   BEGIN
-    PERFORM validate_manage_games(user_slug, given_session, session_lifetime);
+    SELECT validate_manage_games(credential, session_lifetime) INTO user_id;
     UPDATE games SET
       version = old_version + 1,
       name = coalesce(new_name, name),
@@ -971,7 +966,7 @@ CREATE FUNCTION edit_game (
       INSERT INTO audit_logs (event) VALUES (
         jsonb_build_object(
           'event', 'EditGame',
-          'user_slug', user_slug,
+          'user_id', user_id,
           'game_slug', game_slug,
           'from_version', old_version
         )
@@ -987,8 +982,7 @@ $$;
 
 DROP FUNCTION IF EXISTS get_notification CASCADE;
 CREATE FUNCTION get_notification (
-  user_slug users.slug%TYPE,
-  given_session sessions.session%TYPE,
+  credential JSONB,
   session_lifetime INTERVAL,
   notification_id notifications.id%TYPE
 ) RETURNS notifications LANGUAGE plpgsql AS $$
@@ -996,11 +990,7 @@ CREATE FUNCTION get_notification (
     user_id users.id%TYPE;
     notification notifications%ROWTYPE;
   BEGIN
-    SELECT validate_session(
-      user_slug,
-      given_session,
-      session_lifetime
-    ) INTO user_id;
+    SELECT validate_credentials(credential, session_lifetime) INTO user_id;
 
     SELECT notifications.* INTO notification
     FROM notifications
@@ -1012,18 +1002,19 @@ $$;
 
 DROP FUNCTION IF EXISTS get_notifications CASCADE;
 CREATE FUNCTION get_notifications (
-  user_slug users.slug%TYPE,
-  given_session sessions.session%TYPE,
+  credential JSONB,
   session_lifetime INTERVAL,
   include_read BOOLEAN
 ) RETURNS SETOF notifications LANGUAGE plpgsql AS $$
+  DECLARE
+    user_id users.id%TYPE;
   BEGIN
-    PERFORM validate_session(user_slug, given_session, session_lifetime);
+    SELECT validate_credentials(credential, session_lifetime) INTO user_id;
 
     RETURN QUERY
       SELECT notifications.*
-      FROM notifications LEFT JOIN users ON notifications."for" = users.id
-      WHERE users.slug = user_slug AND (include_read OR read = FALSE);
+      FROM notifications
+      WHERE notifications."for" = user_id AND (include_read OR notifications.read = FALSE);
   END;
 $$;
 
@@ -1119,8 +1110,7 @@ CREATE FUNCTION new_stake (
   min_stake stakes.amount%TYPE,
   notable_stake stakes.amount%TYPE,
   max_bet_while_in_debt stakes.amount%TYPE,
-  user_slug users.slug%TYPE,
-  given_session sessions.session%TYPE,
+  credential JSONB,
   session_lifetime INTERVAL,
   game_slug games.slug%TYPE,
   bet_slug bets.slug%TYPE,
@@ -1129,10 +1119,11 @@ CREATE FUNCTION new_stake (
   given_message stakes.message%TYPE
 ) RETURNS INTEGER LANGUAGE plpgsql AS $$
   DECLARE
+    user_id users.id%TYPE;
     bet_is_voting BOOLEAN;
     new_balance users.balance%TYPE;
   BEGIN
-    PERFORM validate_session(user_slug, given_session, session_lifetime);
+    SELECT validate_credentials(credential, session_lifetime) INTO user_id;
 
     IF staked < min_stake THEN
       RAISE EXCEPTION USING
@@ -1166,12 +1157,12 @@ CREATE FUNCTION new_stake (
       WITH
         stake AS (
           INSERT INTO stakes (option, owner, amount, message)
-          SELECT options.id, users.id, staked, given_message
+          SELECT options.id, user_id, staked, given_message
           FROM
-            users INNER JOIN
-              options ON users.slug = user_slug AND options.slug = option_slug INNER JOIN
-              bets ON options.bet = bets.id AND bets.slug = bet_slug INNER JOIN
-              games ON bets.game = games.id AND games.slug = game_slug
+            options INNER JOIN
+            bets ON options.bet = bets.id AND bets.slug = bet_slug INNER JOIN
+            games ON bets.game = games.id AND games.slug = game_slug
+          WHERE options.slug = option_slug
           RETURNING stakes.owner AS "user", stakes.amount
         )
       UPDATE users
@@ -1195,7 +1186,7 @@ CREATE FUNCTION new_stake (
     INSERT INTO audit_logs (event) VALUES (
       jsonb_build_object(
         'event', 'NewStake',
-        'user_slug', user_slug,
+        'user_id', user_id,
         'game_slug', game_slug,
         'bet_slug', bet_slug,
         'option_slug', option_slug,
@@ -1211,18 +1202,18 @@ $$;
 
 DROP FUNCTION IF EXISTS revert_cancel_bet CASCADE;
 CREATE FUNCTION revert_cancel_bet (
-  user_slug users.slug%TYPE,
-  given_session sessions.session%TYPE,
+  credential JSONB,
   session_lifetime INTERVAL,
   old_version bets.version%TYPE,
   game_slug games.slug%TYPE,
   bet_slug bets.slug%TYPE
 ) RETURNS bets LANGUAGE plpgsql AS $$
   DECLARE
+    user_id users.id%TYPE;
     bet_id bets.id%TYPE;
     reverted_bet bets%ROWTYPE;
   BEGIN
-    PERFORM validate_manage_bets(user_slug, given_session, session_lifetime, game_slug);
+    SELECT validate_manage_bets(credential, session_lifetime, game_slug) INTO user_id;
 
     SELECT bets.id
     INTO bet_id
@@ -1270,7 +1261,7 @@ CREATE FUNCTION revert_cancel_bet (
     INSERT INTO audit_logs (event) VALUES (
       jsonb_build_object(
         'event', 'RevertCancelBet',
-        'user_slug', user_slug,
+        'user_id', user_id,
         'game_slug', game_slug,
         'bet_slug', bet_slug
       )
@@ -1282,18 +1273,18 @@ $$;
 
 DROP FUNCTION IF EXISTS revert_complete_bet CASCADE;
 CREATE FUNCTION revert_complete_bet (
-  user_slug users.slug%TYPE,
-  given_session sessions.session%TYPE,
+  credential JSONB,
   session_lifetime INTERVAL,
   old_version bets.version%TYPE,
   game_slug games.slug%TYPE,
   bet_slug bets.slug%TYPE
 ) RETURNS bets LANGUAGE plpgsql AS $$
   DECLARE
+    user_id users.id%TYPE;
     bet_id bets.id%TYPE;
     reverted_bet bets%ROWTYPE;
   BEGIN
-    PERFORM validate_manage_bets(user_slug, given_session, session_lifetime, game_slug);
+    SELECT validate_manage_bets(credential, session_lifetime, game_slug) INTO user_id;
 
     SELECT bets.id
     INTO bet_id
@@ -1363,7 +1354,7 @@ CREATE FUNCTION revert_complete_bet (
     INSERT INTO audit_logs (event) VALUES (
       jsonb_build_object(
         'event', 'RevertCompleteBet',
-        'user_slug', user_slug,
+        'user_id', user_id,
         'game_slug', game_slug,
         'bet_slug', bet_slug
       )
@@ -1375,8 +1366,7 @@ $$;
 
 DROP FUNCTION IF EXISTS set_bet_locked CASCADE;
 CREATE FUNCTION set_bet_locked (
-  user_slug users.slug%TYPE,
-  given_session sessions.session%TYPE,
+  credential JSONB,
   session_lifetime INTERVAL,
   old_version bets.version%TYPE,
   game_slug games.slug%TYPE,
@@ -1384,11 +1374,12 @@ CREATE FUNCTION set_bet_locked (
   target_lock_state BOOLEAN
 ) RETURNS bets LANGUAGE plpgsql AS $$
   DECLARE
+    user_id users.id%TYPE;
     target BetProgress;
     expected BetProgress;
     bet bets%ROWTYPE;
   BEGIN
-    PERFORM validate_manage_bets(user_slug, given_session, session_lifetime, game_slug);
+    SELECT validate_manage_bets(credential, session_lifetime, game_slug) INTO user_id;
 
     IF (target_lock_state) THEN
       target = 'Locked'::BetProgress;
@@ -1412,7 +1403,7 @@ CREATE FUNCTION set_bet_locked (
     INSERT INTO audit_logs (event) VALUES (
       jsonb_build_object(
         'event', 'SetBetLocked',
-        'user_slug', user_slug,
+        'user_id', user_id,
         'game_slug', game_slug,
         'bet_slug', bet_slug,
         'locked', target_lock_state
@@ -1425,8 +1416,7 @@ $$;
 
 DROP FUNCTION IF EXISTS set_permissions CASCADE;
 CREATE FUNCTION set_permissions (
-  editor_slug users.slug%TYPE,
-  given_session sessions.session%TYPE,
+  credential JSONB,
   session_lifetime INTERVAL,
   user_slug users.slug%TYPE,
   game_slug games.slug%TYPE,
@@ -1436,9 +1426,10 @@ CREATE FUNCTION set_permissions (
   set_manage_bets BOOLEAN
 ) RETURNS users LANGUAGE plpgsql AS $$
   DECLARE
+    editor_id users.id%TYPE;
     result_user users%ROWTYPE;
   BEGIN
-    PERFORM validate_manage_permissions(editor_slug, given_session, session_lifetime);
+    SELECT validate_manage_permissions(credential, session_lifetime) INTO editor_id;
 
     IF game_slug IS NOT NULL THEN
       INSERT INTO specific_permissions (game, "user", manage_bets)
@@ -1467,7 +1458,7 @@ CREATE FUNCTION set_permissions (
     INSERT INTO audit_logs (event) VALUES (
       jsonb_build_object(
         'event', 'SetPermission',
-        'editor_slug', editor_slug,
+        'editor_id', editor_id,
         'user_slug', user_slug,
         'game_slug', game_slug,
         'manage_games', set_manage_games,
@@ -1483,18 +1474,18 @@ $$;
 
 DROP FUNCTION IF EXISTS set_read CASCADE;
 CREATE FUNCTION set_read (
-  user_slug users.slug%TYPE,
-  given_session sessions.session%TYPE,
+  credential JSONB,
   session_lifetime INTERVAL,
   notification_id notifications.id%TYPE
 ) RETURNS BOOLEAN LANGUAGE plpgsql AS $$
+  DECLARE
+    user_id users.id%TYPE;
   BEGIN
-    PERFORM validate_session(user_slug, given_session, session_lifetime);
+    SELECT validate_credentials(credential, session_lifetime) INTO user_id;
 
     UPDATE notifications
     SET read = TRUE
-    FROM users
-    WHERE notifications."for" = users.id AND users.slug = user_slug AND notifications.id = notification_id;
+    WHERE notifications."for" = user_id AND notifications.id = notification_id;
 
     IF FOUND THEN
       RETURN TRUE;
@@ -1508,18 +1499,18 @@ $$;
 
 DROP FUNCTION IF EXISTS withdraw_stake CASCADE;
 CREATE FUNCTION withdraw_stake (
-  user_slug users.slug%TYPE,
-  given_session sessions.session%TYPE,
+  credential JSONB,
   session_lifetime INTERVAL,
   game_slug games.slug%TYPE,
   bet_slug bets.slug%TYPE,
   option_slug options.slug%TYPE
 ) RETURNS INTEGER LANGUAGE plpgsql AS $$
   DECLARE
+    user_id users.id%TYPE;
     bet_is_voting BOOLEAN;
     new_balance users.balance%TYPE;
   BEGIN
-    PERFORM validate_session(user_slug, given_session, session_lifetime);
+    SELECT validate_credentials(credential, session_lifetime) INTO user_id;
 
     SELECT bets.progress = 'Voting'::BetProgress INTO bet_is_voting
     FROM bets INNER JOIN games ON bets.game = games.id
@@ -1541,13 +1532,12 @@ CREATE FUNCTION withdraw_stake (
       stake AS (
         DELETE FROM stakes
           USING
-            users INNER JOIN
-              options ON options.slug = option_slug INNER JOIN
-              bets ON bets.slug = bet_slug AND options.bet = bets.id INNER JOIN
-              games ON games.slug = game_slug AND bets.game = games.id
+            options INNER JOIN
+            bets ON bets.slug = bet_slug AND options.bet = bets.id INNER JOIN
+            games ON games.slug = game_slug AND bets.game = games.id
           WHERE
-            users.slug = user_slug AND
-            stakes.owner = users.id AND
+            options.slug = option_slug AND
+            stakes.owner = user_id AND
             stakes.option = options.id AND
             stakes.message IS NULL
           RETURNING stakes.owner AS "user", stakes.amount
@@ -1559,7 +1549,7 @@ CREATE FUNCTION withdraw_stake (
       INSERT INTO audit_logs (event) VALUES (
         jsonb_build_object(
           'event', 'WithdrawStake',
-          'user_slug', user_slug,
+          'user_id', user_id,
           'game_slug', game_slug,
           'bet_slug', bet_slug,
           'option_slug', option_slug,

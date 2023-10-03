@@ -42,20 +42,52 @@
   },
 
   auth: {
+    // How long a user's session lasts.
     sessionLifetime: "P7D",
+    // How many bytes of data to use for session IDs.
     sessionIdSize: 64,
+    // How long to allow users to spend logging in before rejecting the log-in.
     stateValidityDuration: "PT5M",
 
-    discord: {
-      scopes: ["identify", "guilds"],
+    // What algorithm to use for encrypting secrets, the algorithm chosen here will determine the necessary length
+    // of key. See https://github.com/panva/jose/issues/210#jwe-enc for the options.
+    // The default "A256CBC-HS512" requires a 64-byte key.
+    algorithm: "A256CBC-HS512",
+    // A secret token that is used to encrypt sensitive data, generate something secure & random, and keep it safe.
+    // `npm run generate-secret` is suitable.
+    // Note this will not always run with a placeholder, even in dev, as the length won't match the algorithm.
+    key: "CHANGE_ME",
 
+    // How to authenticate upstream with discord.
+    discord: {
       clientId: "CHANGE_ME",
       clientSecret: "CHANGE_ME",
 
-      guild: "308515582817468420",
+      guild: "308515582817468420", // JADS
     },
+
+//    // Allow external services to act on behalf of users.
+//    externalServices: {
+//      // The name of this server, services must set the audience for tokens to this.
+//      identity: "jasb.900000000.xyz"
+//      // How long a token is valid for, services should generate tokens on each request so this should be short.
+//      tokenLifetime: "PT1M",
+//
+//      // The services that are allowed.
+//      recognised: {
+//        // The name of the service, used as the issuer in tokens it issues.
+//        "some-service": {
+//          // The public key used to sign tokens to prove they come from the service.
+//          // This must be an Ed25519 key.
+//          publicKey: {
+//            // A JSON web key.
+//          }
+//        }
+//      }
+//    },
   },
 
+  // If given, will post notification messages to a Discord channel after notable events (new bets, etc...).
   notifier: {
     service: "Discord",
     token: "CHANGE_ME",
@@ -63,6 +95,7 @@
     // channel: "666328861985865749" // JADS
   },
 
+  // If given, will allow image uploading to the given storage.
   imageUpload: {
     // Oracle Cloud Infrastructure Object Storage
     service: "oci",
@@ -94,6 +127,7 @@
     allowOverwrite: false,
   },
 
+  // If given, will allow avatar caching to the given storage.
   avatarCache: {
     // Oracle Cloud Infrastructure Object Storage
     service: "oci",

@@ -6,10 +6,11 @@ import * as Schema from "io-ts";
 
 import { Feed } from "../public.js";
 import { Arrays } from "../util/arrays.js";
+import { Credentials } from "./auth/credentials.js";
 import { WebError } from "./errors.js";
 import type { Server } from "./model.js";
 import { ResultCache } from "./result-cache.js";
-import { authApi, requireSession } from "./routes/auth.js";
+import { authApi } from "./routes/auth.js";
 import { gachaApi } from "./routes/gacha.js";
 import { gamesApi } from "./routes/games.js";
 import { leaderboardApi } from "./routes/leaderboard.js";
@@ -47,11 +48,8 @@ export const api = (server: Server.State): Router => {
   apiRouter.post("/upload", uploadBody, async (ctx) => {
     const imageUpload = server.imageUpload;
     if (imageUpload !== undefined) {
-      const sessionCookie = requireSession(ctx.cookies);
-      const userId = await server.store.validateUpload(
-        sessionCookie.user,
-        sessionCookie.session,
-      );
+      const credential = await server.auth.requireIdentifyingCredential(ctx);
+      await server.store.validateUpload(credential);
       const files = Arrays.singletonOrArray(ctx.request.files?.["file"]);
       const [file] = files;
       if (files.length > 1 || file === undefined) {
@@ -69,7 +67,7 @@ export const api = (server: Server.State): Router => {
             file.originalFilename ?? file.newFilename,
             file.mimetype,
             Uint8Array.from(await fs.readFile(file.filepath)),
-            { uploader: userId },
+            { uploader: Credentials.actingUser(credential) },
           )
         ).toString(),
       });

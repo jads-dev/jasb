@@ -5,9 +5,9 @@ import { WebSocket } from "ws";
 
 import { Games, Notifications, Users } from "../../public.js";
 import { requireUrlParameter, Validation } from "../../util/validation.js";
+import { Credentials } from "../auth/credentials.js";
 import { WebError } from "../errors.js";
 import type { Server } from "../model.js";
-import { requireSession } from "./auth.js";
 import { body } from "./util.js";
 
 const PermissionsBody = Schema.readonly(
@@ -24,9 +24,10 @@ export const usersApi = (server: Server.State): Router => {
   const router = new Router();
 
   // Get Logged In User.
-  router.get("/", (ctx) => {
-    const sessionCookie = requireSession(ctx.cookies);
-    ctx.redirect(`/api/user/${sessionCookie.user}`);
+  router.get("/", async (ctx) => {
+    const credential = await server.auth.requireIdentifyingCredential(ctx);
+    // We don't actually validate this credential, but this redirect is safe to do anyway, so that's fine.
+    ctx.redirect(`/api/user/${Credentials.actingUser(credential)}`);
     ctx.status = StatusCodes.TEMPORARY_REDIRECT;
   });
 
@@ -84,13 +85,8 @@ export const usersApi = (server: Server.State): Router => {
       "user",
       ctx.params["userSlug"],
     );
-    const sessionCookie = requireSession(ctx.cookies);
-    if (sessionCookie.user !== userSlug) {
-      throw new WebError(
-        StatusCodes.NOT_FOUND,
-        "Can't get other user's notifications.",
-      );
-    }
+    const credential = await server.auth.requireIdentifyingCredential(ctx);
+    Credentials.ensureCanActAs(credential, userSlug);
 
     // If we have a web-socket, the client requested an upgrade to one,
     // so we should do that, otherwise we fall back to just a standard
@@ -98,16 +94,10 @@ export const usersApi = (server: Server.State): Router => {
     const ws: unknown = ctx["ws"];
     if (ws instanceof Function) {
       const socket = (await ws()) as WebSocket;
-      const userId = await server.store.validateSession(
-        sessionCookie.user,
-        sessionCookie.session,
-      );
-      await server.webSockets.attach(server, userId, sessionCookie, socket);
+      const userId = await server.store.validateCredential(credential);
+      await server.webSockets.attach(server, userId, credential, socket);
     } else {
-      const notifications = await server.store.getNotifications(
-        sessionCookie.user,
-        sessionCookie.session,
-      );
+      const notifications = await server.store.getNotifications(credential);
       ctx.body = Schema.readonlyArray(Notifications.Notification).encode(
         notifications.map(Notifications.fromInternal),
       );
@@ -126,18 +116,9 @@ export const usersApi = (server: Server.State): Router => {
       "notification",
       ctx.params["notificationId"],
     );
-    const sessionCookie = requireSession(ctx.cookies);
-    if (sessionCookie.user !== userSlug) {
-      throw new WebError(
-        StatusCodes.NOT_FOUND,
-        "Can't delete other user's notifications.",
-      );
-    }
-    await server.store.clearNotification(
-      sessionCookie.user,
-      sessionCookie.session,
-      notificationId,
-    );
+    const credential = await server.auth.requireIdentifyingCredential(ctx);
+    Credentials.ensureCanActAs(credential, userSlug);
+    await server.store.clearNotification(credential, notificationId);
     ctx.body = Notifications.Id.encode(notificationId);
   });
 
@@ -161,17 +142,9 @@ export const usersApi = (server: Server.State): Router => {
       "user",
       ctx.params["userSlug"],
     );
-    const sessionCookie = requireSession(ctx.cookies);
-    if (sessionCookie.user !== userSlug) {
-      throw new WebError(
-        StatusCodes.NOT_FOUND,
-        "You can't make other players bankrupt.",
-      );
-    }
-    const internalUser = await server.store.bankrupt(
-      sessionCookie.user,
-      sessionCookie.session,
-    );
+    const credential = await server.auth.requireIdentifyingCredential(ctx);
+    Credentials.ensureCanActAs(credential, userSlug);
+    const internalUser = await server.store.bankrupt(credential);
     ctx.body = Schema.tuple([Users.Slug, Users.User]).encode(
       Users.fromInternal(internalUser),
     );
@@ -192,7 +165,7 @@ export const usersApi = (server: Server.State): Router => {
 
   // Set User Permissions.
   router.post("/:userSlug/permissions", body, async (ctx) => {
-    const sessionCookie = requireSession(ctx.cookies);
+    const credential = await server.auth.requireIdentifyingCredential(ctx);
     const userSlug = requireUrlParameter(
       Users.Slug,
       "user",
@@ -200,8 +173,7 @@ export const usersApi = (server: Server.State): Router => {
     );
     const body = Validation.body(PermissionsBody, ctx.request.body);
     const permissions = await server.store.setPermissions(
-      sessionCookie.user,
-      sessionCookie.session,
+      credential,
       userSlug,
       body.game,
       body.manageGames,

@@ -11,7 +11,6 @@ import { Users } from "../../../../public/users.js";
 import { Validation } from "../../../../util/validation.js";
 import { WebError } from "../../../errors.js";
 import type { Server } from "../../../model.js";
-import { requireSession } from "../../auth.js";
 import { body } from "../../util.js";
 
 const {
@@ -90,7 +89,7 @@ export const cardTypesApi = (server: Server.State): Router => {
 
   // Gift a self-made card to someone.
   router.post("/:cardTypeId/gift", body, async (ctx) => {
-    const sessionCookie = requireSession(ctx.cookies);
+    const credential = await server.auth.requireIdentifyingCredential(ctx);
     const bannerSlug = Validation.requireUrlParameter(
       Banners.Slug,
       "banner",
@@ -103,8 +102,7 @@ export const cardTypesApi = (server: Server.State): Router => {
     );
     const body = Validation.body(GiftSelfMadeCardBody, ctx.request.body);
     const cardType = await server.store.gachaGiftSelfMadeCard(
-      sessionCookie.user,
-      sessionCookie.session,
+      credential,
       body.user,
       bannerSlug,
       cardTypeId,
@@ -116,7 +114,7 @@ export const cardTypesApi = (server: Server.State): Router => {
 
   // Create new card type in the given banner.
   router.post("/", body, async (ctx) => {
-    const sessionCookie = requireSession(ctx.cookies);
+    const credential = await server.auth.requireIdentifyingCredential(ctx);
     const bannerSlug = Validation.requireUrlParameter(
       Banners.Slug,
       "banner",
@@ -124,8 +122,7 @@ export const cardTypesApi = (server: Server.State): Router => {
     );
     const body = Validation.body(AddCardTypeBody, ctx.request.body);
     const cardType = await server.store.gachaAddCardType(
-      sessionCookie.user,
-      sessionCookie.session,
+      credential,
       bannerSlug,
       body.name,
       body.description,
@@ -141,7 +138,7 @@ export const cardTypesApi = (server: Server.State): Router => {
 
   // Edit a card type in the given banner.
   router.post("/:cardTypeId", body, async (ctx) => {
-    const sessionCookie = requireSession(ctx.cookies);
+    const credential = await server.auth.requireIdentifyingCredential(ctx);
     const bannerSlug = Validation.requireUrlParameter(
       Banners.Slug,
       "banner",
@@ -154,8 +151,7 @@ export const cardTypesApi = (server: Server.State): Router => {
     );
     const body = Validation.body(EditCardTypeBody, ctx.request.body);
     const cardType = await server.store.gachaEditCardType(
-      sessionCookie.user,
-      sessionCookie.session,
+      credential,
       bannerSlug,
       cardTypeId,
       body.version,

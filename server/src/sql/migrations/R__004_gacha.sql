@@ -28,39 +28,24 @@ CREATE TYPE RemoveCredit AS (
 
 DROP FUNCTION IF EXISTS validate_manage_gacha CASCADE;
 CREATE FUNCTION validate_manage_gacha (
-  user_slug users.slug%TYPE,
-  given_session sessions.session%TYPE,
+  credential JSONB,
   session_lifetime INTERVAL
 ) RETURNS users.id%TYPE LANGUAGE plpgsql AS $$
   DECLARE
     user_id users.id%TYPE;
     can_manage_gacha BOOLEAN;
   BEGIN
-    SELECT
-      users.id,
+    user_id = validate_credentials(credential, session_lifetime);
+    SELECT INTO can_manage_gacha
       general_permissions.manage_gacha
-    INTO
-      user_id,
-      can_manage_gacha
-    FROM sessions INNER JOIN
-      users ON sessions."user" = users.id LEFT JOIN
-      general_permissions ON users.id = general_permissions."user"
-    WHERE
-      user_slug = users.slug AND
-      sessions.session = given_session AND
-      (now() - session_lifetime) < sessions.started;
-    IF user_id IS NOT NULL THEN
-      IF can_manage_gacha THEN
-        RETURN user_id;
-      ELSE
-        RAISE EXCEPTION USING
-          ERRCODE = 'FRBDN',
-          MESSAGE = 'Must be able to manage gacha to perform this task.';
-      END IF;
+    FROM general_permissions
+    WHERE general_permissions."user" = user_id;
+    IF can_manage_gacha THEN
+      RETURN user_id;
     ELSE
       RAISE EXCEPTION USING
-        ERRCODE = 'UAUTH',
-        MESSAGE = 'Invalid session.';
+        ERRCODE = 'FRBDN',
+        MESSAGE = 'Missing permission: manage gacha.';
     END IF;
   END;
 $$;
@@ -182,8 +167,7 @@ $$;
 
 DROP FUNCTION IF EXISTS gacha_roll CASCADE;
 CREATE FUNCTION gacha_roll (
-  user_slug users.slug%TYPE,
-  given_session sessions.session%TYPE,
+  credential JSONB,
   session_lifetime INTERVAL,
   max_pity users.pity%TYPE,
   banner_slug gacha_banners.slug%TYPE,
@@ -195,8 +179,7 @@ CREATE FUNCTION gacha_roll (
     banner_id gacha_banners.id%TYPE;
     banner_active gacha_banners.active%TYPE;
   BEGIN
-    SELECT validate_session(user_slug, given_session, session_lifetime)
-    INTO user_id;
+    SELECT validate_credentials(credential, session_lifetime) INTO user_id;
 
     SELECT id, active INTO banner_id, banner_active FROM gacha_banners WHERE slug = banner_slug;
     IF banner_id IS NULL THEN
@@ -222,7 +205,7 @@ CREATE FUNCTION gacha_roll (
     INSERT INTO audit_logs (event) VALUES (
       jsonb_build_object(
         'event', 'GachaRoll',
-        'user_slug', user_slug,
+        'user_id', user_id,
         'banner_slug', banner_slug,
         'roll_count', roll_count
       )
@@ -232,8 +215,7 @@ $$;
 
 DROP FUNCTION IF EXISTS gacha_add_banner CASCADE;
 CREATE FUNCTION gacha_add_banner (
-  user_slug users.slug%TYPE,
-  given_session sessions.session%TYPE,
+  credential JSONB,
   session_lifetime INTERVAL,
   given_slug gacha_banners.slug%TYPE,
   given_name gacha_banners."name"%TYPE,
@@ -248,7 +230,7 @@ CREATE FUNCTION gacha_add_banner (
     user_id users.id%TYPE;
     banner gacha_banners%ROWTYPE;
   BEGIN
-    SELECT validate_manage_gacha(user_slug, given_session, session_lifetime)
+    SELECT validate_manage_gacha(credential, session_lifetime)
     INTO user_id;
 
     INSERT INTO gacha_banners
@@ -262,7 +244,7 @@ CREATE FUNCTION gacha_add_banner (
       given_type,
       given_background_color,
       given_foreground_color,
-      max(existing."order") + 1,
+      coalesce(max(existing."order"), 0) + 1,
       user_id
     FROM
       gacha_banners AS existing
@@ -272,7 +254,7 @@ CREATE FUNCTION gacha_add_banner (
     INSERT INTO audit_logs (event) VALUES (
       jsonb_build_object(
         'event', 'GachaAddBanner',
-        'user_slug', user_slug,
+        'user_id', user_id,
         'banner_slug', given_slug
       )
     );
@@ -283,8 +265,7 @@ $$;
 
 DROP FUNCTION IF EXISTS gacha_edit_banner CASCADE;
 CREATE FUNCTION gacha_edit_banner (
-  user_slug users.slug%TYPE,
-  given_session sessions.session%TYPE,
+  credential JSONB,
   session_lifetime INTERVAL,
   banner_slug gacha_banners.slug%TYPE,
   old_version gacha_banners.version%TYPE,
@@ -297,9 +278,10 @@ CREATE FUNCTION gacha_edit_banner (
   given_foreground_color gacha_banners.foreground_color%TYPE
 ) RETURNS gacha_banners LANGUAGE plpgsql AS $$
   DECLARE
+    user_id users.id%TYPE;
     result gacha_banners%ROWTYPE;
   BEGIN
-    PERFORM validate_manage_gacha(user_slug, given_session, session_lifetime);
+    SELECT validate_manage_gacha(credential, session_lifetime) INTO user_id;
     UPDATE gacha_banners SET
       version = old_version + 1,
       name = coalesce(given_name, name),
@@ -315,7 +297,7 @@ CREATE FUNCTION gacha_edit_banner (
       INSERT INTO audit_logs (event) VALUES (
         jsonb_build_object(
           'event', 'GachaEditBanner',
-          'user_slug', user_slug,
+          'user_id', user_id,
           'banner_slug', banner_slug,
           'from_version', old_version
         )
@@ -332,13 +314,12 @@ $$;
 
 DROP FUNCTION IF EXISTS gacha_reorder_banners CASCADE;
 CREATE FUNCTION gacha_reorder_banners (
-  user_slug users.slug%TYPE,
-  given_session sessions.session%TYPE,
+  credential JSONB,
   session_lifetime INTERVAL,
   new_order OrderedBanner[]
 ) RETURNS SETOF gacha_banners LANGUAGE plpgsql AS $$
   BEGIN
-    PERFORM validate_manage_gacha(user_slug, given_session, session_lifetime);
+    PERFORM validate_manage_gacha(credential, session_lifetime);
 
     SET CONSTRAINTS unique_gacha_banner_order DEFERRED;
 
@@ -362,8 +343,7 @@ $$;
 
 DROP FUNCTION IF EXISTS gacha_add_card_type CASCADE;
 CREATE FUNCTION gacha_add_card_type (
-  user_slug users.slug%TYPE,
-  given_session sessions.session%TYPE,
+  credential JSONB,
   session_lifetime INTERVAL,
   given_banner_slug gacha_banners.slug%TYPE,
   given_name gacha_card_types."name"%TYPE,
@@ -379,7 +359,7 @@ CREATE FUNCTION gacha_add_card_type (
     rarity_id gacha_rarities.id%TYPE;
     result gacha_card_types%ROWTYPE;
   BEGIN
-    SELECT validate_manage_gacha(user_slug, given_session, session_lifetime)
+    SELECT validate_manage_gacha(credential, session_lifetime)
     INTO user_id;
 
     SELECT id INTO banner_id
@@ -419,7 +399,7 @@ CREATE FUNCTION gacha_add_card_type (
     INSERT INTO audit_logs (event) VALUES (
       jsonb_build_object(
         'event', 'GachaAddBanner',
-        'user_slug', user_slug,
+        'user_id', user_id,
         'card_type_id', result.id
       )
     );
@@ -430,8 +410,7 @@ $$;
 
 DROP FUNCTION IF EXISTS gacha_edit_card_type CASCADE;
 CREATE FUNCTION gacha_edit_card_type (
-  user_slug users.slug%TYPE,
-  given_session sessions.session%TYPE,
+  credential JSONB,
   session_lifetime INTERVAL,
   banner_slug gacha_banners.slug%TYPE,
   card_type_id gacha_card_types.id%TYPE,
@@ -447,11 +426,12 @@ CREATE FUNCTION gacha_edit_card_type (
   add_credits AddCredit[]
 ) RETURNS gacha_card_types LANGUAGE plpgsql AS $$
   DECLARE
+    user_id users.id%TYPE;
     banner_id gacha_banners.id%TYPE;
     rarity_id gacha_rarities.id%TYPE;
     result gacha_card_types%ROWTYPE;
   BEGIN
-    PERFORM validate_manage_gacha(user_slug, given_session, session_lifetime);
+    SELECT validate_manage_gacha(credential, session_lifetime) INTO user_id;
 
     SELECT id INTO banner_id
     FROM gacha_banners
@@ -523,7 +503,7 @@ CREATE FUNCTION gacha_edit_card_type (
       INSERT INTO audit_logs (event) VALUES (
         jsonb_build_object(
           'event', 'GachaEditCardType',
-          'user_slug', user_slug,
+          'user_id', user_id,
           'banner_slug', banner_slug,
           'card_type_id', card_type_id,
           'from_version', old_version
@@ -540,30 +520,22 @@ $$;
 
 DROP FUNCTION IF EXISTS gacha_get_balance CASCADE;
 CREATE FUNCTION gacha_get_balance (
-  user_slug users.slug%TYPE,
-  given_session sessions.session%TYPE,
+  credential JSONB,
   session_lifetime INTERVAL
 ) RETURNS users LANGUAGE plpgsql AS $$
   DECLARE
     user_id users.id%TYPE;
     result_user users%ROWTYPE;
   BEGIN
-    SELECT validate_session(
-      user_slug,
-      given_session,
-      session_lifetime
-    ) INTO user_id;
-
+    SELECT validate_credentials(credential, session_lifetime) INTO user_id;
     SELECT users.* INTO result_user FROM users WHERE users.id = user_id;
-
     RETURN result_user;
   END;
 $$;
 
 DROP FUNCTION IF EXISTS gacha_set_highlight CASCADE;
 CREATE FUNCTION gacha_set_highlight (
-  user_slug users.slug%TYPE,
-  given_session sessions.session%TYPE,
+  credential JSONB,
   session_lifetime INTERVAL,
   card_id gacha_cards.id%TYPE,
   highlight BOOLEAN
@@ -572,11 +544,7 @@ CREATE FUNCTION gacha_set_highlight (
     user_id users.id%TYPE;
     card_highlight gacha_card_highlights%ROWTYPE;
   BEGIN
-    SELECT validate_session(
-      user_slug,
-      given_session,
-      session_lifetime
-    ) INTO user_id;
+    SELECT validate_credentials(credential, session_lifetime) INTO user_id;
 
     IF highlight THEN
       INSERT INTO gacha_card_highlights (card, owner, "order")
@@ -603,8 +571,7 @@ $$;
 
 DROP FUNCTION IF EXISTS gacha_edit_highlight CASCADE;
 CREATE FUNCTION gacha_edit_highlight (
-  user_slug users.slug%TYPE,
-  given_session sessions.session%TYPE,
+  credential JSONB,
   session_lifetime INTERVAL,
   card_id gacha_cards.id%TYPE,
   given_message gacha_card_highlights.message%TYPE,
@@ -614,11 +581,7 @@ CREATE FUNCTION gacha_edit_highlight (
     user_id users.id%TYPE;
     card_highlight gacha_card_highlights%ROWTYPE;
   BEGIN
-    SELECT validate_session(
-      user_slug,
-      given_session,
-      session_lifetime
-    ) INTO user_id;
+    SELECT validate_credentials(credential, session_lifetime) INTO user_id;
 
     UPDATE gacha_card_highlights AS highlights
     SET
@@ -635,19 +598,14 @@ $$;
 
 DROP FUNCTION IF EXISTS gacha_reorder_highlights CASCADE;
 CREATE FUNCTION gacha_reorder_highlights (
-  user_slug users.slug%TYPE,
-  given_session sessions.session%TYPE,
+  credential JSONB,
   session_lifetime INTERVAL,
   new_order INT[] -- gacha_cards.id%TYPE[]
 ) RETURNS SETOF gacha_card_highlights LANGUAGE plpgsql AS $$
   DECLARE
     user_id users.id%TYPE;
   BEGIN
-    SELECT validate_session(
-      user_slug,
-      given_session,
-      session_lifetime
-    ) INTO user_id;
+    SELECT validate_credentials(credential, session_lifetime) INTO user_id;
 
     SET CONSTRAINTS gacha_card_highlights_order_per_user DEFERRED;
 
@@ -670,8 +628,7 @@ $$;
 
 DROP FUNCTION IF EXISTS gacha_recycle_card CASCADE;
 CREATE FUNCTION gacha_recycle_card (
-  user_slug users.slug%TYPE,
-  given_session sessions.session%TYPE,
+  credential JSONB,
   session_lifetime INTERVAL,
   scrap_per_roll users.scrap%TYPE,
   card_id gacha_cards.id%TYPE
@@ -682,11 +639,7 @@ CREATE FUNCTION gacha_recycle_card (
     resulting_scrap users.scrap%TYPE;
     result_user users%ROWTYPE;
   BEGIN
-    SELECT validate_session(
-      user_slug,
-      given_session,
-      session_lifetime
-    ) INTO user_id;
+    SELECT validate_credentials(credential, session_lifetime) INTO user_id;
 
     DELETE FROM gacha_cards AS cards
     WHERE cards.owner = user_id AND cards.id = card_id
@@ -711,7 +664,7 @@ CREATE FUNCTION gacha_recycle_card (
     INSERT INTO audit_logs (event) VALUES (
       jsonb_build_object(
         'event', 'GachaRecycleCard',
-        'user_slug', user_slug,
+        'user_id', user_id,
         'card_id', card_id,
         'resulting_scrap', resulting_scrap
       )
@@ -723,8 +676,7 @@ $$;
 
 DROP FUNCTION IF EXISTS gacha_gift_self_made CASCADE;
 CREATE FUNCTION gacha_gift_self_made (
-  user_slug users.slug%TYPE,
-  given_session sessions.session%TYPE,
+  credential JSONB,
   session_lifetime INTERVAL,
   gift_to_user_slug users.slug%TYPE,
   banner_slug gacha_banners.slug%TYPE,
@@ -736,18 +688,10 @@ CREATE FUNCTION gacha_gift_self_made (
     new_card gacha_cards%ROWTYPE;
     banner_correct BOOL = FALSE;
   BEGIN
-    IF user_slug = gift_to_user_slug THEN
-      SELECT validate_session(
-        user_slug,
-        given_session,
-        session_lifetime
-      ) INTO user_id;
+    IF acting_as_slug(credential) = gift_to_user_slug THEN
+      SELECT validate_credentials(credential, session_lifetime) INTO user_id;
     ELSE
-      SELECT validate_manage_gacha(
-        user_slug,
-        given_session,
-        session_lifetime
-      ) INTO user_id;
+      SELECT validate_manage_gacha(credential, session_lifetime) INTO user_id;
     END IF;
 
     SELECT id INTO gift_to_user_id FROM users WHERE slug = gift_to_user_slug;
@@ -791,7 +735,7 @@ CREATE FUNCTION gacha_gift_self_made (
     INSERT INTO audit_logs (event) VALUES (
       jsonb_build_object(
         'event', 'GachaGiftSelfMade',
-        'user_slug', user_slug,
+        'user_id', user_id,
         'card_type', card_type,
         'gift_to_user_slug', gift_to_user_slug
       )
@@ -803,8 +747,7 @@ $$;
 
 DROP FUNCTION IF EXISTS gacha_forge_card_type CASCADE;
 CREATE FUNCTION gacha_forge_card_type (
-  user_slug users.slug%TYPE,
-  given_session sessions.session%TYPE,
+  credential JSONB,
   session_lifetime INTERVAL,
   card_name gacha_card_types.name%TYPE,
   card_image gacha_card_types.image%TYPE,
@@ -819,11 +762,7 @@ CREATE FUNCTION gacha_forge_card_type (
     banner_id gacha_banners.id%TYPE;
     free BOOL = TRUE;
   BEGIN
-    SELECT validate_session(
-      user_slug,
-      given_session,
-      session_lifetime
-    ) INTO user_id;
+    SELECT validate_credentials(credential, session_lifetime) INTO user_id;
 
     SELECT
       FALSE INTO free
@@ -872,10 +811,9 @@ CREATE FUNCTION gacha_forge_card_type (
     RETURNING gacha_card_types.* INTO new_card_type;
 
     PERFORM gacha_gift_self_made(
-      user_slug,
-      given_session,
+      credential,
       session_lifetime,
-      user_slug,
+      acting_as_slug(credential),
       banner_slug,
       new_card_type.id
     );
@@ -883,7 +821,7 @@ CREATE FUNCTION gacha_forge_card_type (
     INSERT INTO audit_logs (event) VALUES (
       jsonb_build_object(
         'event', 'ForgeCardType',
-        'user_slug', user_slug,
+        'user_id', user_id,
         'name', card_name,
         'image', card_image,
         'quote', card_quote,
@@ -898,8 +836,7 @@ $$;
 
 DROP FUNCTION IF EXISTS gacha_retire_forged CASCADE;
 CREATE FUNCTION gacha_retire_forged (
-  user_slug users.slug%TYPE,
-  given_session sessions.session%TYPE,
+  credential JSONB,
   session_lifetime INTERVAL,
   card_type_id gacha_card_types.id%TYPE
 ) RETURNS gacha_card_types LANGUAGE plpgsql AS $$
@@ -907,11 +844,7 @@ CREATE FUNCTION gacha_retire_forged (
     user_id users.id%TYPE;
     new_card_type gacha_card_types%ROWTYPE;
   BEGIN
-    SELECT validate_session(
-      user_slug,
-      given_session,
-      session_lifetime
-    ) INTO user_id;
+    SELECT validate_credentials(credential, session_lifetime) INTO user_id;
 
     UPDATE gacha_card_types SET
       retired = TRUE,
@@ -930,7 +863,7 @@ CREATE FUNCTION gacha_retire_forged (
     INSERT INTO audit_logs (event) VALUES (
       jsonb_build_object(
         'event', 'RetireForgedCardType',
-        'user_slug', user_slug,
+        'user_id', user_id,
         'card_type', card_type_id
       )
     );

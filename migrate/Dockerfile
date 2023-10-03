@@ -2,6 +2,7 @@ ARG BUILD_DATE
 ARG VCS_REF
 ARG VERSION=${VCS_REF}-dev
 
+
 FROM --platform=${BUILDPLATFORM} redgate/flyway:9 AS base
 
 ARG VERSION

@@ -1,8 +1,6 @@
 import { StatusCodes } from "http-status-codes";
-import type * as Koa from "koa";
 import { SchemaValidationError } from "slonik/dist/errors.js";
 
-import { Auth } from "./auth.js";
 import type { Logging } from "./logging.js";
 
 export class WebError extends Error {
@@ -36,24 +34,9 @@ export const handler = (
     log.error("Unresolved error: ", { exception: error });
     return {
       status: StatusCodes.INTERNAL_SERVER_ERROR,
-      message: "Unhandled server eror.",
+      message: "Unhandled server error.",
     };
   }
 };
-
-export const middleware =
-  (log: Logging.Logger): Koa.Middleware =>
-  async (ctx, next): Promise<void> => {
-    try {
-      await next();
-    } catch (error) {
-      const { status, message } = handler(log, error);
-      if (status === StatusCodes.UNAUTHORIZED) {
-        ctx.cookies.set(Auth.sessionCookieName, null, { signed: true });
-      }
-      ctx.status = status;
-      ctx.body = message;
-    }
-  };
 
 export * as Errors from "./errors.js";

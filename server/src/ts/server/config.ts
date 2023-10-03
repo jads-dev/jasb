@@ -5,7 +5,10 @@ import * as Schema from "io-ts";
 import { formatValidationErrors } from "io-ts-reporters";
 import { default as JSON5 } from "json5";
 
-import { PlaceholderSecretToken } from "../util/secret-token.js";
+import {
+  PlaceholderBufferSecretToken,
+  PlaceholderSecretToken,
+} from "../util/secret-token.js";
 import { Validation } from "../util/validation.js";
 
 export class InvalidConfigError extends Error {
@@ -98,21 +101,49 @@ const AvatarCache = Schema.intersection([
 export type AvatarCache = Schema.TypeOf<typeof AvatarCache>;
 
 const DiscordAuth = Schema.strict({
-  scopes: Schema.array(Schema.string),
-
   clientId: Schema.string,
   clientSecret: Validation.SecretTokenOrPlaceholder,
 
   guild: Schema.string,
 });
 
-const Auth = Schema.strict({
-  sessionLifetime: Validation.Duration,
-  sessionIdSize: Schema.Int,
-  stateValidityDuration: Validation.Duration,
-
-  discord: DiscordAuth,
+const Algorithm = Schema.keyof({
+  A128GCM: null,
+  A192GCM: null,
+  A256GCM: null,
+  "A128CBC-HS256": null,
+  "A192CBC-HS384": null,
+  "A256CBC-HS512": null,
 });
+
+const ExternalService = Schema.strict({
+  publicKey: Validation.JsonWebKey,
+});
+export type ExternalService = Schema.TypeOf<typeof ExternalService>;
+
+const ExternalServices = Schema.strict({
+  identity: Schema.string,
+  tokenLifetime: Validation.Duration,
+
+  recognised: Schema.readonly(Schema.record(Schema.string, ExternalService)),
+});
+export type ExternalServices = Schema.TypeOf<typeof ExternalServices>;
+
+const Auth = Schema.intersection([
+  Schema.strict({
+    sessionLifetime: Validation.Duration,
+    sessionIdSize: Schema.Int,
+    stateValidityDuration: Validation.Duration,
+
+    algorithm: Algorithm,
+    key: Validation.BufferSecretTokenOrPlaceholder,
+
+    discord: DiscordAuth,
+  }),
+  Schema.partial({
+    externalServices: ExternalServices,
+  }),
+]);
 export type Auth = Schema.TypeOf<typeof Auth>;
 
 const DiscordNotifier = Schema.strict({
@@ -289,9 +320,10 @@ export const builtIn: Server = {
     sessionIdSize: 64 as Schema.Int,
     stateValidityDuration: Joda.Duration.of(5, Joda.ChronoUnit.MINUTES),
 
-    discord: {
-      scopes: ["identify", "guilds"],
+    algorithm: "A256CBC-HS512",
+    key: new PlaceholderBufferSecretToken(),
 
+    discord: {
       clientId: "CHANGE_ME",
       clientSecret: new PlaceholderSecretToken(),
 

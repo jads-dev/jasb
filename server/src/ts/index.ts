@@ -1,10 +1,8 @@
-import { default as Cors } from "@koa/cors";
 import { default as Router } from "@koa/router";
+import { StatusCodes } from "http-status-codes";
 import { default as KeyGrip } from "keygrip";
 import { default as Koa } from "koa";
 import { default as EasyWS } from "koa-easy-ws";
-import { default as Helmet } from "koa-helmet";
-import { default as SourceMapSupport } from "source-map-support";
 
 import { ObjectUpload } from "./data/object-upload.js";
 import { Store } from "./data/store.js";
@@ -12,14 +10,12 @@ import type { Server } from "./server.js";
 import { Auth } from "./server/auth.js";
 import { Background } from "./server/background.js";
 import { Config } from "./server/config.js";
-import { Errors } from "./server/errors.js";
+import { handler } from "./server/errors.js";
 import { ExitCodes } from "./server/exit-codes.js";
 import { DiscordNotifier, NullNotifier } from "./server/external-notifier.js";
 import { Logging } from "./server/logging.js";
 import { Routes } from "./server/routes.js";
 import { WebSockets } from "./server/web-sockets.js";
-
-SourceMapSupport.install();
 
 const init = (config: Config.Server): Promise<Logging.Logger> =>
   Promise.resolve(Logging.init(config.logging));
@@ -54,14 +50,6 @@ const start = async (server: Server.State): Promise<void> => {
   const app = new Koa();
   app.proxy = true;
 
-  app.use(Helmet());
-
-  const cors = Cors({
-    origin: server.config.clientOrigin,
-    credentials: true,
-  });
-  app.use(cors);
-
   const { secret, oldSecrets, hmacAlgorithm } = server.config.security.cookies;
   app.keys = new KeyGrip(
     [secret.value, ...oldSecrets.map((s) => s.value)],
@@ -74,8 +62,19 @@ const start = async (server: Server.State): Promise<void> => {
   // @ts-expect-error
   // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
   app.use(EasyWS());
-  app.use(Errors.middleware(server.logger));
   app.use(Logging.middleware(server.logger));
+  app.use(async (ctx, next): Promise<void> => {
+    try {
+      await next();
+    } catch (error) {
+      const { status, message } = handler(server.logger, error);
+      if (status === StatusCodes.UNAUTHORIZED) {
+        ctx.cookies.set(Auth.sessionCookieName, null, { signed: true });
+      }
+      ctx.status = status;
+      ctx.body = message;
+    }
+  });
 
   const root = new Router();
 

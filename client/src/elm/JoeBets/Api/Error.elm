@@ -31,8 +31,8 @@ type Problem
 
 
 type Mistake
-    = Unauthorized
-    | Forbidden
+    = Unauthorized { reason : String }
+    | Forbidden { reason : String }
     | NotFound { url : String }
     | Conflict { url : String }
 
@@ -59,10 +59,10 @@ expectJsonOrError method wrap decoder =
 
                 Http.BadStatus_ { url, statusCode, headers } body ->
                     if statusCode == Http.unauthorized then
-                        Unauthorized |> User |> Err
+                        Unauthorized { reason = body } |> User |> Err
 
                     else if statusCode == Http.forbidden then
-                        Forbidden |> User |> Err
+                        Forbidden { reason = body } |> User |> Err
 
                     else if statusCode == Http.notFound then
                         NotFound { url = url } |> User |> Err
@@ -172,11 +172,11 @@ toDetails error =
             let
                 message =
                     case mistake of
-                        Unauthorized ->
-                            "Your action was rejected as you are not logged in."
+                        Unauthorized { reason } ->
+                            "Your action was rejected as you are not logged in, " ++ reason ++ "."
 
-                        Forbidden ->
-                            "Your action was rejected as you are not allowed to do this."
+                        Forbidden { reason } ->
+                            "Your action was rejected as you are not allowed to do this, " ++ reason ++ "."
 
                         NotFound _ ->
                             "Your action was rejected as the given resource doesn't exist."

@@ -9,7 +9,6 @@ import { Cards } from "../../../public/gacha/cards.js";
 import { Validation } from "../../../util/validation.js";
 import { WebError } from "../../errors.js";
 import type { Server } from "../../model.js";
-import { requireSession } from "../auth.js";
 import { body } from "../util.js";
 import { cardTypesApi } from "./banners/card-types.js";
 
@@ -52,13 +51,9 @@ export const bannersApi = (server: Server.State): Router => {
 
   // Reorder banners.
   router.post("/", body, async (ctx) => {
-    const sessionCookie = requireSession(ctx.cookies);
+    const credential = await server.auth.requireIdentifyingCredential(ctx);
     const body = Validation.body(ReorderBannersBody, ctx.request.body);
-    const banners = await server.store.gachaReorderBanners(
-      sessionCookie.user,
-      sessionCookie.session,
-      body,
-    );
+    const banners = await server.store.gachaReorderBanners(credential, body);
     ctx.body = Schema.readonlyArray(
       Schema.tuple([Banners.Slug, Banners.Editable]),
     ).encode(banners.map(Banners.editableFromInternal));
@@ -97,7 +92,7 @@ export const bannersApi = (server: Server.State): Router => {
 
   // Create new banner.
   router.put("/:bannerSlug", body, async (ctx) => {
-    const sessionCookie = requireSession(ctx.cookies);
+    const credential = await server.auth.requireIdentifyingCredential(ctx);
     const bannerSlug = Validation.requireUrlParameter(
       Banners.Slug,
       "banner",
@@ -105,8 +100,7 @@ export const bannersApi = (server: Server.State): Router => {
     );
     const body = Validation.body(AddBannerBody, ctx.request.body);
     const banner = await server.store.gachaAddBanner(
-      sessionCookie.user,
-      sessionCookie.session,
+      credential,
       bannerSlug,
       body.name,
       body.description,
@@ -123,7 +117,7 @@ export const bannersApi = (server: Server.State): Router => {
 
   // Edit a banner.
   router.post("/:bannerSlug", body, async (ctx) => {
-    const sessionCookie = requireSession(ctx.cookies);
+    const credential = await server.auth.requireIdentifyingCredential(ctx);
     const bannerSlug = Validation.requireUrlParameter(
       Banners.Slug,
       "banner",
@@ -131,8 +125,7 @@ export const bannersApi = (server: Server.State): Router => {
     );
     const body = Validation.body(EditBannerBody, ctx.request.body);
     const banner = await server.store.gachaEditBanner(
-      sessionCookie.user,
-      sessionCookie.session,
+      credential,
       bannerSlug,
       body.version,
       body.name ?? null,
@@ -150,7 +143,7 @@ export const bannersApi = (server: Server.State): Router => {
 
   // Roll a card.
   router.post("/:bannerSlug/roll", body, async (ctx) => {
-    const sessionCookie = requireSession(ctx.cookies);
+    const credential = await server.auth.requireIdentifyingCredential(ctx);
     const bannerSlug = Validation.requireUrlParameter(
       Banners.Slug,
       "banner",
@@ -158,16 +151,12 @@ export const bannersApi = (server: Server.State): Router => {
     );
     const body = Validation.body(RollBody, ctx.request.body);
     const cards = await server.store.gachaRoll(
-      sessionCookie.user,
-      sessionCookie.session,
+      credential,
       bannerSlug,
       body.count === 10 ? 10 : 1,
       body.guarantee ?? false,
     );
-    const balance = await server.store.gachaGetBalance(
-      sessionCookie.user,
-      sessionCookie.session,
-    );
+    const balance = await server.store.gachaGetBalance(credential);
     ctx.body = Schema.readonly(
       Schema.strict({
         cards: Schema.readonlyArray(Schema.tuple([Cards.Id, Cards.Card])),

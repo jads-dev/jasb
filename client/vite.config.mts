@@ -1,8 +1,10 @@
+import * as process from "node:process";
+
 import { type Plugin, defineConfig } from "vite";
 import { plugin as elm } from "vite-plugin-elm";
 import { compression } from "vite-plugin-compression2";
 
-const production = process.env["JASB_BUILD_MODE"] !== "development";
+const production = process.env["NODE_ENV"] !== "development";
 const inDocker = process.env["JASB_DEV_ENV"] === "docker";
 const server =
   process.env["JASB_SERVER"] ?? inDocker

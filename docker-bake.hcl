@@ -1,19 +1,24 @@
+# The name of the version, must be semver compliant, used to generate semantically versioned tags and passed to the build.
 variable "VERSION" {
   default = ""
 }
 
+# The version control reference (commit hash). This is used as a specific-build tag and a fallback version.
 variable "VCS_REF" {
-  default = ""
-}
-
-variable "BUILD_DATE" {
   default = "unknown"
 }
 
+# The moment at which the build was done.
+variable "BUILD_DATE" {
+  default = timestamp()
+}
+
+# If the build should be a production or development build.
 variable "MODE" {
   default = "production"
 }
 
+# The public URL the build expects to exist under.
 variable "URL" {
   default = "https://jasb.900000000.xyz/"
 }
@@ -52,11 +57,8 @@ function "generateTags" {
   ])
 }
 
-target "build" {
-  dockerfile = "./Dockerfile"
-  platforms = ["linux/amd64", "linux/arm64"]
-  output = ["type=docker"]
-  pull = true
+# Shared arguments.
+target "args" {
   args = {
     VERSION = VERSION != "" ? VERSION : "${VCS_REF}-dev"
     VCS_REF = VCS_REF
@@ -66,27 +68,46 @@ target "build" {
   }
 }
 
-target "server" {
-  context = "./server"
-  inherits = ["build"]
-  tags = generateTags("server")
+# Build into container images.
+target "images" {
+  name = component
+  inherits = ["args"]
+  matrix = {
+    component = ["server", "client"]
+  }
+  context = "./${component}"
+  platforms = ["linux/amd64", "linux/arm64"]
+  output = ["type=docker"]
+  pull = true
+  tags = generateTags(component)
 }
 
-target "client" {
-  context = "./client"
-  inherits = ["build"]
-  tags = generateTags("client")
+# Build into source files in the dist directory.
+target "files" {
+  name = component
+  inherits = ["args"]
+  matrix = {
+    component = ["server", "client"]
+  }
+  context = "./${component}"
+  target = "sources"
+  output = ["type=local,dest=dist/${component}"]
+  pull = true
 }
 
+# Build an image to do database migration.
 target "migrate" {
+  inherits = ["args"]
   context = "./migrate"
   contexts = {
     server-context = "./server"
   }
-  inherits = ["build"]
+  platforms = ["linux/amd64", "linux/arm64"]
+  output = ["type=docker"]
+  pull = true
   tags = generateTags("migrate")
 }
 
 group "default" {
-  targets = [ "server", "client", "migrate" ]
+  targets = [ "images", "migrate" ]
 }

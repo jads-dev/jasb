@@ -4,25 +4,39 @@ ARG BUILD_DATE
 ARG VCS_REF
 ARG VERSION=${VCS_REF}-dev
 
+
 FROM --platform=${BUILDPLATFORM} node:${NODE_VERSION}-alpine AS base
 
 WORKDIR /jasb
 
-COPY ["./package.json", "./package-lock.json", "./"]
+COPY --link ["./package.json", "./package-lock.json", "./"]
+
 
 FROM base AS build
 
 RUN ["npm", "ci"]
 
-COPY ["./tsconfig.json", "./"]
-COPY ["./src", "./src"]
+COPY --link ["./tsconfig.json", "./"]
+COPY --link ["./src", "./src"]
 RUN ["npm", "run", "build"]
+
+# We've already done all our NPM stuff, but node looks here for `type: "module"` which we need.
+RUN echo '{ "type": "module" }' > ./dist/package.json
+
 
 FROM base as install
 
-RUN ["npm", "ci", "--only=production"]
+RUN ["npm", "ci", "--omit=dev", "--omit=optional"]
 
-FROM --platform=${TARGETPLATFORM} node:${NODE_VERSION}-alpine
+
+FROM scratch AS sources
+
+COPY --link --from=install ["/jasb/node_modules", "./node_modules"]
+COPY --link --from=build ["/jasb/src/sql/migrations", "./src/sql/migrations/"]
+COPY --link --from=build ["/jasb/dist", "./"]
+
+
+FROM --platform=${TARGETPLATFORM} node:${NODE_VERSION}-alpine AS server
 
 ARG VERSION
 ARG BUILD_DATE
@@ -45,13 +59,7 @@ LABEL org.opencontainers.image.description="Server for JASB."
 
 WORKDIR /jasb
 
-# We've already done all our NPM stuff, but node looks here for `type: "module"` which we need.
-COPY ["./package.json", "./"]
-COPY --from=install ["/jasb/node_modules", "./node_modules"]
-
-COPY --from=build ["/jasb/src/sql/migrations", "./src/sql/migrations/"]
-COPY --from=build ["/jasb/dist", "./"]
+COPY --link --from=sources [ "/", "./" ]
 
 EXPOSE 8081
-USER node
-CMD ["node", "./index.js"]
+CMD ["node", " --enable-source-maps", "./index.js"]
