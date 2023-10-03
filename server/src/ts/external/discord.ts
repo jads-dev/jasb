@@ -1,23 +1,52 @@
-export interface User {
-  id: string;
-  username: string;
-  global_name?: string;
-  discriminator?: string | null | undefined;
-  avatar: string | null | undefined;
-  mfa_enabled?: true;
-  locale?: string;
-  verified?: boolean;
-  email?: string | null | undefined;
-  flags?: number;
-  premium_type?: number;
-  public_flags?: number;
-}
+import * as Schema from "io-ts";
 
-export interface Token {
-  access_token: string;
-  expires_in: number;
-  refresh_token: string;
-}
+import { Validation } from "../util/validation.js";
+
+/**
+ * We are more permissive (e.g: `object` over `strictObject`) as Discord's API
+ * might change under our feet.
+ */
+
+export const User = Schema.readonly(
+  Schema.intersection([
+    Schema.type({
+      id: Schema.string,
+      username: Schema.string,
+    }),
+    Schema.partial({
+      discriminator: Schema.union([Schema.string, Schema.null]),
+      global_name: Schema.union([Schema.string, Schema.null]),
+      avatar: Schema.union([Schema.string, Schema.null]),
+      bot: Schema.boolean,
+      system: Schema.boolean,
+      banner: Schema.union([Schema.string, Schema.null]),
+      accent_color: Schema.union([Schema.number, Schema.null]),
+      locale: Schema.string,
+      verified: Schema.boolean,
+      avatar_decoration: Schema.union([Schema.string, Schema.null]),
+    }),
+  ]),
+);
+export type User = Schema.TypeOf<typeof User>;
+
+export const GuildMember = Schema.readonly(
+  Schema.intersection([
+    Schema.type({
+      user: User,
+    }),
+    Schema.partial({
+      nick: Schema.union([Schema.string, Schema.null]),
+      avatar: Schema.union([Schema.string, Schema.null]),
+      joined_at: Validation.DateTime,
+      pending: Schema.boolean,
+      communication_disabled_until: Schema.union([
+        Validation.DateTime,
+        Schema.null,
+      ]),
+    }),
+  ]),
+);
+export type GuildMember = Schema.TypeOf<typeof GuildMember>;
 
 const mod = (n: number, d: number): number => ((n % d) + d) % d;
 

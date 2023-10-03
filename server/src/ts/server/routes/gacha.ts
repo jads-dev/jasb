@@ -4,7 +4,6 @@ import * as Schema from "io-ts";
 import { Balances } from "../../public/gacha/balances.js";
 import { Rarities } from "../../public/gacha/rarities.js";
 import type { Server } from "../model.js";
-import { requireSession } from "./auth.js";
 import { bannersApi } from "./gacha/banners.js";
 import { cardsApi } from "./gacha/cards.js";
 
@@ -19,11 +18,8 @@ export const gachaApi = (server: Server.State): Router => {
 
   // Get the user's balance.
   router.get("/balance", async (ctx) => {
-    const sessionCookie = requireSession(ctx.cookies);
-    const balance = await server.store.gachaGetBalance(
-      sessionCookie.user,
-      sessionCookie.session,
-    );
+    const credential = await server.auth.requireIdentifyingCredential(ctx);
+    const balance = await server.store.gachaGetBalance(credential);
     ctx.body = Balances.Balance.encode(Balances.fromInternal(balance));
   });
 

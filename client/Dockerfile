@@ -4,6 +4,7 @@ ARG BUILD_DATE
 ARG VCS_REF
 ARG VERSION=${VCS_REF}-dev
 
+
 FROM --platform=${BUILDPLATFORM} node:${NODE_VERSION}-alpine AS build
 
 WORKDIR /jasb
@@ -16,19 +17,25 @@ ENV JASB_VERSION ${VERSION}
 ENV JASB_BUILD_MODE ${MODE}
 ENV JASB_URL ${URL}
 
-COPY ["./package.json", "./package-lock.json", "./elm-tooling.json", "./"]
-COPY ["./elm-material/package.json", "./elm-material/package-lock.json", "./elm-material/"]
+COPY --link ["./package.json", "./package-lock.json", "./elm-tooling.json", "./"]
+COPY --link ["./elm-material/package.json", "./elm-material/package-lock.json", "./elm-material/"]
 RUN ["npm", "ci"]
 
-COPY ["./tsconfig.json", "./postcss.config.cjs", "./vite.config.mts", "./elm.json", "./"]
-COPY ["./index.html", "./"]
-COPY ["./src", "./src"]
-COPY ["./components", "./components"]
-COPY ["./elm-material/src", "./elm-material/src"]
-COPY ["./assets", "./assets"]
+COPY --link ["./tsconfig.json", "./postcss.config.js", "./vite.config.mts", "./elm.json", "./"]
+COPY --link ["./index.html", "./"]
+COPY --link ["./src", "./src"]
+COPY --link ["./components", "./components"]
+COPY --link ["./elm-material/src", "./elm-material/src"]
+COPY --link ["./assets", "./assets"]
 RUN ["npm", "run", "build"]
 
-FROM --platform=${TARGETPLATFORM} nginx:mainline-alpine
+
+FROM scratch AS sources
+
+COPY --link --from=build ["/jasb/dist", "/"]
+
+
+FROM --platform=${TARGETPLATFORM} nginx:mainline-alpine AS client
 
 ARG VERSION
 ARG BUILD_DATE
@@ -45,6 +52,7 @@ LABEL org.opencontainers.image.title="JASB Web Client"
 LABEL org.opencontainers.image.description="Static web client for JASB."
 
 EXPOSE 8080
+EXPOSE 8083
 
-COPY --from=build ["/jasb/dist", "/usr/share/nginx/html/"]
+COPY --link --from=static ["/", "/usr/share/nginx/html/"]
 COPY ["./nginx.conf", "/etc/nginx/nginx.conf"]

@@ -1,7 +1,7 @@
 import type * as Joda from "@js-joda/core";
 import { StatusCodes } from "http-status-codes";
 import * as Schema from "io-ts";
-import { default as Slonik, type SerializableValue } from "slonik";
+import { default as Slonik } from "slonik";
 
 import {
   AvatarCache,
@@ -13,6 +13,7 @@ import {
   Users,
 } from "../internal.js";
 import type { Public } from "../public.js";
+import { Credentials } from "../server/auth/credentials.js";
 import type { Config } from "../server/config.js";
 import { WebError } from "../server/errors.js";
 import { Notifier } from "../server/external-notifier.js";
@@ -25,21 +26,17 @@ const createResultParserInterceptor = (): Slonik.Interceptor => {
   return {
     transformRow: (executionContext, actualQuery, row) => {
       const { resultParser } = executionContext;
-
       if (!resultParser) {
         return row;
       }
-
       const validationResult = resultParser.safeParse(row);
-
       if (!validationResult.success) {
         throw new Slonik.SchemaValidationError(
           actualQuery,
-          row as unknown as SerializableValue[],
+          row,
           validationResult.error.issues,
         );
       }
-
       return validationResult.data as Slonik.QueryResultRow;
     },
   };
@@ -121,36 +118,35 @@ export class Store {
     `;
   }
 
-  async validateUpload(
-    userSlug: Public.Users.Slug,
-    sessionId: SecretToken,
-  ): Promise<string> {
-    return await this.withClient(async (client) => {
-      // This will throw if not authorized.
-      await client.query(
-        Queries.userId(sqlFragment`
-          jasb.validate_upload(
-            ${userSlug},
-            ${sessionId.uri},
-            ${this.config.auth.sessionLifetime.toString()}
-          )
-        `),
-      );
-      return userSlug;
-    });
+  sqlCredential(credential: Credentials.Credential) {
+    return Slonik.sql.jsonb(Credentials.Credential.encode(credential));
   }
 
-  async validateSession(
-    userSlug: Public.Users.Slug,
-    sessionId: SecretToken,
+  async validateUpload(credential: Credentials.Identifying): Promise<number> {
+    const result = await this.withClient(
+      async (client) =>
+        // This will throw if not authorized.
+        await client.one(
+          Queries.userId(sqlFragment`
+            jasb.validate_upload(
+              ${this.sqlCredential(credential)},
+              ${this.config.auth.sessionLifetime.toString()}
+            )
+          `),
+        ),
+    );
+    return result.user_id;
+  }
+
+  async validateCredential(
+    credential: Credentials.Identifying,
   ): Promise<number> {
     const result = await this.withClient(
       async (client) =>
         await client.one(
           Queries.userId(sqlFragment`
-            jasb.validate_session(
-              ${userSlug},
-              ${sessionId.uri},
+            jasb.validate_credentials(
+              ${this.sqlCredential(credential)},
               ${this.config.auth.sessionLifetime.toString()}
             )
           `),
@@ -233,16 +229,12 @@ export class Store {
     });
   }
 
-  async bankrupt(
-    userSlug: Public.Users.Slug,
-    sessionId: SecretToken,
-  ): Promise<Users.User> {
+  async bankrupt(credential: Credentials.Identifying): Promise<Users.User> {
     return await this.inTransaction(async (client) => {
       return await client.one(
         Queries.user(sqlFragment`
           SELECT * FROM jasb.bankrupt(
-            ${userSlug},
-            ${sessionId.uri},
+            ${this.sqlCredential(credential)},
             ${this.config.auth.sessionLifetime.toString()},
             ${this.config.rules.initialBalance}
         )`),
@@ -375,8 +367,7 @@ export class Store {
   }
 
   async addGame(
-    userSlug: Public.Users.Slug,
-    sessionId: SecretToken,
+    credential: Credentials.Identifying,
     gameSlug: Public.Games.Slug,
     name: string,
     cover: string,
@@ -388,8 +379,7 @@ export class Store {
       return await client.one(
         Queries.gameWithBetStats(sqlFragment`
           SELECT * FROM jasb.add_game(
-            ${userSlug},
-            ${sessionId.uri},
+            ${this.sqlCredential(credential)},
             ${this.config.auth.sessionLifetime.toString()},
             ${gameSlug},
             ${name},
@@ -404,8 +394,7 @@ export class Store {
   }
 
   async editGame(
-    userSlug: Public.Users.Slug,
-    sessionId: SecretToken,
+    credential: Credentials.Identifying,
     version: number,
     gameSlug: Public.Games.Slug,
     name?: string,
@@ -418,8 +407,7 @@ export class Store {
       return await client.one(
         Queries.gameWithBetStats(sqlFragment`
           SELECT * FROM jasb.edit_game(
-            ${userSlug},
-            ${sessionId.uri},
+            ${this.sqlCredential(credential)},
             ${this.config.auth.sessionLifetime.toString()},
             ${gameSlug},
             ${version},
@@ -454,8 +442,7 @@ export class Store {
   }
 
   async editLockMoments(
-    userSlug: Public.Users.Slug,
-    sessionId: SecretToken,
+    credential: Credentials.Identifying,
     gameSlug: Public.Games.Slug,
     remove?: readonly { id: Public.Editor.LockMoments.Slug; version: number }[],
     edit?: readonly {
@@ -491,8 +478,7 @@ export class Store {
       const result = await client.query(
         Queries.lockMoment(sqlFragment`
           SELECT * FROM jasb.edit_lock_moments(
-            ${userSlug},
-            ${sessionId.uri},
+            ${this.sqlCredential(credential)},
             ${this.config.auth.sessionLifetime.toString()},
             ${gameSlug},
             (SELECT array_agg(
@@ -583,8 +569,7 @@ export class Store {
   }
 
   async addBet(
-    userSlug: Public.Users.Slug,
-    sessionId: SecretToken,
+    credential: Credentials.Identifying,
     gameSlug: Public.Games.Slug,
     betSlug: Public.Bets.Slug,
     betName: string,
@@ -606,8 +591,7 @@ export class Store {
         Queries.editableBet(sqlFragment`
           SELECT *
           FROM jasb.add_bet(
-            ${userSlug},
-            ${sessionId.uri},
+            ${this.sqlCredential(credential)},
             ${this.config.auth.sessionLifetime.toString()},
             ${gameSlug},
             ${betSlug},
@@ -643,8 +627,7 @@ export class Store {
   }
 
   async editBet(
-    userSlug: Public.Users.Slug,
-    sessionId: SecretToken,
+    credential: Credentials.Identifying,
     gameSlug: Public.Games.Slug,
     betSlug: Public.Bets.Slug,
     old_version: number,
@@ -699,8 +682,7 @@ export class Store {
         Queries.editableBet(sqlFragment`
           SELECT *
           FROM jasb.edit_bet(
-            ${userSlug},
-            ${sessionId.uri},
+            ${this.sqlCredential(credential)},
             ${this.config.auth.sessionLifetime.toString()},
             ${old_version},
             ${gameSlug},
@@ -732,8 +714,7 @@ export class Store {
   }
 
   async setBetLocked(
-    userSlug: Public.Users.Slug,
-    sessionId: SecretToken,
+    credential: Credentials.Identifying,
     gameSlug: Public.Games.Slug,
     betSlug: Public.Bets.Slug,
     old_version: number,
@@ -744,8 +725,7 @@ export class Store {
         Queries.editableBet(sqlFragment`
           SELECT *
           FROM jasb.set_bet_locked(
-            ${userSlug},
-            ${sessionId.uri},
+            ${this.sqlCredential(credential)},
             ${this.config.auth.sessionLifetime.toString()},
             ${old_version},
             ${gameSlug},
@@ -759,8 +739,7 @@ export class Store {
   }
 
   async completeBet(
-    userSlug: Public.Users.Slug,
-    sessionId: SecretToken,
+    credential: Credentials.Identifying,
     gameSlug: Public.Games.Slug,
     betSlug: Public.Bets.Slug,
     old_version: number,
@@ -771,8 +750,7 @@ export class Store {
         Queries.editableBet(sqlFragment`
           SELECT *
           FROM jasb.complete_bet(
-            ${userSlug},
-            ${sessionId.uri},
+            ${this.sqlCredential(credential)},
             ${this.config.auth.sessionLifetime.toString()},
             ${this.config.rules.gacha.scrapPerRoll},
             ${this.config.rules.gacha.rewards.winBetRolls},
@@ -811,8 +789,7 @@ export class Store {
   }
 
   async revertCompleteBet(
-    userSlug: Public.Users.Slug,
-    sessionId: SecretToken,
+    credential: Credentials.Identifying,
     gameSlug: Public.Games.Slug,
     betSlug: Public.Bets.Slug,
     old_version: number,
@@ -822,8 +799,7 @@ export class Store {
         Queries.editableBet(sqlFragment`
           SELECT *
           FROM jasb.revert_complete_bet(
-            ${userSlug},
-            ${sessionId.uri},
+            ${this.sqlCredential(credential)},
             ${this.config.auth.sessionLifetime.toString()},
             ${old_version},
             ${gameSlug},
@@ -836,8 +812,7 @@ export class Store {
   }
 
   async cancelBet(
-    userSlug: Public.Users.Slug,
-    sessionId: SecretToken,
+    credential: Credentials.Identifying,
     gameSlug: Public.Games.Slug,
     betSlug: Public.Bets.Slug,
     old_version: number,
@@ -848,8 +823,7 @@ export class Store {
         Queries.editableBet(sqlFragment`
           SELECT *
           FROM jasb.cancel_bet(
-            ${userSlug},
-            ${sessionId.uri},
+            ${this.sqlCredential(credential)},
             ${this.config.auth.sessionLifetime.toString()},
             ${old_version},
             ${gameSlug},
@@ -863,8 +837,7 @@ export class Store {
   }
 
   async revertCancelBet(
-    userSlug: Public.Users.Slug,
-    sessionId: SecretToken,
+    credential: Credentials.Identifying,
     gameSlug: Public.Games.Slug,
     betSlug: Public.Bets.Slug,
     old_version: number,
@@ -874,8 +847,7 @@ export class Store {
         Queries.editableBet(sqlFragment`
           SELECT *
           FROM jasb.revert_cancel_bet(
-            ${userSlug},
-            ${sessionId.uri},
+            ${this.sqlCredential(credential)},
             ${this.config.auth.sessionLifetime.toString()},
             ${old_version},
             ${gameSlug},
@@ -888,8 +860,7 @@ export class Store {
   }
 
   async newStake(
-    userSlug: Public.Users.Slug,
-    sessionId: SecretToken,
+    credential: Credentials.Identifying,
     gameSlug: Public.Games.Slug,
     betSlug: Public.Bets.Slug,
     optionSlug: Public.Bets.Options.Slug,
@@ -903,8 +874,7 @@ export class Store {
             ${this.config.rules.minStake},
             ${this.config.rules.notableStake},
             ${this.config.rules.maxStakeWhileInDebt},
-            ${userSlug},
-            ${sessionId.uri},
+            ${this.sqlCredential(credential)},
             ${this.config.auth.sessionLifetime.toString()},
             ${gameSlug},
             ${betSlug},
@@ -918,7 +888,7 @@ export class Store {
         await this.notifier.notify(async () => {
           const row = await client.one(
             Queries.newStakeNotificationDetails(
-              userSlug,
+              Credentials.actingUser(credential),
               sqlFragment`
                 SELECT 
                   options.* 
@@ -952,8 +922,7 @@ export class Store {
   }
 
   async withdrawStake(
-    userSlug: Public.Users.Slug,
-    sessionId: SecretToken,
+    credential: Credentials.Identifying,
     gameSlug: Public.Games.Slug,
     betSlug: Public.Bets.Slug,
     optionSlug: Public.Bets.Options.Slug,
@@ -962,8 +931,7 @@ export class Store {
       const result = await client.one(
         Queries.newBalance(sqlFragment`
           SELECT * FROM jasb.withdraw_stake(
-            ${userSlug},
-            ${sessionId.uri},
+            ${this.sqlCredential(credential)},
             ${this.config.auth.sessionLifetime.toString()},
             ${gameSlug},
             ${betSlug},
@@ -976,8 +944,7 @@ export class Store {
   }
 
   async changeStake(
-    userSlug: Public.Users.Slug,
-    sessionId: SecretToken,
+    credential: Credentials.Identifying,
     gameSlug: Public.Games.Slug,
     betSlug: Public.Bets.Slug,
     optionSlug: Public.Bets.Options.Slug,
@@ -991,8 +958,7 @@ export class Store {
             ${this.config.rules.minStake},
             ${this.config.rules.notableStake},
             ${this.config.rules.maxStakeWhileInDebt},
-            ${userSlug},
-            ${sessionId.uri},
+            ${this.sqlCredential(credential)},
             ${this.config.auth.sessionLifetime.toString()},
             ${gameSlug},
             ${betSlug},
@@ -1007,8 +973,7 @@ export class Store {
   }
 
   async getNotification(
-    userSlug: Public.Users.Slug,
-    sessionId: SecretToken,
+    credential: Credentials.Identifying,
     notificationId: Public.Notifications.Id,
   ): Promise<Notifications.Notification> {
     return await this.withClient(
@@ -1016,8 +981,7 @@ export class Store {
         await client.one(
           Queries.notification(sqlFragment`
           SELECT * FROM jasb.get_notification(
-            ${userSlug},
-            ${sessionId.uri},
+            ${this.sqlCredential(credential)},
             ${this.config.auth.sessionLifetime.toString()},
             ${notificationId}
           )
@@ -1027,16 +991,14 @@ export class Store {
   }
 
   async getNotifications(
-    userSlug: Public.Users.Slug,
-    sessionId: SecretToken,
+    credential: Credentials.Identifying,
     includeRead = false,
   ): Promise<readonly Notifications.Notification[]> {
     return await this.withClient(async (client) => {
       const results = await client.query(
         Queries.notification(sqlFragment`
           SELECT * FROM jasb.get_notifications(
-            ${userSlug},
-            ${sessionId.uri},
+            ${this.sqlCredential(credential)},
             ${this.config.auth.sessionLifetime.toString()},
             ${includeRead}
           )
@@ -1047,8 +1009,7 @@ export class Store {
   }
 
   async clearNotification(
-    userSlug: Public.Users.Slug,
-    sessionId: SecretToken,
+    credential: Credentials.Identifying,
     notificationId: Public.Notifications.Id,
   ): Promise<boolean> {
     const result = await this.inTransaction(
@@ -1056,8 +1017,7 @@ export class Store {
         await client.one(
           Queries.isTrue(sqlFragment`
             jasb.set_read(
-              ${userSlug},
-              ${sessionId.uri},
+              ${this.sqlCredential(credential)},
               ${this.config.auth.sessionLifetime.toString()},
               ${notificationId}
             )
@@ -1107,8 +1067,7 @@ export class Store {
   }
 
   async setPermissions(
-    userSlug: Public.Users.Slug,
-    sessionId: SecretToken,
+    credential: Credentials.Identifying,
     targetUserSlug: Public.Users.Slug,
     gameSlug: Public.Games.Slug | undefined,
     manage_games: boolean | undefined,
@@ -1120,8 +1079,7 @@ export class Store {
       return await client.one(
         Queries.editablePermissions(sqlFragment`
           SELECT * FROM jasb.set_permissions(
-            ${userSlug},
-            ${sessionId.uri},
+            ${this.sqlCredential(credential)},
             ${this.config.auth.sessionLifetime.toString()},
             ${targetUserSlug},
             ${gameSlug ?? null},
@@ -1149,8 +1107,7 @@ export class Store {
   }
 
   async gachaRetireForgedCardType(
-    userSlug: Public.Users.Slug,
-    sessionId: SecretToken,
+    credential: Credentials.Identifying,
     cardTypeId: Public.Gacha.CardTypes.Id,
   ): Promise<Gacha.CardType> {
     return await this.inTransaction(
@@ -1158,8 +1115,7 @@ export class Store {
         await client.one(
           Queries.cardType(sqlFragment`
           SELECT * FROM jasb.gacha_retire_forged(
-            ${userSlug},
-            ${sessionId.uri},
+            ${this.sqlCredential(credential)},
             ${this.config.auth.sessionLifetime.toString()},
             ${cardTypeId}
           )
@@ -1169,8 +1125,7 @@ export class Store {
   }
 
   async gachaForgeCardType(
-    userSlug: Public.Users.Slug,
-    sessionId: SecretToken,
+    credential: Credentials.Identifying,
     cardName: string,
     cardImage: string,
     cardQuote: string,
@@ -1181,8 +1136,7 @@ export class Store {
         await client.one(
           Queries.cardType(sqlFragment`
           SELECT * FROM jasb.gacha_forge_card_type(
-            ${userSlug},
-            ${sessionId.uri},
+            ${this.sqlCredential(credential)},
             ${this.config.auth.sessionLifetime.toString()},
             ${cardName},
             ${cardImage},
@@ -1278,8 +1232,7 @@ export class Store {
   }
 
   async gachaSetHighlight(
-    userSlug: Public.Users.Slug,
-    sessionId: SecretToken,
+    credential: Credentials.Identifying,
     cardId: Public.Gacha.Cards.Id,
     highlighted: boolean,
   ): Promise<Gacha.Cards.Highlighted> {
@@ -1288,8 +1241,7 @@ export class Store {
         Queries.highlighted(sqlFragment`
           SELECT *
           FROM jasb.gacha_set_highlight(
-            ${userSlug},
-            ${sessionId.uri},
+            ${this.sqlCredential(credential)},
             ${this.config.auth.sessionLifetime.toString()},
             ${cardId},
             ${highlighted}
@@ -1300,8 +1252,7 @@ export class Store {
   }
 
   async gachaEditHighlight(
-    userSlug: Public.Users.Slug,
-    sessionId: SecretToken,
+    credential: Credentials.Identifying,
     cardId: Public.Gacha.Cards.Id,
     message?: string | null,
   ): Promise<Gacha.Cards.Highlighted> {
@@ -1309,8 +1260,7 @@ export class Store {
       return await client.one(
         Queries.highlighted(sqlFragment`
           SELECT * FROM jasb.gacha_edit_highlight(
-            ${userSlug},
-            ${sessionId.uri},
+            ${this.sqlCredential(credential)},
             ${this.config.auth.sessionLifetime.toString()},
             ${cardId},
             ${message ?? null},
@@ -1322,16 +1272,14 @@ export class Store {
   }
 
   async gachaSetHighlightsOrder(
-    userSlug: Public.Users.Slug,
-    sessionId: SecretToken,
+    credential: Credentials.Identifying,
     order: readonly number[],
   ): Promise<readonly Gacha.Cards.Highlighted[]> {
     return await this.inTransaction(async (client) => {
       const result = await client.query(
         Queries.highlighted(sqlFragment`
             SELECT * FROM jasb.gacha_reorder_highlights(
-              ${userSlug},
-              ${sessionId.uri},
+              ${this.sqlCredential(credential)},
               ${this.config.auth.sessionLifetime.toString()},
               ${Slonik.sql.array(order, "int4")}
             )
@@ -1342,8 +1290,7 @@ export class Store {
   }
 
   async gachaRoll(
-    userSlug: Public.Users.Slug,
-    sessionId: SecretToken,
+    credential: Credentials.Identifying,
     bannerSlug: Public.Gacha.Banners.Slug,
     count: number,
     guarantee: boolean,
@@ -1354,8 +1301,7 @@ export class Store {
           sqlFragment`
             SELECT id
             FROM jasb.gacha_roll(
-              ${userSlug}, 
-              ${sessionId.uri},
+              ${this.sqlCredential(credential)},
               ${this.config.auth.sessionLifetime.toString()},
               ${this.config.rules.gacha.maxPity},
               ${bannerSlug}, 
@@ -1402,16 +1348,14 @@ export class Store {
   }
 
   async gachaRecycleCard(
-    userSlug: Public.Users.Slug,
-    sessionId: SecretToken,
+    credential: Credentials.Identifying,
     cardId: Public.Gacha.Cards.Id,
   ): Promise<Gacha.Balance> {
     return await this.inTransaction(async (client) => {
       return await client.one(
         Queries.balance(sqlFragment`
           SELECT * FROM jasb.gacha_recycle_card(
-            ${userSlug}, 
-            ${sessionId.uri},
+            ${this.sqlCredential(credential)},
             ${this.config.auth.sessionLifetime.toString()},
             ${this.config.rules.gacha.scrapPerRoll},
             ${cardId}
@@ -1422,16 +1366,14 @@ export class Store {
   }
 
   async gachaGetBalance(
-    userSlug: Public.Users.Slug,
-    sessionId: SecretToken,
+    credential: Credentials.Identifying,
   ): Promise<Gacha.Balances.Balance> {
     const result = await this.withClient(
       async (client) =>
         await client.maybeOne(
           Queries.balance(sqlFragment`
           SELECT * FROM jasb.gacha_get_balance(
-              ${userSlug},
-              ${sessionId.uri},
+              ${this.sqlCredential(credential)},
               ${this.config.auth.sessionLifetime.toString()}
             )
           `),
@@ -1538,8 +1480,7 @@ export class Store {
   }
 
   async gachaAddBanner(
-    userSlug: Public.Users.Slug,
-    sessionId: SecretToken,
+    credential: Credentials.Identifying,
     bannerSlug: string,
     name: string,
     description: string,
@@ -1553,8 +1494,7 @@ export class Store {
       return await client.one(
         Queries.editableBanner(sqlFragment`
            SELECT * FROM jasb.gacha_add_banner(
-             ${userSlug},
-             ${sessionId.uri},
+             ${this.sqlCredential(credential)},
              ${this.config.auth.sessionLifetime.toString()},
              ${bannerSlug},
              ${name},
@@ -1571,8 +1511,7 @@ export class Store {
   }
 
   async gachaEditBanner(
-    userSlug: Public.Users.Slug,
-    sessionId: SecretToken,
+    credential: Credentials.Identifying,
     bannerSlug: string,
     oldVersion: number,
     name: string | null,
@@ -1587,8 +1526,7 @@ export class Store {
       return await client.one(
         Queries.editableBanner(sqlFragment`
            SELECT * FROM jasb.gacha_edit_banner(
-             ${userSlug},
-             ${sessionId.uri},
+             ${this.sqlCredential(credential)},
              ${this.config.auth.sessionLifetime.toString()},
              ${bannerSlug},
              ${oldVersion},
@@ -1614,8 +1552,7 @@ export class Store {
   }
 
   async gachaReorderBanners(
-    userSlug: Public.Users.Slug,
-    sessionId: SecretToken,
+    credential: Credentials.Identifying,
     order: readonly [string, number][],
   ): Promise<readonly Gacha.Banners.Editable[]> {
     return await this.inTransaction(async (client) => {
@@ -1623,8 +1560,7 @@ export class Store {
       const result = await client.query(
         Queries.editableBanner(sqlFragment`
            SELECT * FROM jasb.gacha_reorder_banners(
-             ${userSlug},
-             ${sessionId.uri},
+             ${this.sqlCredential(credential)},
              ${this.config.auth.sessionLifetime.toString()},
              (SELECT array_agg(
                row(slug, version)::jasb.OrderedBanner
@@ -1699,8 +1635,7 @@ export class Store {
   }
 
   async gachaGiftSelfMadeCard(
-    userSlug: Public.Users.Slug,
-    sessionId: SecretToken,
+    credential: Credentials.Identifying,
     giftToUserSlug: Public.Users.Slug,
     bannerSlug: Public.Gacha.Banners.Slug,
     cardTypeId: Public.Gacha.CardTypes.Id,
@@ -1710,8 +1645,7 @@ export class Store {
         Queries.card(
           sqlFragment`
             SELECT * FROM jasb.gacha_gift_self_made(
-              ${userSlug},
-              ${sessionId.uri},
+              ${this.sqlCredential(credential)},
               ${this.config.auth.sessionLifetime.toString()},
               ${giftToUserSlug},
               ${bannerSlug},
@@ -1725,8 +1659,7 @@ export class Store {
   }
 
   async gachaAddCardType(
-    userSlug: Public.Users.Slug,
-    sessionId: SecretToken,
+    credential: Credentials.Identifying,
     bannerSlug: Public.Gacha.Banners.Slug,
     name: string,
     description: string,
@@ -1753,8 +1686,7 @@ export class Store {
       return await client.one(
         Queries.editableCardType(sqlFragment`
            SELECT * FROM jasb.gacha_add_card_type(
-             ${userSlug},
-             ${sessionId.uri},
+             ${this.sqlCredential(credential)},
              ${this.config.auth.sessionLifetime.toString()},
              ${bannerSlug},
              ${name},
@@ -1774,8 +1706,7 @@ export class Store {
   }
 
   async gachaEditCardType(
-    userSlug: Public.Users.Slug,
-    sessionId: SecretToken,
+    credential: Credentials.Identifying,
     bannerSlug: Public.Gacha.Banners.Slug,
     cardTypeId: Public.Gacha.CardTypes.Id,
     oldVersion: number,
@@ -1829,8 +1760,7 @@ export class Store {
       const result = await client.one(
         Queries.ids(sqlFragment`
            SELECT id FROM jasb.gacha_edit_card_type(
-             ${userSlug},
-             ${sessionId.uri},
+             ${this.sqlCredential(credential)},
              ${this.config.auth.sessionLifetime.toString()},
              ${bannerSlug},
              ${cardTypeId},

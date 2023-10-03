@@ -8,7 +8,6 @@ import { LockMoments } from "../../public/editor.js";
 import { requireUrlParameter, Validation } from "../../util/validation.js";
 import { WebError } from "../errors.js";
 import type { Server } from "../model.js";
-import * as Auth from "./auth.js";
 import { body } from "./util.js";
 
 const StakeBody = Schema.intersection([
@@ -128,12 +127,11 @@ export const betsApi = (server: Server.State): Router => {
 
   // Create Bet
   router.put("/", body, async (ctx) => {
-    const sessionCookie = Auth.requireSession(ctx.cookies);
+    const credential = await server.auth.requireIdentifyingCredential(ctx);
     const [gameSlug, betSlug] = slugs(ctx);
     const body = Validation.body(CreateBetBody, ctx.request.body);
     const bet = await server.store.addBet(
-      sessionCookie.user,
-      sessionCookie.session,
+      credential,
       gameSlug,
       betSlug,
       body.name,
@@ -147,12 +145,11 @@ export const betsApi = (server: Server.State): Router => {
 
   // Edit Bet
   router.post("/", body, async (ctx) => {
-    const sessionCookie = Auth.requireSession(ctx.cookies);
+    const credential = await server.auth.requireIdentifyingCredential(ctx);
     const [gameSlug, betSlug] = slugs(ctx);
     const body = Validation.body(EditBetBody, ctx.request.body);
     const bet = await server.store.editBet(
-      sessionCookie.user,
-      sessionCookie.session,
+      credential,
       gameSlug,
       betSlug,
       body.version,
@@ -172,12 +169,11 @@ export const betsApi = (server: Server.State): Router => {
 
   // Complete Bet
   router.post("/complete", body, async (ctx) => {
-    const sessionCookie = Auth.requireSession(ctx.cookies);
+    const credential = await server.auth.requireIdentifyingCredential(ctx);
     const [gameSlug, betSlug] = slugs(ctx);
     const body = Validation.body(CompleteBetBody, ctx.request.body);
     const bet = await server.store.completeBet(
-      sessionCookie.user,
-      sessionCookie.session,
+      credential,
       gameSlug,
       betSlug,
       body.version,
@@ -191,12 +187,11 @@ export const betsApi = (server: Server.State): Router => {
 
   // Revert Complete Bet
   router.post("/complete/revert", body, async (ctx) => {
-    const sessionCookie = Auth.requireSession(ctx.cookies);
+    const credential = await server.auth.requireIdentifyingCredential(ctx);
     const [gameSlug, betSlug] = slugs(ctx);
     const body = Validation.body(RevertBody, ctx.request.body);
     const bet = await server.store.revertCompleteBet(
-      sessionCookie.user,
-      sessionCookie.session,
+      credential,
       gameSlug,
       betSlug,
       body.version,
@@ -209,12 +204,11 @@ export const betsApi = (server: Server.State): Router => {
 
   // Lock Bet
   router.post("/lock", body, async (ctx) => {
-    const sessionCookie = Auth.requireSession(ctx.cookies);
+    const credential = await server.auth.requireIdentifyingCredential(ctx);
     const [gameSlug, betSlug] = slugs(ctx);
     const body = Validation.body(ModifyLockStateBody, ctx.request.body);
     const bet = await server.store.setBetLocked(
-      sessionCookie.user,
-      sessionCookie.session,
+      credential,
       gameSlug,
       betSlug,
       body.version,
@@ -228,12 +222,11 @@ export const betsApi = (server: Server.State): Router => {
 
   // Unlock Bet
   router.post("/unlock", body, async (ctx) => {
-    const sessionCookie = Auth.requireSession(ctx.cookies);
+    const credential = await server.auth.requireIdentifyingCredential(ctx);
     const [gameSlug, betSlug] = slugs(ctx);
     const body = Validation.body(ModifyLockStateBody, ctx.request.body);
     const bet = await server.store.setBetLocked(
-      sessionCookie.user,
-      sessionCookie.session,
+      credential,
       gameSlug,
       betSlug,
       body.version,
@@ -247,12 +240,11 @@ export const betsApi = (server: Server.State): Router => {
 
   // Cancel Bet
   router.post("/cancel", body, async (ctx) => {
-    const sessionCookie = Auth.requireSession(ctx.cookies);
+    const credential = await server.auth.requireIdentifyingCredential(ctx);
     const [gameSlug, betSlug] = slugs(ctx);
     const body = Validation.body(CancelBetBody, ctx.request.body);
     const bet = await server.store.cancelBet(
-      sessionCookie.user,
-      sessionCookie.session,
+      credential,
       gameSlug,
       betSlug,
       body.version,
@@ -266,12 +258,11 @@ export const betsApi = (server: Server.State): Router => {
 
   // Revert Cancel Bet
   router.post("/cancel/revert", body, async (ctx) => {
-    const sessionCookie = Auth.requireSession(ctx.cookies);
+    const credential = await server.auth.requireIdentifyingCredential(ctx);
     const [gameSlug, betSlug] = slugs(ctx);
     const body = Validation.body(RevertBody, ctx.request.body);
     const bet = await server.store.revertCancelBet(
-      sessionCookie.user,
-      sessionCookie.session,
+      credential,
       gameSlug,
       betSlug,
       body.version,
@@ -318,7 +309,7 @@ export const betsApi = (server: Server.State): Router => {
 
   // Place Stake.
   router.put("/options/:optionSlug/stake", body, async (ctx) => {
-    const sessionCookie = Auth.requireSession(ctx.cookies);
+    const credential = await server.auth.requireIdentifyingCredential(ctx);
     const [gameSlug, betSlug] = slugs(ctx);
     const optionSlug = requireUrlParameter(
       Bets.Options.Slug,
@@ -328,8 +319,7 @@ export const betsApi = (server: Server.State): Router => {
     const { amount, message } = validateStakeBody(ctx.request.body);
     ctx.body = Schema.Int.encode(
       (await server.store.newStake(
-        sessionCookie.user,
-        sessionCookie.session,
+        credential,
         gameSlug,
         betSlug,
         optionSlug,
@@ -341,7 +331,7 @@ export const betsApi = (server: Server.State): Router => {
 
   // Edit Stake.
   router.post("/options/:optionSlug/stake", body, async (ctx) => {
-    const sessionCookie = Auth.requireSession(ctx.cookies);
+    const credential = await server.auth.requireIdentifyingCredential(ctx);
     const [gameSlug, betSlug] = slugs(ctx);
     const optionSlug = requireUrlParameter(
       Bets.Options.Slug,
@@ -351,8 +341,7 @@ export const betsApi = (server: Server.State): Router => {
     const { amount, message } = validateStakeBody(ctx.request.body);
     ctx.body = Schema.Int.encode(
       (await server.store.changeStake(
-        sessionCookie.user,
-        sessionCookie.session,
+        credential,
         gameSlug,
         betSlug,
         optionSlug,
@@ -364,7 +353,7 @@ export const betsApi = (server: Server.State): Router => {
 
   // Withdraw Stake.
   router.delete("/options/:optionSlug/stake", body, async (ctx) => {
-    const sessionCookie = Auth.requireSession(ctx.cookies);
+    const credential = await server.auth.requireIdentifyingCredential(ctx);
     const [gameSlug, betSlug] = slugs(ctx);
     const optionSlug = requireUrlParameter(
       Bets.Options.Slug,
@@ -373,8 +362,7 @@ export const betsApi = (server: Server.State): Router => {
     );
     ctx.body = Schema.Int.encode(
       (await server.store.withdrawStake(
-        sessionCookie.user,
-        sessionCookie.session,
+        credential,
         gameSlug,
         betSlug,
         optionSlug,

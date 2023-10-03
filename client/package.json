@@ -12,7 +12,7 @@
     "prebuild": "npx elm-tooling install",
     "build": "npm run typecheck:js && npx vite build",
     "predev": "npx elm-tooling install",
-    "dev": "JASB_BUILD_MODE=development npx vite dev",
+    "dev": "NODE_ENV=development npx vite dev",
     "typecheck:js": "npx tsc --noEmit",
     "lint:js": "npx eslint ./src/mts components/**/mts",
     "lint:elm": "npx elm-review",

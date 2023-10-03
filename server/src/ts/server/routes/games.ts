@@ -8,7 +8,6 @@ import { requireUrlParameter, Validation } from "../../util/validation.js";
 import { WebError } from "../errors.js";
 import type { Server } from "../model.js";
 import { ResultCache } from "../result-cache.js";
-import { requireSession } from "./auth.js";
 import { betsApi } from "./bets.js";
 import { body } from "./util.js";
 
@@ -151,7 +150,7 @@ export const gamesApi = (server: Server.State): Router => {
 
   // Edit lock moments.
   router.post("/:gameSlug/lock", body, async (ctx) => {
-    const sessionCookie = requireSession(ctx.cookies);
+    const credential = await server.auth.requireIdentifyingCredential(ctx);
     const gameSlug = requireUrlParameter(
       Games.Slug,
       "game",
@@ -163,8 +162,7 @@ export const gamesApi = (server: Server.State): Router => {
     ).encode(
       (
         await server.store.editLockMoments(
-          sessionCookie.user,
-          sessionCookie.session,
+          credential,
           gameSlug,
           body.remove,
           body.edit,
@@ -176,7 +174,7 @@ export const gamesApi = (server: Server.State): Router => {
 
   // Create Game.
   router.put("/:gameSlug", body, async (ctx) => {
-    const sessionCookie = requireSession(ctx.cookies);
+    const credential = await server.auth.requireIdentifyingCredential(ctx);
     const gameSlug = requireUrlParameter(
       Games.Slug,
       "game",
@@ -184,8 +182,7 @@ export const gamesApi = (server: Server.State): Router => {
     );
     const body = Validation.body(CreateGameBody, ctx.request.body);
     const game = await server.store.addGame(
-      sessionCookie.user,
-      sessionCookie.session,
+      credential,
       gameSlug,
       body.name,
       body.cover,
@@ -198,7 +195,7 @@ export const gamesApi = (server: Server.State): Router => {
 
   // Edit Game.
   router.post("/:gameSlug", body, async (ctx) => {
-    const sessionCookie = requireSession(ctx.cookies);
+    const credential = await server.auth.requireIdentifyingCredential(ctx);
     const gameSlug = requireUrlParameter(
       Games.Slug,
       "game",
@@ -206,8 +203,7 @@ export const gamesApi = (server: Server.State): Router => {
     );
     const body = Validation.body(EditGameBody, ctx.request.body);
     const game = await server.store.editGame(
-      sessionCookie.user,
-      sessionCookie.session,
+      credential,
       body.version,
       gameSlug,
       body.name,

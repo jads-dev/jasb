@@ -4,8 +4,8 @@ import type { WebSocket } from "ws";
 import { Store } from "../data/store.js";
 import { Notifications } from "../public/notifications.js";
 import { Server } from "../server/model.js";
+import { Credentials } from "./auth/credentials.js";
 import type { Logging } from "./logging.js";
-import type { SessionCookie } from "./routes/auth.js";
 
 const wrapLogErrors = (
   logger: Logging.Logger,
@@ -20,7 +20,7 @@ export class WebSockets {
   async attach(
     { logger, store }: Server.State,
     userId: number,
-    session: SessionCookie,
+    credential: Credentials.Identifying,
     socket: WebSocket,
   ): Promise<void> {
     const channel = `user_notifications_${userId}`;
@@ -35,8 +35,7 @@ export class WebSockets {
     subscriber.notifications.on(channel, (notificationId: number) => {
       wrapLogErrors(logger, async (): Promise<void> => {
         const notification = await store.getNotification(
-          session.user,
-          session.session,
+          credential,
           notificationId as Notifications.Id,
         );
         socket.send(

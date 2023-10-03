@@ -6,7 +6,12 @@ import { formatValidationErrors } from "io-ts-reporters";
 import * as Types from "io-ts-types";
 
 import { WebError } from "../server/errors.js";
-import { PlaceholderSecretToken, SecretToken } from "./secret-token.js";
+import {
+  BufferSecretToken,
+  PlaceholderBufferSecretToken,
+  PlaceholderSecretToken,
+  SecretToken,
+} from "./secret-token.js";
 
 export const addEditRemove = <Props extends Schema.Props>(
   id: Schema.Mixed,
@@ -124,6 +129,17 @@ export const Date = new Schema.Type<Joda.LocalDate, string, unknown>(
   (value) => value.toString(),
 );
 
+export const EpochSeconds = new Schema.Type<Joda.Instant, number, unknown>(
+  "EpochSeconds",
+  (value: unknown): value is Joda.Instant => value instanceof Joda.Instant,
+  (input: unknown, context: Schema.Context) =>
+    Either.chain(
+      (value: number): Schema.Validation<Joda.Instant> =>
+        Schema.success(Joda.Instant.ofEpochSecond(value)),
+    )(Schema.number.validate(input, context)),
+  (value) => value.epochSecond(),
+);
+
 export const SecretTokenUri = new Schema.Type<SecretToken, string, unknown>(
   "SecretTokenUri",
   (u): u is SecretToken => u instanceof SecretToken,
@@ -141,21 +157,25 @@ export const SecretTokenUri = new Schema.Type<SecretToken, string, unknown>(
   (a) => a.uri,
 );
 
-export const HexAlphaColor = new Schema.Type<Buffer, string, unknown>(
-  "HexAlphaColor",
-  (u): u is Buffer => u instanceof Buffer && u.length == 4,
+export const BufferSecretTokenUri = new Schema.Type<
+  BufferSecretToken,
+  string,
+  unknown
+>(
+  "BufferSecretTokenUri",
+  (u): u is BufferSecretToken => u instanceof BufferSecretToken,
   (input, context) =>
-    Either.chain(
-      (value: string): Schema.Validation<Buffer> =>
-        value.startsWith("#") && value.length == 9
-          ? Schema.success(Buffer.from(value.substring(1), "hex"))
-          : Schema.failure(
-              input,
-              context,
-              `not a valid hex colour with alpha: ${value}`,
-            ),
-    )(Schema.string.validate(input, context)),
-  (a) => `#${a.toString("hex")}`,
+    Either.chain((value: string): Schema.Validation<BufferSecretToken> => {
+      const token = BufferSecretToken.fromUri(value);
+      return token !== undefined
+        ? Schema.success(token)
+        : Schema.failure(
+            input,
+            context,
+            `not a valid base64url encoded buffer secret token URI: ${value}`,
+          );
+    })(Schema.string.validate(input, context)),
+  (a) => a.uri,
 );
 
 export const Placeholder = new Schema.Type<
@@ -178,10 +198,55 @@ export const Placeholder = new Schema.Type<
   (a) => a.uri,
 );
 
+export const PlaceholderBuffer = new Schema.Type<
+  PlaceholderBufferSecretToken,
+  string,
+  unknown
+>(
+  "PlaceholderBuffer",
+  (u): u is PlaceholderBufferSecretToken =>
+    u instanceof PlaceholderBufferSecretToken,
+  (input, context) =>
+    Either.chain(
+      (value: string): Schema.Validation<PlaceholderBufferSecretToken> => {
+        return value === PlaceholderSecretToken.placeholderValue
+          ? Schema.success(new PlaceholderBufferSecretToken())
+          : Schema.failure(
+              input,
+              context,
+              `not “${PlaceholderSecretToken.placeholderValue}”: ${value}`,
+            );
+      },
+    )(Schema.string.validate(input, context)),
+  (a) => a.uri,
+);
+
 export const SecretTokenOrPlaceholder = Schema.union([
   SecretTokenUri,
   Placeholder,
 ]);
+
+export const BufferSecretTokenOrPlaceholder = Schema.union([
+  BufferSecretTokenUri,
+  PlaceholderBuffer,
+]);
+
+export const HexAlphaColor = new Schema.Type<Buffer, string, unknown>(
+  "HexAlphaColor",
+  (u): u is Buffer => u instanceof Buffer && u.length == 4,
+  (input, context) =>
+    Either.chain(
+      (value: string): Schema.Validation<Buffer> =>
+        value.startsWith("#") && value.length == 9
+          ? Schema.success(Buffer.from(value.substring(1), "hex"))
+          : Schema.failure(
+              input,
+              context,
+              `not a valid hex colour with alpha: ${value}`,
+            ),
+    )(Schema.string.validate(input, context)),
+  (a) => `#${a.toString("hex")}`,
+);
 
 export const Probability = new Schema.Type<number, number, unknown>(
   "Placeholder",
@@ -197,6 +262,42 @@ export const Probability = new Schema.Type<number, number, unknown>(
       }
     })(Schema.number.validate(input, context)),
   (a) => a,
+);
+
+export const JsonWebKey = Schema.readonly(
+  Schema.partial({
+    alg: Schema.string,
+    crv: Schema.string,
+    d: Schema.string,
+    dp: Schema.string,
+    dq: Schema.string,
+    e: Schema.string,
+    ext: Schema.boolean,
+    k: Schema.string,
+    key_ops: Schema.array(Schema.string),
+    kid: Schema.string,
+    kty: Schema.string,
+    n: Schema.string,
+    oth: Schema.array(
+      Schema.readonly(
+        Schema.partial({
+          d: Schema.string,
+          r: Schema.string,
+          t: Schema.string,
+        }),
+      ),
+    ),
+    p: Schema.string,
+    q: Schema.string,
+    qi: Schema.string,
+    use: Schema.string,
+    x: Schema.string,
+    x5c: Schema.array(Schema.string),
+    x5t: Schema.string,
+    "x5t#S256": Schema.string,
+    x5u: Schema.string,
+    y: Schema.string,
+  }),
 );
 
 export function body<Parsed, Encoded>(

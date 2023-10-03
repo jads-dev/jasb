@@ -10,9 +10,9 @@ import { Cards } from "../../../public/gacha/cards.js";
 import { Users } from "../../../public/users.js";
 import { Urls } from "../../../util/urls.js";
 import { requireUrlParameter, Validation } from "../../../util/validation.js";
+import { Credentials } from "../../auth/credentials.js";
 import { WebError } from "../../errors.js";
 import type { Server } from "../../model.js";
-import { requireSession } from "../auth.js";
 import { body } from "../util.js";
 
 const EditHighlightBody = Schema.readonly(
@@ -40,9 +40,10 @@ export const cardsApi = (server: Server.State): Router => {
   const router = new Router();
 
   // Redirect to the card collection for the logged-in user.
-  router.get("/", (ctx) => {
-    const sessionCookie = requireSession(ctx.cookies);
-    ctx.redirect(`/api/user/${sessionCookie.user}`);
+  router.get("/", async (ctx) => {
+    const credential = await server.auth.requireIdentifyingCredential(ctx);
+    // We don't actually validate this credential, but this redirect is safe to do anyway, so that's fine.
+    ctx.redirect(`/api/user/${Credentials.actingUser(credential)}`);
     ctx.status = StatusCodes.TEMPORARY_REDIRECT;
   });
 
@@ -79,18 +80,13 @@ export const cardsApi = (server: Server.State): Router => {
 
   // Forge a card type for the user.
   router.post("/:userSlug/forge", body, async (ctx) => {
-    const sessionCookie = requireSession(ctx.cookies);
+    const credential = await server.auth.requireIdentifyingCredential(ctx);
     const userSlug = requireUrlParameter(
       Users.Slug,
       "user",
       ctx.params["userSlug"],
     );
-    if (userSlug !== sessionCookie.user) {
-      throw new WebError(
-        StatusCodes.FORBIDDEN,
-        "Can't forge cards for other people.",
-      );
-    }
+    Credentials.ensureCanActAs(credential, userSlug);
     const body = Validation.body(ForgeCardBody, ctx.request.body);
     const { name, image } = await server.store.gachaGetForgeDetail(userSlug);
     const imageUpload = server.imageUpload;
@@ -140,17 +136,13 @@ export const cardsApi = (server: Server.State): Router => {
       { uploader: userSlug, reason: "forge-card-type", source: sourceUrl },
     );
     const cardType = await server.store.gachaForgeCardType(
-      sessionCookie.user,
-      sessionCookie.session,
+      credential,
       name,
       imageUrl.toString(),
       body.quote,
       body.rarity,
     );
-    const balance = await server.store.gachaGetBalance(
-      sessionCookie.user,
-      sessionCookie.session,
-    );
+    const balance = await server.store.gachaGetBalance(credential);
     ctx.body = ForgeCardResponse.encode({
       forged: CardTypes.fromInternal(cardType),
       balance: Balances.fromInternal(balance),
@@ -172,26 +164,20 @@ export const cardsApi = (server: Server.State): Router => {
 
   // Retire a forged card type from the user.
   router.post("/:userSlug/forged/:cardTypeId/retire", async (ctx) => {
-    const sessionCookie = requireSession(ctx.cookies);
+    const credential = await server.auth.requireIdentifyingCredential(ctx);
     const userSlug = requireUrlParameter(
       Users.Slug,
       "user",
       ctx.params["userSlug"],
     );
-    if (userSlug !== sessionCookie.user) {
-      throw new WebError(
-        StatusCodes.FORBIDDEN,
-        "Can't retire cards for other people.",
-      );
-    }
+    Credentials.ensureCanActAs(credential, userSlug);
     const cardTypeId = Validation.requireNumberUrlParameter(
       CardTypes.Id,
       "card type",
       ctx.params["cardTypeId"],
     );
     const cardType = await server.store.gachaRetireForgedCardType(
-      sessionCookie.user,
-      sessionCookie.session,
+      credential,
       cardTypeId,
     );
     ctx.body = CardTypes.WithId.encode(CardTypes.fromInternal(cardType));
@@ -260,7 +246,7 @@ export const cardsApi = (server: Server.State): Router => {
 
   // Recycle the given card.
   router.delete("/:userSlug/banners/:bannerSlug/:cardId", async (ctx) => {
-    const sessionCookie = requireSession(ctx.cookies);
+    const credential = await server.auth.requireIdentifyingCredential(ctx);
     const userSlug = requireUrlParameter(
       Users.Slug,
       "user",
@@ -271,32 +257,23 @@ export const cardsApi = (server: Server.State): Router => {
       "card",
       ctx.params["cardId"],
     );
-    if (userSlug !== sessionCookie.user) {
-      throw new WebError(StatusCodes.FORBIDDEN, "Not your card.");
-    }
-    const balance = await server.store.gachaRecycleCard(
-      sessionCookie.user,
-      sessionCookie.session,
-      cardId,
-    );
+    Credentials.ensureCanActAs(credential, userSlug);
+    const balance = await server.store.gachaRecycleCard(credential, cardId);
     ctx.body = Balances.Balance.encode(Balances.fromInternal(balance));
   });
 
   // Reorder the highlights.
   router.post("/:userSlug/highlights", body, async (ctx) => {
-    const sessionCookie = requireSession(ctx.cookies);
+    const credential = await server.auth.requireIdentifyingCredential(ctx);
     const userSlug = requireUrlParameter(
       Users.Slug,
       "user",
       ctx.params["userSlug"],
     );
-    if (userSlug !== sessionCookie.user) {
-      throw new WebError(StatusCodes.FORBIDDEN, "Not your card.");
-    }
+    Credentials.ensureCanActAs(credential, userSlug);
     const body = Validation.body(ReorderHighlightsBody, ctx.request.body);
     const highlights = await server.store.gachaSetHighlightsOrder(
-      sessionCookie.user,
-      sessionCookie.session,
+      credential,
       body,
     );
     ctx.body = Schema.readonlyArray(
@@ -324,7 +301,7 @@ export const cardsApi = (server: Server.State): Router => {
   router.put(
     "/:userSlug/banners/:bannerSlug/:cardId/highlight",
     async (ctx) => {
-      const sessionCookie = requireSession(ctx.cookies);
+      const credential = await server.auth.requireIdentifyingCredential(ctx);
       const userSlug = requireUrlParameter(
         Users.Slug,
         "user",
@@ -335,12 +312,9 @@ export const cardsApi = (server: Server.State): Router => {
         "card",
         ctx.params["cardId"],
       );
-      if (userSlug !== sessionCookie.user) {
-        throw new WebError(StatusCodes.FORBIDDEN, "Not your card.");
-      }
+      Credentials.ensureCanActAs(credential, userSlug);
       const highlight = await server.store.gachaSetHighlight(
-        sessionCookie.user,
-        sessionCookie.session,
+        credential,
         cardId,
         true,
       );
@@ -355,7 +329,7 @@ export const cardsApi = (server: Server.State): Router => {
     "/:userSlug/banners/:bannerSlug/:cardId/highlight",
     body,
     async (ctx) => {
-      const sessionCookie = requireSession(ctx.cookies);
+      const credential = await server.auth.requireIdentifyingCredential(ctx);
       const userSlug = requireUrlParameter(
         Users.Slug,
         "user",
@@ -366,9 +340,7 @@ export const cardsApi = (server: Server.State): Router => {
         "card",
         ctx.params["cardId"],
       );
-      if (userSlug !== sessionCookie.user) {
-        throw new WebError(StatusCodes.FORBIDDEN, "Not your card.");
-      }
+      Credentials.ensureCanActAs(credential, userSlug);
       const body = Validation.body(EditHighlightBody, ctx.request.body);
       if (body.message !== null && body.message !== undefined) {
         if (body.message.length < 1) {
@@ -381,8 +353,7 @@ export const cardsApi = (server: Server.State): Router => {
         }
       }
       const highlight = await server.store.gachaEditHighlight(
-        sessionCookie.user,
-        sessionCookie.session,
+        credential,
         cardId,
         body.message,
       );
@@ -397,7 +368,7 @@ export const cardsApi = (server: Server.State): Router => {
   router.delete(
     "/:userSlug/banners/:bannerSlug/:cardId/highlight",
     async (ctx) => {
-      const sessionCookie = requireSession(ctx.cookies);
+      const credential = await server.auth.requireIdentifyingCredential(ctx);
       const userSlug = requireUrlParameter(
         Users.Slug,
         "user",
@@ -408,12 +379,9 @@ export const cardsApi = (server: Server.State): Router => {
         "card",
         ctx.params["cardId"],
       );
-      if (userSlug !== sessionCookie.user) {
-        throw new WebError(StatusCodes.FORBIDDEN, "Not your card.");
-      }
+      Credentials.ensureCanActAs(credential, userSlug);
       const result = await server.store.gachaSetHighlight(
-        sessionCookie.user,
-        sessionCookie.session,
+        credential,
         cardId,
         false,
       );
