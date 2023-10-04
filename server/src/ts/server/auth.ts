@@ -21,6 +21,7 @@ import { WebError } from "./errors.js";
 export const ExternalServiceToken = Schema.strict({
   iss: Schema.string,
   sub: Users.Slug,
+  aud: Schema.string,
   nonce: Schema.string,
   iat: Validation.EpochSeconds,
 });
