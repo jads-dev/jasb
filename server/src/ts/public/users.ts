@@ -6,18 +6,28 @@ import { Games } from "./games.js";
 import { Slug } from "./users/core.js";
 
 /**
+ * Indicates permissions to manage all resources of the type.
+ */
+const All = Schema.literal("*");
+
+/**
+ * Indicates the permission applies to a specific game.
+ */
+const Game = Schema.strict({ id: Games.Slug, name: Schema.string });
+
+/**
  * The permissions for a user so the UI can present the right options for a
  * user.
  */
-export const UserPermissions = Schema.readonly(
+export const Permissions = Schema.readonly(
   Schema.partial({
-    manageGames: Schema.boolean,
-    managePermissions: Schema.boolean,
-    manageGacha: Schema.boolean,
-    manageBets: Schema.readonlyArray(Games.Slug),
+    manageGames: Schema.readonlyArray(All),
+    managePermissions: Schema.readonlyArray(All),
+    manageGacha: Schema.readonlyArray(All),
+    manageBets: Schema.readonlyArray(Schema.union([All, Game])),
   }),
 );
-export type UserPermissions = Schema.TypeOf<typeof UserPermissions>;
+export type Permissions = Schema.TypeOf<typeof Permissions>;
 
 /**
  * Full details of a user.
@@ -33,7 +43,7 @@ export const User = Schema.readonly(
     }),
     Schema.partial({
       discriminator: Schema.string,
-      permissions: UserPermissions,
+      permissions: Permissions,
     }),
   ]),
 );
@@ -53,54 +63,32 @@ export const BankruptcyStats = Schema.readonly(
 );
 export type BankruptcyStats = Schema.TypeOf<typeof BankruptcyStats>;
 
-/**
- * When editing permissions, the details of specific game permissions that can
- * be changed.
- */
-export const SpecificPermissions = Schema.readonly(
-  Schema.strict({
-    gameId: Games.Slug,
-    gameName: Schema.string,
-    manageBets: Schema.boolean,
-  }),
-);
-export type SpecificPermissions = Schema.TypeOf<typeof SpecificPermissions>;
+const manageFromInternal = (manage: boolean) => (manage ? ["*" as const] : []);
 
-/**
- * When editing permissions, the details of a user's permissions that can be
- * changed, a combination of general and game-specific permissions.
- */
-export const EditablePermissions = Schema.readonly(
-  Schema.strict({
-    manageGames: Schema.boolean,
-    managePermissions: Schema.boolean,
-    manageBets: Schema.boolean,
-    manageGacha: Schema.boolean,
-    gameSpecific: Schema.readonlyArray(SpecificPermissions),
-  }),
-);
-export type EditablePermissions = Schema.TypeOf<typeof EditablePermissions>;
+const manageBetsFromInternal = (
+  manageBets: boolean,
+  manageBetsGames: readonly { slug: Games.Slug; name: string }[],
+): Exclude<Permissions["manageBets"], undefined> => [
+  ...(manageBets ? ["*" as const] : []),
+  ...manageBetsGames.map(({ slug, name }) => ({ id: slug, name })),
+];
 
-const userPermissionsFromInternal = (
-  internal: Internal.Users.User,
-): { permissions?: UserPermissions } => {
-  const manageGames = internal.manage_games;
-  const managePermissions = internal.manage_permissions;
-  const manageGacha = internal.manage_gacha;
-  const manageBets = internal.manage_bets;
-  return manageGames ||
-    managePermissions ||
-    manageGacha ||
-    manageBets.length > 0
-    ? {
-        permissions: {
-          ...(manageGames ? { manageGames: true } : {}),
-          ...(managePermissions ? { managePermissions: true } : {}),
-          ...(manageGacha ? { manageGacha: true } : {}),
-          ...(manageBets.length > 0 ? { manageBets } : {}),
-        },
-      }
-    : {};
+export const permissionsFromInternal = (
+  internal: Internal.Users.Permissions,
+): Permissions => {
+  const manageGames = manageFromInternal(internal.manage_games);
+  const managePermissions = manageFromInternal(internal.manage_permissions);
+  const manageGacha = manageFromInternal(internal.manage_gacha);
+  const manageBets = manageBetsFromInternal(
+    internal.manage_bets,
+    internal.manage_bets_games,
+  );
+  return {
+    ...(manageGames.length > 0 ? { manageGames } : {}),
+    ...(managePermissions.length > 0 ? { managePermissions } : {}),
+    ...(manageGacha.length > 0 ? { manageGacha } : {}),
+    ...(manageBets.length > 0 ? { manageBets } : {}),
+  };
 };
 
 export const fromInternal = (internal: Internal.User): [Slug, User] => [
@@ -117,7 +105,7 @@ export const fromInternal = (internal: Internal.User): [Slug, User] => [
 
     created: internal.created,
 
-    ...userPermissionsFromInternal(internal),
+    permissions: permissionsFromInternal(internal),
   },
 ];
 
@@ -133,30 +121,6 @@ export const bankruptcyStatsFromInternal = ({
   lockedAmountLost: locked_amount_lost,
   lockedStakesLost: locked_stakes_lost,
   balanceAfter: balance_after,
-});
-
-export const specificPermissionsFromInternal = ({
-  game_slug,
-  game_name,
-  manage_bets,
-}: Internal.Users.SpecificPermissions): SpecificPermissions => ({
-  gameId: game_slug,
-  gameName: game_name,
-  manageBets: manage_bets,
-});
-
-export const editablePermissionsFromInternal = ({
-  manage_games,
-  manage_permissions,
-  manage_bets,
-  manage_gacha,
-  game_specific,
-}: Internal.Users.EditablePermissions): EditablePermissions => ({
-  manageGames: manage_games,
-  managePermissions: manage_permissions,
-  manageBets: manage_bets,
-  manageGacha: manage_gacha,
-  gameSpecific: game_specific.map(specificPermissionsFromInternal),
 });
 
 export { Slug, Summary, summaryFromInternal } from "./users/core.js";

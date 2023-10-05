@@ -526,12 +526,12 @@ bannerEditor { banner, save, coverUploader, background, foreground } =
                 [ Html.span [ HtmlA.class "cancel" ]
                     [ Button.text "Cancel"
                         |> Button.button (cancel |> Just |> ifNotSaving)
-                        |> Button.icon (Icon.times |> Icon.view)
+                        |> Button.icon [ Icon.times |> Icon.view ]
                         |> Button.view
                     ]
                 , Button.filled "Save"
                     |> Button.button (Save Nothing |> wrap |> Validator.whenValid validator banner |> ifNotSaving)
-                    |> Button.icon (Icon.save |> Icon.view)
+                    |> Button.icon [ Icon.save |> Icon.view ]
                     |> Button.view
                 ]
             ]
@@ -611,7 +611,7 @@ viewBanner time order { bannerOrderDragDrop } index ( id, banner ) =
         , Html.div [ HtmlA.class "edit" ]
             [ Button.text "Edit Card Types"
                 |> Material.buttonLink Global.ChangeUrl (Gacha.CardType id |> Gacha.Edit |> Route.Gacha)
-                |> Button.icon (Icon.diamond |> Icon.view)
+                |> Button.icon [ Icon.diamond |> Icon.view ]
                 |> Button.view
             , IconButton.icon (Icon.edit |> Icon.view) "Edit"
                 |> IconButton.button (id |> Edit |> wrap |> Just)
@@ -645,11 +645,11 @@ viewBanners time model { banners, order } =
         |> HtmlK.ol [ HtmlA.class "banner-editor editor" ]
     , Button.text "Save Order"
         |> Button.button reorder
-        |> Button.icon (Icon.save |> Icon.view |> Api.orSpinner model.saveBannerOrder)
+        |> Button.icon [ Icon.save |> Icon.view |> Api.orSpinner model.saveBannerOrder ]
         |> Button.view
     , Button.text "Add New"
         |> Button.button (Add Nothing |> wrap |> Just)
-        |> Button.icon (Icon.plus |> Icon.view)
+        |> Button.icon [ Icon.plus |> Icon.view ]
         |> Button.view
     ]
 

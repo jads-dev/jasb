@@ -14,12 +14,12 @@ module JoeBets.User.Auth.Model exposing
     , redirectOrLoggedInDecoder
     )
 
-import EverySet
 import JoeBets.Api.Error as Api
 import JoeBets.Game.Id as Game
 import JoeBets.Route exposing (Route)
 import JoeBets.User.Model as User exposing (User)
 import JoeBets.User.Notifications.Model as Notifications exposing (Notification)
+import JoeBets.User.Permission as Permission exposing (Permission)
 import Json.Decode as JsonD
 import Json.Decode.Pipeline as JsonD
 
@@ -36,33 +36,29 @@ type alias Model =
     }
 
 
-hasPermission : (User.Permissions -> Bool) -> Maybe { a | user : User } -> Bool
+hasPermission : (List Permission -> Bool) -> Maybe { a | user : User } -> Bool
 hasPermission getPerm =
     Maybe.map (.user >> .permissions >> getPerm) >> Maybe.withDefault False
 
 
 canManageGames : Maybe { a | user : User } -> Bool
 canManageGames =
-    hasPermission .manageGames
+    hasPermission Permission.canManageGames
 
 
 canManagePermissions : Maybe { a | user : User } -> Bool
 canManagePermissions =
-    hasPermission .managePermissions
+    hasPermission Permission.canManagePermissions
 
 
 canManageGacha : Maybe { a | user : User } -> Bool
 canManageGacha =
-    hasPermission .manageGacha
+    hasPermission Permission.canManageGacha
 
 
 canManageBets : Game.Id -> Maybe { a | user : User } -> Bool
 canManageBets game =
-    let
-        modForGame { manageBets } =
-            manageBets |> EverySet.member game
-    in
-    Maybe.map (.user >> .permissions >> modForGame) >> Maybe.withDefault False
+    hasPermission (Permission.canManageGameBets game)
 
 
 type Msg

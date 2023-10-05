@@ -19,7 +19,7 @@ import Url.Builder
 externalMenuLink : String -> List String -> Menu.Item msg -> Menu.Item msg
 externalMenuLink origin path =
     Menu.link (Url.Builder.crossOrigin origin path []) (Just "_blank")
-        >> Menu.trailingIcon (Icon.externalLinkAlt |> Icon.view)
+        >> Menu.end [ Icon.externalLinkAlt |> Icon.view ]
 
 
 buttonLink : (Route -> msg) -> Route -> (Button msg -> Button msg)

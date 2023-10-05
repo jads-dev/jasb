@@ -117,24 +117,6 @@
       flex-flow: row wrap;
       align-items: center;
     }
-
-    > .filter {
-      align-self: stretch;
-      display: grid;
-      justify-content: flex-end;
-      grid-template-columns: repeat(auto-fit, 8em);
-      gap: 0.5em;
-
-      > label {
-        @include colors.by-name("secondary");
-        border-radius: 0.5em;
-        padding: 0.5em;
-
-        > span {
-          flex-grow: 1;
-        }
-      }
-    }
   }
 }
 

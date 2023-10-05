@@ -1,11 +1,7 @@
-module JoeBets.Editing.UserSelector exposing
-    ( Model
-    , Msg(..)
-    , deselect
-    , init
-    , initFromExisting
-    , update
-    , view
+module JoeBets.User.Permission.Selector exposing
+    ( initSelector
+    , selector
+    , updateSelector
     )
 
 import AssocList
@@ -17,10 +13,12 @@ import JoeBets.Api as Api
 import JoeBets.Api.Data as Api
 import JoeBets.Api.Model as Api
 import JoeBets.Api.Path as Api
-import JoeBets.User as User
-import JoeBets.User.Model as User
+import JoeBets.Game as Game
+import JoeBets.Game.Id as Game
+import JoeBets.Game.Model as Game
+import JoeBets.User.Permission as Permission exposing (Permission)
+import JoeBets.User.Permission.Selector.Model exposing (..)
 import Json.Decode as JsonD
-import Material.Chips.Input as InputChip
 import Material.IconButton as IconButton
 import Material.Menu as Menu
 import Material.TextField as TextField
@@ -38,56 +36,16 @@ type alias Parent a =
     }
 
 
-type ExecutionType
-    = IfStableOn Int
-    | Always
-
-
-type Msg
-    = SetQuery String
-    | Select User.Id
-    | Deselect
-    | ExecuteSearch ExecutionType
-    | UpdateOptions (Api.Response (AssocList.Dict User.Id User.Summary))
-
-
-type alias Model =
-    { query : String
-    , selected : Maybe User.SummaryWithId
-    , queryChangeIndex : Int
-    , options : Api.Data (AssocList.Dict User.Id User.Summary)
-    }
-
-
-optionsDecoder : JsonD.Decoder (AssocList.Dict User.Id User.Summary)
+optionsDecoder : JsonD.Decoder (AssocList.Dict Game.Id Game.Summary)
 optionsDecoder =
-    JsonD.assocListFromTupleList User.idDecoder User.summaryDecoder
+    JsonD.assocListFromTupleList Game.idDecoder Game.summaryDecoder
 
 
-init : Model
-init =
+initSelector : Selector
+initSelector =
     { query = ""
-    , selected = Nothing
     , queryChangeIndex = 0
     , options = Api.initData
-    }
-
-
-initFromExisting : User.SummaryWithId -> Model
-initFromExisting user =
-    { query = ""
-    , selected = Just user
-    , queryChangeIndex = 0
-    , options = Api.initData
-    }
-
-
-deselect : Model -> Model
-deselect model =
-    { model
-        | query = ""
-        , selected = Nothing
-        , options = Api.initData
     }
 
 
@@ -96,8 +54,8 @@ queryIsLongEnough query =
     String.length query >= 3
 
 
-update : (Msg -> msg) -> Parent a -> Msg -> Model -> ( Model, Cmd msg )
-update wrap { origin } msg model =
+updateSelector : (SelectorMsg -> msg) -> Parent a -> SelectorMsg -> Selector -> ( Selector, Cmd msg )
+updateSelector wrap { origin } msg model =
     case msg of
         SetQuery query ->
             let
@@ -118,32 +76,13 @@ update wrap { origin } msg model =
             , cmd
             )
 
-        Select user ->
-            let
-                fromOptions options =
-                    options |> AssocList.get user |> Maybe.map (User.SummaryWithId user)
-
-                selected =
-                    model.options
-                        |> Api.dataToMaybe
-                        |> Maybe.andThen fromOptions
-            in
-            ( { model | selected = selected, query = "", options = Api.initData }
-            , Cmd.none
-            )
-
-        Deselect ->
-            ( { model | selected = Nothing, query = "", options = Api.initData }
-            , Cmd.none
-            )
-
         ExecuteSearch executionType ->
             if queryIsLongEnough model.query then
                 let
                     doSearch () =
                         let
                             ( state, cmd ) =
-                                { path = Api.UserSearch model.query
+                                { path = Api.GameSearch model.query
                                 , wrap = UpdateOptions >> wrap
                                 , decoder = optionsDecoder
                                 }
@@ -174,21 +113,36 @@ update wrap { origin } msg model =
             )
 
 
-viewOptions : (Msg -> msg) -> String -> AssocList.Dict User.Id User.Summary -> List (Html msg)
-viewOptions wrap anchorId options =
+viewOptions : (Permission -> msg) -> String -> List Permission -> AssocList.Dict Game.Id Game.Summary -> List (Html msg)
+viewOptions select anchorId existing options =
     let
-        viewOption ( id, user ) =
-            Menu.item [ user |> User.nameString |> Html.text ]
-                |> Menu.button (Select id |> wrap |> Just)
-                |> Menu.start [ User.viewAvatar user ]
+        viewOption permission =
+            let
+                ( icon, name ) =
+                    Permission.iconAndName permission
+            in
+            Menu.item [ Html.text name ]
+                |> Menu.start [ icon ]
+                |> Menu.button
+                    (select permission |> Just)
                 |> Menu.itemToChild
+
+        toPermissions ( id, game ) =
+            let
+                notInExisting perm =
+                    existing |> List.member perm |> not
+            in
+            Permission.possibleForGame id game.name |> List.filter notInExisting
 
         rendered =
             if AssocList.size options > 0 then
-                options |> AssocList.toList |> List.map viewOption
+                options
+                    |> AssocList.toList
+                    |> List.concatMap toPermissions
+                    |> List.map viewOption
 
             else
-                [ Menu.item [ Html.text "No users found." ]
+                [ Menu.item [ Html.text "No new permissions found." ]
                     |> Menu.start [ Icon.view Icon.ghost ]
                     |> Menu.itemToChild
                 ]
@@ -202,11 +156,11 @@ viewOptions wrap anchorId options =
     ]
 
 
-view : (Msg -> msg) -> String -> Bool -> Model -> Html msg
-view wrap idSuffix required { query, selected, options } =
+selector : (SelectorMsg -> msg) -> (Permission -> msg) -> String -> List Permission -> Selector -> Html msg
+selector wrap select idSuffix existing { query, options } =
     let
         id =
-            "user-editor-search" ++ idSuffix
+            "permission-selector-search" ++ idSuffix
 
         onKeyDown key =
             case key of
@@ -216,20 +170,9 @@ view wrap idSuffix required { query, selected, options } =
                 _ ->
                     JsonD.fail "Not a monitored key."
 
-        renderedSelected =
-            case selected of
-                Just { user } ->
-                    [ InputChip.chip (User.nameString user) (Deselect |> wrap |> Just)
-                        |> InputChip.icon [ User.viewAvatar user ] True
-                        |> InputChip.view
-                    ]
-
-                Nothing ->
-                    [ Icon.view Icon.circleUser ]
-
         queryEditor =
             Html.div [ HtmlA.id id, HtmlA.class "search" ]
-                [ TextField.outlined "User Search"
+                [ TextField.outlined "Permission Search"
                     (SetQuery >> wrap |> Just)
                     query
                     |> TextField.search
@@ -244,20 +187,12 @@ view wrap idSuffix required { query, selected, options } =
                                 )
                             |> IconButton.view
                         ]
-                    |> TextField.required required
-                    |> TextField.leadingIcon renderedSelected
                     |> TextField.view
                 ]
 
         renderedOptions =
-            options |> Api.viewData Api.viewOrNothing (viewOptions wrap id)
+            options |> Api.viewData Api.viewOrNothing (viewOptions select id existing)
     in
     queryEditor
         :: renderedOptions
-        |> Html.div
-            [ HtmlA.classList
-                [ ( "user-selector", True )
-                , ( "selected", selected /= Nothing )
-                , ( "required", required )
-                ]
-            ]
+        |> Html.div [ HtmlA.class "permission-selector" ]

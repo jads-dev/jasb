@@ -286,7 +286,7 @@ view wrap ({ id, user } as localUser) placeBet =
                                 [ Html.span [ HtmlA.class "cancel" ]
                                     [ Button.filled "Delete Bet"
                                         |> Button.button (Withdraw id |> wrap |> Just |> Api.ifNotWorking action)
-                                        |> Button.icon (Icon.trash |> Icon.view)
+                                        |> Button.icon [ Icon.trash |> Icon.view ]
                                         |> Button.view
                                     ]
                                 ]
@@ -297,7 +297,7 @@ view wrap ({ id, user } as localUser) placeBet =
                     cancelButton
                         ++ [ Button.filled (actionName ++ " Bet")
                                 |> Button.button (submit |> Result.toMaybe |> Api.ifNotWorking action)
-                                |> Button.icon (Icon.check |> Icon.view)
+                                |> Button.icon [ Icon.check |> Icon.view ]
                                 |> Button.view
                            ]
 
@@ -335,7 +335,7 @@ view wrap ({ id, user } as localUser) placeBet =
                       , [ Html.div [ HtmlA.class "controls" ]
                             [ Button.text "Back"
                                 |> Button.button (Cancel |> wrap |> Just)
-                                |> Button.icon (Icon.times |> Icon.view)
+                                |> Button.icon [ Icon.times |> Icon.view ]
                                 |> Button.view
                             , Html.div [ HtmlA.class "actions" ] actions
                             ]

@@ -44,6 +44,8 @@ import JoeBets.User.Auth as User
 import JoeBets.User.Auth.Model as Auth
 import Json.Encode as JsonE
 import Material.Button as Button
+import Material.Chips as Chips
+import Material.Chips.Filter as FilterChip
 import Material.IconButton as IconButton
 import Material.Switch as Switch
 import Time.Model as Time
@@ -368,31 +370,17 @@ viewActiveFilters subset filters gameFilters shownAmount =
 
         viewFilter filter =
             let
-                ( title, description, value ) =
-                    case filter of
-                        Filters.Voting ->
-                            ( "Open", "Bets you can still bet on.", filters.voting )
+                value =
+                    Filters.value filter filters
 
-                        Filters.Locked ->
-                            ( "Locked", "Bets that are ongoing but you can't bet on.", filters.locked )
-
-                        Filters.Complete ->
-                            ( "Finished", "Bets that are resolved.", filters.complete )
-
-                        Filters.Cancelled ->
-                            ( "Cancelled", "Bets that have been cancelled.", filters.cancelled )
-
-                        Filters.HasBet ->
-                            ( "Have Bet", "Bets that you have a stake in.", filters.hasBet )
-
-                        Filters.Spoilers ->
-                            ( "Spoilers", "Bets that give serious spoilers for the game.", filters.spoilers )
+                { title, description } =
+                    Filters.describe filter
             in
-            Html.label [ HtmlA.title description, HtmlA.class "switch" ]
-                [ Html.span [] [ Html.text title ]
-                , Switch.switch (SetFilter filter >> wrap |> Just) value
-                    |> Switch.view
-                ]
+            FilterChip.chip title
+                |> FilterChip.button (value |> not |> SetFilter filter |> wrap |> Just)
+                |> FilterChip.selected value
+                |> FilterChip.attrs [ HtmlA.title description ]
+                |> FilterChip.view
     in
     Html.div [ HtmlA.class "filters" ]
         [ Html.div [ HtmlA.class "title" ]
@@ -402,7 +390,7 @@ viewActiveFilters subset filters gameFilters shownAmount =
                 |> IconButton.button (ClearFilters |> wrap |> Maybe.when (gameFilters |> Filters.any))
                 |> IconButton.view
             ]
-        , active |> List.map viewFilter |> Html.div [ HtmlA.class "filter" ]
+        , active |> List.map viewFilter |> Chips.set []
         ]
 
 
@@ -516,11 +504,11 @@ view model =
                                     if model.auth.localUser |> Auth.canManageBets id then
                                         [ Button.text "Add Bet"
                                             |> Material.buttonLink Global.ChangeUrl (Edit.Bet id Edit.New |> Route.Edit)
-                                            |> Button.icon (Icon.plus |> Icon.view)
+                                            |> Button.icon [ Icon.plus |> Icon.view ]
                                             |> Button.view
                                         , Button.text "Lock Bets"
                                             |> Button.button (LockBets Open |> wrap |> Just)
-                                            |> Button.icon (Icon.lock |> Icon.view)
+                                            |> Button.icon [ Icon.lock |> Icon.view ]
                                             |> Button.view
                                         ]
 
@@ -607,7 +595,7 @@ lockStatusViewModel =
                 [ [ contents
                   , [ Button.text "Close"
                         |> Button.button (LockBets Close |> wrap |> Just)
-                        |> Button.icon (Icon.times |> Icon.view)
+                        |> Button.icon [ Icon.times |> Icon.view ]
                         |> Button.view
                     ]
                   ]

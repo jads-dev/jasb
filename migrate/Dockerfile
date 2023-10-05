@@ -3,6 +3,11 @@ ARG VCS_REF
 ARG VERSION=${VCS_REF}-dev
 
 
+FROM scratch AS sources
+
+COPY --link ["./src/sql", "./sql"]
+
+
 FROM --platform=${BUILDPLATFORM} redgate/flyway:9 AS base
 
 ARG VERSION
@@ -26,4 +31,4 @@ ENV FLYWAY_CREATE_SCHEMAS=true
 
 WORKDIR /flyway
 
-COPY --from=server-context ["./src/sql", "./sql"]
+COPY --link --from=sources [ "/", "./" ]

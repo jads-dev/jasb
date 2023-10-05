@@ -24,7 +24,8 @@ import JoeBets.Page.Games.Model exposing (..)
 import JoeBets.Route as Route
 import JoeBets.User.Auth.Model as Auth
 import Material.Button as Button
-import Material.Switch as Switch
+import Material.Chips as Chips
+import Material.Chips.Filter as FilterChip
 import Time.Model as Time
 
 
@@ -109,7 +110,7 @@ view { auth, time, games, bets } =
                 admin =
                     if Auth.canManageGames auth.localUser then
                         [ Button.text "Add Game"
-                            |> Button.icon (Icon.plus |> Icon.view)
+                            |> Button.icon [ Icon.plus |> Icon.view ]
                             |> Material.buttonLink
                                 Global.ChangeUrl
                                 (Edit.Game Nothing |> Route.Edit)
@@ -131,12 +132,14 @@ view { auth, time, games, bets } =
     , id = "games"
     , body =
         Html.h2 [] [ Html.text "Games" ]
-            :: Html.label [ HtmlA.class "switch" ]
-                [ Html.span [] [ Html.text "Favourite Games Only" ]
-                , Switch.switch
-                    (SetFavouritesOnly >> wrap |> Just)
-                    games.favouritesOnly
-                    |> Switch.view
+            :: Html.div [ HtmlA.class "filters" ]
+                [ Html.span [] [ Icon.filter |> Icon.view, Html.text " Filter" ]
+                , Chips.set []
+                    [ FilterChip.chip "Favourite Games"
+                        |> FilterChip.button (games.favouritesOnly |> not |> SetFavouritesOnly >> wrap |> Just)
+                        |> FilterChip.selected games.favouritesOnly
+                        |> FilterChip.view
+                    ]
                 ]
             :: Api.viewData Api.viewOrError body games.games
     }

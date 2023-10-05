@@ -4,7 +4,7 @@ module JoeBets.Layout exposing
     , decoder
     , encode
     , fromString
-    , selectItem
+    , selector
     , toClass
     , toString
     )
@@ -13,7 +13,7 @@ import FontAwesome as Icon
 import FontAwesome.Layering as Icon
 import FontAwesome.Solid as Icon
 import FontAwesome.Transforms as Icon
-import Html
+import Html exposing (Html)
 import Html.Attributes as HtmlA
 import Json.Decode as JsonD
 import Json.Encode as JsonE
@@ -83,37 +83,48 @@ decoder =
     JsonD.string |> JsonD.andThen fromStringJson
 
 
-selectItem : Layout -> Layout -> Select.Option msg
-selectItem selected layout =
+selector : Maybe (String -> msg) -> Maybe Layout -> Html msg
+selector select selected =
     let
-        ( icon, name, description ) =
-            case layout of
-                Auto ->
-                    ( Icon.layers []
-                        [ Icon.display
-                            |> Icon.transform
-                                [ Icon.shrink 4
-                                , Icon.left 5
+        selectItem : Layout -> Select.Option msg
+        selectItem layout =
+            let
+                ( icon, name, description ) =
+                    case layout of
+                        Auto ->
+                            ( Icon.layers []
+                                [ Icon.display
+                                    |> Icon.transform
+                                        [ Icon.shrink 4
+                                        , Icon.left 5
+                                        ]
+                                    |> Icon.view
+                                , Icon.mobileScreen
+                                    |> Icon.transform
+                                        [ Icon.shrink 4
+                                        , Icon.right 5
+                                        , Icon.down 5
+                                        ]
+                                    |> Icon.view
                                 ]
-                            |> Icon.view
-                        , Icon.mobileScreen
-                            |> Icon.transform
-                                [ Icon.shrink 4
-                                , Icon.right 5
-                                , Icon.down 5
-                                ]
-                            |> Icon.view
-                        ]
-                    , "Auto"
-                    , "Automatically choose layout based on screen size."
-                    )
+                            , "Auto"
+                            , "Automatically choose layout based on screen size."
+                            )
 
-                Wide ->
-                    ( Icon.view Icon.expandAlt, "Wide", "Display all the detail available." )
+                        Wide ->
+                            ( Icon.view Icon.expandAlt, "Wide", "Display all the detail available." )
 
-                Narrow ->
-                    ( Icon.view Icon.compressAlt, "Narrow", "Remove some details to help fit smaller screens." )
+                        Narrow ->
+                            ( Icon.view Icon.compressAlt, "Narrow", "Remove some details to help fit smaller screens." )
+            in
+            Select.option [ Html.text name ] (toString layout)
+                |> Select.start [ icon ]
+                |> Select.optionSupportingText [ Html.text description ]
     in
-    Select.option name (selected == layout) (toString layout)
-        |> Select.icon icon
-        |> Select.optionSupportingText description True
+    all
+        |> List.map selectItem
+        |> Select.outlined "Layout" select (selected |> Maybe.map toString)
+        |> Select.fixed
+        |> Select.supportingText "What layout to use for the site."
+        |> Select.leadingIcon [ Icon.rulerCombined |> Icon.view ]
+        |> Select.view

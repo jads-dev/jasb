@@ -389,7 +389,7 @@ view ({ auth, forge, gacha } as parent) =
                                         [ Html.span [ HtmlA.class "cancel" ]
                                             [ Button.text "Cancel"
                                                 |> Button.button (cancel |> Just)
-                                                |> Button.icon (Icon.times |> Icon.view)
+                                                |> Button.icon [ Icon.times |> Icon.view ]
                                                 |> Button.view
                                             ]
                                         , Button.filled "Retire"
@@ -399,7 +399,7 @@ view ({ auth, forge, gacha } as parent) =
                                                     |> Just
                                                     |> Api.ifNotWorking forge.retire
                                                 )
-                                            |> Button.icon (Icon.ban |> Icon.view)
+                                            |> Button.icon [ Icon.ban |> Icon.view ]
                                             |> Button.attrs [ HtmlA.class "dangerous" ]
                                             |> Button.view
                                         ]
@@ -488,7 +488,7 @@ view ({ auth, forge, gacha } as parent) =
                                     |> Api.ifNotWorking forge.forge
                                     |> Maybe.alsoOnlyIf canAfford
                                 )
-                            |> Button.icon (Icon.view Icon.hammer |> Api.orSpinner forge.forge)
+                            |> Button.icon [ Icon.view Icon.hammer |> Api.orSpinner forge.forge ]
                             |> Button.view
                         ]
                     , Html.div [] (Api.viewAction [] forge.forge)

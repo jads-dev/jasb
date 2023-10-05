@@ -38,6 +38,10 @@
       host: "storage",
       user: "jasb",
       password: "CHANGE_ME",
+
+      // The maximum number of listener connections for websocket notifications.
+      // Note the postgres connection limit is 100 by default, you will need to up it if you need more.
+      maxListenConnections: 50,
     },
   },
 

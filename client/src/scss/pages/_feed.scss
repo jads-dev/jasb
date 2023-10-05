@@ -6,6 +6,17 @@
   > p {
     margin: 0;
   }
+  
+  .filters {
+    display: flex;
+    flex-flow: column;
+    align-self: stretch;
+    gap: 0.5em;
+
+    span {
+      align-self: flex-end;
+    }
+  }
 }
 
 #feed,

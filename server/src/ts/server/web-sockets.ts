@@ -1,22 +1,68 @@
+import * as Joda from "@js-joda/core";
+import * as Pool from "generic-pool";
+import { StatusCodes } from "http-status-codes";
 import { default as Listen, type Subscriber } from "pg-listen";
 import type { WebSocket } from "ws";
 
 import { Store } from "../data/store.js";
 import { Notifications } from "../public/notifications.js";
 import { Server } from "../server/model.js";
+import { Promises } from "../util/promises.js";
 import { Credentials } from "./auth/credentials.js";
+import type { Config } from "./config.js";
+import { WebError } from "./errors.js";
 import type { Logging } from "./logging.js";
 
-const wrapLogErrors = (
-  logger: Logging.Logger,
-  async: () => Promise<void>,
-): void => {
-  async().catch((error) => {
-    logger.error(error);
-  });
-};
+const wrapLogErrors =
+  <TArgs extends [...unknown[]]>(
+    logger: Logging.Logger,
+    doAsync: (...args: TArgs) => Promise<void>,
+  ): ((...args: TArgs) => void) =>
+  (...args): void => {
+    doAsync(...args).catch((error) => {
+      logger.error(error);
+    });
+  };
 
 export class WebSockets {
+  #pool;
+
+  constructor(config: Config.Server) {
+    const factory: Pool.Factory<Subscriber> = {
+      create: async () => {
+        const subscriber =
+          // Bad typing.
+          // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+          // @ts-expect-error
+          Listen({
+            connectionString: Store.connectionString(config.store.source),
+          }) as Subscriber;
+        await subscriber.connect();
+        return subscriber;
+      },
+      destroy: async (subscriber) => {
+        await subscriber.close();
+      },
+      validate: (subscriber) =>
+        Promise.resolve(subscriber.getSubscribedChannels().length === 0),
+    };
+    this.#pool = Pool.createPool(factory, {
+      max: config.store.source.maxListenConnections,
+      autostart: false,
+    });
+  }
+
+  async #getSubscriber(): Promise<Subscriber> {
+    try {
+      return await this.#pool.acquire();
+    } catch (error) {
+      throw new WebError(
+        StatusCodes.SERVICE_UNAVAILABLE,
+        "Too many clients connected, try again later.",
+      );
+    }
+  }
+
   async attach(
     { logger, store }: Server.State,
     userId: number,
@@ -24,16 +70,15 @@ export class WebSockets {
     socket: WebSocket,
   ): Promise<void> {
     const channel = `user_notifications_${userId}`;
+    const keepAliveInterval = Joda.Duration.ofSeconds(30);
+    let closed = false;
+    let lastReceivedMessage = Joda.Instant.now();
 
-    // Bad typing.
-    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-    // @ts-expect-error
-    const subscriber = Listen({
-      connectionString: Store.connectionString(store.config.store.source),
-    }) as Subscriber;
+    const subscriber = await this.#getSubscriber();
 
-    subscriber.notifications.on(channel, (notificationId: number) => {
-      wrapLogErrors(logger, async (): Promise<void> => {
+    subscriber.notifications.on(
+      channel,
+      wrapLogErrors(logger, async (notificationId: number): Promise<void> => {
         const notification = await store.getNotification(
           credential,
           notificationId as Notifications.Id,
@@ -45,16 +90,42 @@ export class WebSockets {
             ),
           ),
         );
-      });
-    });
+      }),
+    );
 
-    socket.on("close", () => {
+    socket.on(
+      "close",
       wrapLogErrors(logger, async () => {
-        await subscriber.close();
-      });
+        if (!closed) {
+          await subscriber.unlistenAll();
+          closed = true;
+          await this.#pool.release(subscriber);
+        }
+      }),
+    );
+
+    socket.on("pong", () => {
+      lastReceivedMessage = Joda.Instant.now();
     });
 
-    await subscriber.connect();
     await subscriber.listenTo(channel);
+
+    wrapLogErrors(logger, async () => {
+      let failedCheck = false;
+      while (!closed) {
+        const startTime = Joda.Instant.now();
+        await Promises.wait(keepAliveInterval);
+        if (lastReceivedMessage.isBefore(startTime)) {
+          if (failedCheck) {
+            socket.close();
+          } else {
+            failedCheck = true;
+            socket.ping();
+          }
+        } else {
+          failedCheck = false;
+        }
+      }
+    })();
   }
 }

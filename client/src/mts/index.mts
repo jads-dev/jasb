@@ -1,6 +1,6 @@
-import "../../elm-material/src/mts/material.mjs";
 import "@fireworks-js/web";
 import "../../components/gacha-card/mts/gacha-card.mjs";
+import "../../elm-material/src/js/all.js";
 
 import { Elm } from "../elm/JoeBets.mjs";
 import * as BaseUrl from "./base-url.mjs";

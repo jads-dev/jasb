@@ -49,6 +49,9 @@ viewSubMenu self id title icon openSubMenu items =
     [ items
         |> List.map Menu.itemToChild
         |> Menu.menu id open
+        |> Menu.fixed
+        |> Menu.anchorCorner Menu.End Menu.End
+        |> Menu.menuCorner Menu.Start Menu.End
         |> Menu.onClosed (CloseSubMenu self |> Global.NavigationMsg)
         |> Menu.view
     , IconButton.icon icon title
@@ -63,29 +66,29 @@ viewUserSubmenu model =
     case model.auth.localUser of
         Just localUser ->
             ( User.viewAvatar localUser.user
-            , [ Menu.item "Profile"
+            , [ Menu.item [ Html.text "Profile" ]
                     |> Material.menuLink Global.ChangeUrl (localUser.id |> Just |> Route.User)
-                    |> Menu.icon (Icon.view Icon.user)
-              , Menu.item "Log Out"
+                    |> Menu.start [ Icon.view Icon.user ]
+              , Menu.item [ Html.text "Log Out" ]
                     |> (Auth.Logout
                             |> Global.AuthMsg
                             |> Maybe.when (model.auth.inProgress == Nothing)
                             |> Menu.button
                        )
-                    |> Menu.icon (Icon.view Icon.signOut)
+                    |> Menu.start [ Icon.view Icon.signOut ]
               ]
             )
 
         Nothing ->
             ( Icon.user |> Icon.view
-            , [ Menu.item "Log In"
+            , [ Menu.item [ Html.text "Log In" ]
                     |> (Auth.Start
                             |> Auth.Login
                             |> Global.AuthMsg
                             |> Maybe.when (model.auth.inProgress == Nothing)
                             |> Menu.button
                        )
-                    |> Menu.icon (Icon.view Icon.signIn)
+                    |> Menu.start [ Icon.view Icon.signIn ]
               ]
             )
 
@@ -140,24 +143,24 @@ view model =
                 "More"
                 (Icon.ellipsisVertical |> Icon.view)
                 model.navigation.openSubMenu
-                [ Menu.item "Settings"
+                [ Menu.item [ Html.text "Settings" ]
                     |> Menu.button showSettings
-                    |> Menu.icon (Icon.view Icon.cog)
-                , Menu.item "About"
+                    |> Menu.start [ Icon.view Icon.cog ]
+                , Menu.item [ Html.text "About" ]
                     |> Material.menuLink Global.ChangeUrl Route.About
-                    |> Menu.icon (Icon.view Icon.questionCircle)
-                , Menu.item "The Stream"
+                    |> Menu.start [ Icon.view Icon.questionCircle ]
+                , Menu.item [ Html.text "The Stream" ]
                     |> Material.externalMenuLink
                         "https://www.twitch.tv"
                         [ "andersonjph" ]
-                    |> Menu.icon (Icon.view Icon.twitch)
-                    |> Menu.supportingText "andersonjph on Twitch" False
-                , Menu.item "Notifications"
+                    |> Menu.start [ Icon.view Icon.twitch ]
+                    |> Menu.supportingText [ Html.text "andersonjph on Twitch" ]
+                , Menu.item [ Html.text "Notifications" ]
                     |> Material.externalMenuLink
                         "https://discord.gg"
                         [ "tJjNP4QRvV" ]
-                    |> Menu.icon (Icon.view Icon.discord)
-                    |> Menu.supportingText "Join the JASB discord server for notifications about bets." True
+                    |> Menu.start [ Icon.view Icon.discord ]
+                    |> Menu.supportingText [ Html.text "Join the JASB discord server for notifications about bets." ]
                 ]
 
         cardsIfLoggedIn =

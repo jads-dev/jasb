@@ -13,6 +13,7 @@ module JoeBets.Api.IdData exposing
     , toMaybeId
     , updateIdData
     , updateIdDataValue
+    , updateIdDataWith
     , viewIdData
     , viewSpecificIdData
     )
@@ -138,6 +139,39 @@ ifNotIdDataLoading data action =
 
     else
         action
+
+
+updateIdDataWith : id -> Response partial -> (partial -> value -> value) -> IdData id value -> IdData id value
+updateIdDataWith id response apply ((IdData data) as unchanged) =
+    case data.idAndValue of
+        Just ( wantedId, oldValue ) ->
+            if wantedId == id then
+                let
+                    updateValueOrError d =
+                        case response of
+                            Ok partialValue ->
+                                { d
+                                    | idAndValue =
+                                        Just
+                                            ( id
+                                            , oldValue |> Maybe.map (apply partialValue)
+                                            )
+                                    , problem = Nothing
+                                }
+
+                            Err error ->
+                                { d | problem = Just error }
+
+                    noLongerLoading d =
+                        { d | loading = False }
+                in
+                data |> updateValueOrError |> noLongerLoading |> IdData
+
+            else
+                unchanged
+
+        Nothing ->
+            unchanged
 
 
 updateIdData : id -> Response value -> IdData id value -> IdData id value

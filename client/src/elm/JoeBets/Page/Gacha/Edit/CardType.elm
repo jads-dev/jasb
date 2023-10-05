@@ -419,7 +419,7 @@ cardTypeEditor rarityContext ({ banner, id, cardType, save, imageUploader, credi
                 [ Html.span [ HtmlA.class "cancel" ]
                     [ Button.text "Cancel"
                         |> Button.button (cancel |> Just |> ifNotSaving)
-                        |> Button.icon (Icon.times |> Icon.view)
+                        |> Button.icon [ Icon.times |> Icon.view ]
                         |> Button.view
                     ]
                 , Button.filled "Save"
@@ -429,7 +429,7 @@ cardTypeEditor rarityContext ({ banner, id, cardType, save, imageUploader, credi
                             |> Validator.whenValid (validator rarityContext) editor
                             |> ifNotSaving
                         )
-                    |> Button.icon (Icon.save |> Icon.view)
+                    |> Button.icon [ Icon.save |> Icon.view ]
                     |> Button.view
                 ]
             ]
@@ -496,7 +496,7 @@ viewCardTypeSummaries time banner cardTypes =
         |> HtmlK.ol [ HtmlA.class "editor card-type-editor" ]
     , Button.text "Add New"
         |> Button.button (Add banner Nothing |> wrap |> Just)
-        |> Button.icon (Icon.plus |> Icon.view)
+        |> Button.icon [ Icon.plus |> Icon.view ]
         |> Button.view
     ]
 

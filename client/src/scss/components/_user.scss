@@ -32,8 +32,6 @@
   }
 
   .avatar {
-    width: 100%;
-    height: 100%;
     border-radius: 100%;
   }
 
@@ -59,16 +57,28 @@
 
   .options {
     overflow-y: auto;
+    
+    .avatar {
+      width: 2em; 
+      height: 2em;
+      border-radius: 100%;
+    }
   }
+}
 
-  .selected-user {
+.permission-selector {
+  position: relative;
+  --mdc-list-item-graphic-margin: 0.5em;
+
+  .search {
     display: flex;
     flex-flow: row;
     align-items: center;
     gap: 0.25em;
-    .avatar {
-      width: 1em;
-      height: 1em;
-    }
+    flex-grow: 1;
+  }
+
+  .options {
+    overflow-y: auto; 
   }
 }

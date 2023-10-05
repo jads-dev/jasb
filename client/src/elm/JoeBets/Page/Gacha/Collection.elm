@@ -610,11 +610,11 @@ viewHighlights maybeContext onClick model collection =
                         [ Html.div [ HtmlA.class "controls" ]
                             [ Button.text "Cancel"
                                 |> Button.button (SetEditingHighlights False |> wrap |> Just |> Api.ifNotWorking model.saving)
-                                |> Button.icon (Icon.undo |> Icon.view)
+                                |> Button.icon [ Icon.undo |> Icon.view ]
                                 |> Button.view
                             , Button.filled "Save Order"
                                 |> Button.button (saveAction |> Api.ifNotWorking model.saving)
-                                |> Button.icon (Icon.save |> Icon.view |> Api.orSpinner model.saving)
+                                |> Button.icon [ Icon.save |> Icon.view |> Api.orSpinner model.saving ]
                                 |> Button.view
                             ]
                         ]
@@ -694,12 +694,12 @@ view parent =
                                 [ Html.span [ HtmlA.class "cancel" ]
                                     [ Button.text "Cancel"
                                         |> Button.button (cancel |> Just)
-                                        |> Button.icon (Icon.times |> Icon.view)
+                                        |> Button.icon [ Icon.times |> Icon.view ]
                                         |> Button.view
                                     ]
                                 , Button.filled "Recycle"
                                     |> Button.button (RecycleCard userId banner card ExecuteRecycle |> wrap |> Just |> Api.ifNotWorking saving)
-                                    |> Button.icon (Icon.recycle |> Icon.view)
+                                    |> Button.icon [ Icon.recycle |> Icon.view ]
                                     |> Button.view
                                 ]
                             ]

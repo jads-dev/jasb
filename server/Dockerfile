@@ -32,7 +32,6 @@ RUN ["npm", "ci", "--omit=dev", "--omit=optional"]
 FROM scratch AS sources
 
 COPY --link --from=install ["/jasb/node_modules", "./node_modules"]
-COPY --link --from=build ["/jasb/src/sql/migrations", "./src/sql/migrations/"]
 COPY --link --from=build ["/jasb/dist", "./"]
 
 

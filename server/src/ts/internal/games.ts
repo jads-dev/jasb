@@ -23,6 +23,15 @@ export const Game = z
   .strict();
 export type Game = z.infer<typeof Game>;
 
+export const Summary = z
+  .object({
+    slug: Types.gameSlug,
+    name: z.string(),
+    cover: z.string(),
+  })
+  .strict();
+export type Summary = z.infer<typeof Summary>;
+
 export const BetStats = z
   .object({
     bets: Types.nonNegativeInt,

@@ -17,9 +17,9 @@ import JoeBets.Store.Codecs as Codecs
 import JoeBets.Store.Item as Item
 import JoeBets.Store.KeyedItem as Store exposing (KeyedItem)
 import JoeBets.Theme as Theme
+import Material.Chips as Chips
+import Material.Chips.Filter as FilterChip
 import Material.IconButton as IconButton
-import Material.Select as Select
-import Material.Switch as Switch
 
 
 type alias Parent a =
@@ -82,14 +82,19 @@ view wrap { settings } =
             resolvedFilters =
                 Filters.resolveDefaults filters
 
-            viewFilter title description value filter =
-                Html.li [ HtmlA.title description ]
-                    [ Html.label [ HtmlA.class "switch" ]
-                        [ Html.span [] [ Html.text title ]
-                        , Switch.switch (setFilter filter |> Just) value
-                            |> Switch.view
-                        ]
-                    ]
+            viewFilter filter =
+                let
+                    value =
+                        Filters.value filter resolvedFilters
+
+                    { title, description } =
+                        Filters.describe filter
+                in
+                FilterChip.chip title
+                    |> FilterChip.button (value |> not |> setFilter filter |> Just)
+                    |> FilterChip.selected value
+                    |> FilterChip.attrs [ HtmlA.title description ]
+                    |> FilterChip.view
 
             selectTheme =
                 Theme.fromString
@@ -99,13 +104,7 @@ view wrap { settings } =
                     |> Just
 
             themeSelect =
-                Theme.all
-                    |> List.map (Theme.selectItem settings.theme.value)
-                    |> Select.outlined "Theme" selectTheme
-                    |> Select.fixed
-                    |> Select.supportingText "What theme to use for the site." True
-                    |> Select.leadingIcon (Icon.palette |> Icon.view)
-                    |> Select.view
+                Theme.selector selectTheme (Just settings.theme.value)
 
             selectLayout =
                 Layout.fromString
@@ -115,13 +114,7 @@ view wrap { settings } =
                     |> Just
 
             layoutSelect =
-                Layout.all
-                    |> List.map (Layout.selectItem settings.layout.value)
-                    |> Select.outlined "Layout" selectLayout
-                    |> Select.fixed
-                    |> Select.supportingText "What layout to use for the site." True
-                    |> Select.leadingIcon (Icon.rulerCombined |> Icon.view)
-                    |> Select.view
+                Layout.selector selectLayout (Just settings.layout.value)
         in
         [ Overlay.view (False |> SetVisibility |> wrap)
             [ Html.div [ HtmlA.id "client-settings" ]
@@ -136,14 +129,7 @@ view wrap { settings } =
                 , Html.div [ HtmlA.class "default-filters" ]
                     [ Html.h3 [] [ Html.text "Default Filters" ]
                     , Html.p [] [ Html.text "On games you haven't set them on, what will the filters will be. Each game's filters will be remembered separately on top of this." ]
-                    , Html.ul []
-                        [ viewFilter "Open" "Bets you can still bet on." resolvedFilters.voting Filters.Voting
-                        , viewFilter "Locked" "Bets that are ongoing but you can't bet on." resolvedFilters.locked Filters.Locked
-                        , viewFilter "Finished" "Bets that are resolved." resolvedFilters.complete Filters.Complete
-                        , viewFilter "Cancelled" "Bets that have been cancelled." resolvedFilters.cancelled Filters.Cancelled
-                        , viewFilter "Have Bet" "Bets that you have a stake in." resolvedFilters.hasBet Filters.HasBet
-                        , viewFilter "Spoilers" "Bets that give serious spoilers for the game." resolvedFilters.spoilers Filters.Spoilers
-                        ]
+                    , Filters.allFilters |> List.map viewFilter |> Chips.set []
                     ]
                 ]
             ]

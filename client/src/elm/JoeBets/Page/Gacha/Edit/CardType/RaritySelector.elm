@@ -65,12 +65,12 @@ selector context select selected =
                 select |> Maybe.map ifValid
 
         option ( id, { name } ) =
-            Select.option name (Just id == selected) (Rarity.idToString id)
+            Select.option [ Html.text name ] (Rarity.idToString id)
     in
     [ rarities
         |> AssocList.toList
         |> List.map option
-        |> Select.outlined "Rarity" selectFunction
+        |> Select.outlined "Rarity" selectFunction (selected |> Maybe.map Rarity.idToString)
         |> Select.required True
         |> Select.error ("You must select a rarity." |> Maybe.when (selected == Nothing))
         |> Select.view

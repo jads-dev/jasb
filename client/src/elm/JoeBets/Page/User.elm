@@ -32,6 +32,8 @@ import JoeBets.Route as Route
 import JoeBets.User as User
 import JoeBets.User.Auth.Model as Auth
 import JoeBets.User.Model as User
+import JoeBets.User.Permission as Permission
+import JoeBets.User.Permission.Selector as Permission
 import Json.Encode as JsonE
 import Material.Button as Button
 import Material.Switch as Switch
@@ -269,26 +271,16 @@ update msg ({ user, auth, origin } as model) =
         TogglePermissionsOverlay id show ->
             if Just id == Api.toMaybeId user.user then
                 let
-                    ( permissionsOverlay, cmd ) =
+                    permissionsOverlay =
                         if show then
-                            let
-                                ( permissions, loadPermissionsCmd ) =
-                                    { path = Api.SpecificUser id Api.Permissions
-                                    , wrap = LoadPermissions id >> wrap
-                                    , decoder = editablePermissionsDecoder
-                                    }
-                                        |> Api.get model.origin
-                                        |> Api.initGetData
-                            in
-                            ( Just { permissions = permissions }
-                            , loadPermissionsCmd
-                            )
+                            Just
+                                { selector = Permission.initSelector }
 
                         else
-                            ( Nothing, Cmd.none )
+                            Nothing
                 in
                 ( { model | user = { user | permissionsOverlay = permissionsOverlay } }
-                , cmd
+                , Cmd.none
                 )
 
             else
@@ -297,27 +289,26 @@ update msg ({ user, auth, origin } as model) =
         LoadPermissions userId response ->
             if Just userId == Api.toMaybeId user.user then
                 let
-                    updatePermissions overlay =
-                        { overlay | permissions = overlay.permissions |> Api.updateData response }
+                    updatePermissions permissions u =
+                        { u | permissions = permissions }
 
-                    newOverlay =
-                        user.permissionsOverlay |> Maybe.map updatePermissions
+                    userData =
+                        user.user |> Api.updateIdDataWith userId response updatePermissions
                 in
-                ( { model | user = { user | permissionsOverlay = newOverlay } }
+                ( { model | user = { user | user = userData } }
                 , Cmd.none
                 )
 
             else
                 ( model, Cmd.none )
 
-        SetPermissions userId permission ->
+        SetPermissions userId permission set ->
             if Just userId == Api.toMaybeId user.user then
                 ( model
-                  -- TODO: NoOping this result is wrong.
                 , { path = Api.SpecificUser userId Api.Permissions
-                  , body = permission |> encodeSetPermissions
-                  , wrap = \_ -> "Set permissions result." |> NoOp |> wrap
-                  , decoder = editablePermissionsDecoder
+                  , body = Permission.encodeSetPermission permission set
+                  , wrap = LoadPermissions userId >> wrap
+                  , decoder = Permission.permissionsDecoder
                   }
                     |> Api.post origin
                 )
@@ -325,8 +316,31 @@ update msg ({ user, auth, origin } as model) =
             else
                 ( model, Cmd.none )
 
-        NoOp _ ->
-            ( model, Cmd.none )
+        SelectPermission userId permissionSelectorMsg ->
+            if Just userId == Api.toMaybeId user.user then
+                let
+                    updateSelector overlay =
+                        let
+                            ( selector, cmd ) =
+                                Permission.updateSelector
+                                    (SelectPermission userId >> wrap)
+                                    model
+                                    permissionSelectorMsg
+                                    overlay.selector
+                        in
+                        ( Just { overlay | selector = selector }, cmd )
+
+                    ( updatedOverlay, selectorCmd ) =
+                        user.permissionsOverlay
+                            |> Maybe.map updateSelector
+                            |> Maybe.withDefault ( Nothing, Cmd.none )
+                in
+                ( { model | user = { user | permissionsOverlay = updatedOverlay } }
+                , selectorCmd
+                )
+
+            else
+                ( model, Cmd.none )
 
 
 view : Parent a -> Page Global.Msg
@@ -372,11 +386,11 @@ view model =
                                 [ [ Html.div [ HtmlA.class "manage-user" ]
                                         [ Button.filled "Edit Permissions"
                                             |> Button.button (TogglePermissionsOverlay id True |> wrap |> Just)
-                                            |> Button.icon (Icon.userCog |> Icon.view)
+                                            |> Button.icon [ Icon.userCog |> Icon.view ]
                                             |> Button.view
                                         ]
                                   ]
-                                , permissionsOverlay |> Maybe.map (viewPermissionsOverlay id) |> Maybe.withDefault []
+                                , permissionsOverlay |> Maybe.map (viewPermissionsOverlay id userData) |> Maybe.withDefault []
                                 ]
                                     |> List.concat
 
@@ -394,7 +408,7 @@ view model =
                                             ]
                                         , Button.filled "Go Bankrupt"
                                             |> Button.button (ToggleBankruptcyOverlay id True |> wrap |> Just)
-                                            |> Button.icon (Icon.recycle |> Icon.view)
+                                            |> Button.icon [ Icon.recycle |> Icon.view ]
                                             |> Button.view
                                         ]
                                   ]
@@ -566,12 +580,12 @@ viewBankruptcyOverlay userId { sureToggle, stats } =
             , Html.div [ HtmlA.class "actions" ]
                 [ Button.text "Cancel"
                     |> Button.button (ToggleBankruptcyOverlay userId False |> wrap |> Just)
-                    |> Button.icon (Icon.times |> Icon.view)
+                    |> Button.icon [ Icon.times |> Icon.view ]
                     |> Button.view
                 , Html.div [ HtmlA.class "dangerous" ]
                     [ Button.filled "Go Bankrupt"
                         |> Button.button (GoBankrupt userId Nothing |> wrap |> Maybe.when sureToggle)
-                        |> Button.icon (Icon.recycle |> Icon.view)
+                        |> Button.icon [ Icon.recycle |> Icon.view ]
                         |> Button.view
                     ]
                 ]
@@ -585,58 +599,36 @@ viewBankruptcyOverlay userId { sureToggle, stats } =
     ]
 
 
-viewPermissionsOverlay : User.Id -> PermissionsOverlay -> List (Html Global.Msg)
-viewPermissionsOverlay userId overlay =
+viewPermissionsOverlay : User.Id -> User.User -> PermissionsOverlay -> List (Html Global.Msg)
+viewPermissionsOverlay userId { permissions } overlay =
     let
-        setPerms perm v =
-            SetPermissions userId (perm v) |> wrap
+        setPerm v perm =
+            SetPermissions userId perm v |> wrap
 
-        body { manageBets, manageGames, managePermissions, manageGacha, gameSpecific } =
-            [ Html.label [ HtmlA.class "switch" ]
-                [ Html.span [] [ Html.text "Manage Games" ]
-                , Switch.switch (setPerms ManageGames |> Just) manageGames
-                    |> Switch.view
-                ]
-            , Html.label [ HtmlA.class "switch" ]
-                [ Html.span [] [ Html.text "Manage Permissions" ]
-                , Switch.switch (setPerms ManagePermissions |> Just) managePermissions
-                    |> Switch.view
-                ]
-            , Html.label [ HtmlA.class "switch" ]
-                [ Html.span [] [ Html.text "Manage Gacha" ]
-                , Switch.switch (setPerms ManageGacha |> Just) manageGacha
-                    |> Switch.view
-                ]
-            , Html.label [ HtmlA.class "switch" ]
-                [ Html.span [] [ Html.text "Manage All Bets" ]
-                , Switch.switch (setPerms (ManageBets Nothing) |> Just) manageBets
-                    |> Switch.view
-                ]
-            , gameSpecific |> AssocList.values |> List.map viewGamePermissions |> Html.ul []
+        suggestions =
+            [ Permission.ManagePermissions
+            , Permission.ManageGames
+            , Permission.ManageBets Permission.AllBets
+            , Permission.ManageGacha
             ]
-
-        viewGamePermissions { gameId, gameName, permissions } =
-            Html.li []
-                [ Html.span [] [ Html.text gameName ]
-                , Html.label [ HtmlA.class "switch" ]
-                    [ Html.span [] [ Html.text "Manage" ]
-                    , Switch.switch
-                        (setPerms (ManageBets (Just gameId)) |> Just)
-                        permissions.manageBets
-                        |> Switch.view
-                    ]
-                ]
-
-        alwaysBody =
-            [ Button.text "Close"
-                |> Button.button (TogglePermissionsOverlay userId False |> wrap |> Just)
-                |> Button.icon (Icon.times |> Icon.view)
-                |> Button.view
-            ]
+                |> List.filter (\p -> permissions |> List.member p |> not)
     in
     [ Overlay.view (TogglePermissionsOverlay userId False |> wrap)
-        [ [ overlay.permissions |> Api.viewData Api.viewOrError body, alwaysBody ]
-            |> List.concat
+        [ [ Permission.viewPermissions setPerm suggestions permissions
+          , Permission.selector
+                (SelectPermission userId >> wrap)
+                (setPerm True)
+                "0"
+                permissions
+                overlay.selector
+          , Html.div [ HtmlA.class "controls" ]
+                [ Html.div [ HtmlA.class "spacer" ] []
+                , Button.text "Close"
+                    |> Button.button (TogglePermissionsOverlay userId False |> wrap |> Just)
+                    |> Button.icon [ Icon.times |> Icon.view ]
+                    |> Button.view
+                ]
+          ]
             |> Html.div [ HtmlA.id "permissions-overlay" ]
         ]
     ]

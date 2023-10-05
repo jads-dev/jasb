@@ -39,6 +39,15 @@ header nav {
   .submenu {
     flex-grow: 0;
     position: relative;
+
+    > md-menu {
+      max-width: 100%;
+      margin: 1em;
+    }
+    
+    div[slot="headline"] {
+      width: max-content;
+    }
   }
 }
 

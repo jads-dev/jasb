@@ -114,7 +114,7 @@ layoutSelector select selected =
                 { name } =
                     describeLayout layout
             in
-            Select.option name (Just layout == selected) (layoutToString layout)
+            Select.option [ Html.text name ] (layoutToString layout)
 
         fromString : (Maybe Layout -> msg) -> (String -> msg)
         fromString f =
@@ -122,8 +122,8 @@ layoutSelector select selected =
     in
     layouts
         |> List.map option
-        |> Select.outlined "Layout" (select |> Maybe.map fromString)
-        |> Select.supportingText "The layout of the card." True
+        |> Select.outlined "Layout" (select |> Maybe.map fromString) (selected |> Maybe.map layoutToString)
+        |> Select.supportingText "The layout of the card."
         |> Select.error ("You must select a layout." |> Maybe.when (selected == Nothing))
         |> Select.required True
         |> Select.view

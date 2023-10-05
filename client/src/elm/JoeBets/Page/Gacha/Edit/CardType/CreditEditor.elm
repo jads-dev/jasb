@@ -374,7 +374,7 @@ view wrap bannerId maybeCardTypeId { items } =
         , renderedItems
         , Button.text "Add Credit"
             |> Button.button (Add |> wrap |> Just)
-            |> Button.icon (Icon.plus |> Icon.view)
+            |> Button.icon [ Icon.plus |> Icon.view ]
             |> Button.view
         ]
 

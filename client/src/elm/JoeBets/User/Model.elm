@@ -1,6 +1,5 @@
 module JoeBets.User.Model exposing
     ( Id
-    , Permissions
     , Summary
     , SummaryWithId
     , User
@@ -17,8 +16,7 @@ module JoeBets.User.Model exposing
     , withIdDecoder
     )
 
-import EverySet exposing (EverySet)
-import JoeBets.Game.Id as Game
+import JoeBets.User.Permission as Permission exposing (Permission)
 import Json.Decode as JsonD
 import Json.Decode.Pipeline as JsonD
 import Json.Encode as JsonE
@@ -56,32 +54,6 @@ encodeId (Id string) =
     string |> JsonE.string
 
 
-type alias Permissions =
-    { manageGames : Bool
-    , managePermissions : Bool
-    , manageGacha : Bool
-    , manageBets : EverySet Game.Id
-    }
-
-
-defaultPermissions : Permissions
-defaultPermissions =
-    { manageGames = False
-    , managePermissions = False
-    , manageGacha = False
-    , manageBets = EverySet.empty
-    }
-
-
-permissionsDecoder : JsonD.Decoder Permissions
-permissionsDecoder =
-    JsonD.succeed Permissions
-        |> JsonD.optional "manageGames" JsonD.bool False
-        |> JsonD.optional "managePermissions" JsonD.bool False
-        |> JsonD.optional "manageGacha" JsonD.bool False
-        |> JsonD.optional "manageBets" (JsonD.everySetFromList Game.idDecoder) EverySet.empty
-
-
 type alias User =
     { name : String
     , discriminator : Maybe String
@@ -89,7 +61,7 @@ type alias User =
     , balance : Int
     , betValue : Int
     , created : DateTime
-    , permissions : Permissions
+    , permissions : List Permission
     }
 
 
@@ -102,7 +74,7 @@ decoder =
         |> JsonD.required "balance" JsonD.int
         |> JsonD.required "betValue" JsonD.int
         |> JsonD.required "created" DateTime.decoder
-        |> JsonD.optional "permissions" permissionsDecoder defaultPermissions
+        |> JsonD.optional "permissions" Permission.permissionsDecoder []
 
 
 type alias WithId =

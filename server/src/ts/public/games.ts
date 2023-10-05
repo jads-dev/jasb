@@ -77,6 +77,17 @@ export const Game = Schema.intersection([
 export type Game = Schema.TypeOf<typeof Game>;
 
 /**
+ * A summary of a game.
+ */
+export const Summary = Schema.readonly(
+  Schema.strict({
+    name: Schema.string,
+    cover: Schema.string,
+  }),
+);
+export type Summary = Schema.TypeOf<typeof Summary>;
+
+/**
  * The details of a game with its bets.
  */
 export const WithBets = Schema.intersection([
@@ -156,6 +167,16 @@ const progressFromInternal = (internal: Internal.Game): Progress => {
       return unknownProgress(internal.progress);
   }
 };
+
+export const summaryFromInternal = (
+  internal: Internal.Games.Summary,
+): [Slug, Summary] => [
+  internal.slug,
+  {
+    name: internal.name,
+    cover: internal.cover,
+  },
+];
 
 export const fromInternal = (internal: Internal.Game): [Slug, Game] => [
   internal.slug,

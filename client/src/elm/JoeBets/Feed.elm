@@ -24,7 +24,8 @@ import JoeBets.Page.Bets.Model as Bets
 import JoeBets.Route as Route
 import JoeBets.Settings.Model as Settings
 import JoeBets.User as User
-import Material.Switch as Switch
+import Material.Chips as Chips
+import Material.Chips.Filter as FilterChip
 import Util.List as List
 
 
@@ -251,12 +252,14 @@ view wrap specificFeed { bets, settings } feed =
                     [ Html.text "Potential spoilers may be blurred if you have spoilers hidden for the game. "
                     , Html.text "Click on the item to reveal spoilers in it."
                     ]
-                , Html.label [ HtmlA.class "switch" ]
-                    [ Html.span [] [ Html.text "Favourite Games Only" ]
-                    , Switch.switch
-                        (SetFavouritesOnly >> wrap |> Just)
-                        feed.favouritesOnly
-                        |> Switch.view
+                , Html.div [ HtmlA.class "filters" ]
+                    [ Html.span [] [ Icon.filter |> Icon.view, Html.text " Filter" ]
+                    , Chips.set []
+                        [ FilterChip.chip "Favourite Games"
+                            |> FilterChip.button (feed.favouritesOnly |> not |> SetFavouritesOnly >> wrap |> Just)
+                            |> FilterChip.selected feed.favouritesOnly
+                            |> FilterChip.view
+                        ]
                     ]
                 ]
 

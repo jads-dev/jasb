@@ -77,6 +77,24 @@ export const gamesApi = (server: Server.State): Router => {
     ctx.body = Games.Library.encode(await gamesCache.get());
   });
 
+  // Search for games.
+  router.get("/search", async (ctx) => {
+    const query = ctx.query["q"];
+    if (query === undefined) {
+      throw new WebError(StatusCodes.BAD_REQUEST, "Must provide query.");
+    }
+    if (typeof query !== "string") {
+      throw new WebError(StatusCodes.BAD_REQUEST, "Must provide single query.");
+    }
+    if (query.length < 2) {
+      throw new WebError(StatusCodes.BAD_REQUEST, "Query too short.");
+    }
+    const summaries = await server.store.searchGames(query);
+    ctx.body = Schema.readonlyArray(
+      Schema.tuple([Games.Slug, Games.Summary]),
+    ).encode(summaries.map(Games.summaryFromInternal));
+  });
+
   // Get Game.
   router.get("/:gameSlug", async (ctx) => {
     const gameSlug = requireUrlParameter(

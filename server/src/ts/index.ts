@@ -35,7 +35,7 @@ const load = async (
     logger,
     store,
     auth: await Auth.init(config.auth, store),
-    webSockets: new WebSockets(),
+    webSockets: new WebSockets(config),
     externalNotifier: notifier,
     imageUpload: await ObjectUpload.init(config.imageUpload),
     avatarCache,

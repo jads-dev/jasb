@@ -1,10 +1,12 @@
 module JoeBets.Game.Model exposing
     ( Game
     , Progress(..)
+    , Summary
     , WithBets
     , decoder
     , finish
     , start
+    , summaryDecoder
     , updateByBetId
     , withBetsDecoder
     )
@@ -160,3 +162,16 @@ withBetsDecoder =
                 |> JsonD.hardcoded bets
     in
     JsonD.field "bets" betsDecoder |> JsonD.andThen fromBets
+
+
+type alias Summary =
+    { name : String
+    , cover : String
+    }
+
+
+summaryDecoder : JsonD.Decoder Summary
+summaryDecoder =
+    JsonD.succeed Summary
+        |> JsonD.required "name" JsonD.string
+        |> JsonD.required "cover" JsonD.string

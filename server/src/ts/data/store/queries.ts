@@ -17,19 +17,17 @@ const sqlFragment = Slonik.sql.fragment;
 
 const typedSql = Slonik.createSqlTag({
   typeAliases: {
-    ids: z.object({ id: z.number().int() }),
-    count: z.object({ affected: z.number().int().nonnegative() }),
-    boolean: z
-      .object({
-        result: z.boolean(),
-      })
-      .strict(),
-    user_id: z
-      .object({
-        user_id: z.number().int().nonnegative(),
-      })
-      .strict(),
+    perform: z.strictObject({ performed: z.null() }),
+    ids: z.strictObject({ id: z.number().int() }),
+    count: z.strictObject({ affected: z.number().int().nonnegative() }),
+    boolean: z.strictObject({
+      result: z.boolean(),
+    }),
+    user_id: z.strictObject({
+      user_id: z.number().int().nonnegative(),
+    }),
     user: Users.User,
+    permissions: Users.Permissions,
     user_summary: Users.Summary,
     user_forge_detail: Users.ForgeDetail,
     session: Users.LoginDetail,
@@ -41,13 +39,13 @@ const typedSql = Slonik.createSqlTag({
     bet_with_options: Bets.Bet.merge(Bets.WithOptions),
     lock_moment: Bets.LockMoment,
     lock_status: Bets.LockStatus,
+    game_summary: Games.Summary,
     game_with_bets: Games.Game.merge(Games.WithBets),
     editable_bet: Bets.Editable,
     bet_complete: ExternalNotifier.BetComplete,
     new_balance: Stakes.NewBalance,
     new_stake: ExternalNotifier.NewStake,
     feed_item: Feed.Item,
-    editable_permissions: Users.EditablePermissions,
     avatar_meta: AvatarCache.Meta,
     balance: Gacha.Balances.Balance,
     gacha_value: Gacha.Balances.Value,
@@ -64,6 +62,11 @@ const typedSql = Slonik.createSqlTag({
     rarity: Gacha.Rarities.Rarity,
   },
 }).typeAlias;
+
+export const perform = (f: Slonik.SqlFragment) => {
+  const sql = typedSql("perform");
+  return sql`SELECT NULL AS performed FROM ${f}`;
+};
 
 export const ids = (source: Slonik.SqlFragment) => {
   const sql = typedSql("ids");
@@ -84,21 +87,25 @@ export const user = (userSource: Slonik.SqlFragment) => {
       avatars.url AS avatar_url,
       stakes.staked,
       (stakes.staked + users.balance) AS net_worth,
-      coalesce(bool_or(general_permissions.manage_games), FALSE) AS manage_games,
-      coalesce(bool_or(general_permissions.manage_permissions), FALSE) AS manage_permissions,
-      coalesce(bool_or(general_permissions.manage_gacha), FALSE) AS manage_gacha,
+      coalesce(bool_or(g_perms.manage_games), FALSE) AS manage_games,
+      coalesce(bool_or(g_perms.manage_permissions), FALSE) AS manage_permissions,
+      coalesce(bool_or(g_perms.manage_gacha), FALSE) AS manage_gacha,
+      coalesce(bool_or(g_perms.manage_bets), FALSE) AS manage_bets,
       coalesce(
-        jsonb_agg(games.slug) FILTER (WHERE perm.game IS NOT NULL), 
+        jsonb_agg(jsonb_build_object(
+          'slug', games.slug,
+          'name', games.name
+        )) FILTER ( WHERE games.id IS NOT NULL AND s_perms.manage_bets ), 
         '[]'::jsonb
-      ) AS manage_bets
+      ) AS manage_bets_games
     FROM
       users INNER JOIN 
       jasb.avatars ON users.avatar = avatars.id INNER JOIN
       jasb.user_stakes AS stakes ON users.id = stakes.user_id LEFT JOIN
-      jasb.general_permissions ON users.id = general_permissions."user" LEFT JOIN (
-        jasb.per_game_permissions AS perm INNER JOIN 
-        jasb.games ON perm.game = games.id
-      ) ON users.id = perm."user" AND perm.manage_bets
+      jasb.general_permissions as g_perms ON users.id = g_perms."user" LEFT JOIN (
+        jasb.specific_permissions AS s_perms INNER JOIN
+        jasb.games ON s_perms.game = games.id
+      ) ON users.id = s_perms."user"
     GROUP BY (
       users.slug,
       users.name,
@@ -275,6 +282,20 @@ export const session = (sessionSource: Slonik.SqlFragment) => {
   `;
 };
 
+export const gameSummary = (gameSource: Slonik.SqlFragment) => {
+  const sql = typedSql("game_summary");
+  return sql`
+    WITH
+      games AS (${gameSource})
+    SELECT 
+      games.slug,
+      games.name,
+      games.cover
+    FROM 
+      games 
+  `;
+};
+
 export const gameWithBetStats = (
   gameSource: Slonik.SqlFragment,
   sort: Slonik.SqlFragment = sqlFragment``,
@@ -432,27 +453,29 @@ export const feedItem = (feedItemSource: Slonik.SqlFragment) => {
   `;
 };
 
-export const editablePermissions = (userSource: Slonik.SqlFragment) => {
-  const sql = typedSql("editable_permissions");
+export const permissions = (userSource: Slonik.SqlFragment) => {
+  const sql = typedSql("permissions");
   return sql`
     WITH
       users AS (${userSource})
     SELECT
-      coalesce(bool_or(general_permissions.manage_games), FALSE) AS manage_games,
-      coalesce(bool_or(general_permissions.manage_permissions), FALSE) AS manage_permissions,
-      coalesce(bool_or(general_permissions.manage_gacha), FALSE) AS manage_gacha,
-      coalesce(bool_or(general_permissions.manage_bets), FALSE) AS manage_bets,
-      coalesce(jsonb_agg(jsonb_build_object(
-        'game_slug', games.slug,
-        'game_name', games.name,
-        'manage_bets', coalesce(specific_permissions.manage_bets, FALSE)
-      )) FILTER ( WHERE games.id IS NOT NULL ), '[]'::jsonb) AS game_specific
+      coalesce(bool_or(g_perm.manage_games), FALSE) AS manage_games,
+      coalesce(bool_or(g_perm.manage_permissions), FALSE) AS manage_permissions,
+      coalesce(bool_or(g_perm.manage_gacha), FALSE) AS manage_gacha,
+      coalesce(bool_or(g_perm.manage_bets), FALSE) AS manage_bets,
+      coalesce(
+        jsonb_agg(jsonb_build_object(
+          'slug', games.slug,
+          'name', games.name
+        )) FILTER ( WHERE games.id IS NOT NULL AND s_perm.manage_bets ), 
+        '[]'::jsonb
+      ) AS manage_bets_games
     FROM
-      (users CROSS JOIN jasb.games) LEFT JOIN
-      jasb.general_permissions ON users.id = general_permissions."user" LEFT JOIN
-      jasb.specific_permissions ON 
-        specific_permissions.game = games.id AND 
-        users.id = specific_permissions."user"
+      users LEFT JOIN
+      jasb.general_permissions AS g_perm ON users.id = g_perm."user" LEFT JOIN (
+        jasb.specific_permissions AS s_perm INNER JOIN
+        jasb.games ON s_perm.game = games.id
+      ) ON users.id = s_perm."user" 
     GROUP BY users.id
   `;
 };

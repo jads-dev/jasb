@@ -174,11 +174,10 @@ export class Store {
             sqlFragment`
               SELECT
                 users.*,
-                strict_word_similarity(${query}, search) AS rank
+                strict_word_similarity(${query}, users.search) AS rank
               FROM jasb.users
-              WHERE ${query} <<% search
-              ORDER BY
-                strict_word_similarity(${query}, search) DESC
+              WHERE ${query} <<% users.search
+              ORDER BY rank
               LIMIT 10
             `,
             sqlFragment`ORDER BY users.rank DESC`,
@@ -391,6 +390,24 @@ export class Store {
       `),
       );
     });
+  }
+
+  async searchGames(query: string): Promise<readonly Games.Summary[]> {
+    const result = await this.withClient(
+      async (client) =>
+        await client.query(
+          Queries.gameSummary(
+            sqlFragment`
+              SELECT games.*
+              FROM jasb.games
+              WHERE ${query} <<% games.search
+              ORDER BY strict_word_similarity(${query}, games.search) DESC
+              LIMIT 10
+            `,
+          ),
+        ),
+    );
+    return result.rows;
   }
 
   async editGame(
@@ -1056,10 +1073,10 @@ export class Store {
 
   async getPermissions(
     userSlug: Public.Users.Slug,
-  ): Promise<Users.EditablePermissions> {
+  ): Promise<Users.Permissions> {
     return await this.withClient(async (client) => {
       return await client.one(
-        Queries.editablePermissions(sqlFragment`
+        Queries.permissions(sqlFragment`
           SELECT users.* FROM jasb.users WHERE users.slug = ${userSlug}
         `),
       );
@@ -1074,11 +1091,11 @@ export class Store {
     manage_permissions: boolean | undefined,
     manage_gacha: boolean | undefined,
     manage_bets: boolean | undefined,
-  ): Promise<Users.EditablePermissions> {
+  ): Promise<Users.Permissions> {
     return await this.inTransaction(async (client) => {
-      return await client.one(
-        Queries.editablePermissions(sqlFragment`
-          SELECT * FROM jasb.set_permissions(
+      await client.query(
+        Queries.perform(sqlFragment`
+          jasb.set_permissions(
             ${this.sqlCredential(credential)},
             ${this.config.auth.sessionLifetime.toString()},
             ${targetUserSlug},
@@ -1088,6 +1105,11 @@ export class Store {
             ${manage_gacha ?? null},
             ${manage_bets ?? null}
           )
+        `),
+      );
+      return await client.one(
+        Queries.permissions(sqlFragment`
+          SELECT users.* FROM jasb.users WHERE users.slug = ${targetUserSlug}
         `),
       );
     });

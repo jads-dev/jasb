@@ -2,29 +2,32 @@ import { z } from "zod";
 
 import { Types } from "./types.js";
 
-const UserBase = z
-  .object({
-    slug: Types.userSlug,
-    name: z.string(),
-    discriminator: z.string().nullable(),
-    created: Types.zonedDateTime,
-    balance: Types.int,
-    avatar_url: z.string().url(),
-    staked: Types.nonNegativeInt,
-    net_worth: Types.int,
-  })
-  .strict();
+const UserBase = z.object({
+  slug: Types.userSlug,
+  name: z.string(),
+  discriminator: z.string().nullable(),
+  created: Types.zonedDateTime,
+  balance: Types.int,
+  avatar_url: z.string().url(),
+  staked: Types.nonNegativeInt,
+  net_worth: Types.int,
+});
 
-export const User = z
-  .object({
-    manage_games: z.boolean(),
-    manage_permissions: z.boolean(),
-    manage_gacha: z.boolean(),
-    manage_bets: z.array(Types.gameSlug),
-  })
-  .strict()
-  .merge(UserBase);
+const PermissionsBase = z.object({
+  manage_games: z.boolean(),
+  manage_permissions: z.boolean(),
+  manage_gacha: z.boolean(),
+  manage_bets: z.boolean(),
+  manage_bets_games: z.array(
+    z.strictObject({ slug: Types.gameSlug, name: z.string() }),
+  ),
+});
+
+export const User = UserBase.merge(PermissionsBase).strict();
 export type User = z.infer<typeof User>;
+
+export const Permissions = PermissionsBase.strict();
+export type Permissions = z.infer<typeof Permissions>;
 
 export const Leaderboard = z
   .object({
@@ -61,34 +64,6 @@ export const BankruptcyStats = z
   })
   .strict();
 export type BankruptcyStats = z.infer<typeof BankruptcyStats>;
-
-/**
- * The permissions about a specific game a user with the right permissions can
- * edit about another user.
- */
-export const SpecificPermissions = z
-  .object({
-    game_slug: Types.gameSlug,
-    game_name: z.string(),
-    manage_bets: z.boolean(),
-  })
-  .strict();
-export type SpecificPermissions = z.infer<typeof SpecificPermissions>;
-
-/**
- * The general and specific permissions a user with the right permissions can
- * edit about another user.
- */
-export const EditablePermissions = z
-  .object({
-    manage_games: z.boolean(),
-    manage_permissions: z.boolean(),
-    manage_gacha: z.boolean(),
-    manage_bets: z.boolean(),
-    game_specific: z.array(SpecificPermissions),
-  })
-  .strict();
-export type EditablePermissions = z.infer<typeof EditablePermissions>;
 
 /**
  * The discord access token for a user.

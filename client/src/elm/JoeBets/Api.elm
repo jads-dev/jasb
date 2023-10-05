@@ -273,6 +273,9 @@ pathToStringList path =
         Games ->
             [ "games" ]
 
+        GameSearch query ->
+            [ "games", "search" ]
+
         Game id gamesPath ->
             "games" :: Game.idToString id :: gamePathToStringList gamesPath
 
@@ -293,6 +296,9 @@ pathToQueryList : Path -> List Url.Builder.QueryParameter
 pathToQueryList path =
     case path of
         UserSearch query ->
+            [ Url.Builder.string "q" query ]
+
+        GameSearch query ->
             [ Url.Builder.string "q" query ]
 
         _ ->

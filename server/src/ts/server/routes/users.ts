@@ -158,8 +158,8 @@ export const usersApi = (server: Server.State): Router => {
       ctx.params["userSlug"],
     );
     const permissions = await server.store.getPermissions(userSlug);
-    ctx.body = Users.EditablePermissions.encode(
-      Users.editablePermissionsFromInternal(permissions),
+    ctx.body = Users.Permissions.encode(
+      Users.permissionsFromInternal(permissions),
     );
   });
 
@@ -181,8 +181,8 @@ export const usersApi = (server: Server.State): Router => {
       body.manageGacha,
       body.manageBets,
     );
-    ctx.body = Users.EditablePermissions.encode(
-      Users.editablePermissionsFromInternal(permissions),
+    ctx.body = Users.Permissions.encode(
+      Users.permissionsFromInternal(permissions),
     );
   });
 

@@ -57,7 +57,7 @@ function "generateTags" {
   ])
 }
 
-# Shared arguments.
+# Shared build arguments.
 target "args" {
   args = {
     VERSION = VERSION != "" ? VERSION : "${VCS_REF}-dev"
@@ -72,42 +72,29 @@ target "args" {
 target "images" {
   name = component
   inherits = ["args"]
+  platforms = ["linux/amd64", "linux/arm64"]
   matrix = {
-    component = ["server", "client"]
+    component = ["server", "client", "migrate"]
   }
   context = "./${component}"
-  platforms = ["linux/amd64", "linux/arm64"]
-  output = ["type=docker"]
   pull = true
+  output = ["type=docker"]
   tags = generateTags(component)
 }
 
 # Build into source files in the dist directory.
-target "files" {
-  name = component
+target "sources" {
+  name = "${component}-sources"
   inherits = ["args"]
   matrix = {
-    component = ["server", "client"]
+    component = ["server", "client", "migrate"]
   }
   context = "./${component}"
+  pull = true
   target = "sources"
   output = ["type=local,dest=dist/${component}"]
-  pull = true
-}
-
-# Build an image to do database migration.
-target "migrate" {
-  inherits = ["args"]
-  context = "./migrate"
-  contexts = {
-    server-context = "./server"
-  }
-  platforms = ["linux/amd64", "linux/arm64"]
-  output = ["type=docker"]
-  pull = true
-  tags = generateTags("migrate")
 }
 
 group "default" {
-  targets = [ "images", "migrate" ]
+  targets = [ "images" ]
 }

@@ -39,6 +39,7 @@ class Manager {
   #socket: SocketWithPath | undefined = undefined;
   #callback: ((value: string) => void) | undefined = undefined;
   #delay: number = Manager.#initialDelay;
+  #reconnecting: number | undefined;
 
   constructor(baseUrl: BaseUrl) {
     const protocol = baseUrl.protocol === "http:" ? "ws:" : "wss:";
@@ -65,18 +66,17 @@ class Manager {
     socket.addEventListener("close", () => {
       this.#reconnectAfterDelay(path);
     });
-    socket.addEventListener("error", () => {
-      this.#reconnectAfterDelay(path);
-    });
   }
 
   #reconnectAfterDelay(path: string) {
-    setTimeout(() => {
-      if (this.#socket?.path == path) {
-        this.#tryConnect(path);
-        this.#delay = Math.min(Manager.#maxDelay, this.#delay * 2);
-      }
-    }, this.#delay);
+    if (this.#reconnecting === undefined) {
+      this.#reconnecting = setTimeout(() => {
+        if (this.#socket?.path == path) {
+          this.#tryConnect(path);
+          this.#delay = Math.min(Manager.#maxDelay, this.#delay * 2);
+        }
+      }, this.#delay);
+    }
   }
 
   connect(path: string) {

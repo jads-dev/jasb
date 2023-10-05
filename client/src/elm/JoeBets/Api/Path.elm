@@ -105,6 +105,7 @@ type Path
     | UserSearch String
     | SpecificUser User.Id UserPath
     | Games
+    | GameSearch String
     | Game Game.Id GamePath
     | Leaderboard Leaderboard.Board
     | Feed

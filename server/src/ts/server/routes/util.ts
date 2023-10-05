@@ -1,10 +1,11 @@
 import { StatusCodes } from "http-status-codes";
 import { type Middleware } from "koa";
 import { koaBody } from "koa-body";
+import type { KoaBodyMiddlewareOptions } from "koa-body/lib/types.js";
 
 import { WebError } from "../errors.js";
 
-const bodyParams = {
+const bodyParams: Partial<KoaBodyMiddlewareOptions> = {
   patchKoa: true,
   jsonLimit: "1mb",
   encoding: "utf-8",
@@ -17,7 +18,7 @@ const bodyParams = {
   onError: (error: Error): never => {
     throw new WebError(StatusCodes.BAD_REQUEST, error.message);
   },
-} as const;
+};
 
 export const body: Middleware = koaBody(bodyParams);
 

@@ -3,3 +3,4 @@ dist/
 .eslintrc.cjs
 postcss.config.js
 vite.config.mts
+client/elm-material

@@ -301,7 +301,7 @@ view ({ auth, gacha, collection } as parent) =
                     [ Html.li []
                         [ Button.text "Edit Banners"
                             |> Material.buttonLink Global.ChangeUrl (Gacha.Banner |> Gacha.Edit |> Route.Gacha)
-                            |> Button.icon (Icon.list |> Icon.view)
+                            |> Button.icon [ Icon.list |> Icon.view ]
                             |> Button.view
                         ]
                     ]

@@ -448,7 +448,7 @@ viewEditor wrap context maybeModel =
                     , Html.div [ HtmlA.class "moments-actions" ]
                         [ Button.text "Add New Lock Moment"
                             |> Button.button (Add Nothing |> wrap |> Just)
-                            |> Button.icon (Icon.add |> Icon.view)
+                            |> Button.icon [ Icon.add |> Icon.view ]
                             |> Button.view
                         ]
                     , Api.viewAction [] model.save |> Html.div [ HtmlA.class "save-state" ]
@@ -464,11 +464,11 @@ viewEditor wrap context maybeModel =
                   , [ Html.div [ HtmlA.class "controls" ]
                         [ Button.text "Cancel"
                             |> Button.button (CancelEdit |> wrap |> Just)
-                            |> Button.icon (Icon.times |> Icon.view)
+                            |> Button.icon [ Icon.times |> Icon.view ]
                             |> Button.view
                         , Button.filled "Save"
                             |> Button.button (SaveEdit |> wrap |> Maybe.when canSave)
-                            |> Button.icon (Icon.save |> Icon.view)
+                            |> Button.icon [ Icon.save |> Icon.view ]
                             |> Button.view
                         ]
                     ]

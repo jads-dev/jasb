@@ -144,11 +144,11 @@ view wrap { label } { url, upload } =
                 url
                 |> TextField.url
                 |> TextField.trailingIcon
-                    (IconButton.icon uploadIcon
+                    [ IconButton.icon uploadIcon
                         ("Upload " ++ label)
                         |> IconButton.button (RequestFile |> ifGiven wrap |> Api.ifNotWorking upload)
                         |> IconButton.view
-                    )
+                    ]
                 |> TextField.supportingText "Please avoid hotlinking images, upload them."
                 |> TextField.view
 

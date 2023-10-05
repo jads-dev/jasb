@@ -25,7 +25,7 @@ selector wrapEditor context select selected =
             wrapEditor |> Maybe.map (\w -> value |> w)
 
         option ( id, { name } ) =
-            Select.option name (Just id == selected) (LockMoment.idToString id)
+            Select.option [ Html.text name ] (LockMoment.idToString id)
 
         selectFunction =
             if AssocList.isEmpty lockMoments then
@@ -52,8 +52,8 @@ selector wrapEditor context select selected =
     [ lockMoments
         |> AssocList.toList
         |> List.map option
-        |> Select.outlined "Lock Moment" selectFunction
-        |> Select.supportingText "The moment at which people can no longer change bets." True
+        |> Select.outlined "Lock Moment" selectFunction (selected |> Maybe.map LockMoment.idToString)
+        |> Select.supportingText "The moment at which people can no longer change bets."
         |> Select.error ("You must select a lock moment." |> Maybe.when (selected == Nothing))
         |> Select.required True
         |> Select.view

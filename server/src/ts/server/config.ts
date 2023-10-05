@@ -47,6 +47,7 @@ const PostgresData = Schema.partial({
     "no-verify": null,
     require: null,
   }),
+  maxListenConnections: Schema.Int,
 });
 export type PostgresData = Schema.TypeOf<typeof PostgresData>;
 
@@ -312,6 +313,7 @@ export const builtIn: Server = {
       host: "postgres",
       user: "jasb",
       password: new PlaceholderSecretToken(),
+      maxListenConnections: 50 as Schema.Int,
     },
   },
 

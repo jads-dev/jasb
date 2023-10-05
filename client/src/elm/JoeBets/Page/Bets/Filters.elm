@@ -5,6 +5,7 @@ module JoeBets.Page.Bets.Filters exposing
     , allFilters
     , any
     , decoder
+    , describe
     , encode
     , init
     , merge
@@ -14,6 +15,7 @@ module JoeBets.Page.Bets.Filters exposing
     , toPairs
     , toQueries
     , update
+    , value
     )
 
 import Dict
@@ -24,6 +26,16 @@ import Url.Parser.Query as Parser exposing (Parser)
 import Util.Json.Decode as JsonD
 import Util.List as List
 import Util.Maybe as Maybe
+
+
+type alias FiltersLike value =
+    { spoilers : value
+    , voting : value
+    , locked : value
+    , complete : value
+    , cancelled : value
+    , hasBet : value
+    }
 
 
 type alias Filters =
@@ -203,14 +215,14 @@ toQueries =
     let
         toQuery ( filter, state ) =
             let
-                value =
+                boolString =
                     if state then
                         "true"
 
                     else
                         "false"
             in
-            Url.Builder.string (filterToString filter) value
+            Url.Builder.string (filterToString filter) boolString
     in
     toPairs >> List.map toQuery
 
@@ -230,3 +242,51 @@ toPairs { spoilers, voting, locked, complete, cancelled, hasBet } =
 any : Filters -> Bool
 any =
     toPairs >> List.isEmpty >> not
+
+
+type alias Description =
+    { title : String, description : String }
+
+
+describe : Filter -> Description
+describe filter =
+    case filter of
+        Voting ->
+            Description "Open" "Bets you can still bet on."
+
+        Locked ->
+            Description "Locked" "Bets that are ongoing but you can't bet on."
+
+        Complete ->
+            Description "Finished" "Bets that are resolved."
+
+        Cancelled ->
+            Description "Cancelled" "Bets that have been cancelled."
+
+        HasBet ->
+            Description "Have Bet" "Bets that you have a stake in."
+
+        Spoilers ->
+            Description "Spoilers" "Bets that give serious spoilers for the game."
+
+
+value : Filter -> FiltersLike value -> value
+value filter =
+    case filter of
+        Voting ->
+            .voting
+
+        Locked ->
+            .locked
+
+        Complete ->
+            .complete
+
+        Cancelled ->
+            .cancelled
+
+        HasBet ->
+            .hasBet
+
+        Spoilers ->
+            .spoilers

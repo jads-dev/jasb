@@ -416,11 +416,11 @@ view changeUrl wrap wrapBets parent model =
     , Html.div [ HtmlA.class "controls" ]
         [ Button.text "Reset"
             |> Button.button (Reset |> wrap |> Just)
-            |> Button.icon (Icon.undo |> Icon.view)
+            |> Button.icon [ Icon.undo |> Icon.view ]
             |> Button.view
         , Button.text "Save"
             |> Button.button (Save |> wrap |> Validator.whenValid validator model |> ifNotSaving)
-            |> Button.icon (Icon.save |> Icon.view)
+            |> Button.icon [ Icon.save |> Icon.view ]
             |> Button.view
         ]
     ]

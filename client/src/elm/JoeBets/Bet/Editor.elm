@@ -702,12 +702,12 @@ viewCoreContent changeUrl wrap time localUser model { author, created, modified,
                             ++ [ Html.div [ HtmlA.class "controls" ]
                                     [ Button.text "Cancel"
                                         |> Button.button (ResolveOverlay False |> wrap |> Just)
-                                        |> Button.icon (Icon.times |> Icon.view)
+                                        |> Button.icon [ Icon.times |> Icon.view ]
                                         |> Button.view
                                     , Html.div [ HtmlA.classList [ ( "dangerous", actionDetails.dangerous ) ] ]
                                         [ Button.filled actionDetails.title
                                             |> Button.button (ResolveOverlay True |> wrap |> Maybe.when valid)
-                                            |> Button.icon (actionDetails.icon |> Icon.view)
+                                            |> Button.icon [ actionDetails.icon |> Icon.view ]
                                             |> Button.view
                                         ]
                                     ]
@@ -733,7 +733,7 @@ viewCoreContent changeUrl wrap time localUser model { author, created, modified,
             Html.div [ HtmlA.class "dangerous" ]
                 [ Button.filledTonal "Cancel & Refund Bet"
                     |> Button.button (Cancel |> wrap |> ifNotNewAndNotSaving)
-                    |> Button.icon (Icon.ban |> Icon.view)
+                    |> Button.icon [ Icon.ban |> Icon.view ]
                     |> Button.view
                 ]
 
@@ -743,7 +743,7 @@ viewCoreContent changeUrl wrap time localUser model { author, created, modified,
                     ( "Bet open for voting."
                     , [ Button.filledTonal "Lock Bet"
                             |> Button.button (SetLocked True |> wrap |> ifNotNewAndNotSaving)
-                            |> Button.icon (Icon.lock |> Icon.view)
+                            |> Button.icon [ Icon.lock |> Icon.view ]
                             |> Button.view
                       , cancel
                       ]
@@ -753,12 +753,12 @@ viewCoreContent changeUrl wrap time localUser model { author, created, modified,
                     ( "Bet locked."
                     , [ Button.filledTonal "Unlock Bet"
                             |> Button.button (SetLocked False |> wrap |> ifNotNewAndNotSaving)
-                            |> Button.icon (Icon.unlock |> Icon.view)
+                            |> Button.icon [ Icon.unlock |> Icon.view ]
                             |> Button.view
                       , Button.filledTonal
                             "Declare Winner(s) For Bet"
                             |> Button.button (Complete |> wrap |> ifNotNewAndNotSaving)
-                            |> Button.icon (Icon.check |> Icon.view)
+                            |> Button.icon [ Icon.check |> Icon.view ]
                             |> Button.view
                       , cancel
                       ]
@@ -768,7 +768,7 @@ viewCoreContent changeUrl wrap time localUser model { author, created, modified,
                     ( "Bet complete."
                     , [ Button.filledTonal "Revert Complete"
                             |> Button.button (RevertComplete |> wrap |> ifNotNewAndNotSaving)
-                            |> Button.icon (Icon.undo |> Icon.view)
+                            |> Button.icon [ Icon.undo |> Icon.view ]
                             |> Button.view
                       ]
                     )
@@ -777,7 +777,7 @@ viewCoreContent changeUrl wrap time localUser model { author, created, modified,
                     ( "Bet cancelled."
                     , [ Button.filledTonal "Revert Cancel"
                             |> Button.button (RevertCancel |> wrap |> ifNotNewAndNotSaving)
-                            |> Button.icon (Icon.undo |> Icon.view)
+                            |> Button.icon [ Icon.undo |> Icon.view ]
                             |> Button.view
                       ]
                     )
@@ -823,18 +823,18 @@ viewCoreContent changeUrl wrap time localUser model { author, created, modified,
         , Html.div [ HtmlA.class "option-controls" ]
             [ Button.text "Add"
                 |> Button.button (NewOption |> wrap |> Just |> ifNotSaving)
-                |> Button.icon (Icon.plus |> Icon.view)
+                |> Button.icon [ Icon.plus |> Icon.view ]
                 |> Button.view
             ]
         , Validator.view optionsValidator model
         , Html.div [ HtmlA.class "controls" ]
             [ Button.text "Reset"
                 |> Button.button (Reset |> wrap |> Just |> ifNotSaving)
-                |> Button.icon (Icon.undo |> Icon.view)
+                |> Button.icon [ Icon.undo |> Icon.view ]
                 |> Button.view
             , Button.filled "Save"
                 |> Button.button (Save |> wrap |> Validator.whenValid validator model |> ifNotSaving)
-                |> Button.icon (Icon.save |> Icon.view)
+                |> Button.icon [ Icon.save |> Icon.view ]
                 |> Button.view
             ]
         ]

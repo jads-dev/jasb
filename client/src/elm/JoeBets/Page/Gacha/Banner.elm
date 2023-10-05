@@ -82,7 +82,7 @@ view { gacha } ( id, banner ) =
                         |> Global.GachaMsg
                         |> Maybe.when (canRoll amountRolls)
                     )
-                |> Button.icon Balance.rollIcon
+                |> Button.icon [ Balance.rollIcon ]
                 |> Button.view
 
         magicRollButton amount =
@@ -100,7 +100,7 @@ view { gacha } ( id, banner ) =
                         |> Global.GachaMsg
                         |> Maybe.when (canRoll amountRolls && canGuaranteedRoll amountGuarantees)
                     )
-                |> Button.icon Balance.rollWithGuaranteeIcon
+                |> Button.icon [ Balance.rollWithGuaranteeIcon ]
                 |> Button.view
 
         magicButtons =

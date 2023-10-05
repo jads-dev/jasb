@@ -4,14 +4,14 @@ module JoeBets.Theme exposing
     , decoder
     , encode
     , fromString
-    , selectItem
+    , selector
     , toClass
     , toString
     )
 
 import FontAwesome as Icon
 import FontAwesome.Solid as Icon
-import Html
+import Html exposing (Html)
 import Html.Attributes as HtmlA
 import Json.Decode as JsonD
 import Json.Encode as JsonE
@@ -81,20 +81,31 @@ decoder =
     JsonD.string |> JsonD.andThen fromStringJson
 
 
-selectItem : Theme -> Theme -> Select.Option msg
-selectItem selected theme =
+selector : Maybe (String -> msg) -> Maybe Theme -> Html msg
+selector select selected =
     let
-        ( icon, name, description ) =
-            case theme of
-                Auto ->
-                    ( Icon.adjust, "Auto", "Automatically choose theme based on system settings." )
+        selectItem : Theme -> Select.Option msg
+        selectItem theme =
+            let
+                ( icon, name, description ) =
+                    case theme of
+                        Auto ->
+                            ( Icon.adjust, "Auto", "Automatically choose theme based on system settings." )
 
-                Dark ->
-                    ( Icon.moon, "Dark", "Light text on a dark background." )
+                        Dark ->
+                            ( Icon.moon, "Dark", "Light text on a dark background." )
 
-                Light ->
-                    ( Icon.sun, "Light", "Dark text on a light background." )
+                        Light ->
+                            ( Icon.sun, "Light", "Dark text on a light background." )
+            in
+            Select.option [ Html.text name ] (toString theme)
+                |> Select.start [ Icon.view icon ]
+                |> Select.optionSupportingText [ Html.text description ]
     in
-    Select.option name (selected == theme) (toString theme)
-        |> Select.icon (Icon.view icon)
-        |> Select.optionSupportingText description True
+    all
+        |> List.map selectItem
+        |> Select.outlined "Theme" select (selected |> Maybe.map toString)
+        |> Select.fixed
+        |> Select.supportingText "What theme to use for the site."
+        |> Select.leadingIcon [ Icon.palette |> Icon.view ]
+        |> Select.view
