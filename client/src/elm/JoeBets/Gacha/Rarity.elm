@@ -7,6 +7,7 @@ module JoeBets.Gacha.Rarity exposing
     , class
     , decoder
     , encodeId
+    , fromContext
     , idDecoder
     , idFromString
     , idParser
@@ -16,7 +17,7 @@ module JoeBets.Gacha.Rarity exposing
     )
 
 import AssocList
-import JoeBets.Api.Data exposing (Data)
+import JoeBets.Api.Data as Api
 import Json.Decode as JsonD
 import Json.Decode.Pipeline as JsonD
 import Json.Encode as JsonE
@@ -90,4 +91,9 @@ raritiesDecoder =
 
 
 type alias Context =
-    { rarities : Data Rarities }
+    { rarities : Api.Data Rarities }
+
+
+fromContext : Context -> Id -> Maybe Rarity
+fromContext { rarities } seeking =
+    rarities |> Api.dataToMaybe |> Maybe.andThen (AssocList.get seeking)

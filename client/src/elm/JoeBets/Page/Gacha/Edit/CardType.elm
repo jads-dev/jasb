@@ -24,6 +24,7 @@ import JoeBets.Gacha.CardType as CardType exposing (EditableCardType, EditableCa
 import JoeBets.Gacha.Rarity as Rarity
 import JoeBets.Messages as Global
 import JoeBets.Page exposing (Page)
+import JoeBets.Page.Gacha.Card as Card
 import JoeBets.Page.Gacha.Edit.CardType.CreditEditor as CreditEditor
 import JoeBets.Page.Gacha.Edit.CardType.Model exposing (..)
 import JoeBets.Page.Gacha.Edit.CardType.RaritySelector as Rarity
@@ -387,36 +388,55 @@ cardTypeEditor rarityContext maybeEditor =
                     let
                         ifNotSaving =
                             Api.ifNotWorking save
+
+                        viewPlaceholder =
+                            Card.viewPlaceholder
+                                Nothing
+                                banner
+                                (id |> Maybe.withDefault (CardType.idFromInt 0))
+                                { name = cardType.name
+                                , description = cardType.description
+                                , image = cardType.image
+                                , rarity =
+                                    ( cardType.rarity
+                                    , Rarity.fromContext rarityContext cardType.rarity
+                                        |> Maybe.withDefault { name = "" }
+                                    )
+                                , layout = cardType.layout
+                                }
                     in
                     ( open
-                    , Html.div [ HtmlA.class "fields" ]
-                        [ Html.label [ HtmlA.class "switch" ]
-                            [ Html.span [] [ Html.text "Retired" ]
-                            , Switch.switch (SetRetired >> wrap |> Just |> ifNotSaving)
-                                cardType.retired
-                                |> Switch.view
+                    , Html.div [ HtmlA.class "side-by-side" ]
+                        [ Html.div [ HtmlA.class "fields" ]
+                            [ Html.label [ HtmlA.class "switch" ]
+                                [ Html.span [] [ Html.text "Retired" ]
+                                , Switch.switch (SetRetired >> wrap |> Just |> ifNotSaving)
+                                    cardType.retired
+                                    |> Switch.view
+                                ]
+                            , TextField.outlined "Name"
+                                (SetName >> wrap |> Just |> ifNotSaving)
+                                cardType.name
+                                |> TextField.required True
+                                |> TextField.view
+                            , Validator.view nameValidator cardType
+                            , Card.layoutSelector (SetLayout >> wrap |> Just |> ifNotSaving) (Just cardType.layout)
+                            , Uploader.view (SetImage >> wrap |> Just |> ifNotSaving) imageUploaderModel imageUploader
+                            , Validator.view imageValidator cardType
+                            , Rarity.selector rarityContext
+                                (SetRarity >> wrap |> Just |> ifNotSaving)
+                                (Just cardType.rarity)
+                            , Validator.view (rarityValidator rarityContext) cardType
+                            , TextField.outlined "Description"
+                                (SetDescription >> wrap |> Just |> ifNotSaving)
+                                cardType.description
+                                |> TextField.textArea
+                                |> TextField.required True
+                                |> TextField.view
+                            , Validator.view descriptionValidator cardType
+                            , CreditEditor.view (EditCredit >> wrap) banner id creditEditor
                             ]
-                        , TextField.outlined "Name"
-                            (SetName >> wrap |> Just |> ifNotSaving)
-                            cardType.name
-                            |> TextField.required True
-                            |> TextField.view
-                        , Validator.view nameValidator cardType
-                        , Card.layoutSelector (SetLayout >> wrap |> Just |> ifNotSaving) (Just cardType.layout)
-                        , Uploader.view (SetImage >> wrap |> Just |> ifNotSaving) imageUploaderModel imageUploader
-                        , Validator.view imageValidator cardType
-                        , Rarity.selector rarityContext
-                            (SetRarity >> wrap |> Just |> ifNotSaving)
-                            (Just cardType.rarity)
-                        , Validator.view (rarityValidator rarityContext) cardType
-                        , TextField.outlined "Description"
-                            (SetDescription >> wrap |> Just |> ifNotSaving)
-                            cardType.description
-                            |> TextField.textArea
-                            |> TextField.required True
-                            |> TextField.view
-                        , Validator.view descriptionValidator cardType
-                        , CreditEditor.view (EditCredit >> wrap) banner id creditEditor
+                        , viewPlaceholder
                         ]
                         :: Api.viewAction [] save
                     , Save banner Api.Start

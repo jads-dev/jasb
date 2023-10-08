@@ -3,10 +3,18 @@
   flex-flow: column;
   gap: 1em;
 
-  > .fields {
+  > .side-by-side {
     display: flex;
-    flex-flow: column;
+    flex-flow: row wrap;
     gap: 1em;
+    justify-content: center;
+
+    > .fields {
+      display: flex;
+      flex-flow: column;
+      gap: 1em;
+      flex-grow: 1;
+    }
   }
 }
 
