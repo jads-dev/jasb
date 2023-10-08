@@ -9,11 +9,12 @@ import AssocList
 import EverySet
 import FontAwesome as Icon
 import FontAwesome.Solid as Icon
-import Html
+import Html exposing (Html)
 import Html.Attributes as HtmlA
 import JoeBets.Api as Api
 import JoeBets.Api.Data as Api
 import JoeBets.Api.Path as Api
+import JoeBets.Filtering as Filtering
 import JoeBets.Game as Game
 import JoeBets.Material as Material
 import JoeBets.Messages as Global
@@ -27,6 +28,7 @@ import Material.Button as Button
 import Material.Chips as Chips
 import Material.Chips.Filter as FilterChip
 import Time.Model as Time
+import Util.EverySet as EverySet
 
 
 wrap : Msg -> Global.Msg
@@ -47,7 +49,7 @@ type alias Parent a =
 init : Model
 init =
     { games = Api.initData
-    , favouritesOnly = False
+    , filters = defaultFilters
     }
 
 
@@ -73,17 +75,49 @@ update msg ({ games } as model) =
             , Cmd.none
             )
 
-        SetFavouritesOnly favouritesOnly ->
-            ( { model | games = { games | favouritesOnly = favouritesOnly } }
+        ToggleFilter filter ->
+            ( { model | games = { games | filters = games.filters |> EverySet.toggle filter } }
             , Cmd.none
             )
+
+
+viewFilter : Filters -> Filter -> Html Global.Msg
+viewFilter filters filter =
+    let
+        ( label, description ) =
+            case filter of
+                FavouriteFilter ->
+                    ( "Only Favourite Games", "Only show games you have marked as favourites." )
+
+                HaveBetsFilter ->
+                    ( "Only With Bets", "Only show games which have bets." )
+
+                FutureFilter ->
+                    ( "Future", "Show games that haven't started yet." )
+
+                CurrentFilter ->
+                    ( "Current", "Show games that are being played or have a start date." )
+
+                FinishedFilter ->
+                    ( "Finished", "Show games that are finished." )
+    in
+    FilterChip.chip label
+        |> FilterChip.button (ToggleFilter filter |> wrap |> Just)
+        |> FilterChip.selected (filters |> EverySet.member filter)
+        |> FilterChip.attrs [ HtmlA.title description ]
+        |> FilterChip.view
 
 
 view : Parent a -> Page Global.Msg
 view { auth, time, games, bets } =
     let
-        viewGame ( id, game ) =
-            if not games.favouritesOnly || EverySet.member id bets.favourites.value then
+        filter =
+            filterBy
+                games.filters
+                { favouriteGames = bets.favourites.value }
+
+        viewGame (( id, game ) as pair) =
+            if filter pair then
                 Html.li []
                     [ Game.view
                         Global.ChangeUrl
@@ -100,13 +134,27 @@ view { auth, time, games, bets } =
                 Nothing
 
         viewSubset class title subset =
-            Html.div [ HtmlA.class class ]
-                [ Html.h3 [] [ Html.text title ]
-                , subset |> AssocList.toList |> List.filterMap viewGame |> Html.ol []
-                ]
+            let
+                subsetGames =
+                    subset |> AssocList.toList |> List.filterMap viewGame
+            in
+            if subsetGames |> List.isEmpty |> not then
+                ( [ Html.div [ HtmlA.class class ]
+                        [ Html.h3 [] [ Html.text title ]
+                        , subsetGames |> Html.ol []
+                        ]
+                  ]
+                , List.length subsetGames
+                )
+
+            else
+                ( [], 0 )
 
         body { future, current, finished } =
             let
+                totalCount =
+                    [ future, current, finished ] |> List.map AssocList.size |> List.sum
+
                 admin =
                     if Auth.canManageGames auth.localUser then
                         [ Button.text "Add Game"
@@ -119,12 +167,39 @@ view { auth, time, games, bets } =
 
                     else
                         []
+
+                ( subsetsGrouped, counts ) =
+                    [ viewSubset "current" "Current" current
+                    , viewSubset "future" "Future" future
+                    , viewSubset "finished" "Finished" finished
+                    ]
+                        |> List.unzip
+
+                subsets =
+                    subsetsGrouped |> List.concat
+
+                shownCount =
+                    counts |> List.sum
+
+                shownAmount =
+                    [ Html.text "("
+                    , shownCount |> String.fromInt |> Html.text
+                    , Html.text "/"
+                    , totalCount |> String.fromInt |> Html.text
+                    , Html.text " shown)."
+                    ]
+
+                subsetsOrEmpty =
+                    if subsets |> List.isEmpty |> not then
+                        subsets
+
+                    else
+                        [ Html.p [ HtmlA.class "empty" ] [ Icon.ghost |> Icon.view, Html.span [] [ Html.text "No matching games." ] ] ]
             in
-            [ Html.div [ HtmlA.class "games" ]
-                [ viewSubset "current" "Current" current
-                , viewSubset "future" "Future" future
-                , viewSubset "finished" "Finished" finished
-                ]
+            [ possibleFilters
+                |> List.map (viewFilter games.filters)
+                |> Filtering.viewFilters "Games" totalCount shownCount
+            , subsetsOrEmpty |> Html.div [ HtmlA.class "games" ]
             , Html.ul [ HtmlA.class "final-actions" ] (admin |> List.map (List.singleton >> Html.li []))
             ]
     in
@@ -132,14 +207,5 @@ view { auth, time, games, bets } =
     , id = "games"
     , body =
         Html.h2 [] [ Html.text "Games" ]
-            :: Html.div [ HtmlA.class "filters" ]
-                [ Html.span [] [ Icon.filter |> Icon.view, Html.text " Filter" ]
-                , Chips.set []
-                    [ FilterChip.chip "Favourite Games"
-                        |> FilterChip.button (games.favouritesOnly |> not |> SetFavouritesOnly >> wrap |> Just)
-                        |> FilterChip.selected games.favouritesOnly
-                        |> FilterChip.view
-                    ]
-                ]
             :: Api.viewData Api.viewOrError body games.games
     }

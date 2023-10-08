@@ -163,7 +163,7 @@ CREATE FUNCTION validate_manage_bets (
       games ON per_game_permissions.game = games.id
     WHERE
       per_game_permissions."user" = user_id AND
-      per_game_permissions.game = target_game;
+      games.slug = target_game;
     IF can_manage_bets THEN
       RETURN user_id;
     ELSE

@@ -1,5 +1,6 @@
 module JoeBets.Bet.PlaceBet exposing
-    ( init
+    ( close
+    , init
     , update
     , view
     )
@@ -16,13 +17,13 @@ import JoeBets.Bet.Maths as Bet
 import JoeBets.Bet.Model as Bet
 import JoeBets.Bet.PlaceBet.Model exposing (..)
 import JoeBets.Coins as Coins
-import JoeBets.Overlay as Overlay
 import JoeBets.Page.User.Model as User
 import JoeBets.Rules as Rules
 import JoeBets.User.Model as User
 import Json.Decode as JsonD
 import Json.Encode as JsonE
 import Material.Button as Button
+import Material.Dialog as Dialog
 import Material.TextField as TextField
 import Time.DateTime as DateTime
 import Time.Model as Time
@@ -41,6 +42,15 @@ init =
     Nothing
 
 
+close : Parent a -> Parent a
+close parent =
+    let
+        internal placeBet =
+            { placeBet | open = False }
+    in
+    { parent | placeBet = parent.placeBet |> Maybe.map internal }
+
+
 update : (Msg -> msg) -> (List Change -> msg) -> String -> Time.Context -> Msg -> Parent a -> ( Parent a, Cmd msg )
 update wrap handleSuccess origin time msg model =
     case msg of
@@ -51,25 +61,29 @@ update wrap handleSuccess origin time msg model =
             in
             ( { model
                 | placeBet =
-                    Overlay target (bet |> String.fromInt) "" Api.initAction |> Just
+                    Dialog True target (bet |> String.fromInt) "" Api.initAction |> Just
               }
             , Cmd.none
             )
 
         Cancel ->
-            ( { model | placeBet = Nothing }, Cmd.none )
+            let
+                changeDialog placeBet =
+                    { placeBet | open = False }
+            in
+            ( { model | placeBet = model.placeBet |> Maybe.map changeDialog }, Cmd.none )
 
         ChangeAmount newAmount ->
             let
-                changeAmount overlay =
-                    { overlay | amount = newAmount }
+                changeAmount dialog =
+                    { dialog | amount = newAmount }
             in
             ( { model | placeBet = model.placeBet |> Maybe.map changeAmount }, Cmd.none )
 
         ChangeMessage newMessage ->
             let
-                changeMessage overlay =
-                    { overlay | message = newMessage }
+                changeMessage dialog =
+                    { dialog | message = newMessage }
             in
             ( { model | placeBet = model.placeBet |> Maybe.map changeMessage }, Cmd.none )
 
@@ -167,10 +181,10 @@ update wrap handleSuccess origin time msg model =
 
         SetError error ->
             let
-                setError overlay =
-                    { overlay
+                setError dialog =
+                    { dialog
                         | action =
-                            overlay.action |> Api.handleActionDone (Err error)
+                            dialog.action |> Api.handleActionDone (Err error)
                     }
             in
             ( { model | placeBet = model.placeBet |> Maybe.map setError }
@@ -181,7 +195,7 @@ update wrap handleSuccess origin time msg model =
 view : (Msg -> msg) -> User.WithId -> Model -> List (Html msg)
 view wrap ({ id, user } as localUser) placeBet =
     case placeBet of
-        Just { amount, target, message, action } ->
+        Just { open, amount, target, message, action } ->
             let
                 { gameName, bet, optionId, optionName, existingBet } =
                     target
@@ -301,8 +315,8 @@ view wrap ({ id, user } as localUser) placeBet =
                                 |> Button.view
                            ]
 
-                overlayContents =
-                    [ [ [ Html.p []
+                dialogContents =
+                    [ [ Html.p []
                             [ Html.text description
                             , Html.text " bet on “"
                             , Html.text optionName
@@ -314,12 +328,12 @@ view wrap ({ id, user } as localUser) placeBet =
                             , Html.text currentRatio
                             , Html.text "."
                             ]
-                        , Html.p [ HtmlA.class "balance" ]
+                      , Html.p [ HtmlA.class "balance" ]
                             [ Html.text "Your Balance: "
                             , Coins.viewAmountOrTransaction user.balance
                                 (amountNumber |> Maybe.map ((-) user.balance >> (+) alreadyPaid))
                             ]
-                        , TextField.outlined "Bet Amount"
+                      , TextField.outlined "Bet Amount"
                             (ChangeAmount >> wrap |> Just)
                             amount
                             |> TextField.number
@@ -328,24 +342,25 @@ view wrap ({ id, user } as localUser) placeBet =
                                 , max (user.balance + (existingBet |> Maybe.withDefault 0)) Rules.maxStakeWhileInDebt |> String.fromInt |> HtmlA.max
                                 ]
                             |> TextField.view
-                        ]
-                      , validationError
-                      , Api.viewAction [] action
-                      , messageInput
-                      , [ Html.div [ HtmlA.class "controls" ]
-                            [ Button.text "Back"
-                                |> Button.button (Cancel |> wrap |> Just)
-                                |> Button.icon [ Icon.times |> Icon.view ]
-                                |> Button.view
-                            , Html.div [ HtmlA.class "actions" ] actions
-                            ]
-                        ]
                       ]
-                        |> List.concat
-                        |> Html.div [ HtmlA.class "place-bet" ]
+                    , validationError
+                    , Api.viewAction [] action
+                    , messageInput
                     ]
             in
-            [ Overlay.view (Cancel |> wrap) overlayContents ]
+            [ Dialog.dialog (Cancel |> wrap)
+                (dialogContents |> List.concat)
+                [ Button.text "Back"
+                    |> Button.button (Cancel |> wrap |> Just)
+                    |> Button.icon [ Icon.times |> Icon.view ]
+                    |> Button.view
+                , Html.div [ HtmlA.class "actions" ] actions
+                ]
+                open
+                |> Dialog.headline [ Html.text "Your Bet" ]
+                |> Dialog.attrs [ HtmlA.class "place-bet" ]
+                |> Dialog.view
+            ]
 
         Nothing ->
             []

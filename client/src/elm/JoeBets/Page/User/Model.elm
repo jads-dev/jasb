@@ -1,12 +1,14 @@
 module JoeBets.Page.User.Model exposing
-    ( BankruptcyOverlay
+    ( BankruptcyDialog
     , BankruptcyStats
     , Change(..)
     , Model
     , Msg(..)
-    , PermissionsOverlay
+    , PermissionsDialog
     , apply
     , bankruptcyStatsDecoder
+    , initBankruptcyDialog
+    , initPermissionsDialog
     )
 
 import AssocList
@@ -43,22 +45,41 @@ bankruptcyStatsDecoder =
         |> JsonD.required "balanceAfter" JsonD.int
 
 
-type alias BankruptcyOverlay =
-    { sureToggle : Bool
+type alias BankruptcyDialog =
+    { open : Bool
+    , sureToggle : Bool
     , stats : Api.Data BankruptcyStats
     , action : Api.ActionState
     }
 
 
-type alias PermissionsOverlay =
-    { selector : Permission.Selector }
+initBankruptcyDialog : BankruptcyDialog
+initBankruptcyDialog =
+    { open = False
+    , sureToggle = False
+    , stats = Api.initData
+    , action = Api.initAction
+    }
+
+
+type alias PermissionsDialog =
+    { open : Bool
+    , selector : Permission.Selector
+    }
+
+
+initPermissionsDialog : PermissionsDialog
+initPermissionsDialog =
+    { open = False
+    , selector = Permission.initSelector
+    }
 
 
 type alias Model =
     { user : Api.IdData User.Id User
     , bets : Api.IdData User.Id (AssocList.Dict Game.Id Game.WithBets)
-    , bankruptcyOverlay : Maybe BankruptcyOverlay
-    , permissionsOverlay : Maybe PermissionsOverlay
+    , bankruptcyDialog : BankruptcyDialog
+    , permissionsDialog : PermissionsDialog
     }
 
 
@@ -66,11 +87,11 @@ type Msg
     = Load User.Id (Api.Response User.WithId)
     | TryLoadBets User.Id
     | LoadBets User.Id (Api.Response (AssocList.Dict Game.Id Game.WithBets))
-    | ToggleBankruptcyOverlay User.Id Bool
+    | ToggleBankruptcyDialog User.Id Bool
     | SetBankruptcyToggle Bool
     | LoadBankruptcyStats User.Id (Api.Response BankruptcyStats)
     | GoBankrupt User.Id (Maybe (Api.Response User.WithId))
-    | TogglePermissionsOverlay User.Id Bool
+    | TogglePermissionsDialog User.Id Bool
     | LoadPermissions User.Id (Api.Response (List Permission))
     | SetPermissions User.Id Permission Bool
     | SelectPermission User.Id Permission.SelectorMsg

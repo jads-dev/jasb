@@ -23,7 +23,6 @@ import JoeBets.Gacha.Card.Layout as Card
 import JoeBets.Gacha.CardType as CardType exposing (EditableCardType, EditableCardTypes)
 import JoeBets.Gacha.Rarity as Rarity
 import JoeBets.Messages as Global
-import JoeBets.Overlay as Overlay
 import JoeBets.Page exposing (Page)
 import JoeBets.Page.Gacha.Edit.CardType.CreditEditor as CreditEditor
 import JoeBets.Page.Gacha.Edit.CardType.Model exposing (..)
@@ -31,6 +30,7 @@ import JoeBets.Page.Gacha.Edit.CardType.RaritySelector as Rarity
 import JoeBets.Page.Gacha.Model as Gacha
 import Json.Encode as JsonE
 import Material.Button as Button
+import Material.Dialog as Dialog
 import Material.IconButton as IconButton
 import Material.Switch as Switch
 import Material.TextField as TextField
@@ -119,6 +119,7 @@ updateCardTypesEditor msg ({ gacha } as model) =
 
                         startAdd _ _ _ =
                             Editor
+                                True
                                 bannerId
                                 newCardType
                                 Uploader.init
@@ -138,6 +139,7 @@ updateCardTypesEditor msg ({ gacha } as model) =
             let
                 fromCardType cardType =
                     Editor
+                        True
                         bannerId
                         cardType
                         (Uploader.fromUrl cardType.image)
@@ -156,10 +158,10 @@ updateCardTypesEditor msg ({ gacha } as model) =
 
         Cancel ->
             let
-                cancel _ _ _ =
-                    Nothing
+                cancel editor =
+                    { editor | open = False }
             in
-            ( updateEditor cancel model, Cmd.none )
+            ( updateEditor (\_ _ -> Maybe.map cancel) model, Cmd.none )
 
         Save bannerId maybeResult ->
             case gacha.cardTypeEditor of
@@ -190,8 +192,7 @@ updateCardTypesEditor msg ({ gacha } as model) =
                                         Just { editor | save = state }
 
                                     else
-                                        -- Hide the editor when we have finished saving.
-                                        Nothing
+                                        Just { editor | open = False }
                             in
                             ( { model
                                 | gacha =
@@ -374,73 +375,79 @@ validator context =
         ]
 
 
-cardTypeEditor : Rarity.Context -> Editor -> List (Html Global.Msg)
-cardTypeEditor rarityContext ({ banner, id, cardType, save, imageUploader, creditEditor } as editor) =
+cardTypeEditor : Rarity.Context -> Maybe Editor -> Html Global.Msg
+cardTypeEditor rarityContext maybeEditor =
     let
         cancel =
             Cancel |> wrap
 
-        ifNotSaving =
-            Api.ifNotWorking save
+        ( isOpen, content, action ) =
+            case maybeEditor of
+                Just ({ open, banner, id, cardType, save, imageUploader, creditEditor } as editor) ->
+                    let
+                        ifNotSaving =
+                            Api.ifNotWorking save
+                    in
+                    ( open
+                    , Html.div [ HtmlA.class "fields" ]
+                        [ Html.label [ HtmlA.class "switch" ]
+                            [ Html.span [] [ Html.text "Retired" ]
+                            , Switch.switch (SetRetired >> wrap |> Just |> ifNotSaving)
+                                cardType.retired
+                                |> Switch.view
+                            ]
+                        , TextField.outlined "Name"
+                            (SetName >> wrap |> Just |> ifNotSaving)
+                            cardType.name
+                            |> TextField.required True
+                            |> TextField.view
+                        , Validator.view nameValidator cardType
+                        , Card.layoutSelector (SetLayout >> wrap |> Just |> ifNotSaving) (Just cardType.layout)
+                        , Uploader.view (SetImage >> wrap |> Just |> ifNotSaving) imageUploaderModel imageUploader
+                        , Validator.view imageValidator cardType
+                        , Rarity.selector rarityContext
+                            (SetRarity >> wrap |> Just |> ifNotSaving)
+                            (Just cardType.rarity)
+                        , Validator.view (rarityValidator rarityContext) cardType
+                        , TextField.outlined "Description"
+                            (SetDescription >> wrap |> Just |> ifNotSaving)
+                            cardType.description
+                            |> TextField.textArea
+                            |> TextField.required True
+                            |> TextField.view
+                        , Validator.view descriptionValidator cardType
+                        , CreditEditor.view (EditCredit >> wrap) banner id creditEditor
+                        ]
+                        :: Api.viewAction [] save
+                    , Save banner Api.Start
+                        |> wrap
+                        |> Validator.whenValid (validator rarityContext) editor
+                        |> ifNotSaving
+                    )
+
+                Nothing ->
+                    ( False, [], Nothing )
     in
-    [ Overlay.view cancel
-        [ [ [ Html.div [ HtmlA.class "fields" ]
-                [ Html.label [ HtmlA.class "switch" ]
-                    [ Html.span [] [ Html.text "Retired" ]
-                    , Switch.switch (SetRetired >> wrap |> Just |> ifNotSaving)
-                        cardType.retired
-                        |> Switch.view
-                    ]
-                , TextField.outlined "Name"
-                    (SetName >> wrap |> Just |> ifNotSaving)
-                    cardType.name
-                    |> TextField.required True
-                    |> TextField.view
-                , Validator.view nameValidator cardType
-                , Card.layoutSelector (SetLayout >> wrap |> Just |> ifNotSaving) (Just cardType.layout)
-                , Uploader.view (SetImage >> wrap |> Just |> ifNotSaving) imageUploaderModel imageUploader
-                , Validator.view imageValidator cardType
-                , Rarity.selector rarityContext
-                    (SetRarity >> wrap |> Just |> ifNotSaving)
-                    (Just cardType.rarity)
-                , Validator.view (rarityValidator rarityContext) cardType
-                , TextField.outlined "Description"
-                    (SetDescription >> wrap |> Just |> ifNotSaving)
-                    cardType.description
-                    |> TextField.textArea
-                    |> TextField.required True
-                    |> TextField.view
-                , Validator.view descriptionValidator cardType
-                , CreditEditor.view (EditCredit >> wrap) banner id creditEditor
-                ]
+    Dialog.dialog cancel
+        content
+        [ Html.span [ HtmlA.class "cancel" ]
+            [ Button.text "Cancel"
+                |> Button.button (cancel |> Just)
+                |> Button.icon [ Icon.times |> Icon.view ]
+                |> Button.view
             ]
-          , Api.viewAction [] save
-          , [ Html.div [ HtmlA.class "controls" ]
-                [ Html.span [ HtmlA.class "cancel" ]
-                    [ Button.text "Cancel"
-                        |> Button.button (cancel |> Just |> ifNotSaving)
-                        |> Button.icon [ Icon.times |> Icon.view ]
-                        |> Button.view
-                    ]
-                , Button.filled "Save"
-                    |> Button.button
-                        (Save banner Api.Start
-                            |> wrap
-                            |> Validator.whenValid (validator rarityContext) editor
-                            |> ifNotSaving
-                        )
-                    |> Button.icon [ Icon.save |> Icon.view ]
-                    |> Button.view
-                ]
-            ]
-          ]
-            |> List.concat
-            |> Html.div
-                [ HtmlA.id "card-type-editor"
-                , HtmlA.class "overlay-editor"
-                ]
+        , Button.filled "Save"
+            |> Button.button action
+            |> Button.icon [ Icon.save |> Icon.view ]
+            |> Button.view
         ]
-    ]
+        isOpen
+        |> Dialog.headline [ Html.text "Edit Card Type" ]
+        |> Dialog.attrs
+            [ HtmlA.id "card-type-editor"
+            , HtmlA.class "dialog-editor"
+            ]
+        |> Dialog.view
 
 
 viewCardTypeSummary : Time.Context -> Banner.Id -> ( CardType.Id, EditableCardType ) -> ( String, Html Global.Msg )
@@ -509,9 +516,7 @@ viewCardTypesEditor { time, gacha } =
         [ [ Html.h2 [] [ Html.text "Edit Card Types" ] ]
         , gacha.editableCardTypes
             |> Api.viewIdData Api.viewOrError (viewCardTypeSummaries time)
-        , gacha.cardTypeEditor
-            |> Maybe.map (cardTypeEditor gacha.rarityContext)
-            |> Maybe.withDefault []
+        , [ gacha.cardTypeEditor |> cardTypeEditor gacha.rarityContext ]
         ]
             |> List.concat
     }

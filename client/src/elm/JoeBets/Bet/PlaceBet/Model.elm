@@ -1,8 +1,8 @@
 module JoeBets.Bet.PlaceBet.Model exposing
     ( Change(..)
+    , Dialog
     , Model
     , Msg(..)
-    , Overlay
     , Target
     )
 
@@ -36,8 +36,9 @@ type Msg
     | SetError Api.Error
 
 
-type alias Overlay =
-    { target : Target
+type alias Dialog =
+    { open : Bool
+    , target : Target
     , amount : String
     , message : String
     , action : Api.ActionState
@@ -45,7 +46,7 @@ type alias Overlay =
 
 
 type alias Model =
-    Maybe Overlay
+    Maybe Dialog
 
 
 type Change

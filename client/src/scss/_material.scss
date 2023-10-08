@@ -30,6 +30,33 @@ md-outlined-text-field[type="color"] {
   height: 4em;
 }
 
+md-dialog {
+  max-height: 95vh;
+  max-width: 95vw;
+
+  > [slot="actions"] {
+    display: flex;
+    flex-flow: row wrap;
+    justify-content: space-between;
+    gap: 1em;
+
+    > .actions,
+    > .lesser-actions {
+      display: flex;
+      flex-flow: row wrap;
+      gap: 1em;
+    }
+
+    > .lesser-actions {
+      justify-self: flex-start;
+    }
+
+    > .actions {
+      justify-self: flex-end;
+    }
+  }
+}
+
 #jasb.dark-theme,
 #jasb.auto-theme {
   --md-sys-color-background: #17130a;

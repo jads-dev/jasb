@@ -67,8 +67,8 @@ init route =
     , editableCardTypes = Api.initIdData
     , cardTypeEditor = Nothing
     , rarityContext = { rarities = Api.initData }
-    , detailedCard = Api.initIdData
-    , detailedCardType = Api.initIdData
+    , detailedCard = initDetailDialog
+    , detailedCardType = initDetailDialog
     , bannerPreview = Api.initIdData
     }
 
@@ -181,14 +181,14 @@ update msg ({ origin, gacha } as model) =
                     let
                         card =
                             gacha.detailedCard
-                                |> Api.updateIdData pointer response
+                                |> updateDetailDialog pointer response
                     in
                     ( { model | gacha = { gacha | detailedCard = card } }
                     , Cmd.none
                     )
 
         HideDetailedCard ->
-            ( { model | gacha = { gacha | detailedCard = Api.initIdData } }
+            ( { model | gacha = { gacha | detailedCard = closeDetailDialog gacha.detailedCard } }
             , Cmd.none
             )
 
@@ -209,7 +209,7 @@ update msg ({ origin, gacha } as model) =
                             , decoder = CardType.detailedDecoder
                             }
                                 |> Api.get origin
-                                |> Api.getIdData pointer gacha.detailedCardType
+                                |> showDetailDialog gacha.detailedCardType pointer
                     in
                     ( { model | gacha = { gacha | detailedCardType = cardType } }
                     , cmd
@@ -219,14 +219,14 @@ update msg ({ origin, gacha } as model) =
                     let
                         cardType =
                             gacha.detailedCardType
-                                |> Api.updateIdData pointer response
+                                |> updateDetailDialog pointer response
                     in
                     ( { model | gacha = { gacha | detailedCardType = cardType } }
                     , Cmd.none
                     )
 
         HideDetailedCardType ->
-            ( { model | gacha = { gacha | detailedCardType = Api.initIdData } }
+            ( { model | gacha = { gacha | detailedCardType = closeDetailDialog gacha.detailedCardType } }
             , Cmd.none
             )
 

@@ -2,6 +2,7 @@ module JoeBets.User.Permission.Selector.Model exposing
     ( ExecutionType(..)
     , Selector
     , SelectorMsg(..)
+    , initSelector
     )
 
 import AssocList
@@ -27,4 +28,12 @@ type alias Selector =
     { query : String
     , queryChangeIndex : Int
     , options : Api.Data (AssocList.Dict Game.Id Game.Summary)
+    }
+
+
+initSelector : Selector
+initSelector =
+    { query = ""
+    , queryChangeIndex = 0
+    , options = Api.initData
     }

@@ -111,7 +111,7 @@ export const betsApi = (server: Server.State): Router => {
       game: Games.Game,
       bet: Bets.Bet,
     }).encode({
-      game: Games.withBetStatsFromInternal(game)[1],
+      game: Games.fromInternal(game)[1],
       bet: Bets.fromInternal(bet)[1],
     });
   });

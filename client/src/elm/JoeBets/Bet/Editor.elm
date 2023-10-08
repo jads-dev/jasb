@@ -25,13 +25,12 @@ import JoeBets.Bet.Editor.LockMoment as LockMoment
 import JoeBets.Bet.Editor.LockMoment.Editor as LockMoment
 import JoeBets.Bet.Editor.LockMoment.Selector as LockMoment
 import JoeBets.Bet.Editor.Model exposing (..)
-import JoeBets.Bet.Model as Bet
+import JoeBets.Bet.Model as Bet exposing (Bet)
 import JoeBets.Bet.Option as Option
 import JoeBets.Editing.Slug as Slug
 import JoeBets.Editing.Uploader as Uploader
 import JoeBets.Editing.Validator as Validator exposing (Validator)
 import JoeBets.Game.Id as Game
-import JoeBets.Overlay as Overlay
 import JoeBets.Page.Edit.Model as Edit
 import JoeBets.Route as Route exposing (Route)
 import JoeBets.User as User
@@ -40,6 +39,7 @@ import JoeBets.User.Model as User
 import Json.Encode as JsonE
 import List.Extra as List
 import Material.Button as Button
+import Material.Dialog as Dialog
 import Material.IconButton as IconButton
 import Material.Switch as Switch
 import Material.TextField as TextField
@@ -103,7 +103,7 @@ empty origin wrap canManageBets gameId editMode =
       , lockMomentEditor = Nothing
       , lockMoment = Nothing
       , options = AssocList.empty
-      , contextualOverlay = Nothing
+      , contextualDialog = initDialog
       , internalIdCounter = 0
       }
     , Cmd.batch [ loadBetCmd, lockMomentsCmd ]
@@ -182,7 +182,7 @@ update wrap msg ({ origin, navigationKey } as parent) model =
 
                 closeIfSaving editor =
                     if isSaving editor then
-                        Nothing
+                        LockMoment.close editor
 
                     else
                         editor
@@ -278,7 +278,11 @@ update wrap msg ({ origin, navigationKey } as parent) model =
                     ( model, Cmd.none )
 
         Complete ->
-            ( { model | contextualOverlay = { winners = EverySet.empty } |> CompleteOverlay |> Just }, Cmd.none )
+            let
+                dialog =
+                    { winners = EverySet.empty } |> CompleteDialog
+            in
+            ( { model | contextualDialog = model.contextualDialog |> showDialog dialog }, Cmd.none )
 
         RevertComplete ->
             case model.source |> Api.idDataToMaybe of
@@ -299,7 +303,11 @@ update wrap msg ({ origin, navigationKey } as parent) model =
                     ( model, Cmd.none )
 
         Cancel ->
-            ( { model | contextualOverlay = { reason = "" } |> CancelOverlay |> Just }, Cmd.none )
+            let
+                dialog =
+                    { reason = "" } |> CancelDialog
+            in
+            ( { model | contextualDialog = model.contextualDialog |> showDialog dialog }, Cmd.none )
 
         RevertCancel ->
             case model.source |> Api.idDataToMaybe of
@@ -421,7 +429,7 @@ update wrap msg ({ origin, navigationKey } as parent) model =
                     in
                     ( { model | options = newOptions }, Cmd.none )
 
-        ResolveOverlay commit ->
+        ResolveDialog commit ->
             let
                 changeRequestFromBet path body m ( betId, bet ) =
                     { path = path |> Api.Bet betId |> Api.Game m.gameId
@@ -436,11 +444,12 @@ update wrap msg ({ origin, navigationKey } as parent) model =
                     m.source
                         |> Api.idDataToMaybe
                         |> Maybe.map (changeRequestFromBet path body m)
-
-                fromOverlay overlay =
-                    if commit then
-                        case overlay of
-                            CancelOverlay { reason } ->
+            in
+            if commit then
+                let
+                    operation =
+                        case model.contextualDialog.context of
+                            CancelDialog { reason } ->
                                 if String.isEmpty reason then
                                     Nothing
 
@@ -455,7 +464,7 @@ update wrap msg ({ origin, navigationKey } as parent) model =
                                         body
                                         model
 
-                            CompleteOverlay { winners } ->
+                            CompleteDialog { winners } ->
                                 if EverySet.isEmpty winners then
                                     Nothing
 
@@ -470,43 +479,56 @@ update wrap msg ({ origin, navigationKey } as parent) model =
                                         body
                                         model
 
-                    else
-                        Nothing
+                            NoDialog ->
+                                Nothing
+                in
+                case operation of
+                    Just ( source, cmd ) ->
+                        ( { model
+                            | source = source
+                            , contextualDialog = closeDialog model.contextualDialog
+                          }
+                        , cmd
+                        )
 
-                ( source, cmd ) =
-                    model.contextualOverlay
-                        |> Maybe.andThen fromOverlay
-                        |> Maybe.withDefault ( model.source, Cmd.none )
-            in
-            ( { model | source = source, contextualOverlay = Nothing }, cmd )
+                    Nothing ->
+                        ( model, Cmd.none )
+
+            else
+                ( { model | contextualDialog = closeDialog model.contextualDialog }
+                , Cmd.none
+                )
 
         ChangeCancelReason reason ->
             let
-                updateOverlay contextualOverlay =
-                    case contextualOverlay of
-                        CancelOverlay overlay ->
-                            CancelOverlay { overlay | reason = reason }
+                updateDialog contextualDialog =
+                    case contextualDialog.context of
+                        CancelDialog dialog ->
+                            { contextualDialog | context = CancelDialog { dialog | reason = reason } }
 
                         _ ->
-                            contextualOverlay
+                            contextualDialog
             in
-            ( { model | contextualOverlay = model.contextualOverlay |> Maybe.map updateOverlay }, Cmd.none )
+            ( { model | contextualDialog = model.contextualDialog |> updateDialog }, Cmd.none )
 
         SetWinner id winner ->
             let
-                updateOverlay contextualOverlay =
-                    case contextualOverlay of
-                        CompleteOverlay overlay ->
-                            CompleteOverlay
-                                { overlay
-                                    | winners =
-                                        overlay.winners |> EverySet.setMembership winner id
-                                }
+                updateDialog contextualDialog =
+                    case contextualDialog.context of
+                        CompleteDialog dialog ->
+                            { contextualDialog
+                                | context =
+                                    CompleteDialog
+                                        { dialog
+                                            | winners =
+                                                dialog.winners |> EverySet.setMembership winner id
+                                        }
+                            }
 
                         _ ->
-                            contextualOverlay
+                            contextualDialog
             in
-            ( { model | contextualOverlay = model.contextualOverlay |> Maybe.map updateOverlay }, Cmd.none )
+            ( { model | contextualDialog = model.contextualDialog |> updateDialog }, Cmd.none )
 
         Save ->
             case model |> diff |> Result.map encodeDiff of
@@ -638,6 +660,80 @@ view changeUrl wrap time localUser model =
     ]
 
 
+viewProgressDialog : (Msg -> msg) -> Bet -> Model -> List (Html msg)
+viewProgressDialog wrap bet model =
+    let
+        ( progressDialogContent, actionDetails, valid ) =
+            case model.contextualDialog.context of
+                CompleteDialog { winners } ->
+                    let
+                        winnerToggle ( id, option ) =
+                            let
+                                optionId =
+                                    option.id |> Slug.resolve Option.idFromString option.name
+                            in
+                            ( id
+                            , Html.li []
+                                [ Html.label [ HtmlA.class "switch" ]
+                                    [ Html.span [] [ Html.text option.name ]
+                                    , Switch.switch
+                                        (SetWinner optionId >> wrap |> Just)
+                                        (winners |> EverySet.member optionId)
+                                        |> Switch.view
+                                    ]
+                                ]
+                            )
+                    in
+                    ( [ Html.p [] [ Html.text "Select the winner(s):" ]
+                      , model.options
+                            |> AssocList.toList
+                            |> List.map winnerToggle
+                            |> HtmlK.ol []
+                      ]
+                    , { icon = Icon.check, title = "Declare Winner(s) For Bet", dangerous = False }
+                    , winners |> EverySet.isEmpty |> not
+                    )
+
+                CancelDialog { reason } ->
+                    ( [ TextField.outlined "Reason for cancellation"
+                            (ChangeCancelReason >> wrap |> Just)
+                            reason
+                            |> TextField.required True
+                            |> TextField.view
+                      ]
+                    , { icon = Icon.ban, title = "Cancel & Refund Bet", dangerous = True }
+                    , reason |> String.isEmpty |> not
+                    )
+
+                NoDialog ->
+                    ( [], { icon = Icon.check, title = "Complete", dangerous = False }, False )
+    in
+    [ Dialog.dialog (False |> ResolveDialog |> wrap)
+        progressDialogContent
+        [ Button.text "Cancel"
+            |> Button.button (ResolveDialog False |> wrap |> Just)
+            |> Button.icon [ Icon.times |> Icon.view ]
+            |> Button.view
+        , Html.div [ HtmlA.classList [ ( "dangerous", actionDetails.dangerous ) ] ]
+            [ Button.filled actionDetails.title
+                |> Button.button (ResolveDialog True |> wrap |> Maybe.when valid)
+                |> Button.icon [ actionDetails.icon |> Icon.view ]
+                |> Button.view
+            ]
+        ]
+        model.contextualDialog.open
+        |> Dialog.headline
+            [ Html.span []
+                [ Html.text "Change progress of “"
+                , Html.text bet.name
+                , Html.text "”."
+                ]
+            ]
+        |> Dialog.attrs [ HtmlA.class "contextual-dialog" ]
+        |> Dialog.view
+    ]
+
+
 viewCoreContent : (Route -> msg) -> (Msg -> msg) -> Time.Context -> User.WithId -> Model -> SourceInfo msg -> List (Html msg)
 viewCoreContent changeUrl wrap time localUser model { author, created, modified, version, progress } =
     let
@@ -652,73 +748,8 @@ viewCoreContent changeUrl wrap time localUser model { author, created, modified,
             , Bet.view changeUrl time Nothing model.gameId "" betId bet
             ]
 
-        progressOverlay =
-            case model.contextualOverlay of
-                Just overlay ->
-                    let
-                        ( editor, actionDetails, valid ) =
-                            case overlay of
-                                CompleteOverlay { winners } ->
-                                    let
-                                        winnerToggle ( id, option ) =
-                                            let
-                                                optionId =
-                                                    option.id |> Slug.resolve Option.idFromString option.name
-                                            in
-                                            ( id
-                                            , Html.li []
-                                                [ Html.label [ HtmlA.class "switch" ]
-                                                    [ Html.span [] [ Html.text option.name ]
-                                                    , Switch.switch
-                                                        (SetWinner optionId >> wrap |> Just)
-                                                        (winners |> EverySet.member optionId)
-                                                        |> Switch.view
-                                                    ]
-                                                ]
-                                            )
-                                    in
-                                    ( [ Html.p [] [ Html.text "Select the winner(s):" ]
-                                      , model.options
-                                            |> AssocList.toList
-                                            |> List.map winnerToggle
-                                            |> HtmlK.ol []
-                                      ]
-                                    , { icon = Icon.check, title = "Declare Winner(s) For Bet", dangerous = False }
-                                    , winners |> EverySet.isEmpty |> not
-                                    )
-
-                                CancelOverlay { reason } ->
-                                    ( [ TextField.outlined "Reason for cancellation"
-                                            (ChangeCancelReason >> wrap |> Just)
-                                            reason
-                                            |> TextField.required True
-                                            |> TextField.view
-                                      ]
-                                    , { icon = Icon.ban, title = "Cancel & Refund Bet", dangerous = True }
-                                    , reason |> String.isEmpty |> not
-                                    )
-                    in
-                    [ [ editor
-                            ++ [ Html.div [ HtmlA.class "controls" ]
-                                    [ Button.text "Cancel"
-                                        |> Button.button (ResolveOverlay False |> wrap |> Just)
-                                        |> Button.icon [ Icon.times |> Icon.view ]
-                                        |> Button.view
-                                    , Html.div [ HtmlA.classList [ ( "dangerous", actionDetails.dangerous ) ] ]
-                                        [ Button.filled actionDetails.title
-                                            |> Button.button (ResolveOverlay True |> wrap |> Maybe.when valid)
-                                            |> Button.icon [ actionDetails.icon |> Icon.view ]
-                                            |> Button.view
-                                        ]
-                                    ]
-                               ]
-                            |> Html.div [ HtmlA.class "contextual-overlay" ]
-                      ]
-                        |> Overlay.view (False |> ResolveOverlay |> wrap)
-                    ]
-
-                Nothing ->
-                    []
+        progressDialog =
+            viewProgressDialog wrap bet model
 
         isSaving =
             Api.isIdDataLoading model.source
@@ -795,7 +826,7 @@ viewCoreContent changeUrl wrap time localUser model { author, created, modified,
             ]
         , Html.h3 [] [ Html.text "Progress" ]
         , Html.p [] [ Html.text progressDescription ]
-        , Html.div [ HtmlA.class "progress" ] (progressButtons ++ progressOverlay)
+        , Html.div [ HtmlA.class "progress" ] (progressButtons ++ progressDialog)
         , Html.h3 [] [ Html.text "Edit" ]
         , Slug.view Bet.idFromString Bet.idToString (SetId >> wrap |> Just |> ifNotSaving) model.name model.id
         , TextField.outlined "Name" (SetName >> wrap |> Just |> ifNotSaving) model.name
@@ -824,6 +855,10 @@ viewCoreContent changeUrl wrap time localUser model { author, created, modified,
             [ Button.text "Add"
                 |> Button.button (NewOption |> wrap |> Just |> ifNotSaving)
                 |> Button.icon [ Icon.plus |> Icon.view ]
+                |> Button.view
+            , Button.text "Bulk Add"
+                |> Button.button (NewOption |> wrap |> Just |> ifNotSaving)
+                |> Button.icon [ Icon.list |> Icon.view ]
                 |> Button.view
             ]
         , Validator.view optionsValidator model

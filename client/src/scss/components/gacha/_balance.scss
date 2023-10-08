@@ -17,27 +17,16 @@
     font-size: 0.6em;
   }
 
-  .info-overlay {
-    > .title {
-      display: flex;
-      flex-flow: row wrap;
+  .info-dialog ul {
+    display: grid;
+    grid-template-columns: auto auto 1fr;
+    gap: 0.5em;
+    padding: 0;
+    list-style: none;
+    align-items: center;
 
-      > h2 {
-        flex-grow: 1;
-      }
-    }
-
-    > ul {
-      display: grid;
-      grid-template-columns: auto auto 1fr;
-      gap: 0.5em;
-      padding: 0;
-      list-style: none;
-      align-items: center;
-
-      > li {
-        display: contents;
-      }
+    > li {
+      display: contents;
     }
   }
 }

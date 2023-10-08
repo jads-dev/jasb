@@ -9,7 +9,6 @@ import FontAwesome.Solid as Icon
 import Html exposing (Html)
 import Html.Attributes as HtmlA
 import JoeBets.Layout as Layout
-import JoeBets.Overlay as Overlay
 import JoeBets.Page.Bets.Filters as Filters
 import JoeBets.Settings.Model exposing (..)
 import JoeBets.Store as Store
@@ -17,9 +16,10 @@ import JoeBets.Store.Codecs as Codecs
 import JoeBets.Store.Item as Item
 import JoeBets.Store.KeyedItem as Store exposing (KeyedItem)
 import JoeBets.Theme as Theme
+import Material.Button as Button
 import Material.Chips as Chips
 import Material.Chips.Filter as FilterChip
-import Material.IconButton as IconButton
+import Material.Dialog as Dialog
 
 
 type alias Parent a =
@@ -68,75 +68,72 @@ update msg ({ settings } as model) =
 
 view : (Msg -> msg) -> Parent a -> List (Html msg)
 view wrap { settings } =
-    if settings.visible then
-        let
-            filters =
-                settings.defaultFilters.value
+    let
+        filters =
+            settings.defaultFilters.value
 
-            setFilter filter toggle =
-                filters
-                    |> Filters.update filter toggle
-                    |> SetDefaultFilters
-                    |> wrap
+        setFilter filter toggle =
+            filters
+                |> Filters.update filter toggle
+                |> SetDefaultFilters
+                |> wrap
 
-            resolvedFilters =
-                Filters.resolveDefaults filters
+        resolvedFilters =
+            Filters.resolveDefaults filters
 
-            viewFilter filter =
-                let
-                    value =
-                        Filters.value filter resolvedFilters
+        viewFilter filter =
+            let
+                value =
+                    Filters.value filter resolvedFilters
 
-                    { title, description } =
-                        Filters.describe filter
-                in
-                FilterChip.chip title
-                    |> FilterChip.button (value |> not |> setFilter filter |> Just)
-                    |> FilterChip.selected value
-                    |> FilterChip.attrs [ HtmlA.title description ]
-                    |> FilterChip.view
+                { title, description } =
+                    Filters.describe filter
+            in
+            FilterChip.chip title
+                |> FilterChip.button (value |> not |> setFilter filter |> Just)
+                |> FilterChip.selected value
+                |> FilterChip.attrs [ HtmlA.title description ]
+                |> FilterChip.view
 
-            selectTheme =
-                Theme.fromString
-                    >> Maybe.withDefault Theme.Auto
-                    >> SetTheme
-                    >> wrap
-                    |> Just
+        selectTheme =
+            Theme.fromString
+                >> Maybe.withDefault Theme.Auto
+                >> SetTheme
+                >> wrap
+                |> Just
 
-            themeSelect =
-                Theme.selector selectTheme (Just settings.theme.value)
+        themeSelect =
+            Theme.selector selectTheme (Just settings.theme.value)
 
-            selectLayout =
-                Layout.fromString
-                    >> Maybe.withDefault Layout.Auto
-                    >> SetLayout
-                    >> wrap
-                    |> Just
+        selectLayout =
+            Layout.fromString
+                >> Maybe.withDefault Layout.Auto
+                >> SetLayout
+                >> wrap
+                |> Just
 
-            layoutSelect =
-                Layout.selector selectLayout (Just settings.layout.value)
-        in
-        [ Overlay.view (False |> SetVisibility |> wrap)
-            [ Html.div [ HtmlA.id "client-settings" ]
-                [ Html.div [ HtmlA.class "title" ]
-                    [ Html.h2 [] [ Html.text "Settings" ]
-                    , IconButton.icon (Icon.times |> Icon.view) "Close"
-                        |> IconButton.button (False |> SetVisibility |> wrap |> Just)
-                        |> IconButton.view
-                    ]
-                , Html.div [ HtmlA.class "theme" ] [ themeSelect ]
-                , Html.div [ HtmlA.class "layout" ] [ layoutSelect ]
-                , Html.div [ HtmlA.class "default-filters" ]
-                    [ Html.h3 [] [ Html.text "Default Filters" ]
-                    , Html.p [] [ Html.text "On games you haven't set them on, what will the filters will be. Each game's filters will be remembered separately on top of this." ]
-                    , Filters.allFilters |> List.map viewFilter |> Chips.set []
-                    ]
-                ]
+        layoutSelect =
+            Layout.selector selectLayout (Just settings.layout.value)
+    in
+    [ Dialog.dialog (False |> SetVisibility |> wrap)
+        [ Html.div [ HtmlA.class "theme" ] [ themeSelect ]
+        , Html.div [ HtmlA.class "layout" ] [ layoutSelect ]
+        , Html.div [ HtmlA.class "default-filters" ]
+            [ Html.h3 [] [ Html.text "Default Filters" ]
+            , Html.p [] [ Html.text "On games you haven't set them on, what will the filters will be. Each game's filters will be remembered separately on top of this." ]
+            , Filters.allFilters |> List.map viewFilter |> Chips.set []
             ]
         ]
-
-    else
-        []
+        [ Button.text "Close"
+            |> Button.icon [ Icon.times |> Icon.view ]
+            |> Button.button (False |> SetVisibility |> wrap |> Just)
+            |> Button.view
+        ]
+        settings.visible
+        |> Dialog.headline [ Html.text "Settings" ]
+        |> Dialog.attrs [ HtmlA.id "client-settings" ]
+        |> Dialog.view
+    ]
 
 
 apply : Change -> Model -> Model

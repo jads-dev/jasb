@@ -1,14 +1,5 @@
-#client-settings {
+#client-settings > [slot="content"] {
   display: flex;
   flex-flow: column;
   gap: 1em;
-
-  .default-filters > ul {
-    list-style: none;
-    padding: 0;
-    display: flex;
-    flex-flow: row wrap;
-    gap: 1.5em;
-    justify-content: center;
-  }
 }

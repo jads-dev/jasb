@@ -106,56 +106,18 @@
   }
 }
 
-#permissions-overlay {
-  display: flex;
-  flex-flow: column;
-  gap: 1em;
-  max-height: calc(100% - 4em);
-  overflow-y: auto;
-
-  > ul {
-    padding: 0;
-    margin: 0;
-    list-style: none;
-    display: grid;
-    grid-template-columns: 1fr auto;
-    align-items: stretch;
-    font-size: 0.8em;
-
-    > li {
-      display: contents;
-
-      &:nth-child(odd) {
-        --line-color: #{color.scale(#ffffff, $alpha: -50%)};
-      }
-
-      > * {
-        background-color: var(--line-color, unset);
-        padding: 0.5em;
-      }
-
-      > div {
-        display: flex;
-        align-items: center;
-      }
-    }
-  }
-
+#permissions-dialog .permission-selector {
+  margin-bottom: 1em;
 }
 
-#bankruptcy-overlay {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 1em;
-
+#bankruptcy-dialog {
   p {
     margin: 0;
   }
 
-  .actions {
-    width: 100%;
+  .switch {
     display: flex;
-    justify-content: space-between;
+    justify-content: center;
+    margin-top: 1em;
   }
 }

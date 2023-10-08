@@ -12,7 +12,7 @@ import JoeBets.Page.Gacha.Model exposing (..)
 viewDetailedCard : String -> CardPointer -> Model -> ( Model, Cmd Global.Msg )
 viewDetailedCard origin pointer gacha =
     let
-        ( card, cmd ) =
+        ( detailedCard, cmd ) =
             { path =
                 Api.Card
                     |> Api.SpecificCard pointer.bannerId pointer.cardId
@@ -25,8 +25,8 @@ viewDetailedCard origin pointer gacha =
             , decoder = Card.detailedDecoder
             }
                 |> Api.get origin
-                |> Api.getIdData pointer gacha.detailedCard
+                |> showDetailDialog gacha.detailedCard pointer
     in
-    ( { gacha | detailedCard = card }
+    ( { gacha | detailedCard = detailedCard }
     , cmd
     )

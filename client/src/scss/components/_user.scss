@@ -20,17 +20,6 @@
   position: relative;
   --mdc-list-item-graphic-margin: 0.5em;
 
-  &.required {
-    .selected-user {
-      color: #{colors.by_name("bad")};
-    }
-  }
-  &.selected {
-    .selected-user {
-      color: unset;
-    }
-  }
-
   .avatar {
     border-radius: 100%;
   }
@@ -53,13 +42,18 @@
     align-items: center;
     gap: 0.25em;
     flex-grow: 1;
+
+    .selected {
+      margin-left: 0.75em;
+      margin-right: 0.5em;
+    }
   }
 
   .options {
     overflow-y: auto;
-    
+
     .avatar {
-      width: 2em; 
+      width: 2em;
       height: 2em;
       border-radius: 100%;
     }
@@ -79,6 +73,6 @@
   }
 
   .options {
-    overflow-y: auto; 
+    overflow-y: auto;
   }
 }

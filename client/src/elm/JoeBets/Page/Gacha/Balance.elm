@@ -17,10 +17,11 @@ import JoeBets.Gacha.Balance.Guarantees exposing (..)
 import JoeBets.Gacha.Balance.Rolls exposing (..)
 import JoeBets.Gacha.Balance.Scrap exposing (..)
 import JoeBets.Messages as Global
-import JoeBets.Overlay as Overlay
 import JoeBets.Page.Gacha.Balance.Model exposing (..)
 import JoeBets.Page.Gacha.Model as Gacha
 import JoeBets.User.Auth.Model as Auth
+import Material.Button as Button
+import Material.Dialog as Dialog
 import Material.IconButton as IconButton
 
 
@@ -28,8 +29,8 @@ type alias Parent a =
     { a | origin : String, auth : Auth.Model, gacha : Gacha.Model }
 
 
-viewInfo : (Msg -> msg) -> List (Html msg)
-viewInfo wrap =
+viewInfo : List (Html msg)
+viewInfo =
     let
         listItem icon name description =
             Html.li []
@@ -38,19 +39,10 @@ viewInfo wrap =
                 , Html.span [ HtmlA.class "description" ] [ Html.text description ]
                 ]
     in
-    [ Html.div [ HtmlA.class "info-overlay" ]
-        [ Html.div [ HtmlA.class "title" ]
-            [ Html.h2 [] [ Html.text "About" ]
-            , IconButton.icon (Icon.times |> Icon.view)
-                "Close"
-                |> IconButton.button (HideInfo |> wrap |> Just)
-                |> IconButton.view
-            ]
-        , Html.ul []
-            [ listItem rollIcon rollName rollDescription
-            , listItem guaranteeIcon guaranteeName guaranteeDescription
-            , listItem scrapIcon scrapName scrapDescription
-            ]
+    [ Html.ul []
+        [ listItem rollIcon rollName rollDescription
+        , listItem guaranteeIcon guaranteeName guaranteeDescription
+        , listItem scrapIcon scrapName scrapDescription
         ]
     ]
 
@@ -86,14 +78,20 @@ update msg ({ gacha } as model) =
 view : (Msg -> msg) -> Parent a -> Balance -> List (Html msg)
 view wrap { gacha } { rolls, guarantees, scrap } =
     let
-        overlay =
-            if gacha.balanceInfoShown then
-                [ Overlay.view (wrap HideInfo) (viewInfo wrap) ]
-
-            else
-                []
+        dialog =
+            Dialog.dialog (wrap HideInfo)
+                viewInfo
+                [ Button.text "Close"
+                    |> Button.icon [ Icon.times |> Icon.view ]
+                    |> Button.button (HideInfo |> wrap |> Just)
+                    |> Button.view
+                ]
+                gacha.balanceInfoShown
+                |> Dialog.headline [ Html.text "About your balance." ]
+                |> Dialog.attrs [ HtmlA.class "info-dialog" ]
+                |> Dialog.view
     in
-    [ [ Html.div [] overlay
+    [ [ dialog
       , viewRolls rolls
       , viewGuarantees guarantees
       , viewScrap scrap

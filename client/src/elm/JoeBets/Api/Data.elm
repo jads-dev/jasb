@@ -187,7 +187,7 @@ viewData { default, container, loadingDescription } viewValue ((Data { loading, 
 
     else
         let
-            loadingIfNeeded =
+            loadingContent =
                 if loading then
                     let
                         spinner =
@@ -199,21 +199,16 @@ viewData { default, container, loadingDescription } viewValue ((Data { loading, 
                                 |> Icon.view
                     in
                     if value == Nothing then
-                        Just (spinner :: loadingDescription)
+                        spinner :: loadingDescription
 
                     else
-                        Just [ spinner ]
+                        [ spinner ]
 
                 else
-                    Nothing
-
-            wrapLoading loadingContent =
-                [ Html.div [ HtmlA.class "loading" ] loadingContent ]
+                    []
 
             loadingWrapped =
-                loadingIfNeeded
-                    |> Maybe.map wrapLoading
-                    |> Maybe.withDefault []
+                [ Html.div [ HtmlA.class "loading" ] loadingContent ]
 
             problemIfExists =
                 viewErrorIfFailed data

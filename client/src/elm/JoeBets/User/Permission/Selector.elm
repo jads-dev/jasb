@@ -1,5 +1,5 @@
 module JoeBets.User.Permission.Selector exposing
-    ( initSelector
+    ( clear
     , selector
     , updateSelector
     )
@@ -39,14 +39,6 @@ type alias Parent a =
 optionsDecoder : JsonD.Decoder (AssocList.Dict Game.Id Game.Summary)
 optionsDecoder =
     JsonD.assocListFromTupleList Game.idDecoder Game.summaryDecoder
-
-
-initSelector : Selector
-initSelector =
-    { query = ""
-    , queryChangeIndex = 0
-    , options = Api.initData
-    }
 
 
 queryIsLongEnough : String -> Bool
@@ -111,6 +103,11 @@ updateSelector wrap { origin } msg model =
             ( { model | options = model.options |> Api.updateData response }
             , Cmd.none
             )
+
+
+clear : Selector -> Selector
+clear model =
+    { model | query = "" }
 
 
 viewOptions : (Permission -> msg) -> String -> List Permission -> AssocList.Dict Game.Id Game.Summary -> List (Html msg)

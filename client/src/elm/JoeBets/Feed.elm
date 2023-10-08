@@ -18,6 +18,7 @@ import JoeBets.Api.Path as Api
 import JoeBets.Bet.Model as Bet
 import JoeBets.Coins as Coins
 import JoeBets.Feed.Model exposing (..)
+import JoeBets.Filtering as Filtering
 import JoeBets.Game.Id as Game
 import JoeBets.Page.Bets.Filters as Filters
 import JoeBets.Page.Bets.Model as Bets
@@ -26,6 +27,7 @@ import JoeBets.Settings.Model as Settings
 import JoeBets.User as User
 import Material.Chips as Chips
 import Material.Chips.Filter as FilterChip
+import Util.EverySet as EverySet
 import Util.List as List
 
 
@@ -40,7 +42,7 @@ type alias Parent a =
 init : Model
 init =
     { items = Api.initData
-    , favouritesOnly = False
+    , filters = defaultFilters
     }
 
 
@@ -90,8 +92,32 @@ update msg feed =
             , Cmd.none
             )
 
-        SetFavouritesOnly favouritesOnly ->
-            ( { feed | favouritesOnly = favouritesOnly }, Cmd.none )
+        ToggleFilter filter ->
+            ( { feed | filters = feed.filters |> EverySet.toggle filter }, Cmd.none )
+
+
+viewFilter : (Msg -> msg) -> Filters -> Filter -> Html msg
+viewFilter wrap filters filter =
+    let
+        ( label, description ) =
+            case filter of
+                FavouriteFilter ->
+                    ( "Only Favourite Games", "Only show events for games you have marked as favourites." )
+
+                NewBetFilter ->
+                    ( "New Bets", "Show new bets that have been added recently." )
+
+                BetCompleteFilter ->
+                    ( "Bet Finished", "Show bets that have finished recently." )
+
+                NotableStakeFilter ->
+                    ( "Big Bets", "Show big bets people have placed recently." )
+    in
+    FilterChip.chip label
+        |> FilterChip.button (ToggleFilter filter |> wrap |> Just)
+        |> FilterChip.selected (filters |> EverySet.member filter)
+        |> FilterChip.attrs [ HtmlA.title description ]
+        |> FilterChip.view
 
 
 view : (Msg -> msg) -> Bool -> Parent a -> Model -> List (Html msg)
@@ -252,33 +278,33 @@ view wrap specificFeed { bets, settings } feed =
                     [ Html.text "Potential spoilers may be blurred if you have spoilers hidden for the game. "
                     , Html.text "Click on the item to reveal spoilers in it."
                     ]
-                , Html.div [ HtmlA.class "filters" ]
-                    [ Html.span [] [ Icon.filter |> Icon.view, Html.text " Filter" ]
-                    , Chips.set []
-                        [ FilterChip.chip "Favourite Games"
-                            |> FilterChip.button (feed.favouritesOnly |> not |> SetFavouritesOnly >> wrap |> Just)
-                            |> FilterChip.selected feed.favouritesOnly
-                            |> FilterChip.view
-                        ]
-                    ]
                 ]
 
         body items =
             let
-                showItem game =
-                    EverySet.member game bets.favourites.value
+                filter =
+                    filterBy
+                        feed.filters
+                        { favouriteGames = bets.favourites.value }
 
                 filteredItems =
-                    if not specificFeed && feed.favouritesOnly then
-                        items |> List.filter (.event >> relevantGame >> Maybe.map showItem >> Maybe.withDefault True)
+                    if not specificFeed then
+                        items |> List.filter (\{ event } -> filter event)
 
                     else
                         items
-            in
-            if filteredItems |> List.isEmpty then
-                [ Html.p [] [ Html.text "No activity yet." ] ]
 
-            else
-                [ filteredItems |> List.map viewItem |> Html.ol [] ]
+                events =
+                    if filteredItems |> List.isEmpty then
+                        Html.p [ HtmlA.class "empty" ] [ Icon.ghost |> Icon.view, Html.span [] [ Html.text "No matching events." ] ]
+
+                    else
+                        filteredItems |> List.map viewItem |> Html.ol []
+            in
+            [ possibleFilters
+                |> List.map (viewFilter wrap feed.filters)
+                |> Filtering.viewFilters "Events" (items |> List.length) (filteredItems |> List.length)
+            , events
+            ]
     in
     prefix ++ Api.viewData Api.viewOrError body feed.items

@@ -15,7 +15,8 @@ import Time.DateTime as Time
 
 
 type alias Editor =
-    { banner : Banner.Id
+    { open : Bool
+    , banner : Banner.Id
     , cardType : CardType.EditableCardType
     , imageUploader : Uploader
     , creditEditor : CreditEditor.Model

@@ -1,6 +1,7 @@
 module JoeBets.Page.Bets.Model exposing
     ( GameLockStatus
     , LockBetsMsg(..)
+    , LockManager
     , LockStatus
     , Model
     , Msg(..)
@@ -46,13 +47,19 @@ type alias Selected =
     }
 
 
+type alias LockManager =
+    { open : Bool
+    , status : Api.Data GameLockStatus
+    , action : Api.ActionState
+    }
+
+
 type alias Model =
     { gameBets : Maybe Selected
     , placeBet : PlaceBet.Model
     , filters : AssocList.Dict Game.Id (Item Filters)
     , favourites : Item (EverySet Game.Id)
-    , lockStatus : Api.Data GameLockStatus
-    , lockAction : Api.ActionState
+    , lockManager : LockManager
     }
 
 

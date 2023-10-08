@@ -409,9 +409,12 @@ view changeUrl wrap wrapBets parent model =
             ]
         , Html.div [ HtmlA.class "preview" ] preview
         ]
-    , model.source
-        |> Maybe.map (Tuple.second >> Api.viewErrorIfFailed)
-        |> Maybe.withDefault []
+    , [ model.source
+            |> Maybe.map (Tuple.second >> Api.viewErrorIfFailed)
+            |> Maybe.withDefault []
+      , model.saving |> Api.viewAction []
+      ]
+        |> List.concat
         |> Html.div []
     , Html.div [ HtmlA.class "controls" ]
         [ Button.text "Reset"

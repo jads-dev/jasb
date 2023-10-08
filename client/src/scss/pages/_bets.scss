@@ -40,8 +40,8 @@
     }
 
     .lock-moment {
-      border-top: 0.1em solid #{colors.by-name("overlay")};
-      color: #{colors.by-name("overlay")};
+      border-top: 0.1em solid #{colors.by-name("disabled")};
+      color: #{colors.by-name("disabled")};
       text-align: right;
       @include right;
       margin-top: 1em;
@@ -49,7 +49,7 @@
   }
 
   .bet-list {
-    border-top: 0.1em solid #{colors.by-name("overlay")};
+    border-top: 0.1em solid #{colors.by-name("disabled")};
     list-style: none;
 
     display: flex;
@@ -103,26 +103,14 @@
   }
 
   .filters {
-    display: flex;
-    flex-flow: column;
-    align-items: flex-end;
-    width: 100%;
-
     @include left;
+    padding-top: 1em;
     padding-bottom: 1em;
     margin-bottom: -1em;
-
-    > .title {
-      display: flex;
-      flex-flow: row wrap;
-      align-items: center;
-    }
   }
 }
 
-#lock-manager {
-  margin: 1em;
-
+#lock-manager > [slot="content"] {
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -155,7 +143,7 @@
     .empty {
       font-size: 1em;
 
-      span {
+      div {
         grid-column: 1 / span 2;
         justify-self: center;
         opacity: 0.8;

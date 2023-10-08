@@ -4,6 +4,10 @@ module JoeBets.Page.Gacha.Model exposing
     , EditMsg(..)
     , Model
     , Msg(..)
+    , closeDetailDialog
+    , initDetailDialog
+    , showDetailDialog
+    , updateDetailDialog
     )
 
 import DragDrop
@@ -59,6 +63,36 @@ type alias CardPointer =
     }
 
 
+type alias DetailDialog pointer detail =
+    { open : Bool
+    , detail : Api.IdData pointer detail
+    }
+
+
+initDetailDialog : DetailDialog pointer detail
+initDetailDialog =
+    { open = False, detail = Api.initIdData }
+
+
+showDetailDialog : DetailDialog pointer detail -> pointer -> Cmd msg -> ( DetailDialog pointer detail, Cmd msg )
+showDetailDialog dialog pointer getDetail =
+    let
+        ( detail, cmd ) =
+            getDetail |> Api.getIdData pointer dialog.detail
+    in
+    ( { dialog | open = True, detail = detail }, cmd )
+
+
+updateDetailDialog : pointer -> Api.Response detail -> DetailDialog pointer detail -> DetailDialog pointer detail
+updateDetailDialog pointer response dialog =
+    { dialog | detail = dialog.detail |> Api.updateIdData pointer response }
+
+
+closeDetailDialog : DetailDialog pointer detail -> DetailDialog pointer detail
+closeDetailDialog dialog =
+    { dialog | open = False }
+
+
 type alias Model =
     { route : Route
     , balance : Api.Data Balance
@@ -73,7 +107,7 @@ type alias Model =
     , editableCardTypes : Api.IdData Banner.Id CardType.EditableCardTypes
     , cardTypeEditor : Maybe CardType.Editor
     , rarityContext : Rarity.Context
-    , detailedCard : Api.IdData CardPointer Card.Detailed
-    , detailedCardType : Api.IdData CardTypePointer CardType.Detailed
+    , detailedCard : DetailDialog CardPointer Card.Detailed
+    , detailedCardType : DetailDialog CardTypePointer CardType.Detailed
     , bannerPreview : Api.IdData Banner.Id PreviewBanner.Model
     }

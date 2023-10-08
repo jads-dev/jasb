@@ -60,7 +60,7 @@ export type Progress = Schema.TypeOf<typeof Progress>;
 /**
  * The base details of a game.
  */
-export const Game = Schema.intersection([
+const Base = Schema.intersection([
   Schema.readonly(
     Schema.strict({
       name: Schema.string,
@@ -74,7 +74,7 @@ export const Game = Schema.intersection([
   ),
   Schema.partial({ order: Schema.Int }),
 ]);
-export type Game = Schema.TypeOf<typeof Game>;
+type Base = Schema.TypeOf<typeof Base>;
 
 /**
  * A summary of a game.
@@ -91,7 +91,7 @@ export type Summary = Schema.TypeOf<typeof Summary>;
  * The details of a game with its bets.
  */
 export const WithBets = Schema.intersection([
-  Game,
+  Base,
   Schema.readonly(
     Schema.strict({
       bets: Schema.readonlyArray(
@@ -109,8 +109,8 @@ export type WithBets = Schema.TypeOf<typeof WithBets>;
 /**
  * The details of a game with summarised bet statistics.
  */
-export const WithBetStats = Schema.intersection([
-  Game,
+export const Game = Schema.intersection([
+  Base,
   Schema.readonly(
     Schema.strict({
       bets: Schema.Int,
@@ -118,16 +118,16 @@ export const WithBetStats = Schema.intersection([
     }),
   ),
 ]);
-export type WithBetStats = Schema.TypeOf<typeof WithBetStats>;
+export type Game = Schema.TypeOf<typeof Game>;
 
 /**
  * The library of games with bets.
  */
 export const Library = Schema.readonly(
   Schema.strict({
-    future: Schema.readonlyArray(Schema.tuple([Slug, WithBetStats])),
-    current: Schema.readonlyArray(Schema.tuple([Slug, WithBetStats])),
-    finished: Schema.readonlyArray(Schema.tuple([Slug, WithBetStats])),
+    future: Schema.readonlyArray(Schema.tuple([Slug, Game])),
+    current: Schema.readonlyArray(Schema.tuple([Slug, Game])),
+    finished: Schema.readonlyArray(Schema.tuple([Slug, Game])),
   }),
 );
 export type Library = Schema.TypeOf<typeof Library>;
@@ -178,7 +178,7 @@ export const summaryFromInternal = (
   },
 ];
 
-export const fromInternal = (internal: Internal.Game): [Slug, Game] => [
+const baseFromInternal = (internal: Internal.Game): [Slug, Base] => [
   internal.slug,
   {
     name: internal.name,
@@ -192,12 +192,12 @@ export const fromInternal = (internal: Internal.Game): [Slug, Game] => [
   },
 ];
 
-export const withBetStatsFromInternal = (
+export const fromInternal = (
   internal: Internal.Game & Internal.Games.BetStats,
-): [Slug, WithBetStats] => [
+): [Slug, Game] => [
   internal.slug,
   {
-    ...fromInternal(internal)[1],
+    ...baseFromInternal(internal)[1],
     bets: internal.bets,
     staked: internal.staked,
   },
@@ -212,7 +212,7 @@ export const withBetsFromInternal = (
   return [
     internal.slug,
     {
-      ...fromInternal(internal)[1],
+      ...baseFromInternal(internal)[1],
       bets: betsByLockMoment.map(([lockMomentSlug, bets]) => [
         lockMomentSlug,
         bets[0]?.lock_moment_name ?? "",

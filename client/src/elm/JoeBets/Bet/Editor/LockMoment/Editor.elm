@@ -2,6 +2,7 @@ module JoeBets.Bet.Editor.LockMoment.Editor exposing
     ( Editor
     , EditorMsg(..)
     , Item
+    , close
     , itemFromLockMoment
     , updateEditor
     , viewEditor
@@ -25,9 +26,9 @@ import JoeBets.Editing.Order as Order
 import JoeBets.Editing.Slug as Slug exposing (Slug)
 import JoeBets.Editing.Validator as Validator exposing (Validator)
 import JoeBets.Game.Id as Game
-import JoeBets.Overlay as Overlay
 import Json.Encode as JsonE
 import Material.Button as Button
+import Material.Dialog as Dialog
 import Material.IconButton as IconButton
 import Material.TextField as TextField
 import Task
@@ -64,7 +65,8 @@ type alias Item =
 
 
 type alias Editor =
-    { lockMoments : AssocList.Dict Int Item
+    { open : Bool
+    , lockMoments : AssocList.Dict Int Item
     , nextEditorId : EditorId
     , save : Api.ActionState
     }
@@ -201,10 +203,20 @@ init lockMoments =
                 |> AssocList.fromList
                 |> Order.sortBy (.order >> String.toFloat)
     in
-    { lockMoments = items
+    { open = True
+    , lockMoments = items
     , nextEditorId = items |> AssocList.size
     , save = Api.initAction
     }
+
+
+close : Maybe Editor -> Maybe Editor
+close =
+    let
+        internal model =
+            { model | open = False }
+    in
+    Maybe.map internal
 
 
 getOrder : Item -> Maybe Float
@@ -295,7 +307,7 @@ updateEditor origin wrap updateContext context msg maybeModel =
             )
 
         CancelEdit ->
-            ( Nothing, Cmd.none )
+            ( maybeModel |> close, Cmd.none )
 
         SaveEdit ->
             case ( maybeModel, context.lockMoments |> Api.dataToMaybe ) of
@@ -426,57 +438,64 @@ viewItem wrap editor editorId ({ slug, name, order, bets } as item) =
 
 viewEditor : (EditorMsg -> msg) -> Context -> Maybe Editor -> List (Html msg)
 viewEditor wrap context maybeModel =
-    case maybeModel of
-        Just model ->
-            let
-                editorContent _ =
-                    [ Html.h3 [] [ Html.text "Lock Moments" ]
-                    , Html.p []
-                        [ Html.text "The moment at which the bet will be "
-                        , Html.text "locked (users can no longer bet on them). "
-                        , Html.text "Bets are displayed in order by this, so "
-                        , Html.text "bets that lock first will be displayed "
-                        , Html.text "first. You can't delete a lock moment with "
-                        , Html.text "bets that have it, so change the bets to "
-                        , Html.text "another lock moment or delete the bets "
-                        , Html.text "first to delete the lock moment."
-                        ]
-                    , model.lockMoments
-                        |> AssocList.toList
-                        |> List.map (\( editorId, item ) -> ( String.fromInt editorId, viewItem wrap model editorId item ))
-                        |> HtmlK.ol [ HtmlA.class "editors" ]
-                    , Html.div [ HtmlA.class "moments-actions" ]
-                        [ Button.text "Add New Lock Moment"
-                            |> Button.button (Add Nothing |> wrap |> Just)
-                            |> Button.icon [ Icon.add |> Icon.view ]
-                            |> Button.view
-                        ]
-                    , Api.viewAction [] model.save |> Html.div [ HtmlA.class "save-state" ]
-                    ]
-
-                canSave =
-                    Api.isLoaded context.lockMoments
-                        && (model.save |> Api.isWorking |> not)
-                        && Validator.valid itemsValidator model.lockMoments
-            in
-            [ Overlay.view (CancelEdit |> wrap)
-                [ [ context.lockMoments |> Api.viewData Api.viewOrError editorContent
-                  , [ Html.div [ HtmlA.class "controls" ]
-                        [ Button.text "Cancel"
-                            |> Button.button (CancelEdit |> wrap |> Just)
-                            |> Button.icon [ Icon.times |> Icon.view ]
-                            |> Button.view
-                        , Button.filled "Save"
-                            |> Button.button (SaveEdit |> wrap |> Maybe.when canSave)
-                            |> Button.icon [ Icon.save |> Icon.view ]
-                            |> Button.view
-                        ]
-                    ]
-                  ]
-                    |> List.concat
-                    |> Html.div [ HtmlA.id "lock-moments-editor" ]
+    let
+        alwaysContent =
+            [ Html.p []
+                [ Html.text "The moment at which the bet will be "
+                , Html.text "locked (users can no longer bet on them). "
+                , Html.text "Bets are displayed in order by this, so "
+                , Html.text "bets that lock first will be displayed "
+                , Html.text "first. You can't delete a lock moment with "
+                , Html.text "bets that have it, so change the bets to "
+                , Html.text "another lock moment or delete the bets "
+                , Html.text "first to delete the lock moment."
                 ]
             ]
 
-        Nothing ->
-            []
+        ( open, content, canSave ) =
+            case maybeModel of
+                Just model ->
+                    let
+                        editorContent _ =
+                            [ model.lockMoments
+                                |> AssocList.toList
+                                |> List.map (\( editorId, item ) -> ( String.fromInt editorId, viewItem wrap model editorId item ))
+                                |> HtmlK.ol [ HtmlA.class "editors" ]
+                            , Html.div [ HtmlA.class "moments-actions" ]
+                                [ Button.text "Add New Lock Moment"
+                                    |> Button.button (Add Nothing |> wrap |> Just)
+                                    |> Button.icon [ Icon.add |> Icon.view ]
+                                    |> Button.view
+                                ]
+                            , Api.viewAction [] model.save |> Html.div [ HtmlA.class "save-state" ]
+                            ]
+
+                        canSaveReal =
+                            Api.isLoaded context.lockMoments
+                                && (model.save |> Api.isWorking |> not)
+                                && Validator.valid itemsValidator model.lockMoments
+                    in
+                    ( model.open
+                    , context.lockMoments |> Api.viewData Api.viewOrError editorContent
+                    , canSaveReal
+                    )
+
+                Nothing ->
+                    ( False, [], False )
+    in
+    [ Dialog.dialog (CancelEdit |> wrap)
+        (List.append alwaysContent content)
+        [ Button.text "Cancel"
+            |> Button.button (CancelEdit |> wrap |> Just)
+            |> Button.icon [ Icon.times |> Icon.view ]
+            |> Button.view
+        , Button.filled "Save"
+            |> Button.button (SaveEdit |> wrap |> Maybe.when canSave)
+            |> Button.icon [ Icon.save |> Icon.view ]
+            |> Button.view
+        ]
+        open
+        |> Dialog.headline [ Html.text "Lock Moments" ]
+        |> Dialog.attrs [ HtmlA.id "lock-moments-editor" ]
+        |> Dialog.view
+    ]

@@ -1,5 +1,6 @@
 module JoeBets.Bet.Editor.Model exposing
-    ( ContextualOverlay(..)
+    ( ContextualDialog
+    , DialogContext(..)
     , LoadReason(..)
     , Mode(..)
     , Model
@@ -7,15 +8,18 @@ module JoeBets.Bet.Editor.Model exposing
     , OptionChange(..)
     , OptionDiff
     , OptionEditor
+    , closeDialog
     , diff
     , encodeCancelAction
     , encodeCompleteAction
     , encodeDiff
     , encodeOptionDiff
+    , initDialog
     , initOption
     , initOptionFromEditable
     , lockMomentContext
     , resolveId
+    , showDialog
     , toBet
     )
 
@@ -74,9 +78,29 @@ initOptionFromEditable ( id, { name, image, order } ) =
     )
 
 
-type ContextualOverlay
-    = CompleteOverlay { winners : EverySet Option.Id }
-    | CancelOverlay { reason : String }
+type DialogContext
+    = CompleteDialog { winners : EverySet Option.Id }
+    | CancelDialog { reason : String }
+    | NoDialog
+
+
+type alias ContextualDialog =
+    { open : Bool, context : DialogContext }
+
+
+initDialog : ContextualDialog
+initDialog =
+    { open = False, context = NoDialog }
+
+
+showDialog : DialogContext -> ContextualDialog -> ContextualDialog
+showDialog context dialog =
+    { dialog | open = True, context = context }
+
+
+closeDialog : ContextualDialog -> ContextualDialog
+closeDialog dialog =
+    { dialog | open = False }
 
 
 type alias Model =
@@ -91,7 +115,7 @@ type alias Model =
     , lockMomentEditor : Maybe LockMoment.Editor
     , lockMoment : Maybe LockMoment.Id
     , options : AssocList.Dict String OptionEditor
-    , contextualOverlay : Maybe ContextualOverlay
+    , contextualDialog : ContextualDialog
     , internalIdCounter : Int
     }
 
@@ -192,7 +216,7 @@ type Msg
     | ChangeOption String OptionChange
     | ChangeCancelReason String
     | SetWinner Option.Id Bool
-    | ResolveOverlay Bool
+    | ResolveDialog Bool
     | Save
     | Saved Bet.Id (Api.Response EditableBet)
 

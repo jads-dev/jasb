@@ -23,7 +23,6 @@ import JoeBets.Error as Error
 import JoeBets.Game.Id as Game
 import JoeBets.Game.Model as Game
 import JoeBets.Messages as Global
-import JoeBets.Overlay as Overlay
 import JoeBets.Page exposing (Page)
 import JoeBets.Page.Gacha.Collection.Route as Collection
 import JoeBets.Page.Gacha.Route as Route
@@ -36,6 +35,7 @@ import JoeBets.User.Permission as Permission
 import JoeBets.User.Permission.Selector as Permission
 import Json.Encode as JsonE
 import Material.Button as Button
+import Material.Dialog as Dialog
 import Material.Switch as Switch
 import Time.Model as Time
 import Util.Html as Html
@@ -63,9 +63,14 @@ init : Model
 init =
     { user = Api.initIdData
     , bets = Api.initIdData
-    , bankruptcyOverlay = Nothing
-    , permissionsOverlay = Nothing
+    , bankruptcyDialog = initBankruptcyDialog
+    , permissionsDialog = initPermissionsDialog
     }
+
+
+closeDialog : { dialog | open : Bool } -> { dialog | open : Bool }
+closeDialog dialog =
+    { dialog | open = False }
 
 
 load : Maybe User.Id -> Parent a -> ( Parent a, Cmd Global.Msg )
@@ -84,8 +89,8 @@ load requestedUserId ({ auth, user } as model) =
                 newUser =
                     { user
                         | user = userData
-                        , bankruptcyOverlay = Nothing
-                        , permissionsOverlay = Nothing
+                        , bankruptcyDialog = initBankruptcyDialog
+                        , permissionsDialog = initPermissionsDialog
                     }
             in
             ( { model | user = newUser }, Cmd.batch [ loadUser ] )
@@ -159,71 +164,66 @@ update msg ({ user, auth, origin } as model) =
 
         SetBankruptcyToggle enabled ->
             let
-                updateUser givenUser =
-                    { givenUser | bankruptcyOverlay = givenUser.bankruptcyOverlay |> Maybe.map updateOverlay }
+                updateDialog dialog =
+                    { dialog | sureToggle = enabled }
 
-                updateOverlay overlay =
-                    { overlay | sureToggle = enabled }
+                updateUser givenUser =
+                    { givenUser | bankruptcyDialog = updateDialog givenUser.bankruptcyDialog }
             in
             ( { model | user = user |> updateUser }, Cmd.none )
 
         GoBankrupt uid maybeResult ->
-            case user.bankruptcyOverlay of
-                Just overlay ->
-                    case maybeResult of
-                        Nothing ->
-                            let
-                                ( newOverlayAction, cmd ) =
-                                    { path = Api.SpecificUser uid Api.Bankrupt
-                                    , body = JsonE.null
-                                    , wrap = Just >> GoBankrupt uid >> wrap
-                                    , decoder = User.withIdDecoder
-                                    }
-                                        |> Api.post model.origin
-                                        |> Api.doAction overlay.action
-                            in
-                            ( { model
-                                | user =
-                                    { user
-                                        | bankruptcyOverlay =
-                                            Just { overlay | action = newOverlayAction }
-                                    }
-                              }
-                            , cmd
-                            )
-
-                        Just result ->
-                            let
-                                ( updatedUser, state ) =
-                                    overlay.action |> Api.handleActionResult result
-
-                                ( changeUser, newOverlay ) =
-                                    case updatedUser of
-                                        Just userWithId ->
-                                            ( Api.updateIdDataValue uid (\_ -> userWithId.user)
-                                            , Nothing
-                                            )
-
-                                        Nothing ->
-                                            ( identity, Just { overlay | action = state } )
-                            in
-                            ( { model
-                                | user =
-                                    { user
-                                        | user = user.user |> changeUser
-                                        , bankruptcyOverlay = newOverlay
-                                    }
-                              }
-                            , Cmd.none
-                            )
-
+            case maybeResult of
                 Nothing ->
-                    ( model, Cmd.none )
+                    let
+                        dialog =
+                            user.bankruptcyDialog
 
-        ToggleBankruptcyOverlay id show ->
+                        ( newAction, cmd ) =
+                            { path = Api.SpecificUser uid Api.Bankrupt
+                            , body = JsonE.null
+                            , wrap = Just >> GoBankrupt uid >> wrap
+                            , decoder = User.withIdDecoder
+                            }
+                                |> Api.post model.origin
+                                |> Api.doAction dialog.action
+                    in
+                    ( { model | user = { user | bankruptcyDialog = { dialog | action = newAction } } }
+                    , cmd
+                    )
+
+                Just result ->
+                    let
+                        dialog =
+                            user.bankruptcyDialog
+
+                        ( updatedUser, state ) =
+                            dialog.action |> Api.handleActionResult result
+
+                        ( changeUser, newDialog ) =
+                            case updatedUser of
+                                Just userWithId ->
+                                    ( Api.updateIdDataValue uid (\_ -> userWithId.user)
+                                    , { dialog | open = False }
+                                    )
+
+                                Nothing ->
+                                    ( identity, { dialog | action = state } )
+                    in
+                    ( { model
+                        | user =
+                            { user
+                                | user = user.user |> changeUser
+                                , bankruptcyDialog = newDialog
+                            }
+                      }
+                    , Cmd.none
+                    )
+
+        ToggleBankruptcyDialog id show ->
             if Just id == Api.toMaybeId user.user then
                 let
-                    ( bankruptcyOverlay, cmd ) =
+                    ( bankruptcyDialog, cmd ) =
                         if show then
                             let
                                 ( stats, loadStatsCmd ) =
@@ -234,18 +234,14 @@ update msg ({ user, auth, origin } as model) =
                                         |> Api.get model.origin
                                         |> Api.initGetData
                             in
-                            ( Just
-                                { sureToggle = False
-                                , stats = stats
-                                , action = Api.initAction
-                                }
+                            ( { initBankruptcyDialog | stats = stats, open = True }
                             , loadStatsCmd
                             )
 
                         else
-                            ( Nothing, Cmd.none )
+                            ( closeDialog user.bankruptcyDialog, Cmd.none )
                 in
-                ( { model | user = { user | bankruptcyOverlay = bankruptcyOverlay } }
+                ( { model | user = { user | bankruptcyDialog = bankruptcyDialog } }
                 , cmd
                 )
 
@@ -255,31 +251,30 @@ update msg ({ user, auth, origin } as model) =
         LoadBankruptcyStats id result ->
             if Just id == Api.toMaybeId user.user then
                 let
-                    updateOverlay overlay =
-                        { overlay | stats = overlay.stats |> Api.updateData result }
+                    updateDialog dialog =
+                        { dialog | stats = dialog.stats |> Api.updateData result }
 
-                    newOverlay =
-                        user.bankruptcyOverlay |> Maybe.map updateOverlay
+                    newDialog =
+                        user.bankruptcyDialog |> updateDialog
                 in
-                ( { model | user = { user | bankruptcyOverlay = newOverlay } }
+                ( { model | user = { user | bankruptcyDialog = newDialog } }
                 , Cmd.none
                 )
 
             else
                 ( model, Cmd.none )
 
-        TogglePermissionsOverlay id show ->
+        TogglePermissionsDialog id show ->
             if Just id == Api.toMaybeId user.user then
                 let
-                    permissionsOverlay =
+                    permissionsDialog =
                         if show then
-                            Just
-                                { selector = Permission.initSelector }
+                            { initPermissionsDialog | open = True }
 
                         else
-                            Nothing
+                            closeDialog user.permissionsDialog
                 in
-                ( { model | user = { user | permissionsOverlay = permissionsOverlay } }
+                ( { model | user = { user | permissionsDialog = permissionsDialog } }
                 , Cmd.none
                 )
 
@@ -304,7 +299,11 @@ update msg ({ user, auth, origin } as model) =
 
         SetPermissions userId permission set ->
             if Just userId == Api.toMaybeId user.user then
-                ( model
+                let
+                    updateSelector dialog =
+                        { dialog | selector = Permission.clear dialog.selector }
+                in
+                ( { model | user = { user | permissionsDialog = user.permissionsDialog |> updateSelector } }
                 , { path = Api.SpecificUser userId Api.Permissions
                   , body = Permission.encodeSetPermission permission set
                   , wrap = LoadPermissions userId >> wrap
@@ -319,23 +318,22 @@ update msg ({ user, auth, origin } as model) =
         SelectPermission userId permissionSelectorMsg ->
             if Just userId == Api.toMaybeId user.user then
                 let
-                    updateSelector overlay =
+                    updateSelector dialog =
                         let
                             ( selector, cmd ) =
                                 Permission.updateSelector
                                     (SelectPermission userId >> wrap)
                                     model
                                     permissionSelectorMsg
-                                    overlay.selector
+                                    dialog.selector
                         in
-                        ( Just { overlay | selector = selector }, cmd )
+                        ( { dialog | selector = selector }, cmd )
 
-                    ( updatedOverlay, selectorCmd ) =
-                        user.permissionsOverlay
-                            |> Maybe.map updateSelector
-                            |> Maybe.withDefault ( Nothing, Cmd.none )
+                    ( updatedDialog, selectorCmd ) =
+                        user.permissionsDialog
+                            |> updateSelector
                 in
-                ( { model | user = { user | permissionsOverlay = updatedOverlay } }
+                ( { model | user = { user | permissionsDialog = updatedDialog } }
                 , selectorCmd
                 )
 
@@ -346,7 +344,7 @@ update msg ({ user, auth, origin } as model) =
 view : Parent a -> Page Global.Msg
 view model =
     let
-        { bets, bankruptcyOverlay, permissionsOverlay } =
+        { bets, bankruptcyDialog, permissionsDialog } =
             model.user
     in
     case model.user.user |> Api.idDataToData of
@@ -383,38 +381,34 @@ view model =
 
                         adminControls =
                             if Auth.canManagePermissions model.auth.localUser then
-                                [ [ Html.div [ HtmlA.class "manage-user" ]
-                                        [ Button.filled "Edit Permissions"
-                                            |> Button.button (TogglePermissionsOverlay id True |> wrap |> Just)
-                                            |> Button.icon [ Icon.userCog |> Icon.view ]
-                                            |> Button.view
-                                        ]
-                                  ]
-                                , permissionsOverlay |> Maybe.map (viewPermissionsOverlay id userData) |> Maybe.withDefault []
+                                [ Html.div [ HtmlA.class "manage-user" ]
+                                    [ Button.filled "Edit Permissions"
+                                        |> Button.button (TogglePermissionsDialog id True |> wrap |> Just)
+                                        |> Button.icon [ Icon.userCog |> Icon.view ]
+                                        |> Button.view
+                                    ]
+                                , viewPermissionsDialog id userData permissionsDialog
                                 ]
-                                    |> List.concat
 
                             else
                                 []
 
                         bankruptcyControls =
                             if isLocal then
-                                [ [ Html.div [ HtmlA.class "bankrupt dangerous" ]
-                                        [ Html.h3 [] [ Html.text "Bankruptcy" ]
-                                        , Html.p []
-                                            [ Html.text "Going bankrupt will reset your balance to the "
-                                            , Html.text "starting amount, and cancel all your current bets. "
-                                            , Html.text "Your cards will not be affected."
-                                            ]
-                                        , Button.filled "Go Bankrupt"
-                                            |> Button.button (ToggleBankruptcyOverlay id True |> wrap |> Just)
-                                            |> Button.icon [ Icon.recycle |> Icon.view ]
-                                            |> Button.view
+                                [ Html.div [ HtmlA.class "bankrupt dangerous" ]
+                                    [ Html.h3 [] [ Html.text "Bankruptcy" ]
+                                    , Html.p []
+                                        [ Html.text "Going bankrupt will reset your balance to the "
+                                        , Html.text "starting amount, and cancel all your current bets. "
+                                        , Html.text "Your cards will not be affected."
                                         ]
-                                  ]
-                                , bankruptcyOverlay |> Maybe.map (viewBankruptcyOverlay id) |> Maybe.withDefault []
+                                    , Button.filled "Go Bankrupt"
+                                        |> Button.button (ToggleBankruptcyDialog id True |> wrap |> Just)
+                                        |> Button.icon [ Icon.recycle |> Icon.view ]
+                                        |> Button.view
+                                    ]
+                                , bankruptcyDialog |> viewBankruptcyDialog id
                                 ]
-                                    |> List.concat
 
                             else
                                 []
@@ -544,8 +538,8 @@ viewBets time auth targetUserId =
     AssocList.toList >> List.map viewGame >> Html.ul [ HtmlA.class "game-section" ] >> List.singleton
 
 
-viewBankruptcyOverlay : User.Id -> BankruptcyOverlay -> List (Html Global.Msg)
-viewBankruptcyOverlay userId { sureToggle, stats } =
+viewBankruptcyDialog : User.Id -> BankruptcyDialog -> Html Global.Msg
+viewBankruptcyDialog userId { open, sureToggle, stats } =
     let
         viewStats { amountLost, stakesLost, lockedAmountLost, lockedStakesLost, balanceAfter } =
             [ Html.p []
@@ -564,44 +558,47 @@ viewBankruptcyOverlay userId { sureToggle, stats } =
                 , balanceAfter |> Coins.view
                 , Html.text "."
                 ]
-            ]
-
-        renderedStats =
-            stats |> Api.viewData Api.viewOrError viewStats
-
-        controls =
-            [ Html.label [ HtmlA.class "dangerous", HtmlA.class "switch" ]
+            , Html.label [ HtmlA.class "dangerous", HtmlA.class "switch" ]
                 [ Html.span [] [ Html.text "I am sure I want to do this." ]
                 , Switch.switch
                     (SetBankruptcyToggle >> wrap |> Just)
                     sureToggle
                     |> Switch.view
                 ]
-            , Html.div [ HtmlA.class "actions" ]
-                [ Button.text "Cancel"
-                    |> Button.button (ToggleBankruptcyOverlay userId False |> wrap |> Just)
-                    |> Button.icon [ Icon.times |> Icon.view ]
+            ]
+
+        renderedStats =
+            stats |> Api.viewData Api.viewOrError viewStats
+
+        controls =
+            [ Button.text "Cancel"
+                |> Button.button (ToggleBankruptcyDialog userId False |> wrap |> Just)
+                |> Button.icon [ Icon.times |> Icon.view ]
+                |> Button.view
+            , Html.div [ HtmlA.class "dangerous" ]
+                [ Button.filled "Go Bankrupt"
+                    |> Button.button (GoBankrupt userId Nothing |> wrap |> Maybe.when sureToggle)
+                    |> Button.icon [ Icon.recycle |> Icon.view ]
                     |> Button.view
-                , Html.div [ HtmlA.class "dangerous" ]
-                    [ Button.filled "Go Bankrupt"
-                        |> Button.button (GoBankrupt userId Nothing |> wrap |> Maybe.when sureToggle)
-                        |> Button.icon [ Icon.recycle |> Icon.view ]
-                        |> Button.view
-                    ]
                 ]
             ]
     in
-    [ Overlay.view (False |> ToggleBankruptcyOverlay userId |> wrap)
-        [ [ renderedStats, controls ]
-            |> List.concat
-            |> Html.div [ HtmlA.id "bankruptcy-overlay" ]
-        ]
-    ]
+    Dialog.dialog (False |> ToggleBankruptcyDialog userId |> wrap)
+        renderedStats
+        controls
+        open
+        |> Dialog.headline [ Html.text "Are you sure?" ]
+        |> Dialog.alert
+        |> Dialog.attrs [ HtmlA.id "bankruptcy-dialog" ]
+        |> Dialog.view
 
 
-viewPermissionsOverlay : User.Id -> User.User -> PermissionsOverlay -> List (Html Global.Msg)
-viewPermissionsOverlay userId { permissions } overlay =
+viewPermissionsDialog : User.Id -> User.User -> PermissionsDialog -> Html Global.Msg
+viewPermissionsDialog userId user { selector, open } =
     let
+        permissions =
+            user.permissions
+
         setPerm v perm =
             SetPermissions userId perm v |> wrap
 
@@ -613,22 +610,22 @@ viewPermissionsOverlay userId { permissions } overlay =
             ]
                 |> List.filter (\p -> permissions |> List.member p |> not)
     in
-    [ Overlay.view (TogglePermissionsOverlay userId False |> wrap)
-        [ [ Permission.viewPermissions setPerm suggestions permissions
-          , Permission.selector
-                (SelectPermission userId >> wrap)
-                (setPerm True)
-                "0"
-                permissions
-                overlay.selector
-          , Html.div [ HtmlA.class "controls" ]
-                [ Html.div [ HtmlA.class "spacer" ] []
-                , Button.text "Close"
-                    |> Button.button (TogglePermissionsOverlay userId False |> wrap |> Just)
-                    |> Button.icon [ Icon.times |> Icon.view ]
-                    |> Button.view
-                ]
-          ]
-            |> Html.div [ HtmlA.id "permissions-overlay" ]
+    Dialog.dialog (False |> TogglePermissionsDialog userId |> wrap)
+        [ Permission.selector
+            (SelectPermission userId >> wrap)
+            (setPerm True)
+            "0"
+            permissions
+            selector
+        , Permission.viewPermissions setPerm suggestions permissions
         ]
-    ]
+        [ Html.div [ HtmlA.class "spacer" ] []
+        , Button.text "Close"
+            |> Button.button (TogglePermissionsDialog userId False |> wrap |> Just)
+            |> Button.icon [ Icon.times |> Icon.view ]
+            |> Button.view
+        ]
+        open
+        |> Dialog.headline [ Html.span [] [ Html.text "Edit ", User.viewName user, Html.text "'s Permissions" ] ]
+        |> Dialog.attrs [ HtmlA.id "permissions-dialog" ]
+        |> Dialog.view

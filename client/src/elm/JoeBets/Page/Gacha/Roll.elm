@@ -325,7 +325,7 @@ view ({ auth, gacha, collection } as parent) =
         , loggedIn
         , gacha.banners |> Api.viewData Api.viewOrError (Banner.viewBanners parent)
         , editActions
-        , Card.viewDetailedCardOverlay maybeContext gacha
+        , [ Card.viewDetailedCardDialog maybeContext gacha ]
         ]
             |> List.concat
     }

@@ -12,7 +12,8 @@ import Time.DateTime as Time
 
 
 type alias Editor =
-    { banner : Banner.EditableBanner
+    { open : Bool
+    , banner : Banner.EditableBanner
     , coverUploader : Uploader
     , background : String
     , foreground : String

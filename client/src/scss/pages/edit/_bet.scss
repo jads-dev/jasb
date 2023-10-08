@@ -36,7 +36,7 @@
     }
   }
 
-  .contextual-overlay {
+  .contextual-dialog > [slot="content"] {
     display: flex;
     flex-flow: column;
     align-items: center;
@@ -55,14 +55,10 @@
       flex-flow: column;
       gap: 0.5em;
     }
-
-    .controls {
-      align-self: stretch;
-    }
   }
 }
 
-#lock-moments-editor {
+#lock-moments-editor > [slot="content"] {
   display: flex;
   flex-direction: column;
   gap: 0.5em;

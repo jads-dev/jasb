@@ -93,10 +93,7 @@ update msg ({ origin, time } as model) =
         Load gameAndBetId gameAndBet ->
             let
                 loadData bet =
-                    { bet
-                        | placeBet = Nothing
-                        , data = bet.data |> Api.updateIdData gameAndBetId gameAndBet
-                    }
+                    { bet | data = bet.data |> Api.updateIdData gameAndBetId gameAndBet }
             in
             ( model |> updateBet loadData, Cmd.none )
 
@@ -106,18 +103,12 @@ update msg ({ origin, time } as model) =
                     { gameAndBet | bet = updated }
 
                 updateInBet bet =
-                    { bet
-                        | placeBet = Nothing
-                        , data = bet.data |> Api.updateIdDataValue gameAndBetId updateGAndB
-                    }
+                    { bet | data = bet.data |> Api.updateIdDataValue gameAndBetId updateGAndB }
             in
             ( model |> updateBet updateInBet, Cmd.none )
 
         Apply changes ->
             let
-                closePlaceBet bet =
-                    { bet | placeBet = Nothing }
-
                 apply change m =
                     case change of
                         PlaceBet.User userId userChange ->
@@ -137,14 +128,11 @@ update msg ({ origin, time } as model) =
                                     { gAndB | bet = gAndB.bet |> Bet.apply betChange }
 
                                 updateInBet bet =
-                                    { bet
-                                        | placeBet = Nothing
-                                        , data = bet.data |> Api.updateIdDataValue ( gameId, betId ) updateGAndB
-                                    }
+                                    { bet | data = bet.data |> Api.updateIdDataValue ( gameId, betId ) updateGAndB }
                             in
-                            model |> updateBet updateInBet
+                            m |> updateBet updateInBet
             in
-            ( List.foldl apply (model |> updateBet closePlaceBet) changes
+            ( List.foldl apply (model |> updateBet PlaceBet.close) changes
             , Cmd.none
             )
 

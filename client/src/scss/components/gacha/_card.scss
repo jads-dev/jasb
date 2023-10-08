@@ -63,53 +63,45 @@
   }
 }
 
-.card-detail-overlay {
+.card-detail-dialog .card-details {
   display: flex;
   flex-flow: column;
-  gap: 0.5em;
+  gap: 1em;
 
-  > .card-details {
-    display: flex;
-    flex-flow: column;
-    gap: 1em;
+  > h3 {
+    font-size: 1em;
+    margin: 0;
+  }
 
-    > h3 {
-      font-size: 1em;
-      margin: 0;
-    }
+  > .qualities {
+    list-style: none;
+    padding: 0;
+    margin: 0;
 
-    > .qualities {
-      list-style: none;
-      padding: 0;
-      margin: 0;
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 0.5em;
 
-      display: grid;
-      grid-template-columns: auto 1fr;
-      gap: 0.5em;
-
-      > li {
-        display: contents;
-      }
-    }
-
-    > .credits {
-      list-style: none;
-      padding: 0;
-      margin: 0;
-
-      display: grid;
-      grid-template-columns: auto 1fr;
-      gap: 0.5em;
-
-      > li {
-        display: contents;
-      }
+    > li {
+      display: contents;
     }
   }
 
-  > .controls {
-    margin: 0;
-    padding: 0;
+  > .credits {
     list-style: none;
+    padding: 0;
+    margin: 0;
+
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 0.5em;
+
+    > li {
+      display: contents;
+    }
+  }
+
+  .name {
+    font-weight: bold;
   }
 }

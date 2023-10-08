@@ -37,9 +37,6 @@ $dark: (
   "twitch": #6700fd,
   "on-twitch": #ffffff,
 
-  "on-overlay": #000000,
-  "overlay": #80808080,
-
   "tint": #00000080,
   "good": #{color.scale($good, $lightness: 35%)},
   "bad": #ff0000,
@@ -71,9 +68,6 @@ $light: (
   "on-discord": #000000,
   "twitch": #6700fd,
   "on-twitch": #ffffff,
-
-  "on-overlay": #000000,
-  "overlay": #80808080,
 
   "tint": #ffffff80,
   "good": #{$good},

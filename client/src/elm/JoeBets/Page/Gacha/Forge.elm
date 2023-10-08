@@ -21,7 +21,6 @@ import JoeBets.Gacha.Banner as Banner
 import JoeBets.Gacha.CardType as CardType
 import JoeBets.Gacha.Rarity as Rarity
 import JoeBets.Messages as Global
-import JoeBets.Overlay as Overlay
 import JoeBets.Page exposing (Page)
 import JoeBets.Page.Gacha.Balance as Balance
 import JoeBets.Page.Gacha.Card as Card
@@ -38,6 +37,7 @@ import JoeBets.User.Auth.Model as Auth
 import Json.Decode as JsonD
 import Json.Encode as JsonE
 import Material.Button as Button
+import Material.Dialog as Dialog
 import Material.TextField as TextField
 import Util.Maybe as Maybe
 
@@ -75,8 +75,11 @@ load model =
     case model.auth.localUser of
         Just localUser ->
             let
-                ( { forge } as newModel, balanceCmd ) =
+                ( newModel, balanceCmd ) =
                     Balance.load model
+
+                forge =
+                    newModel.forge
 
                 ( existing, existingCmd ) =
                     Api.get newModel.origin
@@ -370,48 +373,42 @@ view ({ auth, forge, gacha } as parent) =
                     List.map viewForged >> Html.ol [] >> List.singleton
 
                 confirmRetire =
-                    case forge.confirmRetire of
-                        Just cardTypeId ->
-                            let
-                                cancel =
-                                    ConfirmRetire Nothing |> wrap
-                            in
-                            [ Overlay.view cancel
-                                [ [ [ Html.p []
-                                        [ Html.text "Are you sure you want to retire this card? "
-                                        , Html.text "No one will be able to get copies of it in the future. "
-                                        , Html.text "There is no way to undo this. "
-                                        , Html.text "You will be able to forge a new card to replace it, if you can afford to."
-                                        ]
-                                    ]
-                                  , Api.viewAction [] forge.retire
-                                  , [ Html.div [ HtmlA.class "controls" ]
-                                        [ Html.span [ HtmlA.class "cancel" ]
-                                            [ Button.text "Cancel"
-                                                |> Button.button (cancel |> Just)
-                                                |> Button.icon [ Icon.times |> Icon.view ]
-                                                |> Button.view
-                                            ]
-                                        , Button.filled "Retire"
-                                            |> Button.button
-                                                (Retire cardTypeId Api.Start
-                                                    |> wrap
-                                                    |> Just
-                                                    |> Api.ifNotWorking forge.retire
-                                                )
-                                            |> Button.icon [ Icon.ban |> Icon.view ]
-                                            |> Button.attrs [ HtmlA.class "dangerous" ]
-                                            |> Button.view
-                                        ]
-                                    ]
-                                  ]
-                                    |> List.concat
-                                    |> Html.div [ HtmlA.id "confirm-retire" ]
-                                ]
-                            ]
+                    let
+                        cancel =
+                            ConfirmRetire Nothing |> wrap
 
-                        Nothing ->
-                            []
+                        action cardTypeId =
+                            Retire cardTypeId Api.Start
+                                |> wrap
+                                |> Just
+                                |> Api.ifNotWorking forge.retire
+                    in
+                    [ Dialog.dialog cancel
+                        (Html.p []
+                            [ Html.text "Are you sure you want to retire this card? "
+                            , Html.text "No one will be able to get copies of it in the future. "
+                            , Html.text "There is no way to undo this. "
+                            , Html.text "You will be able to forge a new card to replace it, if you can afford to."
+                            ]
+                            :: Api.viewAction [] forge.retire
+                        )
+                        [ Html.span [ HtmlA.class "cancel" ]
+                            [ Button.text "Cancel"
+                                |> Button.button (cancel |> Just)
+                                |> Button.icon [ Icon.times |> Icon.view ]
+                                |> Button.view
+                            ]
+                        , Button.filled "Retire"
+                            |> Button.button (forge.confirmRetire |> Maybe.andThen action)
+                            |> Button.icon [ Icon.ban |> Icon.view ]
+                            |> Button.attrs [ HtmlA.class "dangerous" ]
+                            |> Button.view
+                        ]
+                        (forge.confirmRetire /= Nothing)
+                        |> Dialog.headline [ Html.text "Retire Card" ]
+                        |> Dialog.attrs [ HtmlA.id "confirm-retire" ]
+                        |> Dialog.view
+                    ]
             in
             { title = "Forge Cards"
             , id = "forge"

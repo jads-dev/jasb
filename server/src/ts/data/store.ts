@@ -373,7 +373,7 @@ export class Store {
     started: Joda.LocalDate | null,
     finished: Joda.LocalDate | null,
     order: number | null,
-  ): Promise<Games.Game> {
+  ): Promise<Games.Game & Games.BetStats> {
     return await this.inTransaction(async (client) => {
       return await client.one(
         Queries.gameWithBetStats(sqlFragment`

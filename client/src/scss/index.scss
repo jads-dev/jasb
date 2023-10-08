@@ -6,10 +6,10 @@
 @use "./_material.scss";
 @use "./_fonts.scss";
 @use "./_sizes.scss";
+@use "./components/_filtering.scss";
 @use "./components/_user.scss";
 @use "./components/_notifications.scss";
 @use "./components/_navigation.scss";
-@use "./components/_overlay.scss";
 @use "./components/_game.scss";
 @use "./components/_settings.scss";
 @use "./components/_monocoins.scss";
@@ -230,9 +230,21 @@ details {
     text-align: center;
     font-size: 1.5em;
   }
+
+  &:empty {
+    display: none;
+  }
 }
 
 .switch {
   display: flex;
   gap: 0.5em;
+}
+
+.empty {
+  opacity: 0.75;
+
+  span {
+    margin-left: 0.5em;
+  }
 }

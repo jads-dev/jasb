@@ -1,24 +1,115 @@
 module JoeBets.Feed.Model exposing
     ( BetComplete
+    , Context
     , Event(..)
+    , Filter(..)
+    , Filters
     , IdAndName
     , Model
     , Msg(..)
     , NewBet
     , NotableStake
     , decoder
+    , defaultFilters
+    , filterBy
+    , possibleFilters
     , relevantGame
     )
 
+import EverySet exposing (EverySet)
 import JoeBets.Api.Data as Api
 import JoeBets.Api.Model as Api
 import JoeBets.Bet.Model as Bet
 import JoeBets.Bet.Option as Option
+import JoeBets.Filtering as Filtering
 import JoeBets.Game.Id as Game
 import JoeBets.User.Model as User
 import Json.Decode as JsonD
 import Json.Decode.Pipeline as JsonD
 import Util.Json.Decode as JsonD
+
+
+type alias Context =
+    { favouriteGames : EverySet Game.Id }
+
+
+type Filter
+    = FavouriteFilter
+    | NewBetFilter
+    | BetCompleteFilter
+    | NotableStakeFilter
+
+
+possibleFilters : List Filter
+possibleFilters =
+    [ FavouriteFilter
+    , NewBetFilter
+    , BetCompleteFilter
+    , NotableStakeFilter
+    ]
+
+
+defaultFilters : EverySet Filter
+defaultFilters =
+    [ NewBetFilter, BetCompleteFilter, NotableStakeFilter ] |> EverySet.fromList
+
+
+type alias Filters =
+    EverySet Filter
+
+
+filterFrom : Context -> Filter -> Filtering.Criteria Event
+filterFrom context filter =
+    case filter of
+        FavouriteFilter ->
+            Filtering.Exclude
+                (\event ->
+                    relevantGame event
+                        |> Maybe.map (\g -> context.favouriteGames |> EverySet.member g |> not)
+                        |> Maybe.withDefault True
+                )
+
+        NewBetFilter ->
+            Filtering.Include
+                (\event ->
+                    case event of
+                        NB _ ->
+                            True
+
+                        _ ->
+                            False
+                )
+
+        BetCompleteFilter ->
+            Filtering.Include
+                (\event ->
+                    case event of
+                        BC _ ->
+                            True
+
+                        _ ->
+                            False
+                )
+
+        NotableStakeFilter ->
+            Filtering.Include
+                (\event ->
+                    case event of
+                        NS _ ->
+                            True
+
+                        _ ->
+                            False
+                )
+
+
+filterBy : Filters -> Context -> (Event -> Bool)
+filterBy filters context =
+    let
+        criteria =
+            filters |> EverySet.toList |> List.map (filterFrom context)
+    in
+    criteria |> Filtering.combine |> Filtering.toPredicate
 
 
 type alias IdAndName id =
@@ -157,12 +248,12 @@ type alias Item =
 type Msg
     = Load (Api.Response (List Item))
     | RevealSpoilers Int
-    | SetFavouritesOnly Bool
+    | ToggleFilter Filter
 
 
 type alias Model =
     { items : Api.Data (List Item)
-    , favouritesOnly : Bool
+    , filters : Filters
     }
 
 

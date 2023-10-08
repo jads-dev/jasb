@@ -25,7 +25,6 @@ import JoeBets.Gacha.Balance as Balance
 import JoeBets.Gacha.Banner as Banner
 import JoeBets.Gacha.Card as Card
 import JoeBets.Messages as Global
-import JoeBets.Overlay as Overlay
 import JoeBets.Page exposing (Page)
 import JoeBets.Page.Gacha.Balance as Balance
 import JoeBets.Page.Gacha.Banner as Banner
@@ -41,6 +40,7 @@ import JoeBets.User.Model as User
 import Json.Encode as JsonE
 import List.Extra as List
 import Material.Button as Button
+import Material.Dialog as Dialog
 import Material.IconButton as IconButton
 import Platform.Cmd as Cmd
 import Task
@@ -475,12 +475,6 @@ update msg ({ origin, collection } as model) =
                             , cmd
                             )
 
-                        CancelRecycle ->
-                            ( gacha
-                            , { collection | recycleConfirmation = Nothing }
-                            , Cmd.none
-                            )
-
                         Recycled response ->
                             let
                                 -- Ignored because we use updateData lower down.
@@ -508,7 +502,7 @@ update msg ({ origin, collection } as model) =
                             in
                             ( { gacha
                                 | balance = gacha.balance |> Api.updateData response
-                                , detailedCard = Api.initIdData
+                                , detailedCard = Gacha.closeDetailDialog gacha.detailedCard
                               }
                             , { updateConfirmationAndCards | saving = saving }
                             , Cmd.none
@@ -519,6 +513,11 @@ update msg ({ origin, collection } as model) =
                 , gacha = updatedGacha
               }
             , actionCmd
+            )
+
+        CancelRecycle ->
+            ( { model | collection = { collection | recycleConfirmation = Nothing } }
+            , Cmd.none
             )
 
         NoOp _ ->
@@ -585,7 +584,7 @@ viewHighlights maybeContext onClick model collection =
             else
                 Html.p [ HtmlA.class "empty" ]
                     [ Icon.ghost |> Icon.view
-                    , Html.text "This user has not showcased any cards."
+                    , Html.span [] [ Html.text "This user has not showcased any cards." ]
                     ]
 
         ( saveOrder, editButton ) =
@@ -664,53 +663,55 @@ view parent =
             manageContext parent.auth parent.collection
 
         confirmRecycle userId =
-            case parent.collection.recycleConfirmation of
-                Just { banner, card, value } ->
-                    let
-                        saving =
-                            parent.collection.saving
+            let
+                ( confirmContent, confirmAction ) =
+                    case parent.collection.recycleConfirmation of
+                        Just { banner, card, value } ->
+                            let
+                                saving =
+                                    parent.collection.saving
 
-                        cancel =
-                            RecycleCard userId banner card CancelRecycle |> wrap
-
-                        viewedValue =
-                            value
-                                |> Api.dataToMaybe
-                                |> Maybe.map Balance.viewValue
-                                |> Maybe.withDefault (Html.text "scrap proportional to the rarity")
-                    in
-                    [ Overlay.viewLevel 1
-                        cancel
-                        [ [ [ Html.p []
-                                [ Html.text "Are you sure you want to recycle this card? "
-                                , Html.text "There is no way to undo this, it will be gone forever. "
-                                , Html.text "You will get "
-                                , viewedValue
-                                , Html.text " for recycling the card."
-                                ]
-                            ]
-                          , Api.viewAction [] saving
-                          , [ Html.div [ HtmlA.class "controls" ]
-                                [ Html.span [ HtmlA.class "cancel" ]
-                                    [ Button.text "Cancel"
-                                        |> Button.button (cancel |> Just)
-                                        |> Button.icon [ Icon.times |> Icon.view ]
-                                        |> Button.view
+                                viewedValue =
+                                    value
+                                        |> Api.dataToMaybe
+                                        |> Maybe.map Balance.viewValue
+                                        |> Maybe.withDefault (Html.text "scrap proportional to the rarity")
+                            in
+                            ( [ [ Html.p []
+                                    [ Html.text "Are you sure you want to recycle this card? "
+                                    , Html.text "There is no way to undo this, it will be gone forever. "
+                                    , Html.text "You will get "
+                                    , viewedValue
+                                    , Html.text " for recycling the card."
                                     ]
-                                , Button.filled "Recycle"
-                                    |> Button.button (RecycleCard userId banner card ExecuteRecycle |> wrap |> Just |> Api.ifNotWorking saving)
-                                    |> Button.icon [ Icon.recycle |> Icon.view ]
-                                    |> Button.view
                                 ]
-                            ]
-                          ]
-                            |> List.concat
-                            |> Html.div [ HtmlA.id "confirm-recycle" ]
-                        ]
-                    ]
+                              , Api.viewAction [] saving
+                              ]
+                                |> List.concat
+                            , RecycleCard userId banner card ExecuteRecycle |> wrap |> Just |> Api.ifNotWorking saving
+                            )
 
-                Nothing ->
-                    []
+                        Nothing ->
+                            ( [], Nothing )
+            in
+            Dialog.dialog (CancelRecycle |> wrap)
+                confirmContent
+                [ Html.span [ HtmlA.class "cancel" ]
+                    [ Button.text "Cancel"
+                        |> Button.button (CancelRecycle |> wrap |> Just)
+                        |> Button.icon [ Icon.times |> Icon.view ]
+                        |> Button.view
+                    ]
+                , Button.filled "Recycle"
+                    |> Button.button confirmAction
+                    |> Button.icon [ Icon.recycle |> Icon.view ]
+                    |> Button.view
+                ]
+                (parent.collection.recycleConfirmation /= Nothing)
+                |> Dialog.headline [ Html.text "Confirm Recycling" ]
+                |> Dialog.alert
+                |> Dialog.attrs [ HtmlA.id "confirm-recycle-dialog" ]
+                |> Dialog.view
 
         viewDetailedCard ownerId bannerId card =
             Gacha.ViewDetailedCard
@@ -728,10 +729,10 @@ view parent =
             , viewHighlights maybeContext (viewDetailedCard |> Just) model collection
             , [ Html.h3 [] [ Html.text "Cards by Banner" ]
               , Banner.viewCollectionBanners collection.user.id collection.banners
+              , confirmRecycle userId
+              , Card.viewDetailedCardDialog maybeContext parent.gacha
+              , Card.viewDetailedCardTypeDialog parent.gacha
               ]
-            , confirmRecycle userId
-            , Card.viewDetailedCardOverlay maybeContext parent.gacha
-            , Card.viewDetailedCardTypeOverlay parent.gacha
             ]
                 |> List.concat
 
@@ -758,16 +759,14 @@ view parent =
                     }
                         |> Just
             in
-            [ [ User.viewLink User.Full userId user
-              , Route.a (Overview |> Route.CardCollection userId) [] [ Html.text "Back to Collection" ]
-              , Banner.viewCollectionBanner False userId bannerId banner
-              , Card.viewCardTypesWithCards onClick False userId bannerId bannerCollection.cardTypes
-              ]
-            , Card.viewDetailedCardOverlay maybeContext parent.gacha
-            , Card.viewDetailedCardTypeOverlay parent.gacha
+            [ User.viewLink User.Full userId user
+            , Route.a (Overview |> Route.CardCollection userId) [] [ Html.text "Back to Collection" ]
+            , Banner.viewCollectionBanner False userId bannerId banner
+            , Card.viewCardTypesWithCards onClick False userId bannerId bannerCollection.cardTypes
+            , Card.viewDetailedCardDialog maybeContext parent.gacha
+            , Card.viewDetailedCardTypeDialog parent.gacha
             , confirmRecycle userId
             ]
-                |> List.concat
 
         viewBannerPart userId bannerId _ =
             let

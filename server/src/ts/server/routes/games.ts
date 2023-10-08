@@ -59,7 +59,7 @@ export const gamesApi = (server: Server.State): Router => {
 
   const gamesCache = new ResultCache<Games.Library>(async () => {
     const getGames = async (subset: Internal.Games.Progress) =>
-      (await server.store.getGames(subset)).map(Games.withBetStatsFromInternal);
+      (await server.store.getGames(subset)).map(Games.fromInternal);
     const [future, current, finished] = await Promise.all([
       getGames("Future"),
       getGames("Current"),
@@ -106,8 +106,8 @@ export const gamesApi = (server: Server.State): Router => {
     if (internalGame === undefined) {
       throw new WebError(StatusCodes.NOT_FOUND, "Game not found.");
     }
-    const [, game] = Games.withBetStatsFromInternal(internalGame);
-    ctx.body = Games.WithBetStats.encode(game);
+    const [, game] = Games.fromInternal(internalGame);
+    ctx.body = Games.Game.encode(game);
   });
 
   // Get Game with Bets.
@@ -230,7 +230,7 @@ export const gamesApi = (server: Server.State): Router => {
       body.finished,
       body.order,
     );
-    ctx.body = Games.Game.encode(Games.withBetStatsFromInternal(game)[1]);
+    ctx.body = Games.Game.encode(Games.fromInternal(game)[1]);
   });
 
   const bets = betsApi(server);

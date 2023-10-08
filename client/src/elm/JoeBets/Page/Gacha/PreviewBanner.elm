@@ -87,8 +87,9 @@ view desiredBannerId { auth, gacha } =
             in
             [ [ Banner.viewPreviewBanner bannerId banner ]
             , loggedIn
-            , [ cardTypes |> Card.viewCardTypes (Just viewDetailedCardType) bannerId ]
-            , Card.viewDetailedCardTypeOverlay gacha
+            , [ cardTypes |> Card.viewCardTypes (Just viewDetailedCardType) bannerId
+              , Card.viewDetailedCardTypeDialog gacha
+              ]
             ]
                 |> List.concat
     in

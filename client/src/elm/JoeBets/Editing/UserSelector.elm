@@ -221,11 +221,19 @@ view wrap idSuffix required { query, selected, options } =
                 Just { user } ->
                     [ InputChip.chip (User.nameString user) (Deselect |> wrap |> Just)
                         |> InputChip.icon [ User.viewAvatar user ] True
+                        |> InputChip.attrs [ HtmlA.class "selected" ]
                         |> InputChip.view
                     ]
 
                 Nothing ->
                     [ Icon.view Icon.circleUser ]
+
+        error =
+            if required && selected == Nothing then
+                Just "You must select a user."
+
+            else
+                Nothing
 
         queryEditor =
             Html.div [ HtmlA.id id, HtmlA.class "search" ]
@@ -245,6 +253,7 @@ view wrap idSuffix required { query, selected, options } =
                             |> IconButton.view
                         ]
                     |> TextField.required required
+                    |> TextField.error error
                     |> TextField.leadingIcon renderedSelected
                     |> TextField.view
                 ]

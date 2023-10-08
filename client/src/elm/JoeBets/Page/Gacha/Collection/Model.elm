@@ -45,7 +45,6 @@ type RecycleProcess
     = AskConfirmRecycle
     | GetRecycleValue (Api.Response Balance.Value)
     | ExecuteRecycle
-    | CancelRecycle
     | Recycled (Api.Response Balance)
 
 
@@ -60,6 +59,7 @@ type Msg
     | ReorderHighlights User.Id (DragDrop.Msg Card.Id Int)
     | SaveHighlightOrder User.Id (List Card.Id) (Maybe (Api.Response Card.Highlights))
     | RecycleCard User.Id Banner.Id Card.Id RecycleProcess
+    | CancelRecycle
     | NoOp String
 
 

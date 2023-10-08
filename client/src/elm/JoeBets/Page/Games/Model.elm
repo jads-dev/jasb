@@ -1,13 +1,21 @@
 module JoeBets.Page.Games.Model exposing
-    ( Games
+    ( Context
+    , Filter(..)
+    , Filters
+    , Games
     , Model
     , Msg(..)
+    , defaultFilters
+    , filterBy
     , gamesDecoder
+    , possibleFilters
     )
 
 import AssocList
+import EverySet exposing (EverySet)
 import JoeBets.Api.Data as Api
 import JoeBets.Api.Model as Api
+import JoeBets.Filtering as Filtering
 import JoeBets.Game.Id as Game
 import JoeBets.Game.Model as Game exposing (Game)
 import Json.Decode as JsonD
@@ -15,9 +23,92 @@ import Json.Decode.Pipeline as JsonD
 import Util.Json.Decode as JsonD
 
 
+type alias Context =
+    { favouriteGames : EverySet Game.Id }
+
+
+type Filter
+    = FavouriteFilter
+    | HaveBetsFilter
+    | CurrentFilter
+    | FutureFilter
+    | FinishedFilter
+
+
+possibleFilters : List Filter
+possibleFilters =
+    [ FavouriteFilter
+    , HaveBetsFilter
+    , CurrentFilter
+    , FutureFilter
+    , FinishedFilter
+    ]
+
+
+defaultFilters : EverySet Filter
+defaultFilters =
+    [ CurrentFilter, FutureFilter, FinishedFilter ] |> EverySet.fromList
+
+
+type alias Filters =
+    EverySet Filter
+
+
+filterFrom : Context -> Filter -> Filtering.Criteria ( Game.Id, Game )
+filterFrom context filter =
+    case filter of
+        FavouriteFilter ->
+            Filtering.Exclude (\( id, _ ) -> context.favouriteGames |> EverySet.member id |> not)
+
+        HaveBetsFilter ->
+            Filtering.Exclude (\( _, bet ) -> bet.bets == 0)
+
+        CurrentFilter ->
+            Filtering.Include
+                (\( _, bet ) ->
+                    case bet.progress of
+                        Game.Current _ ->
+                            True
+
+                        _ ->
+                            False
+                )
+
+        FutureFilter ->
+            Filtering.Include
+                (\( _, bet ) ->
+                    case bet.progress of
+                        Game.Future _ ->
+                            True
+
+                        _ ->
+                            False
+                )
+
+        FinishedFilter ->
+            Filtering.Include
+                (\( _, bet ) ->
+                    case bet.progress of
+                        Game.Finished _ ->
+                            True
+
+                        _ ->
+                            False
+                )
+
+
+filterBy : Filters -> Context -> (( Game.Id, Game ) -> Bool)
+filterBy filters context =
+    let
+        criteria =
+            filters |> EverySet.toList |> List.map (filterFrom context)
+    in
+    criteria |> Filtering.combine |> Filtering.toPredicate
+
+
 type alias Model =
     { games : Api.Data Games
-    , favouritesOnly : Bool
+    , filters : Filters
     }
 
 
@@ -42,4 +133,4 @@ gamesDecoder =
 
 type Msg
     = Load (Api.Response Games)
-    | SetFavouritesOnly Bool
+    | ToggleFilter Filter

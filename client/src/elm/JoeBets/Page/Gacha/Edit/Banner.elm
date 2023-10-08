@@ -22,7 +22,6 @@ import JoeBets.Editing.Validator as Validator exposing (Validator)
 import JoeBets.Gacha.Banner as Banner exposing (EditableBanner, EditableBanners)
 import JoeBets.Material as Material
 import JoeBets.Messages as Global
-import JoeBets.Overlay as Overlay
 import JoeBets.Page exposing (Page)
 import JoeBets.Page.Gacha.Edit.Banner.Model exposing (..)
 import JoeBets.Page.Gacha.Model as Gacha
@@ -31,6 +30,7 @@ import JoeBets.Route as Route
 import Json.Encode as JsonE
 import List.Extra as List
 import Material.Button as Button
+import Material.Dialog as Dialog
 import Material.IconButton as IconButton
 import Material.Switch as Switch
 import Material.TextField as TextField
@@ -206,7 +206,7 @@ updateBannersEditor msg ({ gacha } as model) =
                                 time
 
                         startAdd _ _ _ =
-                            Editor newBanner Uploader.init "" "" Api.initAction |> Just
+                            Editor True newBanner Uploader.init "" "" Api.initAction |> Just
                     in
                     ( updateEditor startAdd model, Cmd.none )
 
@@ -218,7 +218,8 @@ updateBannersEditor msg ({ gacha } as model) =
         Edit id ->
             let
                 fromBanner banner =
-                    Editor banner
+                    Editor True
+                        banner
                         (Uploader.fromUrl banner.cover)
                         (Color.toHexStringWithoutAlpha banner.colors.background)
                         (Color.toHexStringWithoutAlpha banner.colors.foreground)
@@ -234,10 +235,10 @@ updateBannersEditor msg ({ gacha } as model) =
 
         Cancel ->
             let
-                cancel _ _ _ =
-                    Nothing
+                cancel editor =
+                    { editor | open = False }
             in
-            ( updateEditor cancel model, Cmd.none )
+            ( updateEditor (\_ _ -> Maybe.map cancel) model, Cmd.none )
 
         Save maybeResult ->
             case gacha.bannerEditor of
@@ -272,8 +273,7 @@ updateBannersEditor msg ({ gacha } as model) =
                                         Just { editor | save = state }
 
                                     else
-                                        -- Hide the editor when we have finished saving.
-                                        Nothing
+                                        Just { editor | open = False }
                             in
                             ( { model
                                 | gacha =
@@ -483,66 +483,71 @@ coverUploaderModel =
     }
 
 
-bannerEditor : Editor -> List (Html Global.Msg)
-bannerEditor { banner, save, coverUploader, background, foreground } =
+bannerEditor : Maybe Editor -> Html Global.Msg
+bannerEditor maybeEditor =
     let
         cancel =
             Cancel |> wrap
 
-        ifNotSaving =
-            Api.ifNotWorking save
-    in
-    [ Overlay.view cancel
-        [ [ [ Html.div [ HtmlA.class "fields" ]
-                [ Slug.view Banner.idFromString Banner.idToString (SetId >> wrap |> Just |> ifNotSaving) banner.name banner.id
-                , Html.label [ HtmlA.class "switch" ]
-                    [ Html.span [] [ Html.text "Is Active" ]
-                    , Switch.switch
-                        (SetActive >> wrap |> Just |> ifNotSaving)
-                        banner.active
-                        |> Switch.view
-                    ]
-                , TextField.outlined "Name"
-                    (SetName >> wrap |> Just |> ifNotSaving)
-                    banner.name
-                    |> TextField.required True
-                    |> TextField.view
-                , Validator.view nameValidator banner
-                , Uploader.view (SetCover >> wrap |> Just |> ifNotSaving) coverUploaderModel coverUploader
-                , Validator.view coverValidator banner
-                , Color.picker "Background Color" (SetBackground >> wrap |> Just |> ifNotSaving) background
-                , Color.picker "Foreground Color" (SetForeground >> wrap |> Just |> ifNotSaving) foreground
-                , TextField.outlined "Description"
-                    (SetDescription >> wrap |> Just)
-                    banner.description
-                    |> TextField.textArea
-                    |> TextField.required True
-                    |> TextField.view
-                , Validator.view descriptionValidator banner
-                ]
-            ]
-          , Api.viewAction [] save
-          , [ Html.div [ HtmlA.class "controls" ]
-                [ Html.span [ HtmlA.class "cancel" ]
-                    [ Button.text "Cancel"
-                        |> Button.button (cancel |> Just |> ifNotSaving)
-                        |> Button.icon [ Icon.times |> Icon.view ]
-                        |> Button.view
-                    ]
-                , Button.filled "Save"
-                    |> Button.button (Save Nothing |> wrap |> Validator.whenValid validator banner |> ifNotSaving)
-                    |> Button.icon [ Icon.save |> Icon.view ]
+        ( dialogOpen, dialogContent, action ) =
+            case maybeEditor of
+                Just { open, banner, save, coverUploader, background, foreground } ->
+                    let
+                        ifNotSaving =
+                            Api.ifNotWorking save
+                    in
+                    ( open
+                    , [ Html.div [ HtmlA.class "fields" ]
+                            [ Slug.view Banner.idFromString Banner.idToString (SetId >> wrap |> Just |> ifNotSaving) banner.name banner.id
+                            , Html.label [ HtmlA.class "switch" ]
+                                [ Html.span [] [ Html.text "Is Active" ]
+                                , Switch.switch
+                                    (SetActive >> wrap |> Just |> ifNotSaving)
+                                    banner.active
+                                    |> Switch.view
+                                ]
+                            , TextField.outlined "Name"
+                                (SetName >> wrap |> Just |> ifNotSaving)
+                                banner.name
+                                |> TextField.required True
+                                |> TextField.view
+                            , Validator.view nameValidator banner
+                            , Uploader.view (SetCover >> wrap |> Just |> ifNotSaving) coverUploaderModel coverUploader
+                            , Validator.view coverValidator banner
+                            , Color.picker "Background Color" (SetBackground >> wrap |> Just |> ifNotSaving) background
+                            , Color.picker "Foreground Color" (SetForeground >> wrap |> Just |> ifNotSaving) foreground
+                            , TextField.outlined "Description"
+                                (SetDescription >> wrap |> Just)
+                                banner.description
+                                |> TextField.textArea
+                                |> TextField.required True
+                                |> TextField.view
+                            , Validator.view descriptionValidator banner
+                            ]
+                      ]
+                    , Save Nothing |> wrap |> Validator.whenValid validator banner |> ifNotSaving
+                    )
+
+                Nothing ->
+                    ( False, [], Nothing )
+
+        controls =
+            [ Html.span [ HtmlA.class "cancel" ]
+                [ Button.text "Cancel"
+                    |> Button.button (cancel |> Just)
+                    |> Button.icon [ Icon.times |> Icon.view ]
                     |> Button.view
                 ]
+            , Button.filled "Save"
+                |> Button.button action
+                |> Button.icon [ Icon.save |> Icon.view ]
+                |> Button.view
             ]
-          ]
-            |> List.concat
-            |> Html.div
-                [ HtmlA.id "banner-editor"
-                , HtmlA.class "overlay-editor"
-                ]
-        ]
-    ]
+    in
+    Dialog.dialog cancel dialogContent controls dialogOpen
+        |> Dialog.headline [ Html.text "Edit Banner" ]
+        |> Dialog.attrs [ HtmlA.id "banner-editor", HtmlA.class "dialog-editor" ]
+        |> Dialog.view
 
 
 viewBanner : Time.Context -> List Banner.Id -> Gacha.Model -> Int -> ( Banner.Id, EditableBanner ) -> ( String, Html Global.Msg )
@@ -661,7 +666,7 @@ viewBannersEditor { time, gacha } =
     , body =
         [ [ Html.h2 [] [ Html.text "Edit Banners" ] ]
         , gacha.editableBanners |> Api.viewData Api.viewOrError (viewBanners time gacha)
-        , gacha.bannerEditor |> Maybe.map bannerEditor |> Maybe.withDefault []
+        , [ bannerEditor gacha.bannerEditor ]
         ]
             |> List.concat
     }

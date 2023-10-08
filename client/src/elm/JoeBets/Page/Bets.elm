@@ -23,12 +23,12 @@ import JoeBets.Bet.Editor.LockMoment as LockMoment
 import JoeBets.Bet.Model as Bet
 import JoeBets.Bet.PlaceBet as PlaceBet
 import JoeBets.Bet.PlaceBet.Model as PlaceBet
+import JoeBets.Filtering as Filtering
 import JoeBets.Game as Game
 import JoeBets.Game.Id as Game
 import JoeBets.Game.Model as Game
 import JoeBets.Material as Material
 import JoeBets.Messages as Global
-import JoeBets.Overlay as Overlay
 import JoeBets.Page exposing (Page)
 import JoeBets.Page.Bets.Filters as Filters exposing (Filters)
 import JoeBets.Page.Bets.Model exposing (..)
@@ -46,6 +46,7 @@ import Json.Encode as JsonE
 import Material.Button as Button
 import Material.Chips as Chips
 import Material.Chips.Filter as FilterChip
+import Material.Dialog as Dialog
 import Material.IconButton as IconButton
 import Material.Switch as Switch
 import Time.Model as Time
@@ -84,8 +85,11 @@ init storeData =
             , placeBet = PlaceBet.init
             , filters = AssocList.empty
             , favourites = Item.default Codecs.gameFavourites
-            , lockStatus = Api.initData
-            , lockAction = Api.initAction
+            , lockManager =
+                { open = False
+                , status = Api.initData
+                , action = Api.initAction
+                }
             }
     in
     storeData |> List.filterMap fromItem |> List.foldl apply model
@@ -146,6 +150,11 @@ updateSelected gameId change ({ bets } as model) =
     { model | bets = { bets | gameBets = bets.gameBets |> Maybe.map changeIfGameMatches } }
 
 
+updateLockManager : (LockManager -> LockManager) -> Parent a -> Parent a
+updateLockManager f ({ bets } as model) =
+    { model | bets = { bets | lockManager = f model.bets.lockManager } }
+
+
 update : Msg -> Parent a -> ( Parent a, Cmd Global.Msg )
 update msg ({ bets, origin, time } as model) =
     case msg of
@@ -196,7 +205,7 @@ update msg ({ bets, origin, time } as model) =
                             in
                             m |> updateSelected gameId applyToSelected
             in
-            ( List.foldl applyChange { model | bets = { bets | placeBet = Nothing } } changes, Cmd.none )
+            ( List.foldl applyChange { model | bets = bets |> PlaceBet.close } changes, Cmd.none )
 
         SetFilter filter visible ->
             case bets.gameBets of
@@ -268,19 +277,23 @@ update msg ({ bets, origin, time } as model) =
                                     , decoder = gameLockStatusDecoder
                                     }
                                         |> Api.get origin
-                                        |> Api.getData bets.lockStatus
+                                        |> Api.getData bets.lockManager.status
+
+                                newLockManager lockManager =
+                                    { lockManager | open = True, status = lockStatus }
                             in
-                            ( { model | bets = { bets | lockStatus = lockStatus } }
+                            ( model |> updateLockManager newLockManager
                             , cmd
                             )
                     in
                     bets.gameBets |> Maybe.map result |> Maybe.withDefault ( model, Cmd.none )
 
                 LockBetsData response ->
-                    ( { model
-                        | bets =
-                            { bets | lockStatus = bets.lockStatus |> Api.updateData response }
-                      }
+                    let
+                        newLockManager lockManager =
+                            { lockManager | status = lockManager.status |> Api.updateData response }
+                    in
+                    ( model |> updateLockManager newLockManager
                     , Cmd.none
                     )
 
@@ -300,16 +313,19 @@ update msg ({ bets, origin, time } as model) =
                             , decoder = EditableBet.decoder
                             }
                                 |> Api.post origin
-                                |> Api.doAction bets.lockAction
+                                |> Api.doAction bets.lockManager.action
+
+                        newLockManager lockManager =
+                            { lockManager | action = actionState }
                     in
-                    ( { model | bets = { bets | lockAction = actionState } }
+                    ( model |> updateLockManager newLockManager
                     , request
                     )
 
                 Changed _ betTarget response ->
                     let
                         ( maybeUpdatedBet, actionState ) =
-                            bets.lockAction |> Api.handleActionResult response
+                            bets.lockManager.action |> Api.handleActionResult response
 
                         updatedLockStatusFromUpdatedBet updatedBet =
                             let
@@ -329,25 +345,25 @@ update msg ({ bets, origin, time } as model) =
                         lockStatus =
                             case maybeUpdatedBet |> Maybe.map updatedLockStatusFromUpdatedBet of
                                 Just modifyLockStatus ->
-                                    bets.lockStatus |> Api.mapData modifyLockStatus
+                                    bets.lockManager.status |> Api.mapData modifyLockStatus
 
                                 Nothing ->
-                                    bets.lockStatus
+                                    bets.lockManager.status
+
+                        newLockManager lockManager =
+                            { lockManager | action = actionState, status = lockStatus }
                     in
-                    ( { model
-                        | bets =
-                            { bets
-                                | lockStatus = lockStatus
-                                , lockAction = actionState
-                            }
-                      }
+                    ( model |> updateLockManager newLockManager
                     , Cmd.none
                     )
 
                 Close ->
                     let
+                        newLockManager lockManager =
+                            { lockManager | open = False }
+
                         newModel =
-                            { model | bets = { bets | lockStatus = Api.initData } }
+                            model |> updateLockManager newLockManager
                     in
                     case bets.gameBets of
                         Just { id, subset } ->
@@ -357,8 +373,8 @@ update msg ({ bets, origin, time } as model) =
                             ( newModel, Cmd.none )
 
 
-viewActiveFilters : Subset -> Filters.Resolved -> Filters -> List (Html Global.Msg) -> Html Global.Msg
-viewActiveFilters subset filters gameFilters shownAmount =
+viewActiveFilters : Subset -> Filters.Resolved -> Filters -> Int -> Int -> Html Global.Msg
+viewActiveFilters subset filters gameFilters totalCount shownCount =
     let
         active =
             case subset of
@@ -382,16 +398,7 @@ viewActiveFilters subset filters gameFilters shownAmount =
                 |> FilterChip.attrs [ HtmlA.title description ]
                 |> FilterChip.view
     in
-    Html.div [ HtmlA.class "filters" ]
-        [ Html.div [ HtmlA.class "title" ]
-            [ Html.span [] ((Icon.filter |> Icon.view) :: Html.text " Filter bets " :: shownAmount)
-            , IconButton.icon (Icon.backspace |> Icon.view)
-                "Reset filters to default."
-                |> IconButton.button (ClearFilters |> wrap |> Maybe.when (gameFilters |> Filters.any))
-                |> IconButton.view
-            ]
-        , active |> List.map viewFilter |> Chips.set []
-        ]
+    active |> List.map viewFilter |> Filtering.viewFilters "Bets" totalCount shownCount
 
 
 view : Parent a -> Page Global.Msg
@@ -468,20 +475,11 @@ view model =
                         |> List.map (Tuple.second >> List.length)
                         |> List.sum
 
-                shownAmount =
-                    [ Html.text "("
-                    , shownCount
-                        |> String.fromInt
-                        |> Html.text
-                    , Html.text "/"
-                    , bets
+                totalCount =
+                    bets
                         |> AssocList.values
                         |> List.map (Tuple.second >> AssocList.size)
                         |> List.sum
-                        |> String.fromInt
-                        |> Html.text
-                    , Html.text " shown)."
-                    ]
 
                 actions =
                     case subset of
@@ -532,9 +530,6 @@ view model =
                                         []
                             in
                             [ suggest ]
-
-                viewValue =
-                    viewLockStatus id model.bets.lockAction
             in
             [ [ Html.div [ HtmlA.class "game-detail" ]
                     [ Game.view
@@ -546,8 +541,9 @@ view model =
                         id
                         game
                     , Game.viewManagers game
+                    , lockStatusDialog id model.bets.lockManager
                     ]
-              , Html.div [ HtmlA.class "controls" ] [ viewActiveFilters subset filters gameFilters shownAmount ]
+              , Html.div [ HtmlA.class "controls" ] [ viewActiveFilters subset filters gameFilters totalCount shownCount ]
               , if shownCount > 0 then
                     betsRendered
                         |> AssocList.toList
@@ -555,12 +551,11 @@ view model =
                         |> HtmlK.ol [ HtmlA.class "lock-moments" ]
 
                 else
-                    Html.p [ HtmlA.class "empty" ] [ Icon.ghost |> Icon.view, Html.text "No matching bets." ]
+                    Html.p [ HtmlA.class "empty" ] [ Icon.ghost |> Icon.view, Html.span [] [ Html.text "No matching bets." ] ]
               , Html.ul [ HtmlA.class "final-actions" ]
                     (actions |> List.concat |> List.map (List.singleton >> Html.li []))
               ]
             , model.auth.localUser |> Maybe.map placeBetView |> Maybe.withDefault []
-            , model.bets.lockStatus |> Api.viewData lockStatusViewModel viewValue
             ]
                 |> List.concat
 
@@ -584,32 +579,6 @@ view model =
     { title = "Bets for “" ++ gameName ++ "”"
     , id = "bets"
     , body = remoteData |> Api.viewData Api.viewOrError body
-    }
-
-
-lockStatusViewModel : Api.ViewModel Global.Msg
-lockStatusViewModel =
-    let
-        container contents =
-            [ Overlay.view (LockBets Close |> wrap)
-                [ [ contents
-                  , [ Button.text "Close"
-                        |> Button.button (LockBets Close |> wrap |> Just)
-                        |> Button.icon [ Icon.times |> Icon.view ]
-                        |> Button.view
-                    ]
-                  ]
-                    |> List.concat
-                    |> Html.div [ HtmlA.id "lock-manager" ]
-                ]
-            ]
-    in
-    { container = container
-    , default = []
-    , loadingDescription =
-        [ Html.div [ HtmlA.class "load-description" ]
-            [ Html.text "Loading..." ]
-        ]
     }
 
 
@@ -638,7 +607,7 @@ viewLockStatus gameId lockAction lockStatus =
             let
                 content =
                     if AssocList.isEmpty details.lockStatus then
-                        [ Html.li [ HtmlA.class "empty" ] [ Html.span [] [ Icon.ghost |> Icon.view, Html.text " No bets for lock moment." ] ] ]
+                        [ Html.li [ HtmlA.class "empty" ] [ Html.div [] [ Icon.ghost |> Icon.view, Html.span [] [ Html.text " No bets for lock moment." ] ] ] ]
 
                     else
                         details.lockStatus |> AssocList.toList |> List.map viewBet
@@ -652,13 +621,28 @@ viewLockStatus gameId lockAction lockStatus =
         header =
             Html.li [ HtmlA.class "header" ]
                 [ Html.span [ HtmlA.class "name" ] [ Html.text "Bet" ]
-                , Html.span [ HtmlA.class "locked" ] [ Html.text "Locked" ]
+                , Html.span [ HtmlA.class "locked" ] [ Html.text "Lock" ]
                 ]
 
         bets =
             lockStatus |> AssocList.toList |> List.concatMap viewLockMomentBets
     in
     [ header :: bets |> Html.ol [] ]
+
+
+lockStatusDialog : Game.Id -> LockManager -> Html Global.Msg
+lockStatusDialog id { open, status, action } =
+    Dialog.dialog (LockBets Close |> wrap)
+        (status |> Api.viewData Api.viewOrError (viewLockStatus id action))
+        [ Button.text "Close"
+            |> Button.button (LockBets Close |> wrap |> Just)
+            |> Button.icon [ Icon.times |> Icon.view ]
+            |> Button.view
+        ]
+        open
+        |> Dialog.headline [ Html.text "Change Lock Status" ]
+        |> Dialog.attrs [ HtmlA.id "lock-manager" ]
+        |> Dialog.view
 
 
 apply : StoreChange -> Model -> Model

@@ -1,4 +1,7 @@
-module Util.EverySet exposing (setMembership)
+module Util.EverySet exposing
+    ( setMembership
+    , toggle
+    )
 
 import EverySet exposing (..)
 
@@ -10,3 +13,8 @@ setMembership desiredMembership =
 
     else
         remove
+
+
+toggle : item -> EverySet item -> EverySet item
+toggle item set =
+    setMembership (member item set |> not) item set

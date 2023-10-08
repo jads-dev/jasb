@@ -5,9 +5,9 @@ module JoeBets.Page.Gacha.Card exposing
     , viewCardTypesWithCards
     , viewCards
     , viewDetailedCard
-    , viewDetailedCardOverlay
+    , viewDetailedCardDialog
     , viewDetailedCardType
-    , viewDetailedCardTypeOverlay
+    , viewDetailedCardTypeDialog
     , viewHighlight
     , viewPlaceholder
     )
@@ -34,7 +34,6 @@ import JoeBets.Gacha.CardType.WithCards as CardType
 import JoeBets.Gacha.Credits as Credits
 import JoeBets.Gacha.Quality as Quality
 import JoeBets.Messages as Global
-import JoeBets.Overlay as Overlay
 import JoeBets.Page.Gacha.Collection.Model as Collection
 import JoeBets.Page.Gacha.Model as Gacha
 import JoeBets.User as User
@@ -42,6 +41,8 @@ import JoeBets.User.Model as User
 import Json.Decode as JsonD
 import List
 import List.Extra as List
+import Material.Button as Button
+import Material.Dialog as Dialog
 import Material.IconButton as IconButton
 import Material.TextField as TextField
 import Util.Maybe as Maybe
@@ -314,68 +315,62 @@ viewDetailedCardType bannerId cardTypeId cardType =
         |> viewDetailedInternal Nothing bannerId cardType
 
 
-viewDetailedCardOverlay : Maybe Collection.ManageContext -> Gacha.Model -> List (Html Global.Msg)
-viewDetailedCardOverlay maybeContext { detailedCard } =
+viewDetailedCardDialog : Maybe Collection.ManageContext -> Gacha.Model -> Html Global.Msg
+viewDetailedCardDialog maybeContext { detailedCard } =
     let
         close =
             Gacha.HideDetailedCard |> wrap
 
         viewDetailedData { ownerId, bannerId, cardId } card =
-            [ Html.ul [ HtmlA.class "controls" ]
-                [ Html.li [ HtmlA.class "spacer" ] []
-                , Html.li [ HtmlA.class "close" ]
-                    [ IconButton.icon (Icon.times |> Icon.view) "Close"
-                        |> IconButton.button (Just close)
-                        |> IconButton.view
-                    ]
-                ]
-            , viewDetailedCard maybeContext ownerId bannerId cardId card
-            ]
+            [ viewDetailedCard maybeContext ownerId bannerId cardId card ]
 
         viewGiven ( pointer, card ) =
-            [ [ card
-                    |> Api.viewData Api.viewOrError (viewDetailedData pointer)
-                    |> Html.div [ HtmlA.class "card-detail-overlay" ]
-              ]
-                |> Overlay.view close
-            ]
+            card |> Api.viewData Api.viewOrError (viewDetailedData pointer)
+
+        data =
+            detailedCard.detail |> Api.idDataToData
     in
-    detailedCard
-        |> Api.idDataToData
-        |> Maybe.map viewGiven
-        |> Maybe.withDefault []
+    Dialog.dialog
+        close
+        (data |> Maybe.map viewGiven |> Maybe.withDefault [])
+        [ Button.text "Close"
+            |> Button.icon [ Icon.times |> Icon.view ]
+            |> Button.button (Just close)
+            |> Button.view
+        ]
+        detailedCard.open
+        |> Dialog.headline [ Html.text "Card Details" ]
+        |> Dialog.attrs [ HtmlA.class "card-detail-dialog" ]
+        |> Dialog.view
 
 
-viewDetailedCardTypeOverlay : Gacha.Model -> List (Html Global.Msg)
-viewDetailedCardTypeOverlay { detailedCardType } =
+viewDetailedCardTypeDialog : Gacha.Model -> Html Global.Msg
+viewDetailedCardTypeDialog { detailedCardType } =
     let
         close =
             Gacha.HideDetailedCardType |> wrap
 
         viewDetailedData { bannerId, cardTypeId } cardType =
-            [ Html.ul [ HtmlA.class "controls" ]
-                [ Html.li [ HtmlA.class "spacer" ] []
-                , Html.li [ HtmlA.class "close" ]
-                    [ IconButton.icon (Icon.times |> Icon.view) "Close"
-                        |> IconButton.button (Just close)
-                        |> IconButton.view
-                    ]
-                ]
-            , viewDetailedCardType bannerId cardTypeId cardType
-            ]
+            [ viewDetailedCardType bannerId cardTypeId cardType ]
 
         viewGiven ( pointer, cardType ) =
-            [ [ cardType
-                    |> Api.viewData Api.viewOrError (viewDetailedData pointer)
-                    |> Html.div [ HtmlA.class "card-detail-overlay" ]
-              ]
-                |> Overlay.view close
-            ]
+            cardType |> Api.viewData Api.viewOrError (viewDetailedData pointer)
+
+        data =
+            detailedCardType.detail |> Api.idDataToData
     in
-    detailedCardType
-        |> Api.idDataToData
-        |> Maybe.map viewGiven
-        |> Maybe.withDefault []
+    Dialog.dialog
+        close
+        (data |> Maybe.map viewGiven |> Maybe.withDefault [])
+        [ Button.text "Close"
+            |> Button.icon [ Icon.times |> Icon.view ]
+            |> Button.button (Just close)
+            |> Button.view
+        ]
+        detailedCardType.open
+        |> Dialog.headline [ Html.text "Card Details" ]
+        |> Dialog.attrs [ HtmlA.class "card-detail-dialog" ]
+        |> Dialog.view
 
 
 internalViewCards : Maybe (Card.Id -> Global.Msg) -> (Card.Id -> List (Html.Attribute Global.Msg)) -> User.Id -> Banner.Id -> Card.Cards -> List ( String, Html Global.Msg )
