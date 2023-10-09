@@ -515,9 +515,42 @@ viewCardTypeSummary time banner ( id, cardType ) =
     )
 
 
-viewCardTypeSummaries : Time.Context -> Banner.Id -> EditableCardTypes -> List (Html Global.Msg)
-viewCardTypeSummaries time banner cardTypes =
-    [ cardTypes
+viewRarityStats : Rarity.Context -> EditableCardTypes -> Html msg
+viewRarityStats { rarities } cardTypes =
+    let
+        counts =
+            cardTypes
+                |> AssocList.toList
+                |> List.map (\( _, { rarity } ) -> rarity)
+                |> AssocList.count
+
+        listItem ( rarity, { name } ) =
+            Html.li []
+                [ Html.span [ HtmlA.class "rarity" ] [ Html.text name, Html.text ": " ]
+                , Html.span [ HtmlA.class "count" ]
+                    [ counts
+                        |> AssocList.get rarity
+                        |> Maybe.withDefault 0
+                        |> String.fromInt
+                        |> Html.text
+                    ]
+                ]
+    in
+    Html.div [ HtmlA.class "rarity-stats" ]
+        [ Html.p [] [ Html.text "Cards by rarity in this banner:" ]
+        , rarities
+            |> Api.dataToMaybe
+            |> Maybe.withDefault AssocList.empty
+            |> AssocList.toList
+            |> List.map listItem
+            |> Html.ol []
+        ]
+
+
+viewCardTypeSummaries : Time.Context -> Rarity.Context -> Banner.Id -> EditableCardTypes -> List (Html Global.Msg)
+viewCardTypeSummaries time rarityContext banner cardTypes =
+    [ viewRarityStats rarityContext cardTypes
+    , cardTypes
         |> AssocList.toList
         |> List.map (viewCardTypeSummary time banner)
         |> HtmlK.ol [ HtmlA.class "editor card-type-editor" ]
@@ -535,7 +568,7 @@ viewCardTypesEditor { time, gacha } =
     , body =
         [ [ Html.h2 [] [ Html.text "Edit Card Types" ] ]
         , gacha.editableCardTypes
-            |> Api.viewIdData Api.viewOrError (viewCardTypeSummaries time)
+            |> Api.viewIdData Api.viewOrError (viewCardTypeSummaries time gacha.rarityContext)
         , [ gacha.cardTypeEditor |> cardTypeEditor gacha.rarityContext ]
         ]
             |> List.concat

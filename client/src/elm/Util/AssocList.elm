@@ -1,5 +1,6 @@
 module Util.AssocList exposing
-    ( filterJust
+    ( count
+    , filterJust
     , filterMap
     , findIndexOfKey
     , findKeyAtIndex
@@ -138,3 +139,15 @@ replace target newValue =
 insertAtEnd : key -> value -> AssocList.Dict key value -> AssocList.Dict key value
 insertAtEnd key value assocList =
     (assocList |> AssocList.toList) ++ [ ( key, value ) ] |> List.reverse |> AssocList.fromList
+
+
+count : List value -> AssocList.Dict value Int
+count values =
+    let
+        increment value =
+            Just ((value |> Maybe.withDefault 0) + 1)
+
+        fold value =
+            AssocList.update value increment
+    in
+    List.foldr fold AssocList.empty values
