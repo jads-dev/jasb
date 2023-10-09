@@ -72,6 +72,7 @@ selector context select selected =
         |> List.map option
         |> Select.outlined "Rarity" selectFunction (selected |> Maybe.map Rarity.idToString)
         |> Select.required True
+        |> Select.fixed
         |> Select.error ("You must select a rarity." |> Maybe.when (selected == Nothing))
         |> Select.view
     ]

@@ -23,11 +23,15 @@
 @include rarity("mp", 5, #ecd08c, 0.8, properties.by-name("width"));
 
 .rarity {
-  background-image: var(--rarity-stars);
-  background-position: center;
-  background-repeat: no-repeat;
-  background-size: contain;
-  height: 2em;
+  &::after {
+    content: "";
+    display: block;
+    background-image: var(--rarity-stars);
+    background-position: center;
+    background-repeat: no-repeat;
+    background-size: contain;
+    height: 2em;
+  }
   position: absolute;
   bottom: -1.5em;
   left: 0;

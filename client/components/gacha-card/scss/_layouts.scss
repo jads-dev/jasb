@@ -18,7 +18,8 @@
   }
 }
 
-:host([layout="full-image"]) {
+:host([layout="full-image"]),
+:host([layout="landscape-full-image"]) {
   .face > .content {
     display: grid;
     grid-template:
@@ -31,7 +32,7 @@
       grid-area: face;
 
       > img {
-        aspect-ratio: unset;
+        aspect-ratio: properties.by-name("aspect-ratio");
         object-fit: cover;
 
         width: 100%;
@@ -52,17 +53,60 @@
       justify-items: center;
       align-items: center;
 
-      color: #000;
+      color: #fff;
       text-shadow:
-        -0.1em -0.1em 0 #fff,
-        0.1em -0.1em 0 #fff,
-        -0.1em 0.1em 0 #fff,
-        0.1em 0.1em 0 #fff;
+        -0.05em -0.05em 0 #000,
+        0.05em -0.05em 0 #000,
+        -0.05em 0.05em 0 #000,
+        0.05em 0.05em 0 #000;
 
       .description {
         font-size: 1.2em;
       }
     }
+  }
+}
+
+:host([layout="landscape-full-image"]) {
+  #card {
+    height: properties.by-name("width");
+    width: unset;
+    aspect-ratio: calc(1 / properties.by-name("aspect-ratio"));
+
+    .side {
+      height: properties.by-name("width");
+      width: unset;
+      aspect-ratio: calc(1 / properties.by-name("aspect-ratio"));
+    }
+
+    .face > .content {
+      > .image > img {
+        aspect-ratio: calc(1 / properties.by-name("aspect-ratio"));
+      }
+      > .serial-number {
+        transform: rotate(0.5turn);
+        right: 30em;
+        bottom: -2em;
+      }
+    }
+
+    .rarity {
+      &::after {
+        transform: rotate(0.25turn);
+        height: 2em;
+        width: properties.by-name("width");
+        transform-origin: top left;
+      }
+      position: absolute;
+      top: 0; //calc(#{properties.by-name("border-radius")} / 3 * -2);
+      left: calc(#{properties.by-name("border-radius")} / 3 * 2);
+      bottom: 0;
+      right: 0;
+    }
+  }
+
+  &:host([sample]) .pivot::after {
+    font-size: 8em;
   }
 }
 
@@ -123,7 +167,7 @@
       font-size: 0.5em;
       transform: rotate(0.25turn);
       top: 30em;
-      right: -3.3em;
+      right: -3.7em;
       color: #000000;
     }
 

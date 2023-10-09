@@ -18,16 +18,9 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           submodules: true
-
-      - name: Get version from tag.
-        uses: little-core-labs/get-git-tag@v3.0.2
-
-      - name: Get build date/time.
-        id: date
-        run: echo "::set-output name=date::$(date -u --rfc-3339=seconds)"
 
       - name: Set up QEMU.
         id: qemu
@@ -49,9 +42,7 @@ jobs:
         uses: docker/bake-action@v4
         with:
           files: "docker-bake.hcl"
-          set: |
-            "*.output=type=registry"
+          set: "*.output=type=registry"
         env:
           VCS_REF: ${{ github.sha }}
-          VERSION: ${{ env.GIT_TAG_NAME }}
-          BUILD_DATE: ${{ steps.date.outputs.date }}
+          VERSION: ${{ github.ref_type == 'tag' && github.ref_name || '' }}

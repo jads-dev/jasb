@@ -54,5 +54,5 @@ LABEL org.opencontainers.image.description="Static web client for JASB."
 EXPOSE 8080
 EXPOSE 8083
 
-COPY --link --from=static ["/", "/usr/share/nginx/html/"]
+COPY --link --from=sources ["/", "/usr/share/nginx/html/"]
 COPY ["./nginx.conf", "/etc/nginx/nginx.conf"]

@@ -60,6 +60,7 @@ services:
     image: "ghcr.io/jads-dev/jasb/client:latest"
     ports:
       - "80:8080"
+      - "443:8083"
     networks:
       - frontend
     depends_on:

@@ -134,7 +134,7 @@ CREATE FUNCTION validate_upload (
     SELECT INTO can_upload
       (general.any_permission OR specific.any_permission) AS can_upload
     FROM
-      general_permissions CROSS JOIN specific_permissions;
+      general CROSS JOIN specific;
     IF can_upload THEN
       RETURN user_id;
     ELSE

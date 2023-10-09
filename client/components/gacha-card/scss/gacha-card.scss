@@ -34,17 +34,20 @@
 }
 
 :host([sample]) .pivot {
-  opacity: 0.5;
+  opacity: 0.75;
 
   &::after {
     content: "SAMPLE";
     opacity: 0.5;
-    font-size: 6em;
+    font-size: 5em;
     position: absolute;
-    left: -0.25em;
-    top: 1.25em;
-    transform: rotate(54deg);
-    transform-origin: 50% 50%;
+    inset: 0 0 0 0;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    color: #888888;
+    filter: invert(1);
+    //transform: rotate(54deg);
   }
 }
 

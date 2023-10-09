@@ -26,7 +26,7 @@ RUN echo '{ "type": "module" }' > ./dist/package.json
 
 FROM base as install
 
-RUN ["npm", "ci", "--omit=dev", "--omit=optional"]
+RUN ["npm", "ci", "--omit=dev"]
 
 
 FROM scratch AS sources
@@ -61,4 +61,4 @@ WORKDIR /jasb
 COPY --link --from=sources [ "/", "./" ]
 
 EXPOSE 8081
-CMD ["node", " --enable-source-maps", "./index.js"]
+CMD node --enable-source-maps ./index.js
