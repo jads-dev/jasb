@@ -23,6 +23,7 @@ import Html.Attributes as HtmlA
 import JoeBets.Api.Error exposing (..)
 import JoeBets.Api.Model exposing (..)
 import Material.IconButton as IconButton
+import Material.Progress as Progress
 
 
 type ActionState
@@ -104,7 +105,10 @@ viewAction default state =
 
         Working ->
             [ Html.div [ HtmlA.class "loading" ]
-                [ Icon.spinner |> Icon.styled [ Icon.spinPulse ] |> Icon.view ]
+                [ Progress.circular
+                    |> Progress.attrs [ HtmlA.class "progress" ]
+                    |> Progress.view
+                ]
             ]
 
         Failed error ->
@@ -118,7 +122,9 @@ orSpinner state icon =
             icon
 
         Working ->
-            Icon.spinner |> Icon.styled [ Icon.spinPulse ] |> Icon.view
+            Progress.circular
+                |> Progress.attrs [ HtmlA.class "progress" ]
+                |> Progress.view
 
         Failed _ ->
             icon

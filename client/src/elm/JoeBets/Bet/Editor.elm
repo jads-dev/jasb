@@ -25,6 +25,8 @@ import JoeBets.Bet.Editor.LockMoment as LockMoment
 import JoeBets.Bet.Editor.LockMoment.Editor as LockMoment
 import JoeBets.Bet.Editor.LockMoment.Selector as LockMoment
 import JoeBets.Bet.Editor.Model exposing (..)
+import JoeBets.Bet.Editor.QuickAdd as QuickAdd
+import JoeBets.Bet.Editor.RangeAdd as RangeAdd
 import JoeBets.Bet.Model as Bet exposing (Bet)
 import JoeBets.Bet.Option as Option
 import JoeBets.Editing.Slug as Slug
@@ -39,6 +41,8 @@ import JoeBets.User.Model as User
 import Json.Encode as JsonE
 import List.Extra as List
 import Material.Button as Button
+import Material.Chips as Chips
+import Material.Chips.Assist as AssistChip
 import Material.Dialog as Dialog
 import Material.IconButton as IconButton
 import Material.Switch as Switch
@@ -105,6 +109,8 @@ empty origin wrap canManageBets gameId editMode =
       , options = AssocList.empty
       , contextualDialog = initDialog
       , internalIdCounter = 0
+      , quickAdd = QuickAdd.init
+      , rangeAdd = RangeAdd.init
       }
     , Cmd.batch [ loadBetCmd, lockMomentsCmd ]
     )
@@ -140,6 +146,45 @@ fromSource bet editableBet model =
                 |> AssocList.sortBy (\_ v -> v.order)
         , source = model.source |> Api.updateIdDataValue bet (\_ -> editableBet)
     }
+
+
+addOption : (OptionEditor -> OptionEditor) -> Model -> Model
+addOption set model =
+    let
+        maxOrder _ option max =
+            if option.order > max then
+                option.order
+
+            else
+                max
+
+        newOrder =
+            model.options |> AssocList.foldr maxOrder 0 |> (+) 1
+
+        ( id, value ) =
+            initOption model.internalIdCounter newOrder
+    in
+    { model
+        | options = model.options |> AssocList.insert id (set value) |> AssocList.sortBy (\_ v -> v.order)
+        , internalIdCounter = model.internalIdCounter + 1
+    }
+
+
+addAll : Maybe (List String) -> Model -> Model
+addAll toAdd =
+    case toAdd of
+        Just optionNames ->
+            let
+                setName name option =
+                    { option | name = name }
+            in
+            \m ->
+                optionNames
+                    |> List.map setName
+                    |> List.foldl addOption m
+
+        Nothing ->
+            identity
 
 
 update : (Msg -> msg) -> Msg -> Parent a -> Model -> ( Model, Cmd msg )
@@ -328,26 +373,7 @@ update wrap msg ({ origin, navigationKey } as parent) model =
                     ( model, Cmd.none )
 
         NewOption ->
-            let
-                maxOrder _ option max =
-                    if option.order > max then
-                        option.order
-
-                    else
-                        max
-
-                newOrder =
-                    model.options |> AssocList.foldr maxOrder 0 |> (+) 1
-
-                ( id, value ) =
-                    initOption model.internalIdCounter newOrder
-            in
-            ( { model
-                | options = model.options |> AssocList.insert id value |> AssocList.sortBy (\_ v -> v.order)
-                , internalIdCounter = model.internalIdCounter + 1
-              }
-            , Cmd.none
-            )
+            ( addOption identity model, Cmd.none )
 
         ChangeOption internalId optionChange ->
             let
@@ -575,6 +601,20 @@ update wrap msg ({ origin, navigationKey } as parent) model =
                             Cmd.none
             in
             ( { model | source = source }, redirect )
+
+        QuickAdd quickAddMsg ->
+            let
+                ( quickAdd, toAdd ) =
+                    QuickAdd.update quickAddMsg model.quickAdd
+            in
+            ( { model | quickAdd = quickAdd } |> addAll toAdd, Cmd.none )
+
+        RangeAdd rangeAddMsg ->
+            let
+                ( rangeAdd, toAdd ) =
+                    RangeAdd.update rangeAddMsg model.rangeAdd
+            in
+            ( { model | rangeAdd = rangeAdd } |> addAll toAdd, Cmd.none )
 
 
 nameValidator : Validator Model
@@ -852,16 +892,22 @@ viewCoreContent changeUrl wrap time localUser model { author, created, modified,
             |> List.map (viewOption (wrap |> Just |> ifNotSaving))
             |> HtmlK.ol []
         , Html.div [ HtmlA.class "option-controls" ]
-            [ Button.text "Add"
+            [ Button.text "Add Option"
                 |> Button.button (NewOption |> wrap |> Just |> ifNotSaving)
                 |> Button.icon [ Icon.plus |> Icon.view ]
                 |> Button.view
-            , Button.text "Bulk Add"
-                |> Button.button (NewOption |> wrap |> Just |> ifNotSaving)
-                |> Button.icon [ Icon.list |> Icon.view ]
-                |> Button.view
             ]
         , Validator.view optionsValidator model
+        , [ AssistChip.chip "Quick Add Options"
+                |> AssistChip.icon [ Icon.listUl |> Icon.view ]
+                |> AssistChip.button (QuickAdd.Show |> QuickAdd |> wrap |> Just |> ifNotSaving)
+                |> AssistChip.view
+          , AssistChip.chip "Add Numeric Ranges"
+                |> AssistChip.icon [ Icon.listOl |> Icon.view ]
+                |> AssistChip.button (RangeAdd.Show |> RangeAdd |> wrap |> Just |> ifNotSaving)
+                |> AssistChip.view
+          ]
+            |> Chips.set []
         , Html.div [ HtmlA.class "controls" ]
             [ Button.text "Reset"
                 |> Button.button (Reset |> wrap |> Just |> ifNotSaving)
@@ -872,6 +918,8 @@ viewCoreContent changeUrl wrap time localUser model { author, created, modified,
                 |> Button.icon [ Icon.save |> Icon.view ]
                 |> Button.view
             ]
+        , model.quickAdd |> QuickAdd.view (QuickAdd >> wrap)
+        , model.rangeAdd |> RangeAdd.view (RangeAdd >> wrap)
         ]
         :: Html.div [ HtmlA.class "preview" ] preview
         :: LockMoment.viewEditor (EditLockMoments >> wrap) (model |> lockMomentContext) model.lockMomentEditor

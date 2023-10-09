@@ -31,7 +31,7 @@ view { auth } =
                 ]
             , Html.p []
                 [ Html.text "You need to be "
-                , Auth.logInButton auth (Html.text "logged in")
+                , Auth.logInButton auth "logged in"
                 , Html.text " with Discord to vote."
                 ]
             , Html.p [ HtmlA.class "warning" ]

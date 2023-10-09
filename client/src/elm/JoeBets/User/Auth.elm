@@ -2,7 +2,6 @@ module JoeBets.User.Auth exposing
     ( init
     , load
     , logInButton
-    , logInOutButton
     , update
     , updateLocalUser
     , viewError
@@ -33,6 +32,7 @@ import JoeBets.User.Model as User exposing (User)
 import JoeBets.User.Notifications as Notifications
 import JoeBets.User.Notifications.Model as Notifications
 import Json.Encode as JsonE
+import Material.Chips.Assist as AssistChip
 import Material.IconButton as IconButton
 import Util.Maybe as Maybe
 
@@ -260,39 +260,17 @@ update msg ({ route, auth, page, problem } as model) =
             )
 
 
-logInOutButton : Parent a -> Html Global.Msg
-logInOutButton { auth } =
-    let
-        ( icon, action, text ) =
-            case auth.localUser of
-                Nothing ->
-                    if auth.inProgress == Nothing then
-                        ( Icon.discord, Start |> Login |> wrap |> HtmlE.onClick, "Log in" )
-
-                    else
-                        ( Icon.spinner |> Icon.styled [ Icon.spinPulse ], HtmlA.disabled True, "Log in" )
-
-                Just _ ->
-                    if auth.inProgress == Nothing then
-                        ( Icon.signOutAlt, Logout |> wrap |> HtmlE.onClick, "Log out" )
-
-                    else
-                        ( Icon.spinner |> Icon.styled [ Icon.spinPulse ], HtmlA.disabled True, "Log out" )
-    in
-    Html.button [ action ] [ Icon.view icon, Html.text text ]
-
-
-logInButton : Model -> Html Global.Msg -> Html Global.Msg
-logInButton auth content =
+logInButton : Model -> String -> Html Global.Msg
+logInButton auth label =
     let
         button =
             case auth.localUser of
                 Nothing ->
-                    Html.button
-                        [ HtmlA.class "log-in"
-                        , Start |> Login |> wrap |> HtmlE.onClick
-                        ]
-                        [ content ]
+                    AssistChip.chip label
+                        |> AssistChip.icon [ Icon.discord |> Icon.view ]
+                        |> AssistChip.button (Start |> Login |> wrap |> Just)
+                        |> AssistChip.attrs [ HtmlA.class "log-in" ]
+                        |> AssistChip.view
                         |> Just
 
                 Just _ ->
@@ -300,7 +278,7 @@ logInButton auth content =
     in
     button
         |> Maybe.andThen (Maybe.when (auth.inProgress == Nothing))
-        |> Maybe.withDefault content
+        |> Maybe.withDefault (Html.text label)
 
 
 viewError : { a | auth : Model } -> List (Html Global.Msg)

@@ -4,6 +4,7 @@ module Util.List exposing
     , fromNonEmpty
     , insertAt
     , moveTo
+    , stepRange
     )
 
 import List exposing (..)
@@ -68,3 +69,16 @@ addBeforeLast extra items =
                     soFar
     in
     internal [] items
+
+
+stepRange : Int -> Int -> Int -> List Int
+stepRange start step stop =
+    let
+        internal current values =
+            if current <= stop then
+                internal (current + step) (current :: values)
+
+            else
+                values
+    in
+    internal start [] |> List.reverse

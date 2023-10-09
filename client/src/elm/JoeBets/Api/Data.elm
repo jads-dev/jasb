@@ -28,6 +28,7 @@ import Html.Attributes as HtmlA
 import JoeBets.Api.Error exposing (..)
 import JoeBets.Api.Model exposing (..)
 import JoeBets.Error as Error
+import Material.Progress as Progress exposing (Progress)
 import Svg.Attributes as SvgA
 
 
@@ -139,6 +140,7 @@ type alias ViewModel msg =
     { container : List (Html msg) -> List (Html msg)
     , default : List (Html msg)
     , loadingDescription : List (Html msg)
+    , progressStyle : Progress msg
     }
 
 
@@ -157,6 +159,7 @@ viewOrError =
         [ Html.div [ HtmlA.class "description" ]
             [ Html.text "Loading..." ]
         ]
+    , progressStyle = Progress.linear
     }
 
 
@@ -177,11 +180,12 @@ viewOrNothing =
         [ Html.div [ HtmlA.class "description" ]
             [ Html.text "Loading..." ]
         ]
+    , progressStyle = Progress.linear
     }
 
 
 viewData : ViewModel msg -> (value -> List (Html msg)) -> Data value -> List (Html msg)
-viewData { default, container, loadingDescription } viewValue ((Data { loading, problem, value }) as data) =
+viewData { default, container, loadingDescription, progressStyle } viewValue ((Data { loading, problem, value }) as data) =
     if not loading && problem == Nothing && value == Nothing then
         default
 
@@ -191,12 +195,9 @@ viewData { default, container, loadingDescription } viewValue ((Data { loading, 
                 if loading then
                     let
                         spinner =
-                            Icon.spinner
-                                |> Icon.styled
-                                    [ SvgA.class "spinner"
-                                    , Icon.spinPulse
-                                    ]
-                                |> Icon.view
+                            progressStyle
+                                |> Progress.attrs [ HtmlA.class "progress" ]
+                                |> Progress.view
                     in
                     if value == Nothing then
                         spinner :: loadingDescription

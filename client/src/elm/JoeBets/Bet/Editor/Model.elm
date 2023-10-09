@@ -31,6 +31,8 @@ import JoeBets.Api.Model as Api
 import JoeBets.Bet.Editor.EditableBet as EditableBet exposing (EditableBet, EditableOption)
 import JoeBets.Bet.Editor.LockMoment as LockMoment
 import JoeBets.Bet.Editor.LockMoment.Editor as LockMoment
+import JoeBets.Bet.Editor.QuickAdd as QuickAdd
+import JoeBets.Bet.Editor.RangeAdd as RangeAdd
 import JoeBets.Bet.Model as Bet exposing (Bet)
 import JoeBets.Bet.Option as Option
 import JoeBets.Editing.Slug as Slug exposing (Slug)
@@ -117,6 +119,8 @@ type alias Model =
     , options : AssocList.Dict String OptionEditor
     , contextualDialog : ContextualDialog
     , internalIdCounter : Int
+    , quickAdd : QuickAdd.Model
+    , rangeAdd : RangeAdd.Model
     }
 
 
@@ -217,6 +221,8 @@ type Msg
     | ChangeCancelReason String
     | SetWinner Option.Id Bool
     | ResolveDialog Bool
+    | QuickAdd QuickAdd.Msg
+    | RangeAdd RangeAdd.Msg
     | Save
     | Saved Bet.Id (Api.Response EditableBet)
 
