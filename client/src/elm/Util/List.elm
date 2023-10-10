@@ -81,4 +81,4 @@ stepRange start step stop =
             else
                 values
     in
-    internal start [] |> List.reverse
+    internal start [] |> reverse

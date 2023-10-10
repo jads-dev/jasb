@@ -360,14 +360,15 @@ view ({ auth, forge, gacha } as parent) =
                         Unforged rarity ->
                             Just rarity
 
-                rarityContext =
+                freeRarities =
                     forge.existing
-                        |> Api.mapData
+                        |> Api.dataToMaybe
+                        |> Maybe.map
                             (List.filterMap freeRarityFromForged
                                 >> List.reverse
                                 >> AssocList.fromList
                             )
-                        |> (\rarities -> { rarities = rarities })
+                        |> Maybe.withDefault AssocList.empty
 
                 viewExisting =
                     List.map viewForged >> Html.ol [] >> List.singleton
@@ -463,8 +464,7 @@ view ({ auth, forge, gacha } as parent) =
                             |> TextField.view
                         ]
                     , Html.div [ HtmlA.class "field rarity" ]
-                        [ Rarity.selector
-                            rarityContext
+                        [ Rarity.selectorFiltered freeRarities
                             (SetRarity >> wrap |> Just |> Api.ifNotWorking forge.forge)
                             forge.rarity
                         ]

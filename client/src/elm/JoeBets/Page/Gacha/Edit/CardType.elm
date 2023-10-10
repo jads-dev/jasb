@@ -21,6 +21,7 @@ import JoeBets.Editing.Validator as Validator exposing (Validator)
 import JoeBets.Gacha.Banner as Banner
 import JoeBets.Gacha.Card.Layout as Card
 import JoeBets.Gacha.CardType as CardType exposing (EditableCardType, EditableCardTypes)
+import JoeBets.Gacha.Context.Model as Gacha
 import JoeBets.Gacha.Rarity as Rarity
 import JoeBets.Messages as Global
 import JoeBets.Page exposing (Page)
@@ -360,12 +361,12 @@ descriptionValidator =
     Validator.fromPredicate "Description must not be empty." (.description >> String.isEmpty)
 
 
-rarityValidator : Rarity.Context -> Validator EditableCardType
+rarityValidator : Gacha.Context -> Validator EditableCardType
 rarityValidator context =
     Rarity.validator context |> Validator.map (.rarity >> Just)
 
 
-validator : Rarity.Context -> Validator Editor
+validator : Gacha.Context -> Validator Editor
 validator context =
     Validator.all
         [ nameValidator |> Validator.map .cardType
@@ -376,7 +377,7 @@ validator context =
         ]
 
 
-cardTypeEditor : Rarity.Context -> Maybe Editor -> Html Global.Msg
+cardTypeEditor : Gacha.Context -> Maybe Editor -> Html Global.Msg
 cardTypeEditor rarityContext maybeEditor =
     let
         cancel =
@@ -399,7 +400,7 @@ cardTypeEditor rarityContext maybeEditor =
                                 , image = cardType.image
                                 , rarity =
                                     ( cardType.rarity
-                                    , Rarity.fromContext rarityContext cardType.rarity
+                                    , Gacha.rarityFromContext rarityContext cardType.rarity
                                         |> Maybe.withDefault { name = "" }
                                     )
                                 , layout = cardType.layout
@@ -515,8 +516,8 @@ viewCardTypeSummary time banner ( id, cardType ) =
     )
 
 
-viewRarityStats : Rarity.Context -> EditableCardTypes -> Html msg
-viewRarityStats { rarities } cardTypes =
+viewRarityStats : Gacha.Context -> EditableCardTypes -> Html msg
+viewRarityStats context cardTypes =
     let
         counts =
             cardTypes
@@ -538,16 +539,15 @@ viewRarityStats { rarities } cardTypes =
     in
     Html.div [ HtmlA.class "rarity-stats" ]
         [ Html.p [] [ Html.text "Cards by rarity in this banner:" ]
-        , rarities
-            |> Api.dataToMaybe
-            |> Maybe.withDefault AssocList.empty
+        , context
+            |> Gacha.raritiesFromContext
             |> AssocList.toList
             |> List.map listItem
             |> Html.ol []
         ]
 
 
-viewCardTypeSummaries : Time.Context -> Rarity.Context -> Banner.Id -> EditableCardTypes -> List (Html Global.Msg)
+viewCardTypeSummaries : Time.Context -> Gacha.Context -> Banner.Id -> EditableCardTypes -> List (Html Global.Msg)
 viewCardTypeSummaries time rarityContext banner cardTypes =
     [ viewRarityStats rarityContext cardTypes
     , cardTypes
@@ -568,8 +568,8 @@ viewCardTypesEditor { time, gacha } =
     , body =
         [ [ Html.h2 [] [ Html.text "Edit Card Types" ] ]
         , gacha.editableCardTypes
-            |> Api.viewIdData Api.viewOrError (viewCardTypeSummaries time gacha.rarityContext)
-        , [ gacha.cardTypeEditor |> cardTypeEditor gacha.rarityContext ]
+            |> Api.viewIdData Api.viewOrError (viewCardTypeSummaries time gacha.context)
+        , [ gacha.cardTypeEditor |> cardTypeEditor gacha.context ]
         ]
             |> List.concat
     }

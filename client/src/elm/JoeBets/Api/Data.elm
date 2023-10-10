@@ -3,6 +3,7 @@ module JoeBets.Api.Data exposing
     , ViewModel
     , dataToMaybe
     , getData
+    , getDataIfNeeded
     , ifNotDataLoading
     , initData
     , initDataFromError
@@ -29,7 +30,6 @@ import JoeBets.Api.Error exposing (..)
 import JoeBets.Api.Model exposing (..)
 import JoeBets.Error as Error
 import Material.Progress as Progress exposing (Progress)
-import Svg.Attributes as SvgA
 
 
 type Data value
@@ -59,6 +59,15 @@ initFromAll value loading problem =
 getData : Data value -> Cmd msg -> ( Data value, Cmd msg )
 getData (Data data) getRequest =
     ( Data { data | loading = True }, getRequest )
+
+
+getDataIfNeeded : Data value -> Cmd msg -> ( Data value, Cmd msg )
+getDataIfNeeded data getRequest =
+    if isLoaded data then
+        ( data, Cmd.none )
+
+    else
+        getData data getRequest
 
 
 initGetData : Cmd msg -> ( Data value, Cmd msg )

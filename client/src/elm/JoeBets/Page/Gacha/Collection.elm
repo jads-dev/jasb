@@ -9,6 +9,7 @@ module JoeBets.Page.Gacha.Collection exposing
 import AssocList
 import Browser.Dom as Dom
 import DragDrop
+import EverySet
 import FontAwesome as Icon
 import FontAwesome.Solid as Icon
 import Html exposing (Html)
@@ -24,11 +25,14 @@ import JoeBets.Api.Path as Api
 import JoeBets.Gacha.Balance as Balance
 import JoeBets.Gacha.Banner as Banner
 import JoeBets.Gacha.Card as Card
+import JoeBets.Gacha.Context as Gacha
 import JoeBets.Messages as Global
 import JoeBets.Page exposing (Page)
 import JoeBets.Page.Gacha.Balance as Balance
 import JoeBets.Page.Gacha.Banner as Banner
 import JoeBets.Page.Gacha.Card as Card
+import JoeBets.Page.Gacha.Collection.Filters exposing (..)
+import JoeBets.Page.Gacha.Collection.Filters.Model exposing (..)
 import JoeBets.Page.Gacha.Collection.Model exposing (..)
 import JoeBets.Page.Gacha.Collection.Route exposing (..)
 import JoeBets.Page.Gacha.DetailedCard as Gacha
@@ -46,6 +50,7 @@ import Platform.Cmd as Cmd
 import Task
 import Time.Model as Time
 import Util.AssocList as AssocList
+import Util.EverySet as EverySet
 import Util.Maybe as Maybe
 
 
@@ -79,12 +84,16 @@ init =
     , orderEditor = DragDrop.init
     , saving = Api.initAction
     , editingHighlights = False
+    , filters = defaultFilters
     }
 
 
 load : User.Id -> Route -> Parent a -> ( Parent a, Cmd Global.Msg )
 load id route ({ origin, gacha, collection } as model) =
     let
+        ( context, contextCmd ) =
+            Gacha.loadContextIfNeeded origin gacha.context
+
         ( newCollection, collectionCmd ) =
             { path = Api.UserCards Nothing |> Api.Cards id |> Api.Gacha
             , decoder = collectionDecoder
@@ -135,9 +144,9 @@ load id route ({ origin, gacha, collection } as model) =
                 , collection = newCollection
                 , bannerCollection = newBannerCollection
             }
-        , gacha = newGacha
+        , gacha = { newGacha | context = context }
       }
-    , Cmd.batch [ collectionCmd, cmds ]
+    , Cmd.batch [ contextCmd, collectionCmd, cmds ]
     )
 
 
@@ -520,6 +529,55 @@ update msg ({ origin, collection } as model) =
             , Cmd.none
             )
 
+        ToggleFilter filter ->
+            let
+                updateFilters filters =
+                    case filter of
+                        Ownership ownershipFilter ->
+                            { filters | ownership = filters.ownership |> EverySet.toggle ownershipFilter }
+
+                        Quality qualityFilter ->
+                            { filters | quality = filters.quality |> Maybe.map (EverySet.toggle qualityFilter) }
+
+                        Rarity rarityFilter ->
+                            { filters | rarity = filters.rarity |> Maybe.map (EverySet.toggle rarityFilter) }
+            in
+            ( { model | collection = { collection | filters = collection.filters |> updateFilters } }
+            , Cmd.none
+            )
+
+        ShowQualityFilters show ->
+            let
+                updateFilters filterModel =
+                    { filterModel
+                        | quality =
+                            if show then
+                                Just EverySet.empty
+
+                            else
+                                Nothing
+                    }
+            in
+            ( { model | collection = { collection | filters = collection.filters |> updateFilters } }
+            , Cmd.none
+            )
+
+        ShowRarityFilters show ->
+            let
+                updateFilters filterModel =
+                    { filterModel
+                        | rarity =
+                            if show then
+                                Just EverySet.empty
+
+                            else
+                                Nothing
+                    }
+            in
+            ( { model | collection = { collection | filters = collection.filters |> updateFilters } }
+            , Cmd.none
+            )
+
         NoOp _ ->
             ( model, Cmd.none )
 
@@ -758,11 +816,18 @@ view parent =
                     , card = viewDetailedCard
                     }
                         |> Just
+
+                filter =
+                    filterBy parent.collection.filters parent.gacha.context
+
+                cards =
+                    Card.viewCardTypesWithCards onClick filter userId bannerId bannerCollection.cardTypes
             in
             [ User.viewLink User.Full userId user
             , Route.a (Overview |> Route.CardCollection userId) [] [ Html.text "Back to Collection" ]
             , Banner.viewCollectionBanner False userId bannerId banner
-            , Card.viewCardTypesWithCards onClick False userId bannerId bannerCollection.cardTypes
+            , viewFilters parent.gacha.context parent.collection.filters cards.total cards.shown
+            , cards.view
             , Card.viewDetailedCardDialog maybeContext parent.gacha
             , Card.viewDetailedCardTypeDialog parent.gacha
             , confirmRecycle userId

@@ -8,6 +8,7 @@ module Util.AssocList exposing
     , indexedMap
     , insertAtEnd
     , keySet
+    , listOf
     , replace
     , sortBy
     , sortWith
@@ -151,3 +152,8 @@ count values =
             AssocList.update value increment
     in
     List.foldr fold AssocList.empty values
+
+
+listOf : (key -> value -> result) -> AssocList.Dict key value -> List result
+listOf f =
+    AssocList.toList >> List.map (\( k, v ) -> f k v)

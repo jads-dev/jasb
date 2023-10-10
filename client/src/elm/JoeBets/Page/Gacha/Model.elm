@@ -19,7 +19,7 @@ import JoeBets.Gacha.Balance exposing (Balance)
 import JoeBets.Gacha.Banner as Banner
 import JoeBets.Gacha.Card as Card
 import JoeBets.Gacha.CardType as CardType
-import JoeBets.Gacha.Rarity as Rarity
+import JoeBets.Gacha.Context.Model exposing (..)
 import JoeBets.Page.Gacha.Balance.Model as Balance
 import JoeBets.Page.Gacha.Edit.Banner.Model as Banner
 import JoeBets.Page.Gacha.Edit.CardType.Model as CardType
@@ -33,12 +33,12 @@ import JoeBets.User.Model as User
 type EditMsg
     = EditCardTypes CardType.Msg
     | EditBanners Banner.Msg
-    | LoadRarities (Api.Response Rarity.Rarities)
 
 
 type Msg
     = LoadBalance (Api.Response Balance)
     | LoadBanners (Api.Response Banner.Banners)
+    | LoadContext (Api.Response InnerContext)
     | EditMsg EditMsg
     | ViewDetailedCard CardPointer (Api.Process Card.Detailed)
     | HideDetailedCard
@@ -106,7 +106,7 @@ type alias Model =
     , saveBannerOrder : Api.ActionState
     , editableCardTypes : Api.IdData Banner.Id CardType.EditableCardTypes
     , cardTypeEditor : Maybe CardType.Editor
-    , rarityContext : Rarity.Context
+    , context : Context
     , detailedCard : DetailDialog CardPointer Card.Detailed
     , detailedCardType : DetailDialog CardTypePointer CardType.Detailed
     , bannerPreview : Api.IdData Banner.Id PreviewBanner.Model

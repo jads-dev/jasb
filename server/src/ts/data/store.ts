@@ -1423,6 +1423,18 @@ export class Store {
     return result.rows;
   }
 
+  async gachaGetQualities(): Promise<readonly Gacha.Qualities.Quality[]> {
+    const result = await this.withClient(
+      async (client) =>
+        await client.query(
+          Queries.quality(sqlFragment`
+            SELECT * FROM gacha_qualities
+          `),
+        ),
+    );
+    return result.rows;
+  }
+
   async gachaGetBanners(): Promise<readonly Gacha.Banners.Banner[]> {
     return await this.withClient(async (client) => {
       const result = await client.query(

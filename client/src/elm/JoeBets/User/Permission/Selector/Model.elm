@@ -6,7 +6,6 @@ module JoeBets.User.Permission.Selector.Model exposing
     )
 
 import AssocList
-import JoeBets.Api as Api
 import JoeBets.Api.Data as Api
 import JoeBets.Api.Model as Api
 import JoeBets.Game.Id as Game

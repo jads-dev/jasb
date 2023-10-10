@@ -10,12 +10,10 @@ module JoeBets.User.Auth exposing
 import Browser.Events as Browser
 import Browser.Navigation as Navigation
 import FontAwesome as Icon
-import FontAwesome.Attributes as Icon
 import FontAwesome.Brands as Icon
 import FontAwesome.Solid as Icon
 import Html exposing (Html)
 import Html.Attributes as HtmlA
-import Html.Events as HtmlE
 import JoeBets.Api as Api
 import JoeBets.Api.Error as Api
 import JoeBets.Api.Model as Api

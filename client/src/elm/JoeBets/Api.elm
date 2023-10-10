@@ -251,8 +251,8 @@ gachaPathToStringList path =
         Banners bannersPath ->
             "banners" :: bannersPathToStringList bannersPath
 
-        Rarities ->
-            [ "rarities" ]
+        Context ->
+            [ "context" ]
 
 
 pathToStringList : Path -> List String

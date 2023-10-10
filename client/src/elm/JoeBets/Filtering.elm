@@ -3,6 +3,7 @@ module JoeBets.Filtering exposing
     , Selection
     , combine
     , toPredicate
+    , viewFilterSets
     , viewFilters
     )
 
@@ -16,6 +17,7 @@ import Material.Chips as Chips
 type Criteria item
     = Include (item -> Bool)
     | Exclude (item -> Bool)
+    | Neutral
 
 
 type alias Selection item =
@@ -35,6 +37,9 @@ combine criteria =
                 Exclude predicate ->
                     { selection | exclude = predicate :: selection.exclude }
 
+                Neutral ->
+                    selection
+
         listSelections =
             List.foldl fold { include = [], exclude = [] } criteria
     in
@@ -50,6 +55,11 @@ toPredicate { include, exclude } item =
 
 viewFilters : String -> Int -> Int -> List (Html msg) -> Html msg
 viewFilters name totalCount shownCount filters =
+    viewFilterSets name totalCount shownCount [ filters ]
+
+
+viewFilterSets : String -> Int -> Int -> List (List (Html msg)) -> Html msg
+viewFilterSets name totalCount shownCount filters =
     let
         title =
             [ Icon.view Icon.filter
@@ -62,4 +72,6 @@ viewFilters name totalCount shownCount filters =
             , Html.text " shown)."
             ]
     in
-    Html.div [ HtmlA.class "filters" ] [ Html.span [] title, filters |> Chips.set [] ]
+    Html.span [] title
+        :: (filters |> List.map (Chips.set []))
+        |> Html.div [ HtmlA.class "filters" ]

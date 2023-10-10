@@ -34,6 +34,7 @@ import JoeBets.Gacha.CardType.WithCards as CardType
 import JoeBets.Gacha.Credits as Credits
 import JoeBets.Gacha.Quality as Quality
 import JoeBets.Messages as Global
+import JoeBets.Page.Gacha.Card.Model exposing (..)
 import JoeBets.Page.Gacha.Collection.Model as Collection
 import JoeBets.Page.Gacha.Model as Gacha
 import JoeBets.User as User
@@ -578,62 +579,97 @@ viewHighlight manageOrView model ownerId highlights index ( cardId, ( bannerId, 
     )
 
 
-viewCardTypeWithCards : Maybe (Collection.OnClick Global.Msg) -> User.Id -> Banner.Id -> CardType.Id -> CardType.WithCards -> Html Global.Msg
-viewCardTypeWithCards onClick userId bannerId cardTypeId cardType =
+viewCardTypeWithCards : Maybe (Collection.OnClick Global.Msg) -> CardFilter -> User.Id -> Banner.Id -> CardType.Id -> CardType.WithCards -> FilteredView (Html Global.Msg)
+viewCardTypeWithCards onClick filter userId bannerId cardTypeId cardType =
     let
-        contents =
+        ( contents, total, shown ) =
             if AssocList.isEmpty cardType.cards then
                 let
                     placholderApplied { placeholder } =
                         placeholder bannerId cardTypeId
                 in
-                [ ( CardType.cssId cardTypeId
-                  , Html.li [ HtmlA.class "placeholder" ]
+                ( [ ( CardType.cssId cardTypeId
+                    , Html.li [ HtmlA.class "placeholder" ]
                         [ viewPlaceholder
                             (onClick |> Maybe.map placholderApplied)
                             bannerId
                             cardTypeId
                             cardType.cardType
                         ]
-                  )
-                ]
+                    )
+                  ]
+                , 1
+                , 1
+                )
 
             else
                 let
                     cardApplied { card } =
                         card userId bannerId
+
+                    toShow =
+                        cardType.cards |> AssocList.filter filter
                 in
-                internalViewCards
+                ( internalViewCards
                     (onClick |> Maybe.map cardApplied)
                     (\_ -> [])
                     userId
                     bannerId
-                    cardType.cards
+                    toShow
+                , cardType.cards |> AssocList.size
+                , toShow |> AssocList.size
+                )
     in
-    HtmlK.ul [ HtmlA.class "card-set" ] contents
+    { view = HtmlK.ul [ HtmlA.class "card-set" ] contents
+    , total = total
+    , shown = shown
+    }
 
 
-viewCardTypesWithCards : Maybe (Collection.OnClick Global.Msg) -> Bool -> User.Id -> Banner.Id -> AssocList.Dict CardType.Id CardType.WithCards -> Html Global.Msg
-viewCardTypesWithCards onClick showNoCards user banner cardTypesWithCards =
+viewCardTypesWithCards : Maybe (Collection.OnClick Global.Msg) -> Filter -> User.Id -> Banner.Id -> AssocList.Dict CardType.Id CardType.WithCards -> FilteredView (Html Global.Msg)
+viewCardTypesWithCards onClick filter user banner cardTypesWithCards =
     let
-        viewListItem ( cardTypeId, cardType ) =
-            if showNoCards || not (AssocList.isEmpty cardType.cards) then
-                Just
-                    ( CardType.cssId cardTypeId
-                    , Html.li [] [ viewCardTypeWithCards onClick user banner cardTypeId cardType ]
-                    )
+        internalView cardTypeId cardType =
+            viewCardTypeWithCards onClick filter.card user banner cardTypeId cardType
 
-            else
-                Nothing
+        viewedCardTypes =
+            cardTypesWithCards
+                |> AssocList.filter filter.cardType
+                |> AssocList.map internalView
+
+        totalCards =
+            cardTypesWithCards
+                |> AssocList.values
+                |> List.map (\t -> max 1 (AssocList.size t.cards))
+                |> List.sum
+
+        fold ( id, viewdCardType ) result =
+            { cardTypes = ( id, viewdCardType.view ) :: result.cardTypes
+            , total = result.total + viewdCardType.total
+            , shown = result.shown + viewdCardType.shown
+            }
+
+        { cardTypes, total, shown } =
+            viewedCardTypes
+                |> AssocList.toList
+                |> List.foldr fold { cardTypes = [], total = 0, shown = 0 }
+
+        viewListItem ( cardTypeId, cardType ) =
+            ( CardType.cssId cardTypeId
+            , Html.li [] [ cardType ]
+            )
 
         cards =
-            cardTypesWithCards |> AssocList.toList |> List.filterMap viewListItem
-    in
-    if cards |> List.isEmpty |> not then
-        cards |> HtmlK.ol [ HtmlA.class "card-types" ]
+            cardTypes |> List.map viewListItem
 
-    else
-        [ Icon.ghost |> Icon.view, Html.text "No cards yet!" ] |> Html.div [ HtmlA.class "card-types empty" ]
+        viewResult =
+            if cards |> List.isEmpty |> not then
+                cards |> HtmlK.ol [ HtmlA.class "card-types" ]
+
+            else
+                [ Icon.ghost |> Icon.view, Html.span [] [ Html.text "No matching cards." ] ] |> Html.div [ HtmlA.class "empty" ]
+    in
+    { view = viewResult, total = totalCards, shown = shown }
 
 
 viewCardTypes : Maybe (Banner.Id -> CardType.Id -> Global.Msg) -> Banner.Id -> AssocList.Dict CardType.Id CardType -> Html Global.Msg

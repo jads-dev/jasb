@@ -60,6 +60,7 @@ const typedSql = Slonik.createSqlTag({
     detailed_card: Gacha.Cards.Detailed,
     highlighted: Gacha.Cards.Highlighted,
     rarity: Gacha.Rarities.Rarity,
+    quality: Gacha.Qualities.Quality,
   },
 }).typeAlias;
 
@@ -634,6 +635,19 @@ export const rarity = (raritySource: Slonik.SqlFragment) => {
           rarities.name
       FROM rarities
       ORDER BY rarities.generation_weight DESC
+  `;
+};
+
+export const quality = (qualitySource: Slonik.SqlFragment) => {
+  const sql = typedSql("quality");
+  return sql`
+      WITH
+        qualities AS (${qualitySource})
+      SELECT
+        qualities.slug,
+        qualities.name
+      FROM qualities
+      ORDER BY qualities.id
   `;
 };
 

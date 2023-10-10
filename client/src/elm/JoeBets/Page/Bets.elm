@@ -44,10 +44,8 @@ import JoeBets.User.Auth as User
 import JoeBets.User.Auth.Model as Auth
 import Json.Encode as JsonE
 import Material.Button as Button
-import Material.Chips as Chips
 import Material.Chips.Filter as FilterChip
 import Material.Dialog as Dialog
-import Material.IconButton as IconButton
 import Material.Switch as Switch
 import Time.Model as Time
 import Util.Maybe as Maybe

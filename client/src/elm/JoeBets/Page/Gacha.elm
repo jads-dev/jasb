@@ -13,7 +13,7 @@ import JoeBets.Api.IdData as Api
 import JoeBets.Api.Model as Api
 import JoeBets.Api.Path as Api
 import JoeBets.Gacha.CardType as CardType
-import JoeBets.Gacha.Rarity as Rarity
+import JoeBets.Gacha.Context exposing (..)
 import JoeBets.Messages as Global
 import JoeBets.Page exposing (Page)
 import JoeBets.Page.Gacha.Balance as Balance
@@ -66,25 +66,11 @@ init route =
     , saveBannerOrder = Api.initAction
     , editableCardTypes = Api.initIdData
     , cardTypeEditor = Nothing
-    , rarityContext = { rarities = Api.initData }
+    , context = Api.initData
     , detailedCard = initDetailDialog
     , detailedCardType = initDetailDialog
     , bannerPreview = Api.initIdData
     }
-
-
-loadRarityContext : String -> Rarity.Context -> ( Rarity.Context, Cmd Global.Msg )
-loadRarityContext origin context =
-    let
-        ( rarities, cmd ) =
-            { path = Api.Rarities |> Api.Gacha
-            , wrap = LoadRarities >> EditMsg >> wrap
-            , decoder = Rarity.raritiesDecoder
-            }
-                |> Api.get origin
-                |> Api.getData context.rarities
-    in
-    ( { context | rarities = rarities }, cmd )
 
 
 load : Route -> Parent a -> ( Parent a, Cmd Global.Msg )
@@ -114,15 +100,15 @@ load route originalModel =
 
                 Edit (CardType bannerId) ->
                     let
-                        ( rarityContext, rarityContextCmd ) =
-                            loadRarityContext origin gacha.rarityContext
+                        ( context, contextCmd ) =
+                            loadContextIfNeeded origin gacha.context
 
                         ( updatedModel, cardTypesEditorCmd ) =
                             loadCardTypesEditor bannerId
-                                { model | gacha = { gacha | rarityContext = rarityContext } }
+                                { model | gacha = { gacha | context = context } }
                     in
                     ( updatedModel
-                    , Cmd.batch [ cardTypesEditorCmd, rarityContextCmd ]
+                    , Cmd.batch [ cardTypesEditorCmd, contextCmd ]
                     )
 
         Nothing ->
@@ -149,6 +135,11 @@ update msg ({ origin, gacha } as model) =
             , Cmd.none
             )
 
+        LoadContext response ->
+            ( { model | gacha = { gacha | context = gacha.context |> Api.updateData response } }
+            , Cmd.none
+            )
+
         EditMsg editMsg ->
             case editMsg of
                 EditBanners editBannerMsg ->
@@ -156,15 +147,6 @@ update msg ({ origin, gacha } as model) =
 
                 EditCardTypes editCardTypesMsg ->
                     updateCardTypesEditor editCardTypesMsg model
-
-                LoadRarities response ->
-                    let
-                        rarityContext context =
-                            { context | rarities = context.rarities |> Api.updateData response }
-                    in
-                    ( { model | gacha = { gacha | rarityContext = rarityContext gacha.rarityContext } }
-                    , Cmd.none
-                    )
 
         ViewDetailedCard pointer process ->
             case process of

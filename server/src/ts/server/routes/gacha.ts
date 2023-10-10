@@ -1,7 +1,8 @@
 import { default as Router } from "@koa/router";
-import * as Schema from "io-ts";
 
 import { Balances } from "../../public/gacha/balances.js";
+import { Context } from "../../public/gacha/context.js";
+import { Qualities } from "../../public/gacha/qualities.js";
 import { Rarities } from "../../public/gacha/rarities.js";
 import type { Server } from "../model.js";
 import { bannersApi } from "./gacha/banners.js";
@@ -23,12 +24,16 @@ export const gachaApi = (server: Server.State): Router => {
     ctx.body = Balances.Balance.encode(Balances.fromInternal(balance));
   });
 
-  // Get the user's balance.
-  router.get("/rarities", async (ctx) => {
-    const rarities = await server.store.gachaGetRarities();
-    ctx.body = Schema.readonlyArray(
-      Schema.tuple([Rarities.Slug, Rarities.Rarity]),
-    ).encode(rarities.map(Rarities.fromInternal));
+  // Get the context for cards.
+  router.get("/context", async (ctx) => {
+    const [rarities, qualities] = await Promise.all([
+      server.store.gachaGetRarities(),
+      server.store.gachaGetQualities(),
+    ]);
+    ctx.body = Context.encode({
+      rarities: rarities.map(Rarities.fromInternal),
+      qualities: qualities.map(Qualities.fromInternal),
+    });
   });
 
   return router;

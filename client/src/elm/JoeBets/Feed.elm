@@ -25,7 +25,6 @@ import JoeBets.Page.Bets.Model as Bets
 import JoeBets.Route as Route
 import JoeBets.Settings.Model as Settings
 import JoeBets.User as User
-import Material.Chips as Chips
 import Material.Chips.Filter as FilterChip
 import Util.EverySet as EverySet
 import Util.List as List
@@ -282,13 +281,14 @@ view wrap specificFeed { bets, settings } feed =
 
         body items =
             let
-                filter =
-                    filterBy
-                        feed.filters
-                        { favouriteGames = bets.favourites.value }
-
                 filteredItems =
                     if not specificFeed then
+                        let
+                            filter =
+                                filterBy
+                                    feed.filters
+                                    { favouriteGames = bets.favourites.value }
+                        in
                         items |> List.filter (\{ event } -> filter event)
 
                     else

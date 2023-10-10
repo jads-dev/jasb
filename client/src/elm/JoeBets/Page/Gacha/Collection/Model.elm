@@ -32,6 +32,7 @@ import JoeBets.Gacha.Banner as Banner
 import JoeBets.Gacha.Card as Card
 import JoeBets.Gacha.CardType as CardType
 import JoeBets.Gacha.CardType.WithCards as CardType
+import JoeBets.Page.Gacha.Collection.Filters.Model exposing (..)
 import JoeBets.Page.Gacha.Collection.Route exposing (..)
 import JoeBets.User.Model as User
 import Json.Decode as JsonD
@@ -60,6 +61,9 @@ type Msg
     | SaveHighlightOrder User.Id (List Card.Id) (Maybe (Api.Response Card.Highlights))
     | RecycleCard User.Id Banner.Id Card.Id RecycleProcess
     | CancelRecycle
+    | ToggleFilter Filter
+    | ShowQualityFilters Bool
+    | ShowRarityFilters Bool
     | NoOp String
 
 
@@ -181,6 +185,7 @@ type alias Model =
     , messageEditor : Maybe MessageEditor
     , saving : Api.ActionState
     , editingHighlights : Bool
+    , filters : FilterModel
     }
 
 

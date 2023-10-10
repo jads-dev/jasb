@@ -213,7 +213,7 @@ subscriptions _ =
                     "Error with session storage: " ++ JsonD.errorToString error |> NoOp
     in
     Sub.batch
-        [ Time.every 10000 SetTime
+        [ Time.every 30000 SetTime
         , Browser.onVisibilityChange ChangeVisibility
         , Notifications.subscriptions
         , Store.changedValues storeFromResult

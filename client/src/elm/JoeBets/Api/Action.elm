@@ -15,9 +15,6 @@ module JoeBets.Api.Action exposing
     , viewAction
     )
 
-import FontAwesome as Icon
-import FontAwesome.Attributes as Icon
-import FontAwesome.Solid as Icon
 import Html exposing (Html)
 import Html.Attributes as HtmlA
 import JoeBets.Api.Error exposing (..)

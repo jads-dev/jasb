@@ -96,7 +96,7 @@ type GachaPath
     = Cards User.Id CardsPath
     | Balance
     | Banners BannersPath
-    | Rarities
+    | Context
 
 
 type Path

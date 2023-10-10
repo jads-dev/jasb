@@ -25,7 +25,6 @@ import JoeBets.Page.Games.Model exposing (..)
 import JoeBets.Route as Route
 import JoeBets.User.Auth.Model as Auth
 import Material.Button as Button
-import Material.Chips as Chips
 import Material.Chips.Filter as FilterChip
 import Time.Model as Time
 import Util.EverySet as EverySet
@@ -180,14 +179,6 @@ view { auth, time, games, bets } =
 
                 shownCount =
                     counts |> List.sum
-
-                shownAmount =
-                    [ Html.text "("
-                    , shownCount |> String.fromInt |> Html.text
-                    , Html.text "/"
-                    , totalCount |> String.fromInt |> Html.text
-                    , Html.text " shown)."
-                    ]
 
                 subsetsOrEmpty =
                     if subsets |> List.isEmpty |> not then

@@ -11,9 +11,7 @@ import Html exposing (Html)
 import Html.Attributes as HtmlA
 import JoeBets.Api as Api
 import JoeBets.Api.Data as Api
-import JoeBets.Api.Model as Api
 import JoeBets.Api.Path as Api
-import JoeBets.Game as Game
 import JoeBets.Game.Id as Game
 import JoeBets.Game.Model as Game
 import JoeBets.User.Permission as Permission exposing (Permission)

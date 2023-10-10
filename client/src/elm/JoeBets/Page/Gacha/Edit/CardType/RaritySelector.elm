@@ -1,25 +1,24 @@
 module JoeBets.Page.Gacha.Edit.CardType.RaritySelector exposing
     ( selector
+    , selectorFiltered
     , validator
     )
 
 import AssocList
 import Html exposing (Html)
 import Html.Attributes as HtmlA
-import JoeBets.Api.Data as Api
 import JoeBets.Editing.Validator as Validator exposing (Validator)
+import JoeBets.Gacha.Context.Model as Gacha
 import JoeBets.Gacha.Rarity as Rarity
 import Material.Select as Select
 import Util.Maybe as Maybe
 
 
-validator : Rarity.Context -> Validator (Maybe Rarity.Id)
+validator : Gacha.Context -> Validator (Maybe Rarity.Id)
 validator context =
     let
         rarities =
-            context.rarities
-                |> Api.dataToMaybe
-                |> Maybe.withDefault AssocList.empty
+            Gacha.raritiesFromContext context
 
         doesNotExist id =
             (rarities |> AssocList.get id) == Nothing
@@ -35,14 +34,14 @@ validator context =
     Validator.dependent when
 
 
-selector : Rarity.Context -> Maybe (Maybe Rarity.Id -> msg) -> Maybe Rarity.Id -> Html msg
-selector context select selected =
-    let
-        rarities =
-            context.rarities
-                |> Api.dataToMaybe
-                |> Maybe.withDefault AssocList.empty
+selector : Gacha.Context -> Maybe (Maybe Rarity.Id -> msg) -> Maybe Rarity.Id -> Html msg
+selector context =
+    context |> Gacha.raritiesFromContext |> selectorFiltered
 
+
+selectorFiltered : Rarity.Rarities -> Maybe (Maybe Rarity.Id -> msg) -> Maybe Rarity.Id -> Html msg
+selectorFiltered rarities select selected =
+    let
         selectFunction =
             if AssocList.isEmpty rarities then
                 Nothing

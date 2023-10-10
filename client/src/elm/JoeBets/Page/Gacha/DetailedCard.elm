@@ -1,7 +1,6 @@
 module JoeBets.Page.Gacha.DetailedCard exposing (viewDetailedCard)
 
 import JoeBets.Api as Api
-import JoeBets.Api.IdData as Api
 import JoeBets.Api.Model as Api
 import JoeBets.Api.Path as Api
 import JoeBets.Gacha.Card as Card

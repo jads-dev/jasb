@@ -19,11 +19,10 @@ import JoeBets.Api.Model as Api
 import JoeBets.Game.Id as Game
 import JoeBets.Game.Model as Game
 import JoeBets.User.Model as User exposing (User)
-import JoeBets.User.Permission as Permission exposing (Permission)
+import JoeBets.User.Permission exposing (Permission)
 import JoeBets.User.Permission.Selector.Model as Permission
 import Json.Decode as JsonD
 import Json.Decode.Pipeline as JsonD
-import Util.Json.Decode as JsonD
 
 
 type alias BankruptcyStats =
