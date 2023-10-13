@@ -1,7 +1,7 @@
 @use "../_properties.scss";
 
 // Shine gives a holographic effect.
-.shine {
+.effect.shine {
   background-image: radial-gradient(
       circle at var(--effect-focus-x) var(--effect-focus-y),
       #fff 5%,
@@ -32,8 +32,8 @@
     grid-area: shine;
   }
 
-  border-radius: calc(#{properties.by-name("border-radius")} / 2);
-  margin: calc(#{properties.by-name("border-radius")} / 3 * 2);
+  border-radius: var(--inner-border-radius);
+  margin: var(--border-width);
 
   transition: opacity 0.1s;
 

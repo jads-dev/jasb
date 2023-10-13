@@ -11,7 +11,7 @@
         <feMergeNode in="turbulence1" />
         <feMergeNode in="turbulence" />
       </feMerge>
-      <feColorMatrix in="merge" result="colormatrix" type="saturate" values="1" />
+      <feColorMatrix in="merge" result="colormatrix" type="saturate" values="1.2" />
       <feColorMatrix in="colormatrix" result="colormatrix1"
         values="1 0 0 0 0 0 1 0 0 0 0 0 1 0 0 0 0 0 10 0" />
       <feDisplacementMap in="colormatrix1" in2="colormatrix" result="displacementMap" scale="40"

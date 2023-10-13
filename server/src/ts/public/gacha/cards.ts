@@ -45,15 +45,21 @@ export const sharedFromInternal = (
 });
 
 export const Individual = Schema.readonly(
-  Schema.partial({
-    qualities: Qualities.BySlug,
-  }),
+  Schema.intersection([
+    Schema.strict({
+      issueNumber: Schema.Int,
+    }),
+    Schema.partial({
+      qualities: Qualities.BySlug,
+    }),
+  ]),
 );
 export type Individual = Schema.TypeOf<typeof Individual>;
 
 export const individualFromInternal = (
   internal: Internal.Cards.Individual,
 ): Individual => ({
+  issueNumber: internal.issue_number,
   ...(internal.qualities.length > 0
     ? { qualities: internal.qualities.map(Qualities.fromInternal) }
     : {}),
@@ -77,15 +83,21 @@ export const detailedSharedFromInternal = (
 });
 
 export const DetailedIndividual = Schema.readonly(
-  Schema.partial({
-    qualities: Qualities.DetailedBySlug,
-  }),
+  Schema.intersection([
+    Schema.strict({
+      issueNumber: Schema.Int,
+    }),
+    Schema.partial({
+      qualities: Qualities.DetailedBySlug,
+    }),
+  ]),
 );
 export type DetailedIndividual = Schema.TypeOf<typeof DetailedIndividual>;
 
 export const detailedIndividualFromInternal = (
   internal: Internal.Cards.DetailedIndividual,
 ): DetailedIndividual => ({
+  issueNumber: internal.issue_number,
   ...(internal.qualities.length > 0
     ? { qualities: internal.qualities.map(Qualities.detailedFromInternal) }
     : {}),

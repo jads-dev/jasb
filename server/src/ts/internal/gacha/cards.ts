@@ -15,6 +15,7 @@ export type Layout = z.infer<typeof Layout>;
  */
 export const Individual = z.object({
   id: Types.cardId,
+  issue_number: Types.nonNegativeInt,
   qualities: z.array(Quality),
 });
 export type Individual = z.infer<typeof Individual>;
@@ -37,6 +38,7 @@ export type Shared = z.infer<typeof Shared>;
  * unique to a card.
  */
 export const DetailedIndividual = z.object({
+  issue_number: Types.nonNegativeInt,
   qualities: z.array(Qualities.Detailed),
 });
 export type DetailedIndividual = z.infer<typeof DetailedIndividual>;

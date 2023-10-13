@@ -1,8 +1,8 @@
 @use "./_assets.scss";
 
-@mixin banner($slug, $color) {
+@mixin banner($slug, $color, $background-type: "svg") {
   :host([banner="#{$slug}"]) {
-    --background: #{assets.banner-background($slug)};
+    --background: #{assets.banner-background($slug, $background-type)};
     --color: #{$color};
   }
 }
@@ -10,3 +10,4 @@
 @include banner("joms", #fff);
 @include banner("jads", #fff);
 @include banner("chans", #000);
+@include banner("joe", #fff, "webp");

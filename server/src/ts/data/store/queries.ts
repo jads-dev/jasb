@@ -856,8 +856,9 @@ export const cardTypeWithCards = (
       ) AS rarity,
       coalesce(jsonb_agg(jsonb_build_object(
         'id', cards.id,
+        'issue_number', cards.issue_number,
         'qualities', coalesce(qualities.qualities, '[]'::jsonb)
-      )) FILTER ( WHERE cards.id IS NOT NULL ), '[]'::jsonb) AS cards
+      ) ORDER BY cards.id) FILTER ( WHERE cards.id IS NOT NULL ), '[]'::jsonb) AS cards
     FROM
       gacha_card_types AS card_types INNER JOIN
       jasb.gacha_banners AS banners ON card_types.banner = banners.id INNER JOIN
@@ -958,6 +959,7 @@ export const card = (cardSource: Slonik.SqlFragment, rarestFirst: boolean) => {
         'slug', rarities.slug,
         'name', rarities.name
       ) AS rarity,
+      cards.issue_number,
       coalesce(qualities.qualities, '[]'::jsonb) AS qualities
     FROM 
       cards INNER JOIN 
@@ -1015,6 +1017,7 @@ export const detailedCard = (cardSource: Slonik.SqlFragment) => {
         'slug', rarities.slug,
         'name', rarities.name
       ) AS rarity,
+      cards.issue_number,
       coalesce(qualities.qualities, '[]'::jsonb) AS qualities,
       coalesce(credits.credits, '[]'::jsonb) AS credits,
       jsonb_build_object(
@@ -1065,6 +1068,7 @@ export const highlighted = (highlightSource: Slonik.SqlFragment) => {
         'slug', rarities.slug,
         'name', rarities.name
       ) AS rarity,
+      cards.issue_number,
       coalesce(qualities.qualities, '[]'::jsonb) AS qualities,
       highlights.message,
       banners.slug as banner_slug

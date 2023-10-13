@@ -3,6 +3,7 @@ module JoeBets.Components.GachaCard exposing
     , description
     , image
     , interactive
+    , issueNumber
     , layout
     , name
     , qualities
@@ -30,8 +31,12 @@ serialNumber : Card.Id -> Html.Attribute msg
 serialNumber =
     Card.idToInt
         >> String.fromInt
-        >> String.padLeft 10 '0'
         >> HtmlA.attribute "serial-number"
+
+
+issueNumber : Int -> Html.Attribute msg
+issueNumber =
+    String.fromInt >> HtmlA.attribute "issue-number"
 
 
 description : String -> Html.Attribute msg

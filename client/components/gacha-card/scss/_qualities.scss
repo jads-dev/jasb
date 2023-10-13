@@ -1,6 +1,7 @@
 @use "sass:math";
 
 @use "./_assets.scss";
+@use "./_properties.scss";
 
 .quality {
   display: block;
@@ -42,6 +43,7 @@ $trans: linear-gradient(
 @include quality("useless", #555555);
 @include quality("mistake", #ff00ff);
 @include quality("trans", $trans, "svg");
+@include quality("censored", #ff388e);
 
 $primaryColor: #fff;
 $secondaryColor: #333;
@@ -109,17 +111,39 @@ $steps: 20;
   filter: #{assets.$red-tint};
 }
 
-:host([qualities~="self"]) {
-  // TODO: Something?
+:host([qualities~="self"]) .border {
+  background: var(
+    --border,
+    radial-gradient(
+      ellipse farthest-corner at right bottom,
+      #fedb37 0%,
+      #fdb931 8%,
+      #9f7928 30%,
+      #8a6e2f 40%,
+      transparent 80%
+    ),
+    radial-gradient(
+      ellipse farthest-corner at left top,
+      #ffffff 0%,
+      #ffffac 8%,
+      #d1b464 25%,
+      #5d4a1f 62.5%,
+      #5d4a1f 100%
+    )
+  );
 }
 
 :host([qualities~="trans"]) {
-  &:host([layout="full-image"]) .image {
-    position: unset;
+  &:host([layout="full-image"]),
+  &:host([layout="landscape-full-image"]) {
+    .image {
+      position: unset;
 
-    &::after {
-      height: 100%;
-      aspect-ratio: unset;
+      &::after {
+        height: 100%;
+        border-radius: var(--inner-border-radius);
+        aspect-ratio: unset;
+      }
     }
   }
 
@@ -140,4 +164,8 @@ $steps: 20;
       opacity: 0.5;
     }
   }
+}
+
+:host([qualities~="censored"]) .image {
+  filter: #{assets.$censor};
 }

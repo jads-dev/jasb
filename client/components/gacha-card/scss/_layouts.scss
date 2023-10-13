@@ -37,7 +37,7 @@
 
         width: 100%;
         height: 100%;
-        border-radius: calc(#{properties.by-name("border-radius")} / 2);
+        border-radius: var(--inner-border-radius);
       }
     }
 
@@ -68,25 +68,33 @@
 }
 
 :host([layout="landscape-full-image"]) {
+  --landscape-aspect-ratio: calc(1 / #{properties.by-name("aspect-ratio")});
+
   #card {
     height: properties.by-name("width");
     width: unset;
-    aspect-ratio: calc(1 / properties.by-name("aspect-ratio"));
+    aspect-ratio: var(--landscape-aspect-ratio);
 
     .side {
       height: properties.by-name("width");
       width: unset;
-      aspect-ratio: calc(1 / properties.by-name("aspect-ratio"));
+      aspect-ratio: var(--landscape-aspect-ratio);
     }
 
     .face > .content {
       > .image > img {
-        aspect-ratio: calc(1 / properties.by-name("aspect-ratio"));
+        aspect-ratio: var(--landscape-aspect-ratio);
       }
       > .serial-number {
         transform: rotate(0.5turn);
         right: 30em;
-        bottom: -2em;
+        bottom: -1.1em;
+      }
+      > .issue-number {
+        transform: rotate(0.25turn);
+        height: 1em;
+        left: -2em;
+        top: 2.5em;
       }
     }
 
@@ -98,8 +106,8 @@
         transform-origin: top left;
       }
       position: absolute;
-      top: 0; //calc(#{properties.by-name("border-radius")} / 3 * -2);
-      left: calc(#{properties.by-name("border-radius")} / 3 * 2);
+      top: 0;
+      left: var(--border-width);
       bottom: 0;
       right: 0;
     }
@@ -127,8 +135,8 @@
     &::after {
       content: "";
       grid-area: bg;
-      border-radius: calc(#{properties.by-name("border-radius")} / 2);
-      margin: calc(#{properties.by-name("border-radius")} / 3 * 2);
+      border-radius: var(--inner-border-radius);
+      margin: var(--border-width);
     }
 
     &::before {
@@ -144,8 +152,8 @@
 
   > .content {
     position: relative;
-    border-radius: calc(#{properties.by-name("border-radius")} / 2);
-    margin: calc(#{properties.by-name("border-radius")} / 3 * 2);
+    border-radius: var(--inner-border-radius);
+    margin: var(--border-width);
     color: var(--color, #fff);
 
     justify-items: center;
@@ -167,7 +175,17 @@
       font-size: 0.5em;
       transform: rotate(0.25turn);
       top: 30em;
-      right: -3.7em;
+      right: -3.5em;
+      line-height: 1em;
+      color: #000000;
+    }
+
+    > .issue-number {
+      position: absolute;
+      font-size: 0.5em;
+      bottom: -1.1em;
+      left: 1em;
+      line-height: 1em;
       color: #000000;
     }
 

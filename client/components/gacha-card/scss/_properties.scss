@@ -1,6 +1,8 @@
 @use "sass:math";
 @use "sass:map";
 
+// External properties that are public, internal properties don't need to use this.
+
 $prefix: "jasb-gacha-card-";
 
 @mixin set-by-name($name, $value) {

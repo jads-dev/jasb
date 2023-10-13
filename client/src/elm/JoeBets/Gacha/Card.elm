@@ -75,12 +75,15 @@ cssId id =
 {-| The parts of a card unique to that card (i.e: not the card type).
 -}
 type alias Individual =
-    { qualities : Quality.Qualities }
+    { issueNumber : Int
+    , qualities : Quality.Qualities
+    }
 
 
 individualDecoder : JsonD.Decoder Individual
 individualDecoder =
     JsonD.succeed Individual
+        |> JsonD.required "issueNumber" JsonD.int
         |> JsonD.optional "qualities" Quality.qualitiesDecoder AssocList.empty
 
 
@@ -114,17 +117,20 @@ withIdDecoder =
 
 
 type alias DetailedIndividual =
-    { qualities : Quality.DetailedQualities }
+    { issueNumber : Int
+    , qualities : Quality.DetailedQualities
+    }
 
 
 individualFromDetailed : DetailedIndividual -> Individual
-individualFromDetailed { qualities } =
-    Individual (qualities |> Quality.fromDetailedQualities)
+individualFromDetailed { issueNumber, qualities } =
+    Individual issueNumber (qualities |> Quality.fromDetailedQualities)
 
 
 detailedIndividualDecoder : JsonD.Decoder DetailedIndividual
 detailedIndividualDecoder =
     JsonD.succeed DetailedIndividual
+        |> JsonD.required "issueNumber" JsonD.int
         |> JsonD.optional "qualities" Quality.detailedQualitiesDecoder AssocList.empty
 
 

@@ -139,7 +139,7 @@ export const cardsApi = (server: Server.State): Router => {
       credential,
       name,
       imageUrl.toString(),
-      body.quote,
+      `“${body.quote}”`,
       body.rarity,
     );
     const balance = await server.store.gachaGetBalance(credential);

@@ -53,8 +53,14 @@ export class GachaCard extends LitElement {
   /**
    * The serial number of the card.
    */
-  @property({ attribute: "serial-number" })
-  declare serialNumber: string | undefined;
+  @property({ attribute: "serial-number", type: Number })
+  declare serialNumber: number | undefined;
+
+  /**
+   * The issue number of the card.
+   */
+  @property({ attribute: "issue-number", type: Number })
+  declare issueNumber: number | undefined;
 
   /**
    * The name of the card.
@@ -265,9 +271,14 @@ export class GachaCard extends LitElement {
             <div class="effect shine"></div>
             <div class="content">
               ${when(
-                this.serialNumber,
+                this.serialNumber !== undefined,
                 () =>
-                  html`<span class="serial-number">${this.serialNumber}</span>`,
+                  html`<span class="serial-number">${this.serialNumber?.toString()?.padStart(10, "0")}</span>`,
+              )}
+              ${when(
+                this.issueNumber !== undefined,
+                () =>
+                  html`<span class="issue-number">${this.issueNumber?.toString()?.padStart(5, "0")}</span>`,
               )}
               <div class="image">
                 <img src="${this.image}" alt="${this.name}" />

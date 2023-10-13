@@ -17,6 +17,9 @@
 
   width: properties.by-name("width");
   aspect-ratio: properties.by-name("aspect-ratio");
+
+  --inner-border-radius: calc(#{properties.by-name("border-radius")} / 2);
+  --border-width: calc(#{properties.by-name("border-radius")} / 3 * 2);
 }
 
 :host(.unrevealed),
@@ -47,7 +50,6 @@
     align-items: center;
     color: #888888;
     filter: invert(1);
-    //transform: rotate(54deg);
   }
 }
 

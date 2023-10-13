@@ -91,6 +91,7 @@ viewInternal onClick attrs bannerId cardType typeOrIndividual =
                     [ cardId |> Card.cssId |> HtmlA.id
                     , GachaCard.serialNumber cardId
                     , GachaCard.interactive
+                    , GachaCard.issueNumber individual.issueNumber
                     , individual.qualities
                         |> AssocList.keys
                         |> GachaCard.qualities

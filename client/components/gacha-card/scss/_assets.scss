@@ -10,9 +10,10 @@ $grain: url(../assets/grain.webp);
 }
 $weeb-overlay: url(../assets/qualities/weeb-overlay.svg);
 $red-tint: url(../assets/qualities/red-tint.svg#a); // Filter inside the SVG, not an image!
+$censor: url(../assets/qualities/censor.svg#a); // Filter inside the SVG, not an image!
 
-@function banner-background($slug) {
-  @return url(../assets/banners/#{$slug}-background.svg);
+@function banner-background($slug, $type: "svg") {
+  @return url(../assets/banners/#{$slug}-background.#{$type});
 }
 
 @function rarity-icon($slug) {
