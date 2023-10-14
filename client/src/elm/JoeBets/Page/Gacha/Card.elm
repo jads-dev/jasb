@@ -646,14 +646,13 @@ viewCardTypesWithCards onClick filter user banner cardTypesWithCards =
 
         fold ( id, viewdCardType ) result =
             { cardTypes = ( id, viewdCardType.view ) :: result.cardTypes
-            , total = result.total + viewdCardType.total
             , shown = result.shown + viewdCardType.shown
             }
 
-        { cardTypes, total, shown } =
+        { cardTypes, shown } =
             viewedCardTypes
                 |> AssocList.toList
-                |> List.foldr fold { cardTypes = [], total = 0, shown = 0 }
+                |> List.foldr fold { cardTypes = [], shown = 0 }
 
         viewListItem ( cardTypeId, cardType ) =
             ( CardType.cssId cardTypeId

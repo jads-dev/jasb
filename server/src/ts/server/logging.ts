@@ -1,17 +1,17 @@
-import * as Bunyan from "bunyan";
 import type * as Koa from "koa";
-import { default as KoaBunyan } from "koa-bunyan-logger";
+import { default as KoaPino } from "koa-pino-logger";
+import * as Pino from "pino";
 
 import type { Config } from "./config.js";
 
-export type Logger = Bunyan;
+export type Logger = Pino.Logger;
 
 export const init = (config: Config.Logging): Logger =>
-  Bunyan.createLogger({
+  Pino.pino({
     name: "JASB",
     level: config.level,
   });
 
-export const middleware = (logger: Logger): Koa.Middleware => KoaBunyan(logger);
+export const middleware = (logger: Logger): Koa.Middleware => KoaPino(logger);
 
 export * as Logging from "./logging.js";

@@ -33,7 +33,7 @@ export const cacheAvatars = (server: Server.State) => {
         avatarCache,
         config.garbageCollectBatchSize,
       );
-      logger.level();
+
       if (deleted > 0) {
         logger.info(`Deleted ${deleted} unused avatars.`);
       } else {
