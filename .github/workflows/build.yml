@@ -42,7 +42,10 @@ jobs:
         uses: docker/bake-action@v4
         with:
           files: "docker-bake.hcl"
-          set: "*.output=type=registry"
+          set: |
+            *.output=type=registry
+            *.cache-from=type=gha
+            *.cache-to=type=gha,mode=max
         env:
           VCS_REF: ${{ github.sha }}
           VERSION: ${{ github.ref_type == 'tag' && github.ref_name || '' }}
