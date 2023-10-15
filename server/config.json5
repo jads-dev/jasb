@@ -27,7 +27,7 @@
       rewards: {
         winBetRolls: 1,
         loseBetScrap: 2,
-      }
+      },
     },
   },
 
@@ -70,25 +70,25 @@
       guild: "308515582817468420", // JADS
     },
 
-//    // Allow external services to act on behalf of users.
-//    externalServices: {
-//      // The name of this server, services must set the audience for tokens to this.
-//      identity: "jasb.900000000.xyz"
-//      // How long a token is valid for, services should generate tokens on each request so this should be short.
-//      tokenLifetime: "PT1M",
-//
-//      // The services that are allowed.
-//      recognised: {
-//        // The name of the service, used as the issuer in tokens it issues.
-//        "some-service": {
-//          // The public key used to sign tokens to prove they come from the service.
-//          // This must be an Ed25519 key.
-//          publicKey: {
-//            // A JSON web key.
-//          }
-//        }
-//      }
-//    },
+    //// Allow external services to act on behalf of users.
+    //externalServices: {
+    //  // The name of this server, services must set the audience for tokens to this.
+    //  identity: "jasb.900000000.xyz"
+    //  // How long a token is valid for, services should generate tokens on each request so this should be short.
+    //  tokenLifetime: "PT1M",
+    //
+    //  // The services that are allowed.
+    //  recognised: {
+    //    // The name of the service, used as the issuer in tokens it issues.
+    //    "some-service": {
+    //      // The public key used to sign tokens to prove they come from the service.
+    //      // This must be an Ed25519 key.
+    //      publicKey: {
+    //        // A JSON web key.
+    //      }
+    //    }
+    //  }
+    //},
   },
 
   // If given, will post notification messages to a Discord channel after notable events (new bets, etc...).

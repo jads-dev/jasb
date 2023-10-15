@@ -10,9 +10,9 @@ import type { Server } from "./server.js";
 import { Auth } from "./server/auth.js";
 import { Background } from "./server/background.js";
 import { Config } from "./server/config.js";
-import { handler } from "./server/errors.js";
+import * as Errors from "./server/errors.js";
 import { ExitCodes } from "./server/exit-codes.js";
-import { DiscordNotifier, NullNotifier } from "./server/external-notifier.js";
+import { ExternalNotifier } from "./server/external-notifier.js";
 import { Logging } from "./server/logging.js";
 import { Routes } from "./server/routes.js";
 import { WebSockets } from "./server/web-sockets.js";
@@ -24,20 +24,28 @@ const load = async (
   config: Config.Server,
   logger: Logging.Logger,
 ): Promise<Server.State> => {
-  const notifier =
-    config.notifier !== undefined
-      ? await DiscordNotifier.create(logger, config, config.notifier)
-      : new NullNotifier();
-  const avatarCache = await ObjectUpload.init(config.avatarCache);
-  const store = await Store.load(logger, config, notifier, avatarCache);
+  const [[externalNotifier, store, auth], imageUpload, avatarCache] =
+    await Promise.all([
+      (async () => {
+        const externalNotifier = await ExternalNotifier.fromConfig(
+          logger,
+          config,
+        );
+        const store = await Store.load(config, externalNotifier);
+        const auth = await Auth.init(config.auth, store);
+        return [externalNotifier, store, auth];
+      })(),
+      ObjectUpload.init(config.imageUpload),
+      ObjectUpload.init(config.avatarCache),
+    ]);
   return {
     config,
     logger,
     store,
-    auth: await Auth.init(config.auth, store),
+    auth,
     webSockets: new WebSockets(config),
-    externalNotifier: notifier,
-    imageUpload: await ObjectUpload.init(config.imageUpload),
+    externalNotifier,
+    imageUpload,
     avatarCache,
   };
 };
@@ -67,7 +75,7 @@ const start = async (server: Server.State): Promise<void> => {
     try {
       await next();
     } catch (error) {
-      const { status, message } = handler(server.logger, error);
+      const { status, message } = Errors.handler(server.logger, error);
       if (status === StatusCodes.UNAUTHORIZED) {
         ctx.cookies.set(Auth.sessionCookieName, null, { signed: true });
       }
@@ -104,8 +112,11 @@ const start = async (server: Server.State): Promise<void> => {
       .then(() => {
         process.exit();
       })
-      .catch((error) => {
-        console.log(`Error while shutting down: ${error}`);
+      .catch((error: unknown) => {
+        const message =
+          error instanceof Error ? error.message : JSON.stringify(error);
+        console.error(`Error while shutting down: ${message}`);
+        console.error(error);
         process.exit(ExitCodes.SHUTDOWN_ERROR);
       });
   });
@@ -120,14 +131,15 @@ async function main(): Promise<void> {
     const server = await load(config, logger);
     await start(server);
   } catch (error) {
-    logger.error(`Unhandled exception: ${(error as Error).message}.`, {
-      exception: error,
-    });
+    logger.error({ err: error }, "Unhandled exception.");
     process.exit(ExitCodes.UNHANDLED_EXCEPTION);
   }
 }
 
-main().catch((error) => {
-  console.log(`Error while initializing: ${error}`);
+main().catch((error: unknown) => {
+  const message =
+    error instanceof Error ? error.message : JSON.stringify(error);
+  console.error(`Error while initializing: ${message}`);
+  console.error(error);
   process.exit(ExitCodes.INITIALIZATION_ERROR);
 });

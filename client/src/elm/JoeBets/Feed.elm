@@ -300,11 +300,17 @@ view wrap specificFeed { bets, settings } feed =
 
                     else
                         filteredItems |> List.map viewItem |> Html.ol []
+
+                filters =
+                    if specificFeed then
+                        []
+
+                    else
+                        [ possibleFilters
+                            |> List.map (viewFilter wrap feed.filters)
+                            |> Filtering.viewFilters "Events" (items |> List.length) (filteredItems |> List.length)
+                        ]
             in
-            [ possibleFilters
-                |> List.map (viewFilter wrap feed.filters)
-                |> Filtering.viewFilters "Events" (items |> List.length) (filteredItems |> List.length)
-            , events
-            ]
+            List.append filters [ events ]
     in
     prefix ++ Api.viewData Api.viewOrError body feed.items

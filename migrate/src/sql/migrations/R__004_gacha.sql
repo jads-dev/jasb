@@ -871,3 +871,20 @@ CREATE FUNCTION gacha_retire_forged (
     RETURN new_card_type;
   END;
 $$;
+
+CREATE OR REPLACE FUNCTION update_next_issue_number()
+RETURNS TRIGGER AS $$
+  BEGIN
+    SELECT next_issue_number INTO NEW.issue_number FROM jasb.gacha_card_types_meta WHERE type = NEW.type;
+    IF NEW.issue_number IS NULL THEN
+      NEW.issue_number = 0;
+    END IF;
+    INSERT INTO jasb.gacha_card_types_meta AS card_types_meta (type, next_issue_number) VALUES (NEW.type, 1)
+    ON CONFLICT ON CONSTRAINT gacha_card_types_meta_pkey DO
+      UPDATE SET next_issue_number = card_types_meta.next_issue_number + 1;
+    RETURN NEW;
+  END;
+$$ LANGUAGE plpgsql;
+
+CREATE OR REPLACE TRIGGER update_next_issue_number_trigger BEFORE INSERT ON jasb.gacha_cards
+  FOR EACH ROW EXECUTE FUNCTION update_next_issue_number();

@@ -4,6 +4,7 @@ import { Types } from "./types.js";
 
 const UserBase = z.object({
   slug: Types.userSlug,
+  discord_id: z.string(),
   name: z.string(),
   discriminator: z.string().nullable(),
   created: Types.zonedDateTime,
@@ -51,6 +52,7 @@ export const Summary = User.pick({
   name: true,
   discriminator: true,
   avatar_url: true,
+  discord_id: true,
 });
 export type Summary = z.infer<typeof Summary>;
 

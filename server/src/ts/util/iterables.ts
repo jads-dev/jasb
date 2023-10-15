@@ -90,4 +90,7 @@ export const interleave = function* <Item>(
   }
 };
 
+export const join = (items: Iterable<string>, separator = ""): string =>
+  [...items].join(separator);
+
 export * as Iterables from "./iterables.js";

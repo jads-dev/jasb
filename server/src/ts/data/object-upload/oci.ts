@@ -7,15 +7,15 @@ import type { Config } from "../../server/config.js";
 import { details, type ObjectUploader } from "../object-upload.js";
 
 export class OciObjectUploader implements ObjectUploader {
-  readonly config;
-  readonly details;
-  readonly client;
-  readonly baseUrl;
+  readonly #config;
+  readonly #details;
+  readonly #client;
+  readonly #baseUrl;
 
   constructor(config: Config.OciObjectUpload) {
-    this.config = config;
-    this.details = details(config);
-    this.client = new Oci.ObjectStorageClient(
+    this.#config = config;
+    this.#details = details(config);
+    this.#client = new Oci.ObjectStorageClient(
       {
         authenticationDetailsProvider:
           new OciCommon.SimpleAuthenticationDetailsProvider(
@@ -33,11 +33,11 @@ export class OciObjectUploader implements ObjectUploader {
         },
       },
     );
-    this.baseUrl = `https://objectstorage.${config.region}.oraclecloud.com/n/${config.namespace}/b/${config.bucket}/o/`;
+    this.#baseUrl = `https://objectstorage.${config.region}.oraclecloud.com/n/${config.namespace}/b/${config.bucket}/o/`;
   }
 
   private url(name: string): URL {
-    return new URL(name, this.baseUrl);
+    return new URL(name, this.#baseUrl);
   }
 
   async upload(
@@ -46,23 +46,23 @@ export class OciObjectUploader implements ObjectUploader {
     data: Uint8Array,
     metadata?: Record<string, string>,
   ): Promise<URL> {
-    const name = this.details.name(originalName, data);
+    const name = this.#details.name(originalName, data);
     const md5 = Crypto.createHash("md5");
     md5.update(data);
     try {
-      await this.client.putObject({
+      await this.#client.putObject({
         putObjectBody: data,
         contentLength: data.byteLength,
-        namespaceName: this.config.namespace,
-        bucketName: this.config.bucket,
+        namespaceName: this.#config.namespace,
+        bucketName: this.#config.bucket,
         objectName: name,
         contentMD5: md5.digest("base64"),
         contentType,
-        ...(this.details.cacheControl !== undefined
-          ? { cacheControl: this.details.cacheControl }
+        ...(this.#details.cacheControl !== undefined
+          ? { cacheControl: this.#details.cacheControl }
           : {}),
         opcMeta: metadata,
-        ...(this.details.allowOverwrite ? {} : { ifNoneMatch: "*" }),
+        ...(this.#details.allowOverwrite ? {} : { ifNoneMatch: "*" }),
       });
     } catch (error) {
       if (
@@ -82,9 +82,9 @@ export class OciObjectUploader implements ObjectUploader {
     if (objectName === undefined) {
       throw new Error("Malformed URL.");
     }
-    await this.client.deleteObject({
-      namespaceName: this.config.namespace,
-      bucketName: this.config.bucket,
+    await this.#client.deleteObject({
+      namespaceName: this.#config.namespace,
+      bucketName: this.#config.bucket,
       objectName,
     });
   }

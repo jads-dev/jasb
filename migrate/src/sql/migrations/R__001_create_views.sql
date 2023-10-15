@@ -18,7 +18,6 @@ CREATE VIEW
     bet_id,
     winning_options,
     top_winning_users,
-    top_winning_discord_ids,
     biggest_payout_amount,
     total_staked_amount,
     winning_stakes_count,
@@ -71,12 +70,10 @@ WITH
           'slug', users.slug,
           'name', users.name,
           'discriminator', users.discriminator,
+          'discord_id', users.discord_id,
           'avatar_url', avatars.url
         )
-      ) FILTER ( WHERE users.id IS NOT NULL ), '[]'::jsonb) AS top_winners,
-      coalesce(jsonb_agg(
-        DISTINCT users.discord_id
-      ) FILTER ( WHERE users.discord_id IS NOT NULL ), '[]'::jsonb) AS top_winners_discord_ids
+      ) FILTER ( WHERE users.id IS NOT NULL ), '[]'::jsonb) AS top_winners
     FROM
       bets INNER JOIN
       stake_stats_by_bet ON bets.id = stake_stats_by_bet.bet_id LEFT JOIN (
@@ -93,7 +90,6 @@ SELECT
   bets.id AS bet_id,
   winning_options_by_bet.winning_options,
   top_winning_users_by_bet.top_winners,
-  top_winning_users_by_bet.top_winners_discord_ids,
   stake_stats_by_bet.biggest_payout_amount,
   stake_stats_by_bet.total_staked_amount,
   stake_stats_by_bet.winning_stake_count,
@@ -172,6 +168,7 @@ SELECT
       'slug', users.slug,
       'name', users.name,
       'discriminator', users.discriminator,
+      'discord_id', users.discord_id,
       'avatar_url', avatars.url
     ),
     'message', stakes.message,
@@ -219,6 +216,7 @@ SELECT
     'slug', users.slug,
     'name', users.name,
     'discriminator', users.discriminator,
+    'discord_id', users.discord_id,
     'avatar_url', avatars.url
   )) FILTER (
     WHERE users.id IS NOT NULL
@@ -276,6 +274,7 @@ CREATE VIEW
     "slug",
     "name",
     discriminator,
+    discord_id,
     avatar_url,
     created,
     balance,
@@ -288,6 +287,7 @@ SELECT
   users.slug,
   users."name",
   users.discriminator,
+  users.discord_id,
   avatars.url AS avatar_url,
   users.created,
   users.balance,
@@ -310,6 +310,7 @@ CREATE VIEW
     "slug",
     "name",
     discriminator,
+    discord_id,
     avatar_url,
     created,
     balance,
@@ -322,6 +323,7 @@ SELECT
   users.slug,
   users."name",
   users.discriminator,
+  users.discord_id,
   avatars.url AS avatar_url,
   users.created,
   users.balance,
@@ -347,6 +349,7 @@ SELECT
         'slug', users.slug,
         'name', users.name,
         'discriminator', users.discriminator,
+        'discord_id', users.discord_id,
         'avatar_url', avatars.url
       ),
       'made_at', stakes.made_at,

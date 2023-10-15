@@ -19,13 +19,13 @@ const wrapLogErrors =
     doAsync: (...args: TArgs) => Promise<void>,
   ): ((...args: TArgs) => void) =>
   (...args): void => {
-    doAsync(...args).catch((error) => {
-      logger.error(error);
+    doAsync(...args).catch((error: unknown) => {
+      logger.error({ err: error }, "Unhandled error in WebSocket handler.");
     });
   };
 
 export class WebSockets {
-  #pool;
+  #pool: Pool.Pool<Subscriber>;
 
   constructor(config: Config.Server) {
     const factory: Pool.Factory<Subscriber> = {

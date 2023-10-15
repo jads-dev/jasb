@@ -16,40 +16,35 @@ import type { Public } from "../public.js";
 import { Credentials } from "../server/auth/credentials.js";
 import type { Config } from "../server/config.js";
 import { WebError } from "../server/errors.js";
-import { Notifier } from "../server/external-notifier.js";
-import type { Logging } from "../server/logging.js";
+import type { Notifier } from "../server/external-notifier.js";
 import { SecretToken } from "../util/secret-token.js";
-import type { ObjectUploader } from "./object-upload.js";
 import { Queries } from "./store/queries.js";
 
-const createResultParserInterceptor = (): Slonik.Interceptor => {
-  return {
-    transformRow: (executionContext, actualQuery, row) => {
-      const { resultParser } = executionContext;
-      if (!resultParser) {
-        return row;
-      }
+const createResultParserInterceptor = (): Slonik.Interceptor => ({
+  transformRow: ({ resultParser }, actualQuery, row) => {
+    if (resultParser) {
       const validationResult = resultParser.safeParse(row);
-      if (!validationResult.success) {
+      if (validationResult.success) {
+        return validationResult.data as Slonik.QueryResultRow;
+      } else {
         throw new Slonik.SchemaValidationError(
           actualQuery,
           row,
           validationResult.error.issues,
         );
       }
-      return validationResult.data as Slonik.QueryResultRow;
-    },
-  };
-};
+    } else {
+      return row;
+    }
+  },
+});
 
 const sqlFragment = Slonik.sql.fragment;
 
 export class Store {
-  readonly logger: Logging.Logger;
-  readonly config: Config.Server;
-  readonly notifier: Notifier;
-  readonly avatarCache: ObjectUploader | undefined;
-  readonly pool: Slonik.DatabasePool;
+  readonly #config: Config.Server;
+  readonly #notifier: Notifier;
+  readonly #pool: Slonik.DatabasePool;
 
   public static connectionString({
     host,
@@ -71,33 +66,22 @@ export class Store {
   }
 
   private constructor(
-    logger: Logging.Logger,
     config: Config.Server,
     notifier: Notifier,
-    avatarCache: ObjectUploader | undefined,
     pool: Slonik.DatabasePool,
   ) {
-    this.logger = logger;
-    this.config = config;
-    this.notifier = notifier;
-    this.avatarCache = avatarCache;
-    this.pool = pool;
+    this.#config = config;
+    this.#notifier = notifier;
+    this.#pool = pool;
   }
 
   public static async load(
-    logger: Logging.Logger,
     config: Config.Server,
     notifier: Notifier,
-    avatarCache: ObjectUploader | undefined,
   ): Promise<Store> {
     return new Store(
-      logger.child({
-        system: "store",
-        store: "postgres",
-      }),
       config,
       notifier,
-      avatarCache,
       await Slonik.createPool(Store.connectionString(config.store.source), {
         typeParsers: [
           { name: "int8", parse: (v) => Number.parseInt(v, 10) },
@@ -130,7 +114,7 @@ export class Store {
           Queries.userId(sqlFragment`
             jasb.validate_upload(
               ${this.sqlCredential(credential)},
-              ${this.config.auth.sessionLifetime.toString()}
+              ${this.#config.auth.sessionLifetime.toString()}
             )
           `),
         ),
@@ -147,7 +131,7 @@ export class Store {
           Queries.userId(sqlFragment`
             jasb.validate_credentials(
               ${this.sqlCredential(credential)},
-              ${this.config.auth.sessionLifetime.toString()}
+              ${this.#config.auth.sessionLifetime.toString()}
             )
           `),
         ),
@@ -193,7 +177,7 @@ export class Store {
         Queries.leaderboard(sqlFragment`
           SELECT leaderboard.* 
           FROM jasb.leaderboard
-          WHERE net_worth > ${this.config.rules.initialBalance}
+          WHERE net_worth > ${this.#config.rules.initialBalance}
         `),
       );
       return results.rows;
@@ -219,7 +203,7 @@ export class Store {
     return await this.withClient(async (client) => {
       return await client.one(
         Queries.bankruptcyStats(
-          this.config.rules.initialBalance,
+          this.#config.rules.initialBalance,
           sqlFragment`
             SELECT * from jasb.users WHERE users.slug = ${userSlug}
           `,
@@ -234,8 +218,8 @@ export class Store {
         Queries.user(sqlFragment`
           SELECT * FROM jasb.bankrupt(
             ${this.sqlCredential(credential)},
-            ${this.config.auth.sessionLifetime.toString()},
-            ${this.config.rules.initialBalance}
+            ${this.#config.auth.sessionLifetime.toString()},
+            ${this.#config.rules.initialBalance}
         )`),
       );
     });
@@ -255,7 +239,7 @@ export class Store {
     notifications: readonly Notifications.Notification[];
   }> {
     const sessionId = await SecretToken.secureRandom(
-      this.config.auth.sessionIdSize,
+      this.#config.auth.sessionIdSize,
     );
     return await this.inTransaction(async (client) => {
       const session = await (async () => {
@@ -271,7 +255,7 @@ export class Store {
               ${accessToken},
               ${refreshToken},
               ${discordExpiresIn.toString()},
-              ${this.config.rules.initialBalance}
+              ${this.#config.rules.initialBalance}
             )
           `),
         );
@@ -379,7 +363,7 @@ export class Store {
         Queries.gameWithBetStats(sqlFragment`
           SELECT * FROM jasb.add_game(
             ${this.sqlCredential(credential)},
-            ${this.config.auth.sessionLifetime.toString()},
+            ${this.#config.auth.sessionLifetime.toString()},
             ${gameSlug},
             ${name},
             ${cover},
@@ -425,7 +409,7 @@ export class Store {
         Queries.gameWithBetStats(sqlFragment`
           SELECT * FROM jasb.edit_game(
             ${this.sqlCredential(credential)},
-            ${this.config.auth.sessionLifetime.toString()},
+            ${this.#config.auth.sessionLifetime.toString()},
             ${gameSlug},
             ${version},
             ${name ?? null},
@@ -496,7 +480,7 @@ export class Store {
         Queries.lockMoment(sqlFragment`
           SELECT * FROM jasb.edit_lock_moments(
             ${this.sqlCredential(credential)},
-            ${this.config.auth.sessionLifetime.toString()},
+            ${this.#config.auth.sessionLifetime.toString()},
             ${gameSlug},
             (SELECT array_agg(
               row(slug, version)::RemoveLockMoment
@@ -609,7 +593,7 @@ export class Store {
           SELECT *
           FROM jasb.add_bet(
             ${this.sqlCredential(credential)},
-            ${this.config.auth.sessionLifetime.toString()},
+            ${this.#config.auth.sessionLifetime.toString()},
             ${gameSlug},
             ${betSlug},
             ${betName},
@@ -624,20 +608,18 @@ export class Store {
           )
         `),
       );
-      await this.notifier.notify(async () => {
+      await this.#notifier.notify(async (): Promise<Feed.NewBet> => {
         const result = await client.one(
           Queries.gameWithBetStats(sqlFragment`
             SELECT games.* FROM jasb.games WHERE games.slug = ${gameSlug}
           `),
         );
-        return Notifier.newBet(
-          this.config.clientOrigin,
+        return {
+          type: "NewBet",
+          game: { slug: result.slug, name: result.name },
+          bet: { slug: betSlug, name: betName },
           spoiler,
-          gameSlug,
-          result.name,
-          betSlug,
-          betName,
-        );
+        };
       });
       return result;
     });
@@ -700,7 +682,7 @@ export class Store {
           SELECT *
           FROM jasb.edit_bet(
             ${this.sqlCredential(credential)},
-            ${this.config.auth.sessionLifetime.toString()},
+            ${this.#config.auth.sessionLifetime.toString()},
             ${old_version},
             ${gameSlug},
             ${betSlug},
@@ -743,7 +725,7 @@ export class Store {
           SELECT *
           FROM jasb.set_bet_locked(
             ${this.sqlCredential(credential)},
-            ${this.config.auth.sessionLifetime.toString()},
+            ${this.#config.auth.sessionLifetime.toString()},
             ${old_version},
             ${gameSlug},
             ${betSlug},
@@ -768,10 +750,10 @@ export class Store {
           SELECT *
           FROM jasb.complete_bet(
             ${this.sqlCredential(credential)},
-            ${this.config.auth.sessionLifetime.toString()},
-            ${this.config.rules.gacha.scrapPerRoll},
-            ${this.config.rules.gacha.rewards.winBetRolls},
-            ${this.config.rules.gacha.rewards.loseBetScrap},
+            ${this.#config.auth.sessionLifetime.toString()},
+            ${this.#config.rules.gacha.scrapPerRoll},
+            ${this.#config.rules.gacha.rewards.winBetRolls},
+            ${this.#config.rules.gacha.rewards.loseBetScrap},
             ${old_version},
             ${gameSlug},
             ${betSlug},
@@ -779,7 +761,7 @@ export class Store {
           )
         `),
       );
-      await this.notifier.notify(async () => {
+      await this.#notifier.notify(async (): Promise<Feed.BetComplete> => {
         const row = await client.one(
           Queries.betCompleteNotificationDetails(sqlFragment`
             SELECT bets.* 
@@ -787,19 +769,19 @@ export class Store {
             WHERE games.slug = ${gameSlug} AND bets.slug = ${betSlug}
           `),
         );
-        return Notifier.betComplete(
-          this.config.clientOrigin,
-          row.spoiler,
-          gameSlug,
-          row.game_name,
-          betSlug,
-          row.bet_name,
-          winners,
-          row.winning_stakes_count,
-          row.total_staked_amount,
-          row.top_winning_discord_ids,
-          row.biggest_payout_amount,
-        );
+        return {
+          type: "BetComplete",
+          game: { slug: gameSlug, name: row.game_name },
+          bet: { slug: betSlug, name: row.bet_name },
+          spoiler: row.spoiler,
+          winners: row.winners,
+          winningStakes: row.winning_stakes_count,
+          totalReturn: row.total_staked_amount,
+          highlighted: {
+            winners: row.top_winning_users,
+            amount: row.biggest_payout_amount,
+          },
+        };
       });
       return result ?? undefined;
     });
@@ -817,7 +799,7 @@ export class Store {
           SELECT *
           FROM jasb.revert_complete_bet(
             ${this.sqlCredential(credential)},
-            ${this.config.auth.sessionLifetime.toString()},
+            ${this.#config.auth.sessionLifetime.toString()},
             ${old_version},
             ${gameSlug},
             ${betSlug}
@@ -841,7 +823,7 @@ export class Store {
           SELECT *
           FROM jasb.cancel_bet(
             ${this.sqlCredential(credential)},
-            ${this.config.auth.sessionLifetime.toString()},
+            ${this.#config.auth.sessionLifetime.toString()},
             ${old_version},
             ${gameSlug},
             ${betSlug},
@@ -865,7 +847,7 @@ export class Store {
           SELECT *
           FROM jasb.revert_cancel_bet(
             ${this.sqlCredential(credential)},
-            ${this.config.auth.sessionLifetime.toString()},
+            ${this.#config.auth.sessionLifetime.toString()},
             ${old_version},
             ${gameSlug},
             ${betSlug}
@@ -888,11 +870,11 @@ export class Store {
       const row = await client.one(
         Queries.newBalance(sqlFragment`
           SELECT * FROM jasb.new_stake(
-            ${this.config.rules.minStake},
-            ${this.config.rules.notableStake},
-            ${this.config.rules.maxStakeWhileInDebt},
+            ${this.#config.rules.minStake},
+            ${this.#config.rules.notableStake},
+            ${this.#config.rules.maxStakeWhileInDebt},
             ${this.sqlCredential(credential)},
-            ${this.config.auth.sessionLifetime.toString()},
+            ${this.#config.auth.sessionLifetime.toString()},
             ${gameSlug},
             ${betSlug},
             ${optionSlug},
@@ -902,7 +884,7 @@ export class Store {
         `),
       );
       if (message !== null) {
-        await this.notifier.notify(async () => {
+        await this.#notifier.notify(async (): Promise<Feed.NotableStake> => {
           const row = await client.one(
             Queries.newStakeNotificationDetails(
               Credentials.actingUser(credential),
@@ -920,18 +902,16 @@ export class Store {
               `,
             ),
           );
-          return Notifier.newStake(
-            this.config.clientOrigin,
-            row.spoiler,
-            gameSlug,
-            row.game_name,
-            betSlug,
-            row.bet_name,
-            row.option_name,
-            row.user_discord_id,
-            amount,
-            message,
-          );
+          return {
+            type: "NotableStake",
+            game: { slug: gameSlug, name: row.game_name },
+            bet: { slug: betSlug, name: row.bet_name },
+            spoiler: row.spoiler,
+            option: { slug: optionSlug, name: row.option_name },
+            user: row.user_summary,
+            message: message,
+            stake: amount as Schema.Int,
+          };
         });
       }
       return row.new_balance;
@@ -949,7 +929,7 @@ export class Store {
         Queries.newBalance(sqlFragment`
           SELECT * FROM jasb.withdraw_stake(
             ${this.sqlCredential(credential)},
-            ${this.config.auth.sessionLifetime.toString()},
+            ${this.#config.auth.sessionLifetime.toString()},
             ${gameSlug},
             ${betSlug},
             ${optionSlug}
@@ -972,11 +952,11 @@ export class Store {
       const result = await client.one(
         Queries.newBalance(sqlFragment`
           SELECT * FROM jasb.change_stake(
-            ${this.config.rules.minStake},
-            ${this.config.rules.notableStake},
-            ${this.config.rules.maxStakeWhileInDebt},
+            ${this.#config.rules.minStake},
+            ${this.#config.rules.notableStake},
+            ${this.#config.rules.maxStakeWhileInDebt},
             ${this.sqlCredential(credential)},
-            ${this.config.auth.sessionLifetime.toString()},
+            ${this.#config.auth.sessionLifetime.toString()},
             ${gameSlug},
             ${betSlug},
             ${optionSlug},
@@ -999,7 +979,7 @@ export class Store {
           Queries.notification(sqlFragment`
           SELECT * FROM jasb.get_notification(
             ${this.sqlCredential(credential)},
-            ${this.config.auth.sessionLifetime.toString()},
+            ${this.#config.auth.sessionLifetime.toString()},
             ${notificationId}
           )
         `),
@@ -1016,7 +996,7 @@ export class Store {
         Queries.notification(sqlFragment`
           SELECT * FROM jasb.get_notifications(
             ${this.sqlCredential(credential)},
-            ${this.config.auth.sessionLifetime.toString()},
+            ${this.#config.auth.sessionLifetime.toString()},
             ${includeRead}
           )
         `),
@@ -1035,7 +1015,7 @@ export class Store {
           Queries.isTrue(sqlFragment`
             jasb.set_read(
               ${this.sqlCredential(credential)},
-              ${this.config.auth.sessionLifetime.toString()},
+              ${this.#config.auth.sessionLifetime.toString()},
               ${notificationId}
             )
           `),
@@ -1097,7 +1077,7 @@ export class Store {
         Queries.perform(sqlFragment`
           jasb.set_permissions(
             ${this.sqlCredential(credential)},
-            ${this.config.auth.sessionLifetime.toString()},
+            ${this.#config.auth.sessionLifetime.toString()},
             ${targetUserSlug},
             ${gameSlug ?? null},
             ${manage_games ?? null},
@@ -1138,7 +1118,7 @@ export class Store {
           Queries.cardType(sqlFragment`
           SELECT * FROM jasb.gacha_retire_forged(
             ${this.sqlCredential(credential)},
-            ${this.config.auth.sessionLifetime.toString()},
+            ${this.#config.auth.sessionLifetime.toString()},
             ${cardTypeId}
           )
         `),
@@ -1159,7 +1139,7 @@ export class Store {
           Queries.cardType(sqlFragment`
           SELECT * FROM jasb.gacha_forge_card_type(
             ${this.sqlCredential(credential)},
-            ${this.config.auth.sessionLifetime.toString()},
+            ${this.#config.auth.sessionLifetime.toString()},
             ${cardName},
             ${cardImage},
             ${cardQuote},
@@ -1264,7 +1244,7 @@ export class Store {
           SELECT *
           FROM jasb.gacha_set_highlight(
             ${this.sqlCredential(credential)},
-            ${this.config.auth.sessionLifetime.toString()},
+            ${this.#config.auth.sessionLifetime.toString()},
             ${cardId},
             ${highlighted}
           )
@@ -1283,7 +1263,7 @@ export class Store {
         Queries.highlighted(sqlFragment`
           SELECT * FROM jasb.gacha_edit_highlight(
             ${this.sqlCredential(credential)},
-            ${this.config.auth.sessionLifetime.toString()},
+            ${this.#config.auth.sessionLifetime.toString()},
             ${cardId},
             ${message ?? null},
             ${message === null}
@@ -1302,7 +1282,7 @@ export class Store {
         Queries.highlighted(sqlFragment`
             SELECT * FROM jasb.gacha_reorder_highlights(
               ${this.sqlCredential(credential)},
-              ${this.config.auth.sessionLifetime.toString()},
+              ${this.#config.auth.sessionLifetime.toString()},
               ${Slonik.sql.array(order, "int4")}
             )
         `),
@@ -1324,8 +1304,8 @@ export class Store {
             SELECT id
             FROM jasb.gacha_roll(
               ${this.sqlCredential(credential)},
-              ${this.config.auth.sessionLifetime.toString()},
-              ${this.config.rules.gacha.maxPity},
+              ${this.#config.auth.sessionLifetime.toString()},
+              ${this.#config.rules.gacha.maxPity},
               ${bannerSlug}, 
               ${count}, 
               ${guarantee}
@@ -1378,8 +1358,8 @@ export class Store {
         Queries.balance(sqlFragment`
           SELECT * FROM jasb.gacha_recycle_card(
             ${this.sqlCredential(credential)},
-            ${this.config.auth.sessionLifetime.toString()},
-            ${this.config.rules.gacha.scrapPerRoll},
+            ${this.#config.auth.sessionLifetime.toString()},
+            ${this.#config.rules.gacha.scrapPerRoll},
             ${cardId}
           )
         `),
@@ -1396,7 +1376,7 @@ export class Store {
           Queries.balance(sqlFragment`
           SELECT * FROM jasb.gacha_get_balance(
               ${this.sqlCredential(credential)},
-              ${this.config.auth.sessionLifetime.toString()}
+              ${this.#config.auth.sessionLifetime.toString()}
             )
           `),
         ),
@@ -1529,7 +1509,7 @@ export class Store {
         Queries.editableBanner(sqlFragment`
            SELECT * FROM jasb.gacha_add_banner(
              ${this.sqlCredential(credential)},
-             ${this.config.auth.sessionLifetime.toString()},
+             ${this.#config.auth.sessionLifetime.toString()},
              ${bannerSlug},
              ${name},
              ${description},
@@ -1561,7 +1541,7 @@ export class Store {
         Queries.editableBanner(sqlFragment`
            SELECT * FROM jasb.gacha_edit_banner(
              ${this.sqlCredential(credential)},
-             ${this.config.auth.sessionLifetime.toString()},
+             ${this.#config.auth.sessionLifetime.toString()},
              ${bannerSlug},
              ${oldVersion},
              ${name},
@@ -1595,7 +1575,7 @@ export class Store {
         Queries.editableBanner(sqlFragment`
            SELECT * FROM jasb.gacha_reorder_banners(
              ${this.sqlCredential(credential)},
-             ${this.config.auth.sessionLifetime.toString()},
+             ${this.#config.auth.sessionLifetime.toString()},
              (SELECT array_agg(
                row(slug, version)::jasb.OrderedBanner
              ) FROM ${orderUnnest} AS new_order(slug, version))
@@ -1680,7 +1660,7 @@ export class Store {
           sqlFragment`
             SELECT * FROM jasb.gacha_gift_self_made(
               ${this.sqlCredential(credential)},
-              ${this.config.auth.sessionLifetime.toString()},
+              ${this.#config.auth.sessionLifetime.toString()},
               ${giftToUserSlug},
               ${bannerSlug},
               ${cardTypeId}
@@ -1721,7 +1701,7 @@ export class Store {
         Queries.editableCardType(sqlFragment`
            SELECT * FROM jasb.gacha_add_card_type(
              ${this.sqlCredential(credential)},
-             ${this.config.auth.sessionLifetime.toString()},
+             ${this.#config.auth.sessionLifetime.toString()},
              ${bannerSlug},
              ${name},
              ${description},
@@ -1795,7 +1775,7 @@ export class Store {
         Queries.ids(sqlFragment`
            SELECT id FROM jasb.gacha_edit_card_type(
              ${this.sqlCredential(credential)},
-             ${this.config.auth.sessionLifetime.toString()},
+             ${this.#config.auth.sessionLifetime.toString()},
              ${bannerSlug},
              ${cardTypeId},
              ${oldVersion},
@@ -1840,7 +1820,7 @@ export class Store {
           DELETE FROM
             jasb.sessions
           WHERE
-            NOW() >= (started + ${this.config.auth.sessionLifetime.toString()}::INTERVAL)
+            NOW() >= (started + ${this.#config.auth.sessionLifetime.toString()}::INTERVAL)
           RETURNING sessions.*
         `),
       );
@@ -1924,14 +1904,14 @@ export class Store {
   }
 
   async unload(): Promise<void> {
-    await this.pool.end();
+    await this.#pool.end();
   }
 
   private async withClient<Value>(
     operation: (client: Slonik.DatabasePoolConnection) => Promise<Value>,
   ): Promise<Value> {
     return await Store.translatingErrors(
-      async () => await this.pool.connect(operation),
+      async () => await this.#pool.connect(operation),
     );
   }
 
@@ -1939,7 +1919,7 @@ export class Store {
     operation: (client: Slonik.DatabaseTransactionConnection) => Promise<Value>,
   ): Promise<Value> {
     return await Store.translatingErrors(
-      async () => await this.pool.transaction(operation),
+      async () => await this.#pool.transaction(operation),
     );
   }
 

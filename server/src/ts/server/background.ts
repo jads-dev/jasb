@@ -1,5 +1,6 @@
 import { cacheAvatars } from "./background/cache-avatars.js";
 import { garbageCollect } from "./background/garbage-collect.js";
+import type { Tasks } from "./background/tasks.js";
 import type { Logging } from "./logging.js";
 import type { Server } from "./model.js";
 
@@ -27,22 +28,16 @@ const runTaskRepeatedlyInBackground = async (
   server: Server.State,
   parentLogger: Logging.Logger,
   taskName: string,
-  task:
-    | ((server: Server.State, logger: Logging.Logger) => Promise<boolean>)
-    | undefined,
+  task: Tasks.Task | undefined,
 ): Promise<void> => {
   if (task !== undefined) {
     const logger = parentLogger.child({
       task: taskName,
     });
-    await runTaskRepeatedly(server, logger, task).catch((error) => {
+    await runTaskRepeatedly(server, logger, task).catch((error: unknown) => {
       logger.error(
-        `Unhandled exception in background task ${taskName}: ${
-          (error as Error).message
-        }.`,
-        {
-          exception: error as Error,
-        },
+        { err: error },
+        `Unhandled exception in background task ${taskName}.`,
       );
     });
   }
@@ -50,12 +45,18 @@ const runTaskRepeatedlyInBackground = async (
 
 const runTaskRepeatedly = async (
   server: Server.State,
-  logger: Logging.Logger,
-  task: (server: Server.State, logger: Logging.Logger) => Promise<boolean>,
+  parentLogger: Logging.Logger,
+  task: Tasks.Task,
 ): Promise<void> => {
+  let iteration = 0;
   let finished = false;
   while (!finished) {
-    finished = await task(server, logger);
+    const logger = parentLogger.child({
+      taskIteration: iteration,
+    });
+    const result = await task(server, logger, { iteration });
+    finished = result.finished;
+    iteration += 1;
   }
 };
 

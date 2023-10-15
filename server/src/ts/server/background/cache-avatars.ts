@@ -7,12 +7,106 @@ import { Promises } from "../../util/promises.js";
 import { Urls } from "../../util/urls.js";
 import type { Logging } from "../logging.js";
 import type { Server } from "../model.js";
+import type { Tasks } from "./tasks.js";
 
-export const cacheAvatars = (server: Server.State) => {
+const deleteCached = async (
+  logger: Logging.Logger,
+  avatarCache: ObjectUploader,
+  meta: AvatarCache.Meta,
+): Promise<AvatarCache.Meta | undefined> => {
+  try {
+    await avatarCache.delete(meta.url);
+    return meta;
+  } catch (error) {
+    if (error instanceof OciError && error.serviceCode === "ObjectNotFound") {
+      // Already deleted, so remove from the DB.
+      return meta;
+    } else {
+      logger.warn({ err: error }, `Error trying to delete cached avatar.`);
+      return undefined;
+    }
+  }
+};
+
+const removeFromCacheBatch = async (
+  server: Server.State,
+  logger: Logging.Logger,
+  avatarCache: ObjectUploader,
+  batchSize: number,
+): Promise<number> => {
+  const noLongerNeeded =
+    await server.store.avatarCacheGarbageCollection(batchSize);
+  const deleted = [
+    ...Iterables.filterUndefined(
+      await Promise.all(
+        noLongerNeeded.map((meta) => deleteCached(logger, avatarCache, meta)),
+      ),
+    ),
+  ];
+  await server.store.deleteCachedAvatars(deleted);
+  return deleted.length;
+};
+
+const cache = async (
+  logger: Logging.Logger,
+  avatarCache: ObjectUploader,
+  meta: AvatarCache.Meta,
+): Promise<{ meta: AvatarCache.Meta; newUrl: string } | undefined> => {
+  try {
+    const response = await fetch(meta.url);
+    const contentType = response.headers.get("Content-Type") ?? "";
+    if (response.ok) {
+      const url = await avatarCache.upload(
+        Urls.extractFilename(meta.url),
+        contentType,
+        new Uint8Array(await response.arrayBuffer()),
+        {
+          source_url: meta.url,
+          source_service: "discord",
+          ...(meta.default_index === null
+            ? {
+                discord_user: meta.discord_user,
+                discord_avatar: meta.hash,
+              }
+            : { discord_default_avatar: `${meta.default_index}` }),
+        },
+      );
+      return { meta, newUrl: url.toString() };
+    } else {
+      logger.warn(
+        "Error trying to cache avatar: could not load avatar from source.",
+      );
+      return undefined;
+    }
+  } catch (error) {
+    logger.warn({ err: error }, "Error trying to cache avatar.");
+    return undefined;
+  }
+};
+
+const addToCacheBatch = async (
+  server: Server.State,
+  logger: Logging.Logger,
+  avatarCache: ObjectUploader,
+  batchSize: number,
+): Promise<number> => {
+  const needsToBeCached = await server.store.avatarsToCache(batchSize);
+  const added = [
+    ...Iterables.filterUndefined(
+      await Promise.all(
+        needsToBeCached.map((meta) => cache(logger, avatarCache, meta)),
+      ),
+    ),
+  ];
+  await server.store.updateCachedAvatars(added);
+  return added.length;
+};
+
+export const cacheAvatars = (server: Server.State): Tasks.Task | undefined => {
   const config = server.config.avatarCache;
   const avatarCache = server.avatarCache;
   if (config !== undefined && avatarCache !== undefined) {
-    return async (server: Server.State, logger: Logging.Logger) => {
+    return async (server, logger) => {
       await Promises.wait(config.backgroundTaskFrequency);
 
       const added = await addToCacheBatch(
@@ -40,111 +134,9 @@ export const cacheAvatars = (server: Server.State) => {
         logger.debug("No unused avatars to delete.");
       }
 
-      return false;
+      return { finished: false };
     };
   } else {
     return undefined;
   }
 };
-
-async function addToCacheBatch(
-  server: Server.State,
-  logger: Logging.Logger,
-  avatarCache: ObjectUploader,
-  batchSize: number,
-): Promise<number> {
-  const needsToBeCached = await server.store.avatarsToCache(batchSize);
-  const added = [
-    ...Iterables.filterUndefined(
-      await Promise.all(
-        needsToBeCached.map((meta) => cache(logger, avatarCache, meta)),
-      ),
-    ),
-  ];
-  await server.store.updateCachedAvatars(added);
-  return added.length;
-}
-
-async function removeFromCacheBatch(
-  server: Server.State,
-  logger: Logging.Logger,
-  avatarCache: ObjectUploader,
-  batchSize: number,
-): Promise<number> {
-  const noLongerNeeded =
-    await server.store.avatarCacheGarbageCollection(batchSize);
-  const deleted = [
-    ...Iterables.filterUndefined(
-      await Promise.all(
-        noLongerNeeded.map((meta) => deleteCached(logger, avatarCache, meta)),
-      ),
-    ),
-  ];
-  await server.store.deleteCachedAvatars(deleted);
-  return deleted.length;
-}
-
-async function deleteCached(
-  logger: Logging.Logger,
-  avatarCache: ObjectUploader,
-  meta: AvatarCache.Meta,
-): Promise<AvatarCache.Meta | undefined> {
-  try {
-    await avatarCache.delete(meta.url);
-    return meta;
-  } catch (error) {
-    if (error instanceof OciError && error.serviceCode === "ObjectNotFound") {
-      // Already deleted, so remove from the DB.
-      return meta;
-    } else {
-      logger.warn(
-        `Error trying to delete cached avatar: ${(error as Error).message}.`,
-        {
-          exception: error,
-          error,
-        },
-      );
-      return undefined;
-    }
-  }
-}
-
-async function cache(
-  logger: Logging.Logger,
-  avatarCache: ObjectUploader,
-  meta: AvatarCache.Meta,
-): Promise<{ meta: AvatarCache.Meta; newUrl: string } | undefined> {
-  try {
-    const response = await fetch(meta.url);
-    const contentType = response.headers.get("Content-Type") ?? "";
-    if (response.ok) {
-      const url = await avatarCache.upload(
-        Urls.extractFilename(meta.url),
-        contentType,
-        new Uint8Array(await response.arrayBuffer()),
-        {
-          source_url: meta.url,
-          source_service: "discord",
-          ...(meta.default_index === null
-            ? {
-                discord_user: meta.discord_user,
-                discord_avatar: meta.hash,
-              }
-            : { discord_default_avatar: `${meta.default_index}` }),
-        },
-      );
-      return { meta, newUrl: url.toString() };
-    } else {
-      logger.warn(
-        `Error trying to cache avatar: could not load avatar from source.`,
-      );
-      return undefined;
-    }
-  } catch (error) {
-    logger.warn(`Error trying to cache avatar: ${(error as Error).message}.`, {
-      exception: error,
-      error,
-    });
-    return undefined;
-  }
-}

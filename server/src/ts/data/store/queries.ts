@@ -85,6 +85,7 @@ export const user = (userSource: Slonik.SqlFragment) => {
       users.discriminator,
       users.created,
       users.balance,
+      users.discord_id,
       avatars.url AS avatar_url,
       stakes.staked,
       (stakes.staked + users.balance) AS net_worth,
@@ -112,6 +113,7 @@ export const user = (userSource: Slonik.SqlFragment) => {
       users.name,
       users.discriminator,
       users.balance,
+      users.discord_id,
       avatars.url,
       users.created,
       stakes.staked
@@ -131,6 +133,7 @@ export const userSummary = (
       users.slug,
       users.name,
       users.discriminator,
+      users.discord_id,
       avatars.url AS avatar_url
     FROM
       users INNER JOIN jasb.avatars ON users.avatar = avatars.id
@@ -247,6 +250,7 @@ export const leaderboard = (leaderboardSource: Slonik.SqlFragment) => {
       created,
       balance,
       avatar_url,
+      discord_id,
       staked,
       net_worth,
       rank
@@ -545,14 +549,32 @@ export const betCompleteNotificationDetails = (
       games.name AS game_name, 
       bets.name AS bet_name,
       bets.spoiler,
+      coalesce(
+        jsonb_agg(
+          jsonb_build_object(
+            'slug', options.slug,
+            'name', options.name
+          )
+        ) FILTER ( WHERE options.id IS NOT NULL AND options.won ), 
+       '[]'::jsonb
+      ) AS winners,
       bet_stats.winning_stakes_count,
       bet_stats.total_staked_amount,
-      bet_stats.top_winning_discord_ids,
+      bet_stats.top_winning_users,
       bet_stats.biggest_payout_amount
     FROM 
       bets INNER JOIN 
       jasb.games ON bets.game = games.id INNER JOIN
+      jasb.options ON bets.id = options.bet INNER JOIN
       jasb.bet_stats ON bets.id = bet_stats.bet_id    
+    GROUP BY
+      games.name,
+      bets.name,
+      bets.spoiler,
+      bet_stats.winning_stakes_count,
+      bet_stats.total_staked_amount,
+      bet_stats.top_winning_users,
+      bet_stats.biggest_payout_amount
   `;
 };
 
@@ -564,14 +586,23 @@ export const newStakeNotificationDetails = (
   return sql`
     WITH
       options AS (${optionsSource})
-    SELECT 
-      users.discord_id AS user_discord_id,
+    SELECT
+      jsonb_build_object(
+        'slug', users.slug,
+        'name', users.name,
+        'discriminator', users.discriminator,
+        'discord_id', users.discord_id,
+        'avatar_url', avatars.url
+      ) AS user_summary,
       games.name AS game_name, 
       bets.name AS bet_name,
       bets.spoiler,
       options.name AS option_name 
     FROM 
-      jasb.users CROSS JOIN
+      (
+        jasb.users LEFT JOIN
+        jasb.avatars ON users.avatar = avatars.id
+      ) CROSS JOIN
       jasb.games INNER JOIN 
       jasb.bets ON games.id = bets.game INNER JOIN 
       options ON bets.id = options.bet
