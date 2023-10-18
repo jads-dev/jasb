@@ -220,7 +220,7 @@ export class Auth {
           discord.user.discriminator !== "0"
             ? discord.user.discriminator ?? null
             : null,
-          discord.avatar ?? discord.user.avatar ?? null,
+          discord.user.avatar ?? null,
           token.accessToken,
           token.refreshToken ?? "",
           Joda.Duration.of(token.expiresAt ?? 0, Joda.ChronoUnit.SECONDS),
