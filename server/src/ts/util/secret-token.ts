@@ -57,12 +57,16 @@ export class SecretToken implements SecretTokenLike {
     return SecretToken.fromValue(await secureRandomString(bytes));
   }
 
-  public [Util.inspect.custom](): string {
+  public toString(): string {
+    return "[Secret Token]";
+  }
+
+  public toJSON(): string {
     return this.toString();
   }
 
-  public toString(): string {
-    return "[Secret Token]";
+  public [Util.inspect.custom](): string {
+    return this.toString();
   }
 }
 
@@ -86,12 +90,16 @@ export class PlaceholderSecretToken implements SecretTokenLike {
     );
   }
 
-  public [Util.inspect.custom](): string {
+  public toString(): string {
+    return "[Placeholder Secret Token]";
+  }
+
+  public toJSON(): string {
     return this.toString();
   }
 
-  public toString(): string {
-    return "[Placeholder Secret Token]";
+  public [Util.inspect.custom](): string {
+    return this.toString();
   }
 }
 
@@ -142,12 +150,16 @@ export class BufferSecretToken implements SecretTokenLike<Buffer> {
     return BufferSecretToken.fromValue(await randomBytes(bytes));
   }
 
-  public [Util.inspect.custom](): string {
+  public toString(): string {
+    return "[Buffer Secret Token]";
+  }
+
+  public toJSON(): string {
     return this.toString();
   }
 
-  public toString(): string {
-    return "[Buffer Secret Token]";
+  public [Util.inspect.custom](): string {
+    return this.toString();
   }
 }
 
@@ -169,11 +181,15 @@ export class PlaceholderBufferSecretToken implements SecretTokenLike<Buffer> {
     );
   }
 
-  public [Util.inspect.custom](): string {
+  public toString(): string {
+    return "[Placeholder Buffer Secret Token]";
+  }
+
+  public toJSON(): string {
     return this.toString();
   }
 
-  public toString(): string {
-    return "[Placeholder Buffer Secret Token]";
+  public [Util.inspect.custom](): string {
+    return this.toString();
   }
 }

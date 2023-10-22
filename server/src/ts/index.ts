@@ -1,12 +1,11 @@
-import { default as Router } from "@koa/router";
 import { StatusCodes } from "http-status-codes";
 import { default as KeyGrip } from "keygrip";
 import { default as Koa } from "koa";
 import { default as EasyWS } from "koa-easy-ws";
 
-import { ObjectUpload } from "./data/object-upload.js";
+import { Objects } from "./data/objects.js";
 import { Store } from "./data/store.js";
-import type { Server } from "./server.js";
+import { Server } from "./server.js";
 import { Auth } from "./server/auth.js";
 import { Background } from "./server/background.js";
 import { Config } from "./server/config.js";
@@ -24,20 +23,12 @@ const load = async (
   config: Config.Server,
   logger: Logging.Logger,
 ): Promise<Server.State> => {
-  const [[externalNotifier, store, auth], imageUpload, avatarCache] =
-    await Promise.all([
-      (async () => {
-        const externalNotifier = await ExternalNotifier.fromConfig(
-          logger,
-          config,
-        );
-        const store = await Store.load(config, externalNotifier);
-        const auth = await Auth.init(config.auth, store);
-        return [externalNotifier, store, auth];
-      })(),
-      ObjectUpload.init(config.imageUpload),
-      ObjectUpload.init(config.avatarCache),
-    ]);
+  const [store, auth, externalNotifier, objectStorage] = await Promise.all([
+    Store.load(config),
+    Auth.init(config.auth),
+    ExternalNotifier.fromConfig(logger, config),
+    Objects.storage(logger, config.objectStorage),
+  ]);
   return {
     config,
     logger,
@@ -45,8 +36,7 @@ const load = async (
     auth,
     webSockets: new WebSockets(config),
     externalNotifier,
-    imageUpload,
-    avatarCache,
+    objectStorage,
   };
 };
 
@@ -55,7 +45,7 @@ const unload = async (server: Server.State): Promise<void> => {
 };
 
 const start = async (server: Server.State): Promise<void> => {
-  const app = new Koa();
+  const app = new Koa<Koa.DefaultState, Server.Context>();
   app.proxy = true;
 
   const { secret, oldSecrets, hmacAlgorithm } = server.config.security.cookies;
@@ -75,7 +65,7 @@ const start = async (server: Server.State): Promise<void> => {
     try {
       await next();
     } catch (error) {
-      const { status, message } = Errors.handler(server.logger, error);
+      const { status, message } = Errors.handler(ctx.logger, error);
       if (status === StatusCodes.UNAUTHORIZED) {
         ctx.cookies.set(Auth.sessionCookieName, null, { signed: true });
       }
@@ -84,7 +74,7 @@ const start = async (server: Server.State): Promise<void> => {
     }
   });
 
-  const root = new Router();
+  const root = Server.router();
 
   const api = Routes.api(server);
   root.use("/api", api.routes(), api.allowedMethods());
@@ -110,13 +100,10 @@ const start = async (server: Server.State): Promise<void> => {
   process.on("SIGTERM", () => {
     unload(server)
       .then(() => {
-        process.exit();
+        process.exit(ExitCodes.OK);
       })
       .catch((error: unknown) => {
-        const message =
-          error instanceof Error ? error.message : JSON.stringify(error);
-        console.error(`Error while shutting down: ${message}`);
-        console.error(error);
+        server.logger.error({ err: error }, "Error while shutting down");
         process.exit(ExitCodes.SHUTDOWN_ERROR);
       });
   });
@@ -127,6 +114,7 @@ const start = async (server: Server.State): Promise<void> => {
 async function main(): Promise<void> {
   const config = await Config.load();
   const logger = await init(config);
+  logger.info(`Initialised, log level ${config.logging.level}.`);
   try {
     const server = await load(config, logger);
     await start(server);

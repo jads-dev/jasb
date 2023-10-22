@@ -10,6 +10,7 @@ import FontAwesome.Solid as Icon
 import Html exposing (Html)
 import Html.Attributes as HtmlA
 import Html.Keyed as HtmlK
+import Http
 import JoeBets.Api as Api
 import JoeBets.Api.Action as Api
 import JoeBets.Api.Data as Api
@@ -60,10 +61,12 @@ type alias Parent a =
     }
 
 
-imageUploaderModel : Uploader.Model
-imageUploaderModel =
+imageUploaderModel : Card.Layout -> Uploader.Model
+imageUploaderModel layout =
     { label = "Image"
     , types = [ "image/*" ]
+    , path = Api.CardImageUpload |> Api.Gacha
+    , extraParts = [ layout |> Card.encodeLayout |> JsonE.encode 0 |> Http.stringPart "layout" ]
     }
 
 
@@ -276,7 +279,11 @@ updateCardTypesEditor msg ({ gacha } as model) =
                 edit ({ cardType } as editor) =
                     let
                         ( uploader, uploaderCmd ) =
-                            Uploader.update (SetImage >> wrap) uploaderMsg model imageUploaderModel editor.imageUploader
+                            Uploader.update (SetImage >> wrap)
+                                uploaderMsg
+                                model
+                                (imageUploaderModel editor.cardType.layout)
+                                editor.imageUploader
                     in
                     ( Just
                         { editor
@@ -422,7 +429,10 @@ cardTypeEditor rarityContext maybeEditor =
                                 |> TextField.view
                             , Validator.view nameValidator cardType
                             , Card.layoutSelector (SetLayout >> wrap |> Just |> ifNotSaving) (Just cardType.layout)
-                            , Uploader.view (SetImage >> wrap |> Just |> ifNotSaving) imageUploaderModel imageUploader
+                            , Html.span [] [ Html.text "Image will be scaled based on layout, please choose that first!" ]
+                            , Uploader.view (SetImage >> wrap |> Just |> ifNotSaving)
+                                (imageUploaderModel cardType.layout)
+                                imageUploader
                             , Validator.view imageValidator cardType
                             , Rarity.selector rarityContext
                                 (SetRarity >> wrap |> Just |> ifNotSaving)

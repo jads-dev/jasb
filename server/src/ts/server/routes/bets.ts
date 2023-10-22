@@ -1,4 +1,3 @@
-import { default as Router } from "@koa/router";
 import { StatusCodes } from "http-status-codes";
 import * as Schema from "io-ts";
 
@@ -7,7 +6,7 @@ import { Options } from "../../public/bets/options.js";
 import { LockMoments } from "../../public/editor.js";
 import { requireUrlParameter, Validation } from "../../util/validation.js";
 import { WebError } from "../errors.js";
-import type { Server } from "../model.js";
+import { Server } from "../model.js";
 import { body } from "./util.js";
 
 const StakeBody = Schema.intersection([
@@ -86,8 +85,8 @@ const RevertBody = Schema.strict({
   version: Schema.Int,
 });
 
-export const betsApi = (server: Server.State): Router => {
-  const router = new Router();
+export const betsApi = (server: Server.State): Server.Router => {
+  const router = Server.router();
 
   const slugs = (ctx: {
     params: Record<string, string>;
@@ -131,6 +130,8 @@ export const betsApi = (server: Server.State): Router => {
     const [gameSlug, betSlug] = slugs(ctx);
     const body = Validation.body(CreateBetBody, ctx.request.body);
     const bet = await server.store.addBet(
+      server,
+      ctx.logger,
       credential,
       gameSlug,
       betSlug,
@@ -173,6 +174,8 @@ export const betsApi = (server: Server.State): Router => {
     const [gameSlug, betSlug] = slugs(ctx);
     const body = Validation.body(CompleteBetBody, ctx.request.body);
     const bet = await server.store.completeBet(
+      server,
+      ctx.logger,
       credential,
       gameSlug,
       betSlug,
@@ -319,6 +322,8 @@ export const betsApi = (server: Server.State): Router => {
     const { amount, message } = validateStakeBody(ctx.request.body);
     ctx.body = Schema.Int.encode(
       (await server.store.newStake(
+        server,
+        ctx.logger,
         credential,
         gameSlug,
         betSlug,

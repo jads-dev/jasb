@@ -35,20 +35,20 @@
     "koa": "^2.13.4",
     "koa-body": "^6.0.1",
     "koa-easy-ws": "^2.1.0",
-    "koa-pino-logger": "^4.0.0",
     "pg-listen": "^1.7.0",
     "pino": "^8.16.0",
+    "pino-http": "^8.5.0",
     "postgres-interval": "^4.0.0",
     "slonik": "^37.0.1",
     "zod": "^3.18.0"
   },
   "optionalDependencies": {
-    "oci-sdk": "^2.3.1"
+    "oci-sdk": "^2.3.1",
+    "sharp": "^0.32.6"
   },
   "devDependencies": {
     "@types/koa": "^2.13.4",
     "@types/koa__router": "^12.0.0",
-    "@types/koa-pino-logger": "^3.0.2",
     "nodemon": "^3.0.1",
     "pino-pretty": "^10.2.3",
     "typescript": "^5.1.3"

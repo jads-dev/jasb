@@ -52,12 +52,30 @@ const PostgresData = Schema.partial({
 export type PostgresData = Schema.TypeOf<typeof PostgresData>;
 
 const Store = Schema.strict({
-  garbageCollectionFrequency: Validation.Duration,
   source: PostgresData,
 });
 export type Store = Schema.TypeOf<typeof Store>;
 
-const OciObjectUpload = Schema.intersection([
+const GeneralObjectStorage = Schema.intersection([
+  Schema.strict({
+    garbageCollection: Schema.strict({
+      frequency: Validation.Duration,
+      minimumAge: Validation.Duration,
+    }),
+    cache: Schema.strict({
+      frequency: Validation.Duration,
+      batchSize: Schema.Int,
+    }),
+  }),
+  Schema.partial({
+    webp: Schema.partial({
+      quality: Schema.Int,
+      effort: Schema.Int,
+    }),
+  }),
+]);
+
+export const OciObjectStorage = Schema.intersection([
   Schema.strict({
     service: Schema.literal("oci"),
     user: Schema.string,
@@ -72,38 +90,21 @@ const OciObjectUpload = Schema.intersection([
   Schema.partial({
     passphrase: Validation.SecretTokenOrPlaceholder,
   }),
+  GeneralObjectStorage,
 ]);
-export type OciObjectUpload = Schema.TypeOf<typeof ObjectUpload>;
+export type OciObjectStorage = Schema.TypeOf<typeof OciObjectStorage>;
 
-const ObjectUploadDetails = Schema.partial({
-  name: Schema.strict({
-    method: Schema.literal("hash"),
-    algorithm: Schema.string,
-  }),
-  cacheMaxAge: Validation.Duration,
-  allowOverwrite: Schema.boolean,
-});
-export type ObjectUploadDetails = Schema.TypeOf<typeof ObjectUploadDetails>;
-
-const ObjectUpload = Schema.intersection([
-  OciObjectUpload,
-  ObjectUploadDetails,
-]);
-export type ObjectUpload = Schema.TypeOf<typeof ObjectUpload>;
-
-const AvatarCache = Schema.intersection([
-  Schema.strict({
-    backgroundTaskFrequency: Validation.Duration,
-    cacheBatchSize: Schema.Int,
-    garbageCollectBatchSize: Schema.Int,
-  }),
-  ObjectUpload,
-]);
-export type AvatarCache = Schema.TypeOf<typeof AvatarCache>;
+export const ObjectStorage = OciObjectStorage;
+export type ObjectStorage = Schema.TypeOf<typeof ObjectStorage>;
 
 const DiscordAuth = Schema.strict({
   clientId: Schema.string,
   clientSecret: Validation.SecretTokenOrPlaceholder,
+
+  refresh: Schema.strict({
+    frequency: Validation.Duration,
+    expiryBuffer: Validation.Duration,
+  }),
 
   guild: Schema.string,
 });
@@ -132,9 +133,12 @@ export type ExternalServices = Schema.TypeOf<typeof ExternalServices>;
 
 const Auth = Schema.intersection([
   Schema.strict({
-    sessionLifetime: Validation.Duration,
-    sessionIdSize: Schema.Int,
     stateValidityDuration: Validation.Duration,
+    sessions: Schema.strict({
+      lifetime: Validation.Duration,
+      idSize: Schema.Int,
+      garbageCollectionFrequency: Validation.Duration,
+    }),
 
     algorithm: Algorithm,
     key: Validation.BufferSecretTokenOrPlaceholder,
@@ -197,8 +201,7 @@ export const Server = Schema.intersection([
   }),
   Schema.partial({
     notifier: DiscordNotifier,
-    imageUpload: ObjectUpload,
-    avatarCache: AvatarCache,
+    objectStorage: ObjectStorage,
   }),
 ]);
 export type Server = Schema.TypeOf<typeof Server>;
@@ -243,7 +246,7 @@ export async function load(
   if (Either.isRight(result)) {
     const config = result.right;
     if (process.env["NODE_ENV"] !== "development") {
-      if (config.auth.sessionIdSize < 64) {
+      if (config.auth.sessions.idSize < 64) {
         throw new InvalidConfigError(
           "Session ID too small, potentially vulnerable to brute force attack.",
         );
@@ -307,8 +310,6 @@ export const builtIn: Server = {
   },
 
   store: {
-    garbageCollectionFrequency: Joda.Duration.of(1, Joda.ChronoUnit.HOURS),
-
     source: {
       host: "postgres",
       user: "jasb",
@@ -318,9 +319,13 @@ export const builtIn: Server = {
   },
 
   auth: {
-    sessionLifetime: Joda.Duration.of(7, Joda.ChronoUnit.DAYS),
-    sessionIdSize: 64 as Schema.Int,
     stateValidityDuration: Joda.Duration.of(5, Joda.ChronoUnit.MINUTES),
+
+    sessions: {
+      lifetime: Joda.Duration.of(7, Joda.ChronoUnit.DAYS),
+      idSize: 64 as Schema.Int,
+      garbageCollectionFrequency: Joda.Duration.of(1, Joda.ChronoUnit.HOURS),
+    },
 
     algorithm: "A256CBC-HS512",
     key: new PlaceholderBufferSecretToken(),
@@ -328,6 +333,11 @@ export const builtIn: Server = {
     discord: {
       clientId: "CHANGE_ME",
       clientSecret: new PlaceholderSecretToken(),
+
+      refresh: {
+        frequency: Joda.Duration.of(1, Joda.ChronoUnit.HOURS),
+        expiryBuffer: Joda.Duration.of(30, Joda.ChronoUnit.MINUTES),
+      },
 
       guild: "308515582817468420",
     },

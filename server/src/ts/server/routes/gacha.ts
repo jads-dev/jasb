@@ -1,15 +1,14 @@
-import { default as Router } from "@koa/router";
-
 import { Balances } from "../../public/gacha/balances.js";
 import { Context } from "../../public/gacha/context.js";
 import { Qualities } from "../../public/gacha/qualities.js";
 import { Rarities } from "../../public/gacha/rarities.js";
-import type { Server } from "../model.js";
+import { Server } from "../model.js";
 import { bannersApi } from "./gacha/banners.js";
 import { cardsApi } from "./gacha/cards.js";
+import { uploadBody } from "./util.js";
 
-export const gachaApi = (server: Server.State): Router => {
-  const router = new Router();
+export const gachaApi = (server: Server.State): Server.Router => {
+  const router = Server.router();
 
   const cards = cardsApi(server);
   router.use("/cards", cards.routes(), cards.allowedMethods());

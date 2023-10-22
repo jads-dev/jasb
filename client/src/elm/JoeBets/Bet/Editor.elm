@@ -1006,4 +1006,6 @@ imageUploaderModel : Uploader.Model
 imageUploaderModel =
     { label = "Image"
     , types = [ "image/*" ]
+    , path = Api.BetOptionImageUpload
+    , extraParts = []
     }

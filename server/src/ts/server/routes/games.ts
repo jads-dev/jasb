@@ -1,15 +1,15 @@
-import { default as Router } from "@koa/router";
 import { StatusCodes } from "http-status-codes";
 import * as Schema from "io-ts";
 
+import { Objects } from "../../data/objects.js";
 import { Internal } from "../../internal.js";
 import { Editor, Games } from "../../public.js";
 import { requireUrlParameter, Validation } from "../../util/validation.js";
 import { WebError } from "../errors.js";
-import type { Server } from "../model.js";
+import { Server } from "../model.js";
 import { ResultCache } from "../result-cache.js";
 import { betsApi } from "./bets.js";
-import { body } from "./util.js";
+import { body, uploadBody } from "./util.js";
 
 const GameBody = {
   name: Schema.string,
@@ -54,8 +54,8 @@ const EditLockMomentBody = Schema.partial({
   ),
 });
 
-export const gamesApi = (server: Server.State): Router => {
-  const router = new Router();
+export const gamesApi = (server: Server.State): Server.Router => {
+  const router = Server.router();
 
   const gamesCache = new ResultCache<Games.Library>(async () => {
     const getGames = async (subset: Internal.Games.Progress) =>
@@ -94,6 +94,20 @@ export const gamesApi = (server: Server.State): Router => {
       Schema.tuple([Games.Slug, Games.Summary]),
     ).encode(summaries.map(Games.summaryFromInternal));
   });
+
+  // Upload a cover.
+  router.post(
+    "/cover",
+    uploadBody,
+    Objects.uploadHandler(server, Objects.gameCoverTypeProcess),
+  );
+
+  // Upload an option image.
+  router.post(
+    "/options/image",
+    uploadBody,
+    Objects.uploadHandler(server, Objects.optionImageProcess),
+  );
 
   // Get Game.
   router.get("/:gameSlug", async (ctx) => {
@@ -199,7 +213,7 @@ export const gamesApi = (server: Server.State): Router => {
       ctx.params["gameSlug"],
     );
     const body = Validation.body(CreateGameBody, ctx.request.body);
-    const game = await server.store.addGame(
+    await server.store.addGame(
       credential,
       gameSlug,
       body.name,
@@ -208,6 +222,10 @@ export const gamesApi = (server: Server.State): Router => {
       body.finished,
       body.order,
     );
+    const game = await server.store.getGame(gameSlug);
+    if (game === undefined) {
+      throw new Error("Should exist.");
+    }
     ctx.body = Games.Game.encode(Games.fromInternal(game)[1]);
   });
 
@@ -220,7 +238,7 @@ export const gamesApi = (server: Server.State): Router => {
       ctx.params["gameSlug"],
     );
     const body = Validation.body(EditGameBody, ctx.request.body);
-    const game = await server.store.editGame(
+    await server.store.editGame(
       credential,
       body.version,
       gameSlug,
@@ -230,6 +248,10 @@ export const gamesApi = (server: Server.State): Router => {
       body.finished,
       body.order,
     );
+    const game = await server.store.getGame(gameSlug);
+    if (game === undefined) {
+      throw new Error("Should exist.");
+    }
     ctx.body = Games.Game.encode(Games.fromInternal(game)[1]);
   });
 

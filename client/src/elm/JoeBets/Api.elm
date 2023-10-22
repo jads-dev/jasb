@@ -10,7 +10,6 @@ module JoeBets.Api exposing
     , request
     )
 
-import File exposing (File)
 import Http
 import JoeBets.Api.Error as Error
 import JoeBets.Api.Model exposing (..)
@@ -19,6 +18,7 @@ import JoeBets.Bet.Model as Bets
 import JoeBets.Bet.Option as Option
 import JoeBets.Gacha.Banner as Banner
 import JoeBets.Gacha.Card as Card
+import JoeBets.Gacha.Card.Layout as Card
 import JoeBets.Gacha.CardType as CardType
 import JoeBets.Game.Id as Game
 import JoeBets.Page.Leaderboard.Route as Leaderboard
@@ -56,7 +56,7 @@ type alias BodyRequest value msg =
 
 type alias FileBodyRequest value msg =
     { path : Path
-    , body : File
+    , body : List Http.Part
     , decoder : JsonD.Decoder value
     , wrap : Response value -> msg
     }
@@ -186,6 +186,9 @@ bannersPathToStringList path =
         BannersRoot ->
             []
 
+        BannerCoverUpload ->
+            [ "cover" ]
+
         EditableBanners ->
             [ "edit" ]
 
@@ -245,6 +248,9 @@ gachaPathToStringList path =
         Cards userId cardPath ->
             "cards" :: User.idToString userId :: cardsPathToStringList cardPath
 
+        CardImageUpload ->
+            [ "cards", "image" ]
+
         Balance ->
             [ "balance" ]
 
@@ -273,8 +279,14 @@ pathToStringList path =
         Games ->
             [ "games" ]
 
-        GameSearch query ->
+        GameSearch _ ->
             [ "games", "search" ]
+
+        GameCoverUpload ->
+            [ "games", "cover" ]
+
+        BetOptionImageUpload ->
+            [ "games", "options", "image" ]
 
         Game id gamesPath ->
             "games" :: Game.idToString id :: gamePathToStringList gamesPath
@@ -287,9 +299,6 @@ pathToStringList path =
 
         Gacha gachaPath ->
             "gacha" :: gachaPathToStringList gachaPath
-
-        Upload ->
-            [ "upload" ]
 
 
 pathToQueryList : Path -> List Url.Builder.QueryParameter
@@ -382,7 +391,7 @@ postFile base { path, body, decoder, wrap } =
     request base
         { method = "POST"
         , path = path
-        , body = [ body |> Http.filePart "file" ] |> Http.multipartBody
+        , body = body |> Http.multipartBody
         , wrap = wrap
         , decoder = decoder
         }

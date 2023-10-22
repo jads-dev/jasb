@@ -3,21 +3,19 @@ import { StatusCodes } from "http-status-codes";
 import * as Schema from "io-ts";
 import { default as Slonik } from "slonik";
 
-import {
-  AvatarCache,
-  Bets,
-  Feed,
-  Gacha,
-  Games,
-  Notifications,
-  Users,
-} from "../internal.js";
+import { Bets, Feed, Gacha, Games, Notifications, Users } from "../internal.js";
 import type { Public } from "../public.js";
+import type { DiscordToken } from "../server/auth.js";
 import { Credentials } from "../server/auth/credentials.js";
+import { Background } from "../server/background.js";
+import { sendExternalNotification } from "../server/background/send-external-notification.js";
 import type { Config } from "../server/config.js";
 import { WebError } from "../server/errors.js";
-import type { Notifier } from "../server/external-notifier.js";
+import { Logging } from "../server/logging.js";
+import type { Server } from "../server/model.js";
+import { Iterables } from "../util/iterables.js";
 import { SecretToken } from "../util/secret-token.js";
+import type { Objects } from "./objects.js";
 import { Queries } from "./store/queries.js";
 
 const createResultParserInterceptor = (): Slonik.Interceptor => ({
@@ -43,7 +41,6 @@ const sqlFragment = Slonik.sql.fragment;
 
 export class Store {
   readonly #config: Config.Server;
-  readonly #notifier: Notifier;
   readonly #pool: Slonik.DatabasePool;
 
   public static connectionString({
@@ -65,23 +62,14 @@ export class Store {
     });
   }
 
-  private constructor(
-    config: Config.Server,
-    notifier: Notifier,
-    pool: Slonik.DatabasePool,
-  ) {
+  private constructor(config: Config.Server, pool: Slonik.DatabasePool) {
     this.#config = config;
-    this.#notifier = notifier;
     this.#pool = pool;
   }
 
-  public static async load(
-    config: Config.Server,
-    notifier: Notifier,
-  ): Promise<Store> {
+  public static async load(config: Config.Server): Promise<Store> {
     return new Store(
       config,
-      notifier,
       await Slonik.createPool(Store.connectionString(config.store.source), {
         typeParsers: [
           { name: "int8", parse: (v) => Number.parseInt(v, 10) },
@@ -114,7 +102,7 @@ export class Store {
           Queries.userId(sqlFragment`
             jasb.validate_upload(
               ${this.sqlCredential(credential)},
-              ${this.#config.auth.sessionLifetime.toString()}
+              ${this.#config.auth.sessions.lifetime.toString()}
             )
           `),
         ),
@@ -131,7 +119,7 @@ export class Store {
           Queries.userId(sqlFragment`
             jasb.validate_credentials(
               ${this.sqlCredential(credential)},
-              ${this.#config.auth.sessionLifetime.toString()}
+              ${this.#config.auth.sessions.lifetime.toString()}
             )
           `),
         ),
@@ -218,7 +206,7 @@ export class Store {
         Queries.user(sqlFragment`
           SELECT * FROM jasb.bankrupt(
             ${this.sqlCredential(credential)},
-            ${this.#config.auth.sessionLifetime.toString()},
+            ${this.#config.auth.sessions.lifetime.toString()},
             ${this.#config.rules.initialBalance}
         )`),
       );
@@ -233,13 +221,13 @@ export class Store {
     avatar: string | null,
     accessToken: string,
     refreshToken: string,
-    discordExpiresIn: Joda.Duration,
+    discordExpiresAt: Joda.Instant,
   ): Promise<{
     user: Users.User & Users.LoginDetail;
     notifications: readonly Notifications.Notification[];
   }> {
     const sessionId = await SecretToken.secureRandom(
-      this.#config.auth.sessionIdSize,
+      this.#config.auth.sessions.idSize,
     );
     return await this.inTransaction(async (client) => {
       const session = await (async () => {
@@ -254,7 +242,7 @@ export class Store {
               ${avatar},
               ${accessToken},
               ${refreshToken},
-              ${discordExpiresIn.toString()},
+              ${discordExpiresAt.toString()},
               ${this.#config.rules.initialBalance}
             )
           `),
@@ -309,6 +297,67 @@ export class Store {
     });
   }
 
+  async findSessionsToRefresh(
+    nextSearch: Joda.Duration,
+    buffer: Joda.Duration,
+  ): Promise<readonly Users.DiscordRefreshToken[]> {
+    return await this.withClient(async (client) => {
+      const results = await client.query(
+        Queries.refreshToken(sqlFragment`
+          SELECT sessions.* 
+          FROM jasb.sessions 
+          WHERE discord_expires < (NOW() + ${nextSearch.toString()}::interval - ${buffer.toString()}::interval)
+        `),
+      );
+      return results.rows;
+    });
+  }
+
+  async updateRefreshedSessions(
+    sessions: readonly {
+      id: number;
+      newToken: DiscordToken;
+    }[],
+  ): Promise<number> {
+    return await this.withClient(async (client) => {
+      const unnest = Slonik.sql.unnest(
+        sessions.map(({ id, newToken }) => [
+          id,
+          newToken.accessToken,
+          newToken.refreshToken,
+          newToken.expiresAt.toString(),
+        ]),
+        ["int4", "text", "text", "timestamptz"],
+      );
+      const results = await client.query(
+        Queries.refreshToken(sqlFragment`
+          UPDATE sessions
+          SET 
+            access_token = updates.access_token,
+            refresh_token = updates.refresh_token,
+            discord_expires = updates.expires_at
+          FROM ${unnest} AS updates(id, access_token, refresh_token, expires_at)
+          WHERE sessions.id = updates.id
+          RETURNING sessions.id, sessions.refresh_token
+        `),
+      );
+      return results.rowCount;
+    });
+  }
+
+  async deleteExpiredSessions(sessions: readonly number[]): Promise<number> {
+    return await this.withClient(async (client) => {
+      const results = await client.query(
+        Queries.ids(sqlFragment`
+          DELETE FROM sessions
+          WHERE id = ANY(${Slonik.sql.array(sessions, "int4")})
+          RETURNING id
+        `),
+      );
+      return results.rowCount;
+    });
+  }
+
   async getGame(
     gameSlug: Public.Games.Slug,
   ): Promise<(Games.Game & Games.BetStats) | undefined> {
@@ -357,23 +406,25 @@ export class Store {
     started: Joda.LocalDate | null,
     finished: Joda.LocalDate | null,
     order: number | null,
-  ): Promise<Games.Game & Games.BetStats> {
-    return await this.inTransaction(async (client) => {
-      return await client.one(
-        Queries.gameWithBetStats(sqlFragment`
-          SELECT * FROM jasb.add_game(
-            ${this.sqlCredential(credential)},
-            ${this.#config.auth.sessionLifetime.toString()},
-            ${gameSlug},
-            ${name},
-            ${cover},
-            ${started?.toString() ?? null},
-            ${finished?.toString() ?? null},
-            ${order}
-          ) AS games
-      `),
-      );
-    });
+  ): Promise<number> {
+    const result = await this.inTransaction(
+      async (client) =>
+        await client.one(
+          Queries.id(sqlFragment`
+            SELECT * FROM jasb.add_game(
+              ${this.sqlCredential(credential)},
+              ${this.#config.auth.sessions.lifetime.toString()},
+              ${gameSlug},
+              ${name},
+              ${cover},
+              ${started?.toString() ?? null},
+              ${finished?.toString() ?? null},
+              ${order}
+            ) AS games
+          `),
+        ),
+    );
+    return result.id;
   }
 
   async searchGames(query: string): Promise<readonly Games.Summary[]> {
@@ -403,27 +454,29 @@ export class Store {
     started?: Joda.LocalDate | null,
     finished?: Joda.LocalDate | null,
     order?: number | null,
-  ): Promise<Games.Game & Games.BetStats> {
-    return await this.inTransaction(async (client) => {
-      return await client.one(
-        Queries.gameWithBetStats(sqlFragment`
-          SELECT * FROM jasb.edit_game(
-            ${this.sqlCredential(credential)},
-            ${this.#config.auth.sessionLifetime.toString()},
-            ${gameSlug},
-            ${version},
-            ${name ?? null},
-            ${cover ?? null},
-            ${started?.toString() ?? null},
-            ${started === null},
-            ${finished?.toString() ?? null},
-            ${finished === null},
-            ${order ?? null},
-            ${order === null}
-          )
-        `),
-      );
-    });
+  ): Promise<number> {
+    const result = await this.inTransaction(
+      async (client) =>
+        await client.one(
+          Queries.id(sqlFragment`
+            SELECT * FROM jasb.edit_game(
+              ${this.sqlCredential(credential)},
+              ${this.#config.auth.sessions.lifetime.toString()},
+              ${gameSlug},
+              ${version},
+              ${name ?? null},
+              ${cover ?? null},
+              ${started?.toString() ?? null},
+              ${started === null},
+              ${finished?.toString() ?? null},
+              ${finished === null},
+              ${order ?? null},
+              ${order === null}
+            )
+          `),
+        ),
+    );
+    return result.id;
   }
 
   async getLockMoments(gameSlug: string): Promise<readonly Bets.LockMoment[]> {
@@ -480,7 +533,7 @@ export class Store {
         Queries.lockMoment(sqlFragment`
           SELECT * FROM jasb.edit_lock_moments(
             ${this.sqlCredential(credential)},
-            ${this.#config.auth.sessionLifetime.toString()},
+            ${this.#config.auth.sessions.lifetime.toString()},
             ${gameSlug},
             (SELECT array_agg(
               row(slug, version)::RemoveLockMoment
@@ -570,6 +623,8 @@ export class Store {
   }
 
   async addBet(
+    server: Server.State,
+    logger: Logging.Logger,
     credential: Credentials.Identifying,
     gameSlug: Public.Games.Slug,
     betSlug: Public.Bets.Slug,
@@ -593,7 +648,7 @@ export class Store {
           SELECT *
           FROM jasb.add_bet(
             ${this.sqlCredential(credential)},
-            ${this.#config.auth.sessionLifetime.toString()},
+            ${this.#config.auth.sessions.lifetime.toString()},
             ${gameSlug},
             ${betSlug},
             ${betName},
@@ -608,19 +663,26 @@ export class Store {
           )
         `),
       );
-      await this.#notifier.notify(async (): Promise<Feed.NewBet> => {
-        const result = await client.one(
-          Queries.gameWithBetStats(sqlFragment`
-            SELECT games.* FROM jasb.games WHERE games.slug = ${gameSlug}
-          `),
-        );
-        return {
-          type: "NewBet",
-          game: { slug: result.slug, name: result.name },
-          bet: { slug: betSlug, name: betName },
-          spoiler,
-        };
-      });
+      Background.runTask(
+        server,
+        logger,
+        sendExternalNotification(async (): Promise<Feed.NewBet> => {
+          const result = await this.withClient(
+            async (client) =>
+              await client.one(
+                Queries.gameWithBetStats(sqlFragment`
+                  SELECT games.* FROM jasb.games WHERE games.slug = ${gameSlug}
+                `),
+              ),
+          );
+          return {
+            type: "NewBet",
+            game: { slug: result.slug, name: result.name },
+            bet: { slug: betSlug, name: betName },
+            spoiler,
+          };
+        }),
+      );
       return result;
     });
   }
@@ -682,7 +744,7 @@ export class Store {
           SELECT *
           FROM jasb.edit_bet(
             ${this.sqlCredential(credential)},
-            ${this.#config.auth.sessionLifetime.toString()},
+            ${this.#config.auth.sessions.lifetime.toString()},
             ${old_version},
             ${gameSlug},
             ${betSlug},
@@ -725,7 +787,7 @@ export class Store {
           SELECT *
           FROM jasb.set_bet_locked(
             ${this.sqlCredential(credential)},
-            ${this.#config.auth.sessionLifetime.toString()},
+            ${this.#config.auth.sessions.lifetime.toString()},
             ${old_version},
             ${gameSlug},
             ${betSlug},
@@ -738,6 +800,8 @@ export class Store {
   }
 
   async completeBet(
+    server: Server.State,
+    logger: Logging.Logger,
     credential: Credentials.Identifying,
     gameSlug: Public.Games.Slug,
     betSlug: Public.Bets.Slug,
@@ -750,7 +814,7 @@ export class Store {
           SELECT *
           FROM jasb.complete_bet(
             ${this.sqlCredential(credential)},
-            ${this.#config.auth.sessionLifetime.toString()},
+            ${this.#config.auth.sessions.lifetime.toString()},
             ${this.#config.rules.gacha.scrapPerRoll},
             ${this.#config.rules.gacha.rewards.winBetRolls},
             ${this.#config.rules.gacha.rewards.loseBetScrap},
@@ -761,28 +825,35 @@ export class Store {
           )
         `),
       );
-      await this.#notifier.notify(async (): Promise<Feed.BetComplete> => {
-        const row = await client.one(
-          Queries.betCompleteNotificationDetails(sqlFragment`
-            SELECT bets.* 
-            FROM jasb.games INNER JOIN jasb.bets ON games.id = bets.game 
-            WHERE games.slug = ${gameSlug} AND bets.slug = ${betSlug}
-          `),
-        );
-        return {
-          type: "BetComplete",
-          game: { slug: gameSlug, name: row.game_name },
-          bet: { slug: betSlug, name: row.bet_name },
-          spoiler: row.spoiler,
-          winners: row.winners,
-          winningStakes: row.winning_stakes_count,
-          totalReturn: row.total_staked_amount,
-          highlighted: {
-            winners: row.top_winning_users,
-            amount: row.biggest_payout_amount,
-          },
-        };
-      });
+      Background.runTask(
+        server,
+        logger,
+        sendExternalNotification(async (): Promise<Feed.BetComplete> => {
+          const row = await this.withClient(
+            async (client) =>
+              await client.one(
+                Queries.betCompleteNotificationDetails(sqlFragment`
+                    SELECT bets.*
+                    FROM jasb.games INNER JOIN jasb.bets ON games.id = bets.game
+                    WHERE games.slug = ${gameSlug} AND bets.slug = ${betSlug}
+                `),
+              ),
+          );
+          return {
+            type: "BetComplete",
+            game: { slug: gameSlug, name: row.game_name },
+            bet: { slug: betSlug, name: row.bet_name },
+            spoiler: row.spoiler,
+            winners: row.winners,
+            winningStakes: row.winning_stakes_count,
+            totalReturn: row.total_staked_amount,
+            highlighted: {
+              winners: row.top_winning_users,
+              amount: row.biggest_payout_amount,
+            },
+          };
+        }),
+      );
       return result ?? undefined;
     });
   }
@@ -799,7 +870,7 @@ export class Store {
           SELECT *
           FROM jasb.revert_complete_bet(
             ${this.sqlCredential(credential)},
-            ${this.#config.auth.sessionLifetime.toString()},
+            ${this.#config.auth.sessions.lifetime.toString()},
             ${old_version},
             ${gameSlug},
             ${betSlug}
@@ -823,7 +894,7 @@ export class Store {
           SELECT *
           FROM jasb.cancel_bet(
             ${this.sqlCredential(credential)},
-            ${this.#config.auth.sessionLifetime.toString()},
+            ${this.#config.auth.sessions.lifetime.toString()},
             ${old_version},
             ${gameSlug},
             ${betSlug},
@@ -847,7 +918,7 @@ export class Store {
           SELECT *
           FROM jasb.revert_cancel_bet(
             ${this.sqlCredential(credential)},
-            ${this.#config.auth.sessionLifetime.toString()},
+            ${this.#config.auth.sessions.lifetime.toString()},
             ${old_version},
             ${gameSlug},
             ${betSlug}
@@ -859,6 +930,8 @@ export class Store {
   }
 
   async newStake(
+    server: Server.State,
+    logger: Logging.Logger,
     credential: Credentials.Identifying,
     gameSlug: Public.Games.Slug,
     betSlug: Public.Bets.Slug,
@@ -874,7 +947,7 @@ export class Store {
             ${this.#config.rules.notableStake},
             ${this.#config.rules.maxStakeWhileInDebt},
             ${this.sqlCredential(credential)},
-            ${this.#config.auth.sessionLifetime.toString()},
+            ${this.#config.auth.sessions.lifetime.toString()},
             ${gameSlug},
             ${betSlug},
             ${optionSlug},
@@ -884,35 +957,42 @@ export class Store {
         `),
       );
       if (message !== null) {
-        await this.#notifier.notify(async (): Promise<Feed.NotableStake> => {
-          const row = await client.one(
-            Queries.newStakeNotificationDetails(
-              Credentials.actingUser(credential),
-              sqlFragment`
-                SELECT 
-                  options.* 
-                FROM 
-                  jasb.games INNER JOIN 
-                  jasb.bets ON games.id = bets.game INNER JOIN 
-                  jasb.options ON bets.id = options.bet
-                WHERE 
-                  games.slug = ${gameSlug} AND 
-                  bets.slug = ${betSlug} AND 
-                  options.slug = ${optionSlug}
-              `,
-            ),
-          );
-          return {
-            type: "NotableStake",
-            game: { slug: gameSlug, name: row.game_name },
-            bet: { slug: betSlug, name: row.bet_name },
-            spoiler: row.spoiler,
-            option: { slug: optionSlug, name: row.option_name },
-            user: row.user_summary,
-            message: message,
-            stake: amount as Schema.Int,
-          };
-        });
+        Background.runTask(
+          server,
+          logger,
+          sendExternalNotification(async (): Promise<Feed.NotableStake> => {
+            const row = await this.withClient(
+              async (client) =>
+                await client.one(
+                  Queries.newStakeNotificationDetails(
+                    Credentials.actingUser(credential),
+                    sqlFragment`
+                      SELECT 
+                        options.* 
+                      FROM 
+                        jasb.games INNER JOIN 
+                        jasb.bets ON games.id = bets.game INNER JOIN 
+                        jasb.options ON bets.id = options.bet
+                      WHERE 
+                        games.slug = ${gameSlug} AND 
+                        bets.slug = ${betSlug} AND 
+                        options.slug = ${optionSlug}
+                    `,
+                  ),
+                ),
+            );
+            return {
+              type: "NotableStake",
+              game: { slug: gameSlug, name: row.game_name },
+              bet: { slug: betSlug, name: row.bet_name },
+              spoiler: row.spoiler,
+              option: { slug: optionSlug, name: row.option_name },
+              user: row.user_summary,
+              message: message,
+              stake: amount as Schema.Int,
+            };
+          }),
+        );
       }
       return row.new_balance;
     });
@@ -929,7 +1009,7 @@ export class Store {
         Queries.newBalance(sqlFragment`
           SELECT * FROM jasb.withdraw_stake(
             ${this.sqlCredential(credential)},
-            ${this.#config.auth.sessionLifetime.toString()},
+            ${this.#config.auth.sessions.lifetime.toString()},
             ${gameSlug},
             ${betSlug},
             ${optionSlug}
@@ -956,7 +1036,7 @@ export class Store {
             ${this.#config.rules.notableStake},
             ${this.#config.rules.maxStakeWhileInDebt},
             ${this.sqlCredential(credential)},
-            ${this.#config.auth.sessionLifetime.toString()},
+            ${this.#config.auth.sessions.lifetime.toString()},
             ${gameSlug},
             ${betSlug},
             ${optionSlug},
@@ -979,7 +1059,7 @@ export class Store {
           Queries.notification(sqlFragment`
           SELECT * FROM jasb.get_notification(
             ${this.sqlCredential(credential)},
-            ${this.#config.auth.sessionLifetime.toString()},
+            ${this.#config.auth.sessions.lifetime.toString()},
             ${notificationId}
           )
         `),
@@ -996,7 +1076,7 @@ export class Store {
         Queries.notification(sqlFragment`
           SELECT * FROM jasb.get_notifications(
             ${this.sqlCredential(credential)},
-            ${this.#config.auth.sessionLifetime.toString()},
+            ${this.#config.auth.sessions.lifetime.toString()},
             ${includeRead}
           )
         `),
@@ -1015,7 +1095,7 @@ export class Store {
           Queries.isTrue(sqlFragment`
             jasb.set_read(
               ${this.sqlCredential(credential)},
-              ${this.#config.auth.sessionLifetime.toString()},
+              ${this.#config.auth.sessions.lifetime.toString()},
               ${notificationId}
             )
           `),
@@ -1077,7 +1157,7 @@ export class Store {
         Queries.perform(sqlFragment`
           jasb.set_permissions(
             ${this.sqlCredential(credential)},
-            ${this.#config.auth.sessionLifetime.toString()},
+            ${this.#config.auth.sessions.lifetime.toString()},
             ${targetUserSlug},
             ${gameSlug ?? null},
             ${manage_games ?? null},
@@ -1118,7 +1198,7 @@ export class Store {
           Queries.cardType(sqlFragment`
           SELECT * FROM jasb.gacha_retire_forged(
             ${this.sqlCredential(credential)},
-            ${this.#config.auth.sessionLifetime.toString()},
+            ${this.#config.auth.sessions.lifetime.toString()},
             ${cardTypeId}
           )
         `),
@@ -1129,25 +1209,30 @@ export class Store {
   async gachaForgeCardType(
     credential: Credentials.Identifying,
     cardName: string,
-    cardImage: string,
+    cardImageObjectReference: Objects.Reference,
+    cardImageUrl: string,
+    cardImageSourceUrl: string | null,
     cardQuote: string,
     cardRaritySlug: Public.Gacha.Rarities.Slug,
-  ): Promise<Gacha.CardType> {
-    return await this.inTransaction(
+  ): Promise<Public.Gacha.CardTypes.Id> {
+    const result = await this.inTransaction(
       async (client) =>
         await client.one(
-          Queries.cardType(sqlFragment`
-          SELECT * FROM jasb.gacha_forge_card_type(
-            ${this.sqlCredential(credential)},
-            ${this.#config.auth.sessionLifetime.toString()},
-            ${cardName},
-            ${cardImage},
-            ${cardQuote},
-            ${cardRaritySlug}
-          )
-        `),
+          Queries.id(sqlFragment`
+            SELECT * FROM jasb.gacha_forge_card_type(
+              ${this.sqlCredential(credential)},
+              ${this.#config.auth.sessions.lifetime.toString()},
+              ${cardName},
+              ${cardImageObjectReference.name},
+              ${cardImageUrl},
+              ${cardImageSourceUrl},
+              ${cardQuote},
+              ${cardRaritySlug}
+            )
+          `),
         ),
     );
+    return result.id as Public.Gacha.CardTypes.Id;
   }
 
   async gachaGetUserForgeCardsTypes(
@@ -1244,7 +1329,7 @@ export class Store {
           SELECT *
           FROM jasb.gacha_set_highlight(
             ${this.sqlCredential(credential)},
-            ${this.#config.auth.sessionLifetime.toString()},
+            ${this.#config.auth.sessions.lifetime.toString()},
             ${cardId},
             ${highlighted}
           )
@@ -1263,7 +1348,7 @@ export class Store {
         Queries.highlighted(sqlFragment`
           SELECT * FROM jasb.gacha_edit_highlight(
             ${this.sqlCredential(credential)},
-            ${this.#config.auth.sessionLifetime.toString()},
+            ${this.#config.auth.sessions.lifetime.toString()},
             ${cardId},
             ${message ?? null},
             ${message === null}
@@ -1282,7 +1367,7 @@ export class Store {
         Queries.highlighted(sqlFragment`
             SELECT * FROM jasb.gacha_reorder_highlights(
               ${this.sqlCredential(credential)},
-              ${this.#config.auth.sessionLifetime.toString()},
+              ${this.#config.auth.sessions.lifetime.toString()},
               ${Slonik.sql.array(order, "int4")}
             )
         `),
@@ -1304,7 +1389,7 @@ export class Store {
             SELECT id
             FROM jasb.gacha_roll(
               ${this.sqlCredential(credential)},
-              ${this.#config.auth.sessionLifetime.toString()},
+              ${this.#config.auth.sessions.lifetime.toString()},
               ${this.#config.rules.gacha.maxPity},
               ${bannerSlug}, 
               ${count}, 
@@ -1358,7 +1443,7 @@ export class Store {
         Queries.balance(sqlFragment`
           SELECT * FROM jasb.gacha_recycle_card(
             ${this.sqlCredential(credential)},
-            ${this.#config.auth.sessionLifetime.toString()},
+            ${this.#config.auth.sessions.lifetime.toString()},
             ${this.#config.rules.gacha.scrapPerRoll},
             ${cardId}
           )
@@ -1376,7 +1461,7 @@ export class Store {
           Queries.balance(sqlFragment`
           SELECT * FROM jasb.gacha_get_balance(
               ${this.sqlCredential(credential)},
-              ${this.#config.auth.sessionLifetime.toString()}
+              ${this.#config.auth.sessions.lifetime.toString()}
             )
           `),
         ),
@@ -1503,25 +1588,27 @@ export class Store {
     type: string,
     backgroundColor: Buffer,
     foregroundColor: Buffer,
-  ): Promise<Gacha.Banners.Editable> {
-    return await this.inTransaction(async (client) => {
-      return await client.one(
-        Queries.editableBanner(sqlFragment`
-           SELECT * FROM jasb.gacha_add_banner(
-             ${this.sqlCredential(credential)},
-             ${this.#config.auth.sessionLifetime.toString()},
-             ${bannerSlug},
-             ${name},
-             ${description},
-             ${cover},
-             ${active},
-             ${type},
-             ${Slonik.sql.binary(backgroundColor)},
-             ${Slonik.sql.binary(foregroundColor)}
-           )
-        `),
-      );
-    });
+  ): Promise<number> {
+    const result = await this.inTransaction(
+      async (client) =>
+        await client.one(
+          Queries.id(sqlFragment`
+             SELECT * FROM jasb.gacha_add_banner(
+               ${this.sqlCredential(credential)},
+               ${this.#config.auth.sessions.lifetime.toString()},
+               ${bannerSlug},
+               ${name},
+               ${description},
+               ${cover},
+               ${active},
+               ${type},
+               ${Slonik.sql.binary(backgroundColor)},
+               ${Slonik.sql.binary(foregroundColor)}
+             )
+          `),
+        ),
+    );
+    return result.id;
   }
 
   async gachaEditBanner(
@@ -1535,34 +1622,36 @@ export class Store {
     type: string | null,
     backgroundColor: Buffer | null,
     foregroundColor: Buffer | null,
-  ): Promise<Gacha.Banners.Editable> {
-    return await this.inTransaction(async (client) => {
-      return await client.one(
-        Queries.editableBanner(sqlFragment`
-           SELECT * FROM jasb.gacha_edit_banner(
-             ${this.sqlCredential(credential)},
-             ${this.#config.auth.sessionLifetime.toString()},
-             ${bannerSlug},
-             ${oldVersion},
-             ${name},
-             ${description},
-             ${cover},
-             ${active},
-             ${type},
-             ${
-               backgroundColor !== null
-                 ? Slonik.sql.binary(backgroundColor)
-                 : null
-             },
-             ${
-               foregroundColor !== null
-                 ? Slonik.sql.binary(foregroundColor)
-                 : null
-             }
-           )
-        `),
-      );
-    });
+  ): Promise<number> {
+    const result = await this.inTransaction(
+      async (client) =>
+        await client.one(
+          Queries.id(sqlFragment`
+            SELECT * FROM jasb.gacha_edit_banner(
+              ${this.sqlCredential(credential)},
+              ${this.#config.auth.sessions.lifetime.toString()},
+              ${bannerSlug},
+              ${oldVersion},
+              ${name},
+              ${description},
+              ${cover},
+              ${active},
+              ${type},
+              ${
+                backgroundColor !== null
+                  ? Slonik.sql.binary(backgroundColor)
+                  : null
+              },
+              ${
+                foregroundColor !== null
+                  ? Slonik.sql.binary(foregroundColor)
+                  : null
+              }
+            )
+          `),
+        ),
+    );
+    return result.id;
   }
 
   async gachaReorderBanners(
@@ -1575,7 +1664,7 @@ export class Store {
         Queries.editableBanner(sqlFragment`
            SELECT * FROM jasb.gacha_reorder_banners(
              ${this.sqlCredential(credential)},
-             ${this.#config.auth.sessionLifetime.toString()},
+             ${this.#config.auth.sessions.lifetime.toString()},
              (SELECT array_agg(
                row(slug, version)::jasb.OrderedBanner
              ) FROM ${orderUnnest} AS new_order(slug, version))
@@ -1627,9 +1716,10 @@ export class Store {
   }
 
   async gachaGetCardType(
-    bannerSlug: Public.Gacha.Banners.Slug,
     cardTypeId: Public.Gacha.CardTypes.Id,
+    bannerSlug?: Public.Gacha.Banners.Slug,
   ): Promise<Gacha.CardTypes.Detailed | undefined> {
+    const bannerSlugOrNull = bannerSlug ?? null;
     const result = await this.withClient(
       async (client) =>
         await client.maybeOne(
@@ -1640,7 +1730,7 @@ export class Store {
               jasb.gacha_card_types AS card_types INNER JOIN 
               jasb.gacha_banners AS banners ON card_types.banner = banners.id 
             WHERE 
-              banners.slug = ${bannerSlug} AND
+              (${bannerSlugOrNull}::TEXT IS NULL OR banners.slug = ${bannerSlugOrNull}::TEXT) AND
               card_types.id = ${cardTypeId}
           `),
         ),
@@ -1660,7 +1750,7 @@ export class Store {
           sqlFragment`
             SELECT * FROM jasb.gacha_gift_self_made(
               ${this.sqlCredential(credential)},
-              ${this.#config.auth.sessionLifetime.toString()},
+              ${this.#config.auth.sessions.lifetime.toString()},
               ${giftToUserSlug},
               ${bannerSlug},
               ${cardTypeId}
@@ -1687,8 +1777,8 @@ export class Store {
         name?: string;
       };
     }[],
-  ): Promise<Gacha.CardTypes.Editable> {
-    return await this.inTransaction(async (client) => {
+  ): Promise<number> {
+    const result = await this.inTransaction(async (client) => {
       const addUnnest = Slonik.sql.unnest(
         credits.map(({ reason, credited: { user, name } }) => [
           reason,
@@ -1698,10 +1788,10 @@ export class Store {
         ["text", "text", "text"],
       );
       return await client.one(
-        Queries.editableCardType(sqlFragment`
+        Queries.id(sqlFragment`
            SELECT * FROM jasb.gacha_add_card_type(
              ${this.sqlCredential(credential)},
-             ${this.#config.auth.sessionLifetime.toString()},
+             ${this.#config.auth.sessions.lifetime.toString()},
              ${bannerSlug},
              ${name},
              ${description},
@@ -1717,6 +1807,7 @@ export class Store {
         `),
       );
     });
+    return result.id;
   }
 
   async gachaEditCardType(
@@ -1747,7 +1838,7 @@ export class Store {
         name?: string | null;
       };
     }[],
-  ): Promise<Gacha.CardTypes.Editable> {
+  ): Promise<number> {
     return await this.inTransaction(async (client) => {
       const removeUnnest = Slonik.sql.unnest(
         removeCredits.map(({ id, version }) => [id, version]),
@@ -1775,7 +1866,7 @@ export class Store {
         Queries.ids(sqlFragment`
            SELECT id FROM jasb.gacha_edit_card_type(
              ${this.sqlCredential(credential)},
-             ${this.#config.auth.sessionLifetime.toString()},
+             ${this.#config.auth.sessions.lifetime.toString()},
              ${bannerSlug},
              ${cardTypeId},
              ${oldVersion},
@@ -1803,24 +1894,33 @@ export class Store {
            )
         `),
       );
-      return await client.one(
-        Queries.editableCardType(sqlFragment`
-           SELECT *
-           FROM jasb.gacha_card_types
-           WHERE gacha_card_types.id = ${result.id}
-        `),
-      );
+      return result.id;
     });
   }
 
-  async garbageCollect(): Promise<readonly string[]> {
+  async gachaGetEditableCardType(
+    id: number,
+  ): Promise<Gacha.CardTypes.Editable> {
+    return await this.withClient(
+      async (client) =>
+        await client.one(
+          Queries.editableCardType(sqlFragment`
+           SELECT *
+           FROM jasb.gacha_card_types
+           WHERE gacha_card_types.id = ${id}
+        `),
+        ),
+    );
+  }
+
+  async garbageCollectSessions(): Promise<readonly string[]> {
     return await this.inTransaction(async (client) => {
       const results = await client.query(
         Queries.accessToken(sqlFragment`
           DELETE FROM
             jasb.sessions
           WHERE
-            NOW() >= (started + ${this.#config.auth.sessionLifetime.toString()}::INTERVAL)
+            NOW() >= (started + ${this.#config.auth.sessions.lifetime.toString()}::INTERVAL)
           RETURNING sessions.*
         `),
       );
@@ -1828,79 +1928,132 @@ export class Store {
     });
   }
 
-  async avatarCacheGarbageCollection(
-    garbageCollectBatchSize: number,
-  ): Promise<readonly AvatarCache.Meta[]> {
+  async objectReferenceFindUncached(
+    max: number,
+    type: Objects.TypeName,
+    table: Slonik.IdentifierSqlToken,
+    column: Slonik.IdentifierSqlToken,
+  ): Promise<readonly { id: number; url: string }[]> {
     return await this.withClient(async (client) => {
       const results = await client.query(
-        Queries.avatarMeta(sqlFragment`
-          SELECT avatars.*
+        Queries.object(sqlFragment`
+          SELECT objects.id, objects.url, objects.name, objects.source_url
           FROM 
-            jasb.avatars LEFT JOIN jasb.users ON avatars.id = users.avatar
-          WHERE avatars.cached AND users.id IS NULL
-          LIMIT ${garbageCollectBatchSize}
+            ${table} INNER JOIN 
+            objects ON ${column} = objects.id AND objects.type = ${type}::ObjectType
+          WHERE objects.name IS NULL AND objects.store_failures < 10
+          LIMIT ${max}
         `),
       );
-      return results.rows;
+      return results.rows.map(({ id, url }) => ({
+        id,
+        url,
+      }));
     });
   }
 
-  async avatarsToCache(
-    cacheBatchSize: number,
-  ): Promise<readonly AvatarCache.Meta[]> {
+  async objectReferenceUpdateCached(
+    typeName: Objects.TypeName,
+    updates: Iterable<{
+      id: number;
+      name: string;
+      oldUrl: string;
+      url: string;
+    }>,
+  ): Promise<number> {
     return await this.withClient(async (client) => {
       const results = await client.query(
-        Queries.avatarMeta(sqlFragment`
-          SELECT avatars.*
-          FROM jasb.avatars
-          WHERE avatars.cached IS NOT TRUE
-          LIMIT ${cacheBatchSize}
+        Queries.object(sqlFragment`
+          UPDATE objects
+          SET 
+            name = updates.name,
+            url = updates.url 
+          FROM ${Slonik.sql.unnest(
+            [
+              ...Iterables.map(updates, ({ id, oldUrl, name, url }) => [
+                id,
+                oldUrl,
+                name,
+                url,
+              ]),
+            ],
+            ["int4", "text", "text", "text"],
+          )} AS updates(id, old_url, name, url)
+          WHERE 
+            objects.id = updates.id AND
+            objects.type = ${typeName}::ObjectType AND
+            objects.url = updates.old_url AND 
+            objects.name IS NULL
+          RETURNING objects.id, objects.url, objects.name, objects.source_url
+        `),
+      );
+      return results.rowCount;
+    });
+  }
+
+  async objectReferenceIncrementFailure(
+    typeName: Objects.TypeName,
+    id: number,
+  ): Promise<number> {
+    return await this.withClient(async (client) => {
+      const results = await client.query(
+        Queries.object(sqlFragment`
+          UPDATE objects 
+          SET store_failures = objects.store_failures + 1
+          WHERE objects.id = ${id} AND objects.type = ${typeName}::ObjectType 
+          RETURNING objects.id, objects.url, objects.name, objects.source_url
+        `),
+      );
+      return results.rowCount;
+    });
+  }
+
+  async objectsWithoutReferences(
+    typeName: Objects.TypeName,
+    objects: readonly Objects.Reference[],
+  ): Promise<readonly Objects.Reference[]> {
+    return await this.withClient(async (client) => {
+      const results = await client.query(
+        Queries.name(sqlFragment`
+          SELECT name
+          FROM 
+            ${Slonik.sql.unnest(
+              objects.map(({ name }) => [name]),
+              ["text"],
+            )} AS searching_for(name) 
+          WHERE NOT EXISTS (
+            SELECT name 
+            FROM objects 
+            WHERE 
+              searching_for.name = objects.name AND 
+              objects.type = ${typeName}::ObjectType
+          )
         `),
       );
       return results.rows;
     });
   }
 
-  async updateCachedAvatars(
-    cached: readonly { meta: AvatarCache.Meta; newUrl: string }[],
+  async objectsDeleteUnusedReferences(
+    typeName: Objects.TypeName,
+    table: Slonik.IdentifierSqlToken,
+    column: Slonik.IdentifierSqlToken,
   ): Promise<number> {
-    const result = await this.inTransaction(
-      async (client) =>
-        await client.one(
-          Queries.count(sqlFragment`
-            UPDATE jasb.avatars 
-            SET 
-              url = cached.new_url,
-              cached = TRUE
-            FROM ${Slonik.sql.unnest(
-              cached.map(({ meta, newUrl }) => [meta.id, newUrl]),
-              ["int4", "text"],
-            )} AS cached(id, new_url) 
-            WHERE avatars.cached IS NOT TRUE AND avatars.id = cached.id
-            RETURNING avatars.id
-          `),
-        ),
-    );
-    return result.affected;
-  }
-
-  async deleteCachedAvatars(
-    deleted: readonly AvatarCache.Meta[],
-  ): Promise<number> {
-    const result = await this.inTransaction(
-      async (client) =>
-        await client.one(
-          Queries.count(sqlFragment`
-            DELETE FROM jasb.avatars 
-            WHERE id = ANY(${Slonik.sql.array(
-              deleted.map(({ id }) => id),
-              "int4",
-            )})
-            RETURNING avatars.id
-          `),
-        ),
-    );
-    return result.affected;
+    return await this.withClient(async (client) => {
+      const results = await client.query(
+        Queries.object(sqlFragment`
+          DELETE FROM objects
+          WHERE
+            objects.type = ${typeName}::ObjectType AND
+            NOT EXISTS (
+              SELECT ${column}
+              FROM ${table}
+              WHERE ${column} = objects.id
+            ) RETURNING objects.id, objects.url, objects.name, objects.source_url
+        `),
+      );
+      return results.rowCount;
+    });
   }
 
   async unload(): Promise<void> {
@@ -1933,7 +2086,7 @@ export class Store {
         code?: string;
       };
       if (error instanceof Slonik.NotFoundError) {
-        throw new WebError(StatusCodes.NOT_FOUND, `Not Found`);
+        throw new WebError(StatusCodes.NOT_FOUND, "Not Found");
       }
       if (error.code !== undefined) {
         switch (error.code) {

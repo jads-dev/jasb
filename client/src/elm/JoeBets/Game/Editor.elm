@@ -433,4 +433,6 @@ coverUploaderModel : Uploader.Model
 coverUploaderModel =
     { label = "Cover"
     , types = [ "image/*" ]
+    , path = Api.GameCoverUpload
+    , extraParts = []
     }

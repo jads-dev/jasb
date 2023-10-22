@@ -9,7 +9,7 @@ const UserBase = z.object({
   discriminator: z.string().nullable(),
   created: Types.zonedDateTime,
   balance: Types.int,
-  avatar_url: z.string().url(),
+  avatar_url: z.string(),
   staked: Types.nonNegativeInt,
   net_worth: Types.int,
 });
@@ -76,6 +76,17 @@ export const DiscordAccessToken = z
   })
   .strict();
 export type DiscordAccessToken = z.infer<typeof DiscordAccessToken>;
+
+/**
+ * The discord refresh token for a user.
+ */
+export const DiscordRefreshToken = z
+  .object({
+    id: Types.int,
+    refresh_token: z.string(),
+  })
+  .strict();
+export type DiscordRefreshToken = z.infer<typeof DiscordRefreshToken>;
 
 /**
  * The detail for forging a card.

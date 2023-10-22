@@ -220,7 +220,7 @@ CREATE FUNCTION gacha_add_banner (
   given_slug gacha_banners.slug%TYPE,
   given_name gacha_banners."name"%TYPE,
   given_description gacha_banners.description%TYPE,
-  given_cover gacha_banners.cover%TYPE,
+  given_cover objects.url%TYPE,
   given_active gacha_banners.active%TYPE,
   given_type gacha_banners.type%TYPE,
   given_background_color gacha_banners.background_color%TYPE,
@@ -239,7 +239,7 @@ CREATE FUNCTION gacha_add_banner (
       given_slug,
       given_name,
       given_description,
-      given_cover,
+      add_object('banner'::ObjectType, given_cover),
       given_active,
       given_type,
       given_background_color,
@@ -271,7 +271,7 @@ CREATE FUNCTION gacha_edit_banner (
   old_version gacha_banners.version%TYPE,
   given_name gacha_banners."name"%TYPE,
   given_description gacha_banners.description%TYPE,
-  given_cover gacha_banners.cover%TYPE,
+  given_cover objects.url%TYPE,
   given_active gacha_banners.active%TYPE,
   given_type gacha_banners.type%TYPE,
   given_background_color gacha_banners.background_color%TYPE,
@@ -286,7 +286,7 @@ CREATE FUNCTION gacha_edit_banner (
       version = old_version + 1,
       name = coalesce(given_name, name),
       description = coalesce(given_description, description),
-      cover = coalesce(given_cover, cover),
+      cover = update_object('banner'::ObjectType, cover, given_cover),
       active = coalesce(given_active, active),
       type = coalesce(given_type, type),
       background_color = coalesce(given_background_color, background_color),
@@ -348,7 +348,7 @@ CREATE FUNCTION gacha_add_card_type (
   given_banner_slug gacha_banners.slug%TYPE,
   given_name gacha_card_types."name"%TYPE,
   given_description gacha_card_types.description%TYPE,
-  given_image gacha_card_types.image%TYPE,
+  given_image objects.url%TYPE,
   given_rarity_slug gacha_rarities.slug%TYPE,
   given_layout gacha_card_types.layout%TYPE,
   credits AddCredit[]
@@ -383,7 +383,7 @@ CREATE FUNCTION gacha_add_card_type (
     INSERT INTO gacha_card_types
       (name, description, image, rarity, layout, banner, creator)
     VALUES
-      (given_name, given_description, given_image, rarity_id, given_layout, banner_id, user_id)
+      (given_name, given_description, add_object('card'::ObjectType, given_image), rarity_id, given_layout, banner_id, user_id)
     RETURNING gacha_card_types.* INTO result;
 
     INSERT INTO gacha_credits (card_type, "user", name, reason)
@@ -417,7 +417,7 @@ CREATE FUNCTION gacha_edit_card_type (
   old_version gacha_card_types.version%TYPE,
   given_name gacha_card_types."name"%TYPE,
   given_description gacha_card_types.description%TYPE,
-  given_image gacha_card_types.image%TYPE,
+  given_image objects.url%TYPE,
   given_rarity_slug gacha_rarities.slug%TYPE,
   given_layout gacha_card_types.layout%TYPE,
   given_retired gacha_card_types.retired%TYPE,
@@ -492,7 +492,7 @@ CREATE FUNCTION gacha_edit_card_type (
       version = old_version + 1,
       name = coalesce(given_name, name),
       description = coalesce(given_description, description),
-      image = coalesce(given_image, image),
+      image = update_object('card'::ObjectType, image, given_image),
       rarity = coalesce(rarity_id, rarity),
       layout = coalesce(given_layout, layout),
       retired = coalesce(given_retired, retired)
@@ -750,7 +750,9 @@ CREATE FUNCTION gacha_forge_card_type (
   credential JSONB,
   session_lifetime INTERVAL,
   card_name gacha_card_types.name%TYPE,
-  card_image gacha_card_types.image%TYPE,
+  card_image_object_name objects.name%TYPE,
+  card_image_url objects.url%TYPE,
+  card_image_source_url objects.source_url%TYPE,
   card_quote gacha_card_types.description%TYPE,
   card_rarity_slug gacha_rarities.slug%TYPE
 ) RETURNS gacha_card_types LANGUAGE plpgsql AS $$
@@ -807,7 +809,15 @@ CREATE FUNCTION gacha_forge_card_type (
     END IF;
 
     INSERT INTO gacha_card_types (name, image, rarity, banner, creator, description, forged_by)
-    VALUES (card_name, card_image, rarity_id, banner_id, user_id, card_quote, user_id)
+    VALUES (
+      card_name,
+      named_object('card'::ObjectType, card_image_object_name, card_image_url, card_image_source_url),
+      rarity_id,
+      banner_id,
+      user_id,
+      card_quote,
+      user_id
+    )
     RETURNING gacha_card_types.* INTO new_card_type;
 
     PERFORM gacha_gift_self_made(
@@ -823,7 +833,7 @@ CREATE FUNCTION gacha_forge_card_type (
         'event', 'ForgeCardType',
         'user_id', user_id,
         'name', card_name,
-        'image', card_image,
+        'image', card_image_source_url,
         'quote', card_quote,
         'rarity', card_rarity_slug,
         'card_type', new_card_type.id

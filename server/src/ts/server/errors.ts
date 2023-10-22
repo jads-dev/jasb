@@ -13,14 +13,14 @@ export class WebError extends Error {
 }
 
 export const handler = (
-  log: Logging.Logger,
+  logger: Logging.Logger,
   error: unknown,
 ): { status: number; message: string } => {
   if (error instanceof WebError) {
-    log.warn(error.message);
+    logger.warn(error.message);
     return { status: error.status, message: error.message };
   } else if (error instanceof SchemaValidationError) {
-    log.error(
+    logger.error(
       {
         err: error,
         sql: error.sql,
@@ -34,7 +34,7 @@ export const handler = (
       message: "Unhandled database error.",
     };
   } else {
-    log.error({ err: error }, "Unresolved error.");
+    logger.error({ err: error }, "Unresolved error.");
     return {
       status: StatusCodes.INTERNAL_SERVER_ERROR,
       message: "Unhandled server error.",

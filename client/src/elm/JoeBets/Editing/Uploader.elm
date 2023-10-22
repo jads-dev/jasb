@@ -16,6 +16,7 @@ import FontAwesome as Icon
 import FontAwesome.Solid as Icon
 import Html exposing (Html)
 import Html.Attributes as HtmlA
+import Http
 import JoeBets.Api as Api
 import JoeBets.Api.Action as Api
 import JoeBets.Api.Model as Api
@@ -43,6 +44,8 @@ type Msg
 type alias Model =
     { label : String
     , types : List String
+    , path : Api.Path
+    , extraParts : List Http.Part
     }
 
 
@@ -87,7 +90,7 @@ setUrl url uploader =
 
 
 update : (Msg -> msg) -> Msg -> Parent a -> Model -> Uploader -> ( Uploader, Cmd msg )
-update wrap msg { origin } { types } uploader =
+update wrap msg { origin } { types, path, extraParts } uploader =
     case msg of
         ChangeUrl newUrl ->
             ( { uploader | url = newUrl }, Cmd.none )
@@ -98,8 +101,8 @@ update wrap msg { origin } { types } uploader =
         Upload file ->
             let
                 ( upload, cmd ) =
-                    { path = Api.Upload
-                    , body = file
+                    { path = path
+                    , body = Http.filePart "file" file :: extraParts
                     , wrap = Uploaded >> wrap
                     , decoder = decoder
                     }
@@ -153,6 +156,6 @@ view wrap { label } { url, upload } =
                 |> TextField.view
 
         action =
-            Api.viewAction [] upload
+            Api.viewActionError [] upload
     in
     core :: action |> Html.div [ HtmlA.class "uploader" ]

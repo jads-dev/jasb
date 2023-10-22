@@ -333,7 +333,6 @@ export const requireUrlParameter = <Parsed>(
     if (Either.isRight(result)) {
       return result.right;
     }
-    console.log(result);
   }
   throw new WebError(
     StatusCodes.NOT_FOUND,

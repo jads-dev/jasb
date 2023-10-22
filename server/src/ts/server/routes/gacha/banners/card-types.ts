@@ -1,4 +1,3 @@
-import { default as Router } from "@koa/router";
 import { StatusCodes } from "http-status-codes";
 import * as Schema from "io-ts";
 
@@ -10,7 +9,7 @@ import { Rarities } from "../../../../public/gacha/rarities.js";
 import { Users } from "../../../../public/users.js";
 import { Validation } from "../../../../util/validation.js";
 import { WebError } from "../../../errors.js";
-import type { Server } from "../../../model.js";
+import { Server } from "../../../model.js";
 import { body } from "../../util.js";
 
 const {
@@ -47,8 +46,8 @@ const GiftSelfMadeCardBody = Schema.readonly(
   }),
 );
 
-export const cardTypesApi = (server: Server.State): Router => {
-  const router = new Router();
+export const cardTypesApi = (server: Server.State): Server.Router => {
+  const router = Server.router();
 
   // Get the editable card types in the given banner.
   router.get("/edit", async (ctx) => {
@@ -76,8 +75,8 @@ export const cardTypesApi = (server: Server.State): Router => {
       ctx.params["cardTypeId"],
     );
     const cardType = await server.store.gachaGetCardType(
-      bannerSlug,
       cardTypeId,
+      bannerSlug,
     );
     if (cardType === undefined) {
       throw new WebError(StatusCodes.NOT_FOUND, "Card type not found.");
@@ -121,7 +120,7 @@ export const cardTypesApi = (server: Server.State): Router => {
       ctx.params["bannerSlug"],
     );
     const body = Validation.body(AddCardTypeBody, ctx.request.body);
-    const cardType = await server.store.gachaAddCardType(
+    const id = await server.store.gachaAddCardType(
       credential,
       bannerSlug,
       body.name,
@@ -131,6 +130,7 @@ export const cardTypesApi = (server: Server.State): Router => {
       body.layout,
       body.credits,
     );
+    const cardType = await server.store.gachaGetEditableCardType(id);
     ctx.body = Schema.tuple([CardTypes.Id, CardTypes.EditableCardType]).encode(
       CardTypes.editableFromInternal(cardType),
     );
@@ -150,7 +150,7 @@ export const cardTypesApi = (server: Server.State): Router => {
       ctx.params["cardTypeId"],
     );
     const body = Validation.body(EditCardTypeBody, ctx.request.body);
-    const cardType = await server.store.gachaEditCardType(
+    const id = await server.store.gachaEditCardType(
       credential,
       bannerSlug,
       cardTypeId,
@@ -165,6 +165,7 @@ export const cardTypesApi = (server: Server.State): Router => {
       body.editCredits ?? [],
       body.addCredits ?? [],
     );
+    const cardType = await server.store.gachaGetEditableCardType(id);
     ctx.body = Schema.tuple([CardTypes.Id, CardTypes.EditableCardType]).encode(
       CardTypes.editableFromInternal(cardType),
     );

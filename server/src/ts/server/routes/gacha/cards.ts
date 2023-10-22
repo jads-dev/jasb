@@ -1,19 +1,22 @@
-import { default as Router } from "@koa/router";
+import { Readable } from "node:stream";
+import { ReadableStream } from "node:stream/web";
+
 import { StatusCodes } from "http-status-codes";
 import * as Schema from "io-ts";
+import * as Types from "io-ts-types";
 
+import { Objects } from "../../../data/objects.js";
 import { Rarities } from "../../../public/gacha.js";
 import { Balances } from "../../../public/gacha/balances.js";
 import { Banners } from "../../../public/gacha/banners.js";
 import { CardTypes } from "../../../public/gacha/card-types.js";
 import { Cards } from "../../../public/gacha/cards.js";
 import { Users } from "../../../public/users.js";
-import { Urls } from "../../../util/urls.js";
 import { requireUrlParameter, Validation } from "../../../util/validation.js";
 import { Credentials } from "../../auth/credentials.js";
 import { WebError } from "../../errors.js";
-import type { Server } from "../../model.js";
-import { body } from "../util.js";
+import { Server } from "../../model.js";
+import { body, uploadBody } from "../util.js";
 
 const EditHighlightBody = Schema.readonly(
   Schema.partial({
@@ -36,8 +39,8 @@ const ForgeCardResponse = Schema.readonly(
   }),
 );
 
-export const cardsApi = (server: Server.State): Router => {
-  const router = new Router();
+export const cardsApi = (server: Server.State): Server.Router => {
+  const router = Server.router();
 
   // Redirect to the card collection for the logged-in user.
   router.get("/", async (ctx) => {
@@ -45,6 +48,17 @@ export const cardsApi = (server: Server.State): Router => {
     // We don't actually validate this credential, but this redirect is safe to do anyway, so that's fine.
     ctx.redirect(`/api/user/${Credentials.actingUser(credential)}`);
     ctx.status = StatusCodes.TEMPORARY_REDIRECT;
+  });
+
+  // Upload a card image.
+  router.post("/image", uploadBody, async (ctx) => {
+    const parts = ctx.request.body as Record<string, string>;
+    const body = Validation.body(
+      Schema.string.pipe(Types.JsonFromString.pipe(Cards.Layout)),
+      parts["layout"],
+    );
+    const processedType = Objects.cardImageProcess(body);
+    await Objects.uploadHandler(server, processedType)(ctx);
   });
 
   // Get the card collection for the logged-in user.
@@ -89,59 +103,66 @@ export const cardsApi = (server: Server.State): Router => {
     Credentials.ensureCanActAs(credential, userSlug);
     const body = Validation.body(ForgeCardBody, ctx.request.body);
     const { name, image } = await server.store.gachaGetForgeDetail(userSlug);
-    const imageUpload = server.imageUpload;
-    if (imageUpload === undefined) {
+    const objectStorage = server.objectStorage;
+    if (objectStorage === undefined) {
       throw new WebError(
         StatusCodes.SERVICE_UNAVAILABLE,
-        "Image uploading not available.",
+        "Object storage not available.",
       );
     }
     const sourceUrl = `${image}?size=4096`;
 
-    const tryGet = async (): Promise<{
-      mimeType: string;
-      data: Uint8Array;
-    }> => {
+    const tryGet = async (): Promise<Objects.Content> => {
       const sourceImage = await fetch(sourceUrl);
-      if (sourceImage.body === null) {
-        throw new WebError(
-          StatusCodes.SERVICE_UNAVAILABLE,
-          "Unable to fetch avatar from Discord.",
+      if (!sourceImage.ok) {
+        throw new Error(
+          `Bad status (${sourceImage.status}) trying to fetch avatar: ${sourceUrl}`,
         );
       }
-      const mimeType = sourceImage.headers.get("Content-Type");
+      const body = sourceImage.body;
+      if (body === null) {
+        throw new WebError(
+          StatusCodes.SERVICE_UNAVAILABLE,
+          `Unable to fetch avatar from Discord, no body: ${sourceUrl}`,
+        );
+      }
+      const mimeType = sourceImage.headers.get("content-type");
       if (mimeType === null) {
         throw new WebError(
           StatusCodes.SERVICE_UNAVAILABLE,
-          "Discord did not provide mime type.",
+          `Discord did not provide mime type for avatar: ${sourceUrl}`,
         );
       }
-      try {
-        return {
-          mimeType,
-          data: new Uint8Array(await sourceImage.arrayBuffer()),
-        };
-      } catch (error: unknown) {
-        throw new WebError(
-          StatusCodes.SERVICE_UNAVAILABLE,
-          "Failure processing avatar from Discord.",
-        );
-      }
+      return {
+        mimeType,
+        stream: Readable.fromWeb(body as ReadableStream),
+      };
     };
     const imageResolved = await tryGet();
-    const imageUrl = await imageUpload.upload(
-      Urls.extractFilename(sourceUrl),
-      imageResolved.mimeType,
-      imageResolved.data,
-      { uploader: userSlug, reason: "forge-card-type", source: sourceUrl },
+    const imageReference = await Objects.upload(
+      server,
+      ctx.logger,
+      Objects.cardImageProcess("Normal"),
+      imageResolved,
+      {
+        uploader: Credentials.actingUser(credential),
+        reason: "forge-card-type",
+        source: sourceUrl,
+      },
     );
-    const cardType = await server.store.gachaForgeCardType(
+    const cardTypeId = await server.store.gachaForgeCardType(
       credential,
       name,
-      imageUrl.toString(),
+      imageReference,
+      objectStorage.url(imageReference),
+      sourceUrl,
       `“${body.quote}”`,
       body.rarity,
     );
+    const cardType = await server.store.gachaGetCardType(cardTypeId);
+    if (cardType === undefined) {
+      throw new Error("Should exist.");
+    }
     const balance = await server.store.gachaGetBalance(credential);
     ctx.body = ForgeCardResponse.encode({
       forged: CardTypes.fromInternal(cardType),

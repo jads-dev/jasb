@@ -12,3 +12,5 @@ server/oci-config.cfg
 
 deployment/test-config.json5
 deployment/test-nginx.conf
+
+*.env

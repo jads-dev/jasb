@@ -30,15 +30,15 @@ WITH
       coalesce(
         jsonb_agg(
           jsonb_build_object(
-            'slug', "options".slug,
-            'name', "options".name
+            'slug', options.slug,
+            'name', options.name
           )
-          ORDER BY "options"."order"
-        ) FILTER ( WHERE "options".id IS NOT NULL ),
+          ORDER BY options."order"
+        ) FILTER ( WHERE options.id IS NOT NULL ),
         '[]'::jsonb
       ) AS winning_options
     FROM
-      bets LEFT JOIN options ON bets.id = options.bet AND "options".won
+      bets LEFT JOIN options ON bets.id = options.bet AND options.won
     GROUP BY
       bets.id
   ),
@@ -50,15 +50,15 @@ WITH
       count(ROW (stakes.option, stakes.owner)) FILTER (
         WHERE
           stakes.owner IS NOT NULL
-          AND "options".won
+          AND options.won
       )::INT AS winning_stake_count,
       -- Different if a user won on >1 stakes on different winning options.
       count(stakes.owner) FILTER (
         WHERE
-          "options".won
+          options.won
       )::INT AS winning_user_count
     FROM
-      bets LEFT JOIN (options INNER JOIN stakes ON "options".id = stakes.option) ON bets.id = options.bet
+      bets LEFT JOIN (options INNER JOIN stakes ON options.id = stakes.option) ON bets.id = options.bet
     GROUP BY
       bets.id
   ),
@@ -71,16 +71,16 @@ WITH
           'name', users.name,
           'discriminator', users.discriminator,
           'discord_id', users.discord_id,
-          'avatar_url', avatars.url
+          'avatar_url', objects.url
         )
       ) FILTER ( WHERE users.id IS NOT NULL ), '[]'::jsonb) AS top_winners
     FROM
       bets INNER JOIN
       stake_stats_by_bet ON bets.id = stake_stats_by_bet.bet_id LEFT JOIN (
         stakes INNER JOIN
-        "options" ON stakes.option = "options".id INNER JOIN
+        options ON stakes.option = options.id INNER JOIN
         users ON users.id = stakes.owner INNER JOIN
-        avatars ON users.avatar = avatars.id
+        objects ON users.avatar = objects.id
       ) ON bets.id = options.bet AND stakes.payout = stake_stats_by_bet.biggest_payout_amount
     GROUP BY
       bets.id
@@ -163,13 +163,13 @@ SELECT
     'game', jsonb_build_object('slug', games.slug, 'name', games.name),
     'bet', jsonb_build_object('slug', bets.slug, 'name', bets.name),
     'spoiler', bets.spoiler,
-    'option', jsonb_build_object('slug', "options".slug, 'name', "options".name),
+    'option', jsonb_build_object('slug', options.slug, 'name', options.name),
     'user', jsonb_build_object(
       'slug', users.slug,
       'name', users.name,
       'discriminator', users.discriminator,
       'discord_id', users.discord_id,
-      'avatar_url', avatars.url
+      'avatar_url', objects.url
     ),
     'message', stakes.message,
     'stake', stakes.amount
@@ -177,9 +177,9 @@ SELECT
 FROM
   stakes
     INNER JOIN users ON stakes.owner = users.id
-    INNER JOIN avatars ON users.avatar = avatars.id
-    INNER JOIN options ON stakes.option = "options".id
-    INNER JOIN bets ON "options".bet = bets.id
+    INNER JOIN objects ON users.avatar = objects.id
+    INNER JOIN options ON stakes.option = options.id
+    INNER JOIN bets ON options.bet = bets.id
     INNER JOIN games ON bets.game = games.id
 WHERE
   stakes.message IS NOT NULL;
@@ -217,7 +217,7 @@ SELECT
     'name', users.name,
     'discriminator', users.discriminator,
     'discord_id', users.discord_id,
-    'avatar_url', avatars.url
+    'avatar_url', objects.url
   )) FILTER (
     WHERE users.id IS NOT NULL
   ) AS users
@@ -227,7 +227,7 @@ FROM
       games.id = specific_permissions.game AND
       specific_permissions.manage_bets LEFT JOIN
     (
-      users INNER JOIN avatars ON users.avatar = avatars.id
+      users INNER JOIN objects ON users.avatar = objects.id
     ) ON specific_permissions."user" = users.id
 GROUP BY
   games.id;
@@ -242,8 +242,8 @@ SELECT
 FROM
   games
   JOIN bets ON games.id = bets.game
-  JOIN options ON bets.id = "options".bet
-  JOIN stakes ON "options".id = stakes.option
+  JOIN options ON bets.id = options.bet
+  JOIN stakes ON options.id = stakes.option
 GROUP BY
   games.id;
 
@@ -261,8 +261,8 @@ FROM
   users
   LEFT JOIN (
     stakes INNER JOIN
-    options ON stakes.option = "options".id INNER JOIN
-    bets ON "options".bet = bets.id AND is_active(bets.progress)
+    options ON stakes.option = options.id INNER JOIN
+    bets ON options.bet = bets.id AND is_active(bets.progress)
   ) ON users.id = stakes.owner
 GROUP BY users.id;
 
@@ -288,7 +288,7 @@ SELECT
   users."name",
   users.discriminator,
   users.discord_id,
-  avatars.url AS avatar_url,
+  objects.url AS avatar_url,
   users.created,
   users.balance,
   user_stakes.staked,
@@ -300,7 +300,7 @@ SELECT
 FROM
   users INNER JOIN
   user_stakes ON users.id = user_stakes.user_id INNER JOIN
-  avatars ON users.avatar = avatars.id;
+  objects ON users.avatar = objects.id;
 
 DROP VIEW IF EXISTS debt_leaderboard CASCADE;
 
@@ -324,7 +324,7 @@ SELECT
   users."name",
   users.discriminator,
   users.discord_id,
-  avatars.url AS avatar_url,
+  objects.url AS avatar_url,
   users.created,
   users.balance,
   user_stakes.staked,
@@ -333,7 +333,7 @@ SELECT
 FROM
   users INNER JOIN
   user_stakes ON users.id = user_stakes.user_id INNER JOIN
-  avatars ON users.avatar = avatars.id
+  objects ON users.avatar = objects.id
 WHERE
   balance < 0;
 
@@ -350,7 +350,7 @@ SELECT
         'name', users.name,
         'discriminator', users.discriminator,
         'discord_id', users.discord_id,
-        'avatar_url', avatars.url
+        'avatar_url', objects.url
       ),
       'made_at', stakes.made_at,
       'amount', stakes.amount,
@@ -361,40 +361,42 @@ SELECT
 FROM
   stakes INNER JOIN
     users ON stakes.owner = users.id INNER JOIN
-    avatars ON users.avatar = avatars.id
+    objects ON users.avatar = objects.id
 GROUP BY
   stakes.option;
 
 DROP VIEW IF EXISTS options_by_bet CASCADE;
 
 CREATE VIEW
-  options_by_bet (bet, "options") AS
+  options_by_bet (bet, options) AS
 SELECT
-  "options".bet,
+  options.bet,
   coalesce(jsonb_agg(
     jsonb_build_object(
       'slug', options.slug,
       'name', options.name,
-      'image', options.image,
+      'image', objects.url,
       'stakes', coalesce(stakes.stakes, '[]'::jsonb),
       'won', options.won
     )
-    ORDER BY "options"."order"
+    ORDER BY options."order"
   ), '[]'::jsonb) AS options
 FROM
-  "options" LEFT JOIN stakes_by_option AS stakes ON "options".id = stakes.option
+  options LEFT JOIN
+  objects ON options.image = objects.id LEFT JOIN
+  stakes_by_option AS stakes ON options.id = stakes.option
 GROUP BY
-  "options".bet;
+  options.bet;
 
 CREATE VIEW
-  editable_options_by_bet (bet, "options") AS
+  editable_options_by_bet (bet, options) AS
 SELECT
-  "options".bet,
+  options.bet,
   coalesce(jsonb_agg(
     jsonb_build_object(
       'slug', options.slug,
       'name', options.name,
-      'image', options.image,
+      'image', objects.url,
       'stakes', coalesce(stakes.stakes, '[]'::jsonb),
       'won', options.won,
       'order', options.order,
@@ -402,12 +404,14 @@ SELECT
       'created', options.created,
       'modified', options.modified
     )
-    ORDER BY "options"."order"
+    ORDER BY options."order"
   ), '[]'::jsonb) AS options
 FROM
-  "options" LEFT JOIN stakes_by_option AS stakes ON "options".id = stakes.option
+  options LEFT JOIN
+  objects ON options.image = objects.id LEFT JOIN
+  stakes_by_option AS stakes ON options.id = stakes.option
 GROUP BY
-  "options".bet;
+  options.bet;
 
 DROP VIEW IF EXISTS per_game_permissions CASCADE;
 

@@ -8,7 +8,7 @@ export const Credit = z
     user_slug: Types.userSlug.nullable(),
     name: z.string(),
     discriminator: z.string().nullable(),
-    avatar_url: z.string().url().nullable(),
+    avatar_url: z.string().nullable(),
   })
   .strict();
 export type Credit = z.infer<typeof Credit>;
@@ -20,7 +20,7 @@ export const Editable = z
     user_slug: Types.userSlug.nullable(),
     name: z.string(),
     discriminator: z.string().nullable(),
-    avatar_url: z.string().url().nullable(),
+    avatar_url: z.string().nullable(),
     version: Types.nonNegativeInt,
     created: Types.zonedDateTime,
     modified: Types.zonedDateTime,

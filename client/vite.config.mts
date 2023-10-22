@@ -1,5 +1,6 @@
 import * as process from "node:process";
 
+import "dotenv/config";
 import { type Plugin, defineConfig } from "vite";
 import { plugin as elm } from "vite-plugin-elm";
 import { compression } from "vite-plugin-compression2";
@@ -16,6 +17,18 @@ const url =
   process.env["JASB_URL"] ??
   (production ? "https://jasb.900000000.xyz/" : `http://localhost:${port}/`);
 const version = process.env["JASB_VERSION"] ?? "dev";
+const objectUpstreamUrl = process.env["JASB_OBJECT_UPSTREAM_URL"] ?? "";
+
+const objectRedirect =
+  objectUpstreamUrl !== ""
+    ? {
+        "/assets/objects/": {
+          target: objectUpstreamUrl,
+          changeOrigin: true,
+          rewrite: (path) => path.replace(/^\/assets\/objects/, ""),
+        },
+      }
+    : {};
 
 const elmPureFunctions = [
   "F2",
@@ -98,6 +111,7 @@ export default defineConfig({
         target: server,
         ws: true,
       },
+      ...objectRedirect,
     },
   },
   plugins: [

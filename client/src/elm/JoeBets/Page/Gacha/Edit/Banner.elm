@@ -480,6 +480,8 @@ coverUploaderModel : Uploader.Model
 coverUploaderModel =
     { label = "Cover"
     , types = [ "image/*" ]
+    , path = Api.BannerCoverUpload |> Api.Banners |> Api.Gacha
+    , extraParts = []
     }
 
 

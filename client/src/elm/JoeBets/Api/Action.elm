@@ -13,6 +13,7 @@ module JoeBets.Api.Action exposing
     , orSpinner
     , toMaybeError
     , viewAction
+    , viewActionError
     )
 
 import Html exposing (Html)
@@ -107,6 +108,19 @@ viewAction default state =
                     |> Progress.view
                 ]
             ]
+
+        Failed error ->
+            [ viewError error ]
+
+
+viewActionError : List (Html msg) -> ActionState -> List (Html msg)
+viewActionError default state =
+    case state of
+        Neutral ->
+            default
+
+        Working ->
+            default
 
         Failed error ->
             [ viewError error ]

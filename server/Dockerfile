@@ -26,7 +26,7 @@ RUN echo '{ "type": "module" }' > ./dist/package.json
 
 FROM base as install
 
-RUN ["npm", "ci", "--omit=dev"]
+RUN ["npm", "ci", "--omit=dev", "--platform=${TARGETOS}", "--arch=${TARGETARCH}", "--arm-version=${TARGETVARIANT}", "--libc=musl"]
 
 
 FROM scratch AS sources

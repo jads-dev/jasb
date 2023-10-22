@@ -7,11 +7,20 @@ export interface Result {
   finished: boolean;
 }
 
+// The result of executing a task that only runs once.
+export interface SingleRunResult extends Result {
+  finished: true;
+}
+
 // A background task, executed without a request.
-export type Task = (
-  server: Server.State,
-  logger: Logging.Logger,
-  meta: { iteration: number },
-) => Promise<Result>;
+export interface Task<TResult extends Result = Result> {
+  name: string;
+  details: object;
+  execute: (
+    server: Server.State,
+    logger: Logging.Logger,
+    meta: { iteration: number },
+  ) => Promise<TResult>;
+}
 
 export * as Tasks from "./tasks.js";

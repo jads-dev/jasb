@@ -1,12 +1,11 @@
-import { default as Router } from "@koa/router";
 import * as Schema from "io-ts";
 
 import { Leaderboard } from "../../public.js";
-import type { Server } from "../model.js";
+import { Server } from "../model.js";
 import { ResultCache } from "../result-cache.js";
 
-export const leaderboardApi = (server: Server.State): Router => {
-  const router = new Router();
+export const leaderboardApi = (server: Server.State): Server.Router => {
+  const router = Server.router();
 
   const netWorthLeaderboardCache = new ResultCache<Leaderboard.NetWorthEntry[]>(
     async () =>

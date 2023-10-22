@@ -1,5 +1,4 @@
 import * as Joda from "@js-joda/core";
-import { default as Router } from "@koa/router";
 import { StatusCodes } from "http-status-codes";
 import * as Schema from "io-ts";
 
@@ -8,9 +7,8 @@ import { Users } from "../../public/users.js";
 import { Validation } from "../../util/validation.js";
 import { Auth } from "../auth.js";
 import { WebError } from "../errors.js";
-import type { Server } from "../model.js";
+import { Server } from "../model.js";
 import { body } from "./util.js";
-
 const secure = process.env["NODE_ENV"] !== "development";
 
 const UserAndNotifications = Schema.strict({
@@ -23,8 +21,8 @@ const DiscordLoginBody = Schema.strict({
   state: Schema.string,
 });
 
-export const authApi = (server: Server.State): Router => {
-  const router = new Router();
+export const authApi = (server: Server.State): Server.Router => {
+  const router = Server.router();
 
   // Log In.
   router.post("/login", body, async (ctx) => {
@@ -64,6 +62,7 @@ export const authApi = (server: Server.State): Router => {
         throw new WebError(StatusCodes.BAD_REQUEST, "Missing state cookie.");
       }
       const { user, notifications, session, expires } = await server.auth.login(
+        server,
         origin,
         stateCookie,
         body.state,
@@ -88,7 +87,7 @@ export const authApi = (server: Server.State): Router => {
   router.post("/logout", body, async (ctx) => {
     const credential = await server.auth.requireIdentifyingCredential(ctx);
     const session = server.auth.requireUserSession(credential);
-    await server.auth.logout(session.user, session.session);
+    await server.auth.logout(server, session.user, session.session);
     ctx.cookies.set(Auth.sessionCookieName, null, { signed: true });
     ctx.body = Users.Slug.encode(session.user);
   });

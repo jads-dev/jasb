@@ -5,18 +5,25 @@ import { either as Either } from "fp-ts";
 import { StatusCodes } from "http-status-codes";
 import * as Schema from "io-ts";
 import * as Jose from "jose";
-import { default as Koa } from "koa";
 
-import type { Store } from "../data/store.js";
 import { Discord } from "../external.js";
 import { Notifications, Users } from "../public.js";
 import { Expect } from "../util/expect.js";
+import { Maths } from "../util/maths.js";
 import { Random } from "../util/random.js";
 import { SecretToken } from "../util/secret-token.js";
 import { Validation } from "../util/validation.js";
 import type { Credential, Credentials } from "./auth/credentials.js";
 import type { Config } from "./config.js";
 import { WebError } from "./errors.js";
+import type { Logging } from "./logging.js";
+import type { Server } from "./model.js";
+
+export interface DiscordToken {
+  accessToken: string;
+  refreshToken: string;
+  expiresAt: Joda.Instant;
+}
 
 export const ExternalServiceToken = Schema.strict({
   iss: Schema.string,
@@ -52,6 +59,41 @@ interface ResolvedExternalServices {
   recognised: Map<string, Jose.KeyLike | Uint8Array>;
 }
 
+const avatarSuffix = (
+  userId: string,
+  discriminator: string | null,
+  avatar: string | null,
+  guildId: string,
+  guildAvatar: string | null,
+): string => {
+  if (guildAvatar !== null) {
+    return `guilds/${guildId}/users/${userId}/avatars/${guildAvatar}.webp`;
+  } else if (avatar !== null) {
+    return `avatars/${userId}/${avatar}.png`;
+  } else if (discriminator === null) {
+    return `embed/avatars/${Maths.modulo(
+      Number(BigInt(userId) >> 22n),
+      6,
+    )}.png`;
+  } else {
+    return `embed/avatars/${Maths.modulo(parseInt(discriminator, 10), 5)}.png`;
+  }
+};
+const avatar = (
+  userId: string,
+  discriminator: string | null,
+  avatar: string | null,
+  guildId: string,
+  guildAvatar: string | null,
+) =>
+  `https://cdn.discordapp.com/${avatarSuffix(
+    userId,
+    discriminator,
+    avatar,
+    guildId,
+    guildAvatar,
+  )}`;
+
 export class Auth {
   static readonly discordBase = "https://discord.com/api/v10";
   static readonly redirectPath = "/auth";
@@ -59,17 +101,14 @@ export class Auth {
   static readonly stateCookieName = `${secure ? "__Host-" : ""}jasb-state`;
 
   readonly #config: Config.Auth;
-  readonly #store: Store;
   readonly #client: OAuth.OAuth2Client;
   readonly #externalServices: ResolvedExternalServices | undefined;
 
   private constructor(
     config: Config.Auth,
-    store: Store,
     externalServices: ResolvedExternalServices | undefined,
   ) {
     this.#config = config;
-    this.#store = store;
     this.#client = new OAuth.OAuth2Client({
       server: "https://discord.com/oauth2",
       clientId: this.#config.discord.clientId,
@@ -98,10 +137,9 @@ export class Auth {
     };
   }
 
-  static async init(config: Config.Auth, store: Store): Promise<Auth> {
+  static async init(config: Config.Auth): Promise<Auth> {
     return new Auth(
       config,
-      store,
       config.externalServices !== undefined
         ? await Auth.#externalServicesResolve(config.externalServices)
         : undefined,
@@ -184,6 +222,7 @@ export class Auth {
   }
 
   async login(
+    server: Server.State,
     origin: string,
     stateCookie: string,
     receivedState: string,
@@ -212,18 +251,41 @@ export class Auth {
           "Must be a non-pending member of JADS.",
         );
       }
+      const refreshToken = token.refreshToken;
+      if (refreshToken === null) {
+        throw new WebError(
+          StatusCodes.SERVICE_UNAVAILABLE,
+          "Discord did not provide a refresh token.",
+        );
+      }
+      const expiresAt = token.expiresAt;
+      if (expiresAt === null) {
+        throw new WebError(
+          StatusCodes.SERVICE_UNAVAILABLE,
+          "Discord did not provide an expiry time.",
+        );
+      }
+      const discriminator =
+        discord.user.discriminator !== "0"
+          ? discord.user.discriminator ?? null
+          : null;
+      const avatarUrl = avatar(
+        discord.user.id,
+        discriminator,
+        discord.user.avatar ?? null,
+        this.#config.discord.guild,
+        discord.avatar ?? null,
+      );
       const [login, nonce] = await Promise.all([
-        this.#store.login(
+        server.store.login(
           discord.user.id,
           discord.user.username,
           discord.nick ?? discord.user.global_name ?? null,
-          discord.user.discriminator !== "0"
-            ? discord.user.discriminator ?? null
-            : null,
-          discord.user.avatar ?? null,
+          discriminator,
+          avatarUrl,
           token.accessToken,
-          token.refreshToken ?? "",
-          Joda.Duration.of(token.expiresAt ?? 0, Joda.ChronoUnit.SECONDS),
+          refreshToken,
+          Joda.Instant.ofEpochMilli(expiresAt),
         ),
         Random.secureRandomString(32),
       ]);
@@ -243,10 +305,41 @@ export class Auth {
         user,
         notifications,
         session: await this.#encrypt(SessionCookie.encode(sessionCookie)),
-        expires: login.user.started.plus(this.#config.sessionLifetime),
+        expires: login.user.started.plus(this.#config.sessions.lifetime),
       };
     } else {
       throw new Error("Invalid state received.");
+    }
+  }
+
+  async refresh(
+    logger: Logging.Logger,
+    token: string,
+  ): Promise<DiscordToken | undefined> {
+    try {
+      // This requires the full token even though it doesn't use it, so we just fake it.
+      const result = await this.#client.refreshToken({
+        accessToken: "",
+        refreshToken: token,
+        expiresAt: null,
+      });
+      if (result.expiresAt === null) {
+        logger.warn("Got no expiration time from Discord.");
+        return undefined;
+      }
+      if (result.refreshToken === null) {
+        logger.warn("Got no refresh token from Discord.");
+        return undefined;
+      }
+      return {
+        accessToken: result.accessToken,
+        refreshToken: result.refreshToken,
+        expiresAt: Joda.Instant.ofEpochMilli(result.expiresAt),
+      };
+    } catch (error: unknown) {
+      // This is expected, but we'll log it debug.
+      logger.debug({ err: error }, "Expected error while refreshing token.");
+      return undefined;
     }
   }
 
@@ -280,7 +373,7 @@ export class Auth {
     }
   }
 
-  async getCredential(context: Koa.Context): Promise<Credential> {
+  async getCredential(context: Server.Context): Promise<Credential> {
     const cookie = context.cookies.get(Auth.sessionCookieName, {
       signed: true,
     });
@@ -290,7 +383,7 @@ export class Auth {
         const result = SessionCookie.decode(decrypted.payload);
         if (Either.isRight(result)) {
           const { user, session, iat } = result.right;
-          return iat.plus(this.#config.sessionLifetime).isAfter(Instant.now())
+          return iat.plus(this.#config.sessions.lifetime).isAfter(Instant.now())
             ? {
                 credential: "user-session",
                 user,
@@ -376,7 +469,7 @@ export class Auth {
   }
 
   async requireIdentifyingCredential(
-    context: Koa.Context,
+    context: Server.Context,
   ): Promise<Credentials.Identifying> {
     const credential = await this.getCredential(context);
     return credential.credential !== "unauthorized"
@@ -384,7 +477,11 @@ export class Auth {
       : this.throwUnauthorized(credential);
   }
 
-  async logout(userSlug: Users.Slug, session: SecretToken): Promise<void> {
-    await this.#store.logout(userSlug, session);
+  async logout(
+    server: Server.State,
+    userSlug: Users.Slug,
+    session: SecretToken,
+  ): Promise<void> {
+    await server.store.logout(userSlug, session);
   }
 }

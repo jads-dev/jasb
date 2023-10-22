@@ -1,4 +1,3 @@
-import { default as Router } from "@koa/router";
 import { StatusCodes } from "http-status-codes";
 import * as Schema from "io-ts";
 
@@ -8,9 +7,10 @@ import { CardTypes } from "../../../public/gacha/card-types.js";
 import { Cards } from "../../../public/gacha/cards.js";
 import { Validation } from "../../../util/validation.js";
 import { WebError } from "../../errors.js";
-import type { Server } from "../../model.js";
-import { body } from "../util.js";
+import { Server } from "../../model.js";
+import { body, uploadBody } from "../util.js";
 import { cardTypesApi } from "./banners/card-types.js";
+import { Objects } from "../../../data/objects.js";
 
 const BannerBody = {
   name: Schema.string,
@@ -38,8 +38,8 @@ const RollBody = Schema.readonly(
   }),
 );
 
-export const bannersApi = (server: Server.State): Router => {
-  const router = new Router();
+export const bannersApi = (server: Server.State): Server.Router => {
+  const router = Server.router();
 
   // Get all active banners.
   router.get("/", async (ctx) => {
@@ -66,6 +66,13 @@ export const bannersApi = (server: Server.State): Router => {
       Schema.tuple([Banners.Slug, Banners.Editable]),
     ).encode(results.map(Banners.editableFromInternal));
   });
+
+  // Upload a banner cover image.
+  router.post(
+    "/cover",
+    uploadBody,
+    Objects.uploadHandler(server, Objects.bannerCoverProcess),
+  );
 
   // Get a banner with its card types to preview.
   router.get("/:bannerSlug", async (ctx) => {
@@ -99,7 +106,7 @@ export const bannersApi = (server: Server.State): Router => {
       ctx.params["bannerSlug"],
     );
     const body = Validation.body(AddBannerBody, ctx.request.body);
-    const banner = await server.store.gachaAddBanner(
+    await server.store.gachaAddBanner(
       credential,
       bannerSlug,
       body.name,
@@ -110,6 +117,10 @@ export const bannersApi = (server: Server.State): Router => {
       body.backgroundColor,
       body.foregroundColor,
     );
+    const banner = await server.store.gachaGetEditableBanner(bannerSlug);
+    if (banner === undefined) {
+      throw new Error("Should exist.");
+    }
     ctx.body = Schema.tuple([Banners.Slug, Banners.Editable]).encode(
       Banners.editableFromInternal(banner),
     );
@@ -124,7 +135,7 @@ export const bannersApi = (server: Server.State): Router => {
       ctx.params["bannerSlug"],
     );
     const body = Validation.body(EditBannerBody, ctx.request.body);
-    const banner = await server.store.gachaEditBanner(
+    await server.store.gachaEditBanner(
       credential,
       bannerSlug,
       body.version,
@@ -136,6 +147,10 @@ export const bannersApi = (server: Server.State): Router => {
       body.backgroundColor ?? null,
       body.foregroundColor ?? null,
     );
+    const banner = await server.store.gachaGetEditableBanner(bannerSlug);
+    if (banner === undefined) {
+      throw new Error("Should exist.");
+    }
     ctx.body = Schema.tuple([Banners.Slug, Banners.Editable]).encode(
       Banners.editableFromInternal(banner),
     );

@@ -64,11 +64,15 @@ export class WebSockets {
   }
 
   async attach(
-    { logger, store }: Server.State,
+    { store }: Server.State,
+    logger: Logging.Logger,
     userId: number,
     credential: Credentials.Identifying,
     socket: WebSocket,
   ): Promise<void> {
+    logger.debug(
+      `WebSocket attached for ${Credentials.actingUser(credential)}.`,
+    );
     const channel = `user_notifications_${userId}`;
     const keepAliveInterval = Joda.Duration.ofSeconds(30);
     let closed = false;
@@ -97,6 +101,9 @@ export class WebSockets {
       "close",
       wrapLogErrors(logger, async () => {
         if (!closed) {
+          logger.debug(
+            `WebSocket closed for ${Credentials.actingUser(credential)}.`,
+          );
           await subscriber.unlistenAll();
           closed = true;
           await this.#pool.release(subscriber);

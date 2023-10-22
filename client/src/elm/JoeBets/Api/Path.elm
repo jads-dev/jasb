@@ -16,6 +16,7 @@ import JoeBets.Bet.Model as Bets
 import JoeBets.Bet.Option as Option
 import JoeBets.Gacha.Banner as Banner
 import JoeBets.Gacha.Card as Card
+import JoeBets.Gacha.Card.Layout as Card
 import JoeBets.Gacha.CardType as CardType
 import JoeBets.Game.Id as Game
 import JoeBets.Page.Leaderboard.Route as Leaderboard
@@ -73,6 +74,7 @@ type BannerPath
 
 type BannersPath
     = BannersRoot
+    | BannerCoverUpload
     | EditableBanners
     | SpecificBanner Banner.Id BannerPath
 
@@ -94,6 +96,7 @@ type CardsPath
 
 type GachaPath
     = Cards User.Id CardsPath
+    | CardImageUpload
     | Balance
     | Banners BannersPath
     | Context
@@ -106,8 +109,9 @@ type Path
     | SpecificUser User.Id UserPath
     | Games
     | GameSearch String
+    | GameCoverUpload
+    | BetOptionImageUpload
     | Game Game.Id GamePath
     | Leaderboard Leaderboard.Board
     | Feed
     | Gacha GachaPath
-    | Upload

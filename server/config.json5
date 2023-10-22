@@ -1,5 +1,5 @@
 {
-  logLevel: "error",
+  logging: { level: "error" },
   listenOn: { port: 8081, address: "0.0.0.0" },
   clientOrigin: "https://jasb.900000000.xyz",
 
@@ -31,10 +31,10 @@
     },
   },
 
+  // How we store application state.
   store: {
-    garbageCollectionFrequency: "PT1H",
-
     source: {
+      // Details for a Postgres DB.
       host: "storage",
       user: "jasb",
       password: "CHANGE_ME",
@@ -46,12 +46,19 @@
   },
 
   auth: {
-    // How long a user's session lasts.
-    sessionLifetime: "P7D",
-    // How many bytes of data to use for session IDs.
-    sessionIdSize: 64,
     // How long to allow users to spend logging in before rejecting the log-in.
     stateValidityDuration: "PT5M",
+
+    // How user sessions are handled.
+    sessions: {
+      // How long a user's session lasts.
+      lifetime: "P7D",
+      // How many bytes of data to use for session IDs.
+      idSize: 64,
+      // How often sessions are removed when they have expired.
+      // They won't be respected when expired even if not collected, this is just clean up.
+      garbageCollectionFrequency: "PT1H",
+    },
 
     // What algorithm to use for encrypting secrets, the algorithm chosen here will determine the necessary length
     // of key. See https://github.com/panva/jose/issues/210#jwe-enc for the options.
@@ -64,8 +71,19 @@
 
     // How to authenticate upstream with discord.
     discord: {
+      // Get from https://discord.com/developers/applications
       clientId: "CHANGE_ME",
       clientSecret: "CHANGE_ME",
+
+      // How we refresh tokens from discord.
+      refresh: {
+        // How often we check for expiring tokens and refresh them, this must
+        // be more often than Discord expires sessions.
+        frequency: "PT1H",
+        // If the token is due to expire before withing this threshold of the
+        // next refresh we will refresh it.
+        expiryBuffer: "PT30M",
+      },
 
       guild: "308515582817468420", // JADS
     },
@@ -99,8 +117,8 @@
     // channel: "666328861985865749" // JADS
   },
 
-  // If given, will allow image uploading to the given storage.
-  imageUpload: {
+  // If given, will allow images uploading and caching to the given storage.
+  objectStorage: {
     // Oracle Cloud Infrastructure Object Storage
     service: "oci",
     // OCID of the user calling the API. See https://docs.oracle.com/en-us/iaas/Content/API/Concepts/apisigningkey.htm#five
@@ -123,47 +141,30 @@
     // The name of the bucket you want to use.
     bucket: "your-bucket-name",
 
-    name: {
-      method: "hash",
-      algorithm: "sha256",
+    // How to remove unused objects from storage.
+    garbageCollection: {
+      // The time between garbage collection runs.
+      frequency: "PT10M",
+      // Don't garbage collect objects until they are this old, this stops someone
+      // getting unlucky and uploading an image and having it instantly garbage collected.
+      minimumAge: "PT2H",
     },
-    cacheMaxAge: "P90D",
-    allowOverwrite: false,
-  },
 
-  // If given, will allow avatar caching to the given storage.
-  avatarCache: {
-    // Oracle Cloud Infrastructure Object Storage
-    service: "oci",
-    // OCID of the user calling the API. See https://docs.oracle.com/en-us/iaas/Content/API/Concepts/apisigningkey.htm#five
-    user: "ocid1.user.oc1..CHANGE_ME",
-    // OCID of your tenancy. See https://docs.oracle.com/en-us/iaas/Content/API/Concepts/apisigningkey.htm#five
-    tenancy: "ocid1.tenancy.oc1..CHANGE_ME",
-    // Fingerprint for the public key that was added to this user. See https://docs.oracle.com/en-us/iaas/Content/API/Concepts/apisigningkey.htm#four
-    fingerprint: "12:34:56:78:90:ab:cd:ef:12:34:56:78:90:ab:cd:ef",
-    // The private key to use. See https://docs.oracle.com/en-us/iaas/Content/API/Concepts/apisigningkey.htm#two
-    // This should be a secret token uri of the key in PEM format in full, with newlines encoded as "/n".
-    // It will start with "-----BEGIN PRIVATE KEY-----\n" and end with "\n-----END PRIVATE KEY-----\n"
-    privateKey: "CHANGE_ME",
-    // Passphrase used for the key, if it is encrypted.
-    // If it is not encrypted, do not provide a value.
-    //passphrase: "CHANGE_ME",
-    // An Oracle Cloud Infrastructure region. See https://docs.oracle.com/en-us/iaas/Content/General/Concepts/regions.htm#top
-    region: "us-ashburn-1",
-    // The namespace the bucket you want to use is in.
-    namespace: "abcdefghi",
-    // The name of the bucket you want to use.
-    bucket: "your-bucket-name",
-
-    name: {
-      method: "hash",
-      algorithm: "sha256",
+    // How to cache objects to storage.
+    cache: {
+      // The time between cache runs.
+      frequency: "PT30S",
+      // At most, how many objects to cache in a single run.
+      batchSize: 10,
     },
-    cacheMaxAge: "P90D",
-    allowOverwrite: false,
 
-    backgroundTaskFrequency: "PT30M",
-    cacheBatchSize: 10,
-    garbageCollectBatchSize: 10,
+    // How to process webp images.
+    webp: {
+      // The quality to use, 1-100.
+      quality: 80,
+      // How hard to work on compression 1-6, 6 being the most resource intensive for the
+      // smallest size. Does not adjust image quality.
+      effort: 6,
+    },
   },
 }

@@ -1,4 +1,3 @@
-import { default as Router } from "@koa/router";
 import { StatusCodes } from "http-status-codes";
 import * as Schema from "io-ts";
 import { WebSocket } from "ws";
@@ -7,7 +6,7 @@ import { Games, Notifications, Users } from "../../public.js";
 import { requireUrlParameter, Validation } from "../../util/validation.js";
 import { Credentials } from "../auth/credentials.js";
 import { WebError } from "../errors.js";
-import type { Server } from "../model.js";
+import { Server } from "../model.js";
 import { body } from "./util.js";
 
 const PermissionsBody = Schema.readonly(
@@ -20,8 +19,8 @@ const PermissionsBody = Schema.readonly(
   }),
 );
 
-export const usersApi = (server: Server.State): Router => {
-  const router = new Router();
+export const usersApi = (server: Server.State): Server.Router => {
+  const router = Server.router();
 
   // Get Logged In User.
   router.get("/", async (ctx) => {
@@ -95,7 +94,13 @@ export const usersApi = (server: Server.State): Router => {
     if (ws instanceof Function) {
       const socket = (await ws()) as WebSocket;
       const userId = await server.store.validateCredential(credential);
-      await server.webSockets.attach(server, userId, credential, socket);
+      await server.webSockets.attach(
+        server,
+        ctx.logger,
+        userId,
+        credential,
+        socket,
+      );
     } else {
       const notifications = await server.store.getNotifications(credential);
       ctx.body = Schema.readonlyArray(Notifications.Notification).encode(

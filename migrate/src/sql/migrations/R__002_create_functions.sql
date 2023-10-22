@@ -250,6 +250,68 @@ CREATE FUNCTION acting_as_slug (
   END;
 $$;
 
+DROP FUNCTION IF EXISTS add_object CASCADE;
+CREATE FUNCTION add_object (
+  given_type objects.type%TYPE,
+  given_url objects.url%TYPE
+) RETURNS objects.id%TYPE LANGUAGE plpgsql AS $$
+  DECLARE
+    result objects.id%TYPE;
+  BEGIN
+    INSERT INTO objects (url, source_url, type) VALUES (given_url, given_url, given_type) RETURNING id INTO result;
+    RETURN result;
+  END;
+$$;
+
+DROP FUNCTION IF EXISTS update_object CASCADE;
+CREATE FUNCTION update_object (
+  given_type objects.type%TYPE,
+  old_id objects.id%TYPE,
+  given_url objects.url%TYPE
+) RETURNS objects.id%TYPE LANGUAGE plpgsql AS $$
+  DECLARE
+    result objects.id%TYPE = NULL;
+  BEGIN
+    IF old_id IS NOT NULL THEN
+      SELECT objects.id INTO result
+      FROM objects
+      WHERE
+        objects.id = old_id AND
+        objects.type = given_type AND
+        (objects.url = given_url OR objects.source_url = given_url);
+    END IF;
+    IF result IS NULL THEN
+      result = add_object(given_type, given_url);
+    END IF;
+    RETURN result;
+  END;
+$$;
+
+DROP FUNCTION IF EXISTS named_object CASCADE;
+CREATE FUNCTION named_object (
+  given_type objects.type%TYPE,
+  given_name objects.name%TYPE,
+  given_url objects.url%TYPE,
+  given_source_url objects.source_url%TYPE
+) RETURNS objects.id%TYPE LANGUAGE plpgsql AS $$
+  DECLARE
+    result objects.id%TYPE;
+  BEGIN
+    INSERT INTO objects (name, url, source_url, type)
+    VALUES (
+      given_name,
+      given_url,
+      CASE
+        WHEN given_source_url IS NOT NULL THEN given_source_url
+        ELSE given_url
+      END,
+      given_type
+    )
+    RETURNING id INTO result;
+    RETURN result;
+  END;
+$$;
+
 DROP FUNCTION IF EXISTS add_bet CASCADE;
 CREATE FUNCTION add_bet (
   credential JSONB,
@@ -313,7 +375,15 @@ CREATE FUNCTION add_bet (
 
     BEGIN
       INSERT INTO options (bet, slug, name, image, "order")
-        SELECT bet.id, ingest.slug, ingest.name, ingest.image, row_number() OVER ()
+        SELECT
+          bet.id,
+          ingest.slug,
+          ingest.name,
+          CASE
+            WHEN ingest.image IS NOT NULL THEN add_object('option'::ObjectType, ingest.image)
+            ELSE NULL
+          END,
+          row_number() OVER ()
         FROM unnest(options) AS ingest(slug, "name", image, "order");
     EXCEPTION
       WHEN UNIQUE_VIOLATION THEN
@@ -341,7 +411,7 @@ CREATE FUNCTION add_game (
   session_lifetime INTERVAL,
   game_slug games.slug%TYPE,
   given_name games.name%TYPE,
-  given_cover games.cover%TYPE,
+  given_cover objects.url%TYPE,
   given_started games.started%TYPE,
   given_finished games.finished%TYPE,
   given_order games."order"%TYPE
@@ -349,7 +419,7 @@ CREATE FUNCTION add_game (
   DECLARE
     user_id users.id%TYPE;
     game games%ROWTYPE;
-  BEGIN 
+  BEGIN
     SELECT validate_manage_games(credential, session_lifetime) INTO user_id;
 
     BEGIN
@@ -357,7 +427,7 @@ CREATE FUNCTION add_game (
       VALUES (
         game_slug,
         given_name,
-        given_cover,
+        add_object('cover'::ObjectType,  given_cover),
         given_started,
         given_finished,
         given_order
@@ -467,37 +537,6 @@ BEGIN
   END;
 
   RETURN QUERY SELECT * FROM lock_moments WHERE lock_moments.game = game_id;
-END;
-$$;
-
-DROP FUNCTION IF EXISTS default_avatar CASCADE;
-CREATE FUNCTION default_avatar (
-  discord_id users.discord_id%TYPE,
-  discriminator users.discriminator%TYPE
-) RETURNS avatars.default_index%TYPE IMMUTABLE LANGUAGE plpgsql AS $$
-BEGIN
-  RETURN CASE 
-    WHEN discriminator IS NULL THEN
-      (((discord_id::BIGINT) >> 22) % 6)::INT
-    ELSE
-      ((discriminator::INT) % 5)::INT
-  END;
-END;
-$$;
-
-DROP FUNCTION IF EXISTS discord_avatar_url CASCADE;
-CREATE FUNCTION discord_avatar_url (
-  discord_id users.discord_id%TYPE,
-  discriminator users.discriminator%TYPE,
-  avatar_hash avatars.hash%TYPE
-) RETURNS avatars.url%TYPE IMMUTABLE LANGUAGE plpgsql AS $$
-BEGIN
-  RETURN CASE
-    WHEN avatar_hash IS NOT NULL THEN
-      'https://cdn.discordapp.com/avatars/' || discord_id || '/' || avatar_hash || '.webp'
-    ELSE
-      'https://cdn.discordapp.com/embed/avatars/' || default_avatar(discord_id, discriminator) || '.png'
-    END;
 END;
 $$;
 
@@ -903,7 +942,7 @@ CREATE FUNCTION edit_bet (
       name = coalesce(edits.name, options.name),
       image = CASE
         WHEN edits.remove_image THEN NULL
-        ELSE coalesce(edits.image, options.image)
+        ELSE update_object('option'::ObjectType, options.image,  edits.image)
       END,
       "order" = coalesce(edits."order", options."order")
     FROM
@@ -913,7 +952,7 @@ CREATE FUNCTION edit_bet (
     WHERE options.bet = bets.id AND options.slug = edits.slug;
 
     INSERT INTO options (bet, slug, name, image, "order")
-    SELECT bets.id, adds.slug, adds.name, adds.image, adds."order"
+    SELECT bets.id, adds.slug, adds.name, add_object('option'::ObjectType,  adds.image), adds."order"
     FROM
       unnest(add_options) AS adds(slug, "name", image, "order") INNER JOIN
         bets ON bets.slug = bet_slug INNER JOIN
@@ -940,7 +979,7 @@ CREATE FUNCTION edit_game (
   game_slug games.slug%TYPE,
   old_version games.version%TYPE,
   new_name games.name%TYPE,
-  new_cover games.cover%TYPE,
+  new_cover objects.url%TYPE,
   new_started games.started%TYPE,
   clear_started BOOLEAN,
   new_finished games.finished%TYPE,
@@ -956,7 +995,7 @@ CREATE FUNCTION edit_game (
     UPDATE games SET
       version = old_version + 1,
       name = coalesce(new_name, name),
-      cover = coalesce(new_cover, cover),
+      cover = update_object('cover'::ObjectType, cover, new_cover),
       started = CASE WHEN clear_started THEN NULL ELSE coalesce(new_started, started) END,
       finished = CASE WHEN clear_finished THEN NULL ELSE coalesce(new_finished, finished) END,
       "order" = CASE WHEN clear_order THEN NULL ELSE coalesce(new_order, "order") END
@@ -1025,34 +1064,23 @@ CREATE FUNCTION login (
   given_username users.username%TYPE,
   given_display_name users.display_name%TYPE,
   given_discriminator users.discriminator%TYPE,
-  given_avatar_hash avatars.hash%TYPE,
+  given_avatar objects.url%TYPE,
   given_access_token sessions.access_token%TYPE,
   given_refresh_token sessions.refresh_token%TYPE,
-  discord_expires_in INTERVAL,
+  discord_expires_at sessions.discord_expires%TYPE,
   initial_balance users.balance%TYPE
 ) RETURNS sessions LANGUAGE plpgsql AS $$
 DECLARE
   new_user BOOLEAN;
-  avatar_id avatars.id%TYPE;
+  avatar_id objects.id%TYPE;
   user_id users.id%TYPE;
   user_slug users.slug%TYPE;
-  default_avatar avatars.default_index%TYPE;
   session sessions%ROWTYPE;
 BEGIN
-  default_avatar = CASE WHEN given_avatar_hash IS NULL THEN default_avatar(given_discord_id, given_discriminator) ELSE NULL END;
-
-  INSERT INTO
-    avatars (discord_user, hash, default_index, url)
-  VALUES (
-    given_discord_id,
-    given_avatar_hash,
-    default_avatar,
-    discord_avatar_url(given_discord_id, given_discriminator, given_avatar_hash)
-  ) ON CONFLICT DO NOTHING;
-
-  SELECT id INTO avatar_id FROM avatars WHERE
-    (default_avatar IS NULL AND discord_user = given_discord_id AND hash = given_avatar_hash) OR
-    (given_avatar_hash IS NULL AND default_index = default_avatar);
+  SELECT objects.id INTO avatar_id
+  FROM objects INNER JOIN users ON objects.id = users.avatar
+  WHERE users.discord_id = given_discord_id;
+  avatar_id = update_object('avatar'::ObjectType, avatar_id, given_avatar);
 
   INSERT INTO
     users (discord_id, username, display_name, discriminator, avatar, balance)
@@ -1079,7 +1107,7 @@ BEGIN
     given_session,
     given_access_token,
     given_refresh_token,
-    (now() + discord_expires_in)
+    discord_expires_at
   ) RETURNING sessions.* INTO session;
 
   IF new_user THEN

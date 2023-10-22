@@ -2,13 +2,13 @@ import { default as Slonik } from "slonik";
 import { z } from "zod";
 
 import {
-  AvatarCache,
   Bets,
   ExternalNotifier,
   Feed,
   Gacha,
   Games,
   Notifications,
+  Objects,
   Stakes,
   Users,
 } from "../../internal.js";
@@ -26,6 +26,10 @@ const typedSql = Slonik.createSqlTag({
     user_id: z.strictObject({
       user_id: z.number().int().nonnegative(),
     }),
+    name: z.strictObject({
+      name: z.string(),
+    }),
+    id: z.object({ id: z.number().int() }),
     user: Users.User,
     permissions: Users.Permissions,
     user_summary: Users.Summary,
@@ -35,6 +39,7 @@ const typedSql = Slonik.createSqlTag({
     bankruptcy_stats: Users.BankruptcyStats,
     notification: Notifications.Notification,
     access_token: Users.DiscordAccessToken,
+    refresh_token: Users.DiscordRefreshToken,
     game_with_bet_stats: Games.Game.merge(Games.BetStats),
     bet_with_options: Bets.Bet.merge(Bets.WithOptions),
     lock_moment: Bets.LockMoment,
@@ -46,7 +51,6 @@ const typedSql = Slonik.createSqlTag({
     new_balance: Stakes.NewBalance,
     new_stake: ExternalNotifier.NewStake,
     feed_item: Feed.Item,
-    avatar_meta: AvatarCache.Meta,
     balance: Gacha.Balances.Balance,
     gacha_value: Gacha.Balances.Value,
     banner: Gacha.Banners.Banner,
@@ -61,6 +65,7 @@ const typedSql = Slonik.createSqlTag({
     highlighted: Gacha.Cards.Highlighted,
     rarity: Gacha.Rarities.Rarity,
     quality: Gacha.Qualities.Quality,
+    object: Objects.Object,
   },
 }).typeAlias;
 
@@ -71,6 +76,11 @@ export const perform = (f: Slonik.SqlFragment) => {
 
 export const ids = (source: Slonik.SqlFragment) => {
   const sql = typedSql("ids");
+  return sql`${source}`;
+};
+
+export const id = (source: Slonik.SqlFragment) => {
+  const sql = typedSql("id");
   return sql`${source}`;
 };
 
@@ -86,7 +96,7 @@ export const user = (userSource: Slonik.SqlFragment) => {
       users.created,
       users.balance,
       users.discord_id,
-      avatars.url AS avatar_url,
+      avatar_objects.url AS avatar_url,
       stakes.staked,
       (stakes.staked + users.balance) AS net_worth,
       coalesce(bool_or(g_perms.manage_games), FALSE) AS manage_games,
@@ -102,11 +112,11 @@ export const user = (userSource: Slonik.SqlFragment) => {
       ) AS manage_bets_games
     FROM
       users INNER JOIN 
-      jasb.avatars ON users.avatar = avatars.id INNER JOIN
-      jasb.user_stakes AS stakes ON users.id = stakes.user_id LEFT JOIN
-      jasb.general_permissions as g_perms ON users.id = g_perms."user" LEFT JOIN (
-        jasb.specific_permissions AS s_perms INNER JOIN
-        jasb.games ON s_perms.game = games.id
+      avatar_objects ON users.avatar = avatar_objects.id INNER JOIN
+      user_stakes AS stakes ON users.id = stakes.user_id LEFT JOIN
+      general_permissions as g_perms ON users.id = g_perms."user" LEFT JOIN (
+        specific_permissions AS s_perms INNER JOIN
+        games ON s_perms.game = games.id
       ) ON users.id = s_perms."user"
     GROUP BY (
       users.slug,
@@ -114,7 +124,7 @@ export const user = (userSource: Slonik.SqlFragment) => {
       users.discriminator,
       users.balance,
       users.discord_id,
-      avatars.url,
+      avatar_objects.url,
       users.created,
       stakes.staked
     )
@@ -134,9 +144,9 @@ export const userSummary = (
       users.name,
       users.discriminator,
       users.discord_id,
-      avatars.url AS avatar_url
+      avatar_objects.url AS avatar_url
     FROM
-      users INNER JOIN jasb.avatars ON users.avatar = avatars.id
+      users INNER JOIN jasb.avatar_objects ON users.avatar = avatar_objects.id
     ${order ?? sqlFragment``}
   `;
 };
@@ -148,13 +158,9 @@ export const userForgeDetail = (userSource: Slonik.SqlFragment) => {
       users AS (${userSource})
     SELECT
       users.name,
-      discord_avatar_url(
-        users.discord_id, 
-        users.discriminator, 
-        avatars.hash
-      ) AS image
+      avatar_objects.source_url AS image
     FROM
-      users INNER JOIN jasb.avatars ON users.avatar = avatars.id
+      users INNER JOIN jasb.avatar_objects ON users.avatar = avatar_objects.id
   `;
 };
 
@@ -177,7 +183,7 @@ export const editableBet = (betsSource: Slonik.SqlFragment) => {
       users.slug AS author_slug,
       users.name AS author_name,
       users.discriminator AS author_discriminator,
-      avatars.url AS author_avatar_url,
+      avatar_objects.url AS author_avatar_url,
       bets.version,
       bets.created,
       bets.modified
@@ -185,7 +191,7 @@ export const editableBet = (betsSource: Slonik.SqlFragment) => {
       bets INNER JOIN 
       jasb.lock_moments ON bets.lock_moment = lock_moments.id INNER JOIN
       jasb.users ON bets.author = users.id INNER JOIN
-      jasb.avatars ON users.avatar = avatars.id
+      jasb.avatar_objects ON users.avatar = avatar_objects.id
     ) LEFT JOIN 
       jasb.editable_options_by_bet AS options ON bets.id = options.bet
   `;
@@ -295,9 +301,9 @@ export const gameSummary = (gameSource: Slonik.SqlFragment) => {
     SELECT 
       games.slug,
       games.name,
-      games.cover
+      cover_objects.url AS cover
     FROM 
-      games 
+      games INNER JOIN objects ON games.cover = cover_objects.id
   `;
 };
 
@@ -307,12 +313,10 @@ export const gameWithBetStats = (
 ) => {
   const sql = typedSql("game_with_bet_stats");
   return sql`
-    WITH
-      games AS (${gameSource})
     SELECT 
       games.slug,
       games.name,
-      games.cover,
+      cover_objects.url AS cover,
       games.started,
       games.finished,
       games."order",
@@ -323,8 +327,9 @@ export const gameWithBetStats = (
       coalesce(bets.bet_count, 0) AS bets,
       coalesce(stakes.total_staked_amount, 0) AS staked,
       coalesce(managers.users, '[]'::jsonb) AS managers
-    FROM 
-      games LEFT JOIN 
+    FROM
+      (${gameSource}) AS games INNER JOIN
+      cover_objects ON games.cover = cover_objects.id LEFT JOIN 
       jasb.game_bet_stats AS bets ON games.id = bets.game_id LEFT JOIN 
       jasb.game_stake_stats AS stakes ON games.id = stakes.game_id LEFT JOIN 
       jasb.bet_managers AS managers ON games.id = managers.game_id
@@ -375,7 +380,7 @@ export const gameWithBets = (betsSource: Slonik.SqlFragment) => {
       SELECT
         games.slug,
         games.name,
-        games.cover,
+        cover_objects.url AS cover,
         games.started,
         games.finished,
         games.progress,
@@ -392,12 +397,13 @@ export const gameWithBets = (betsSource: Slonik.SqlFragment) => {
         ) AS bets
       FROM
         game_bets INNER JOIN
-        jasb.games ON game_bets.game = games.id LEFT JOIN
+        jasb.games ON game_bets.game = games.id INNER JOIN
+        cover_objects ON games.cover = cover_objects.id LEFT JOIN
         jasb.bet_managers AS managers ON games.id = managers.game_id
       GROUP BY (
         games.slug,
         games.name,
-        games.cover,
+        cover_objects.url,
         games.started,
         games.finished,
         games.progress,
@@ -538,6 +544,16 @@ export const accessToken = (sessionSource: Slonik.SqlFragment) => {
   `;
 };
 
+export const refreshToken = (sessionSource: Slonik.SqlFragment) => {
+  const sql = typedSql("refresh_token");
+  return sql`
+    WITH
+      sessions AS (${sessionSource})
+    SELECT id, refresh_token
+    FROM sessions
+  `;
+};
+
 export const betCompleteNotificationDetails = (
   betSource: Slonik.SqlFragment,
 ) => {
@@ -592,7 +608,7 @@ export const newStakeNotificationDetails = (
         'name', users.name,
         'discriminator', users.discriminator,
         'discord_id', users.discord_id,
-        'avatar_url', avatars.url
+        'avatar_url', avatar_objects.url
       ) AS user_summary,
       games.name AS game_name, 
       bets.name AS bet_name,
@@ -601,28 +617,12 @@ export const newStakeNotificationDetails = (
     FROM 
       (
         jasb.users LEFT JOIN
-        jasb.avatars ON users.avatar = avatars.id
+        jasb.avatar_objects ON users.avatar = avatar_objects.id
       ) CROSS JOIN
       jasb.games INNER JOIN 
       jasb.bets ON games.id = bets.game INNER JOIN 
       options ON bets.id = options.bet
     WHERE users.slug = ${userSlug}
-  `;
-};
-
-export const avatarMeta = (avatarSource: Slonik.SqlFragment) => {
-  const sql = typedSql("avatar_meta");
-  return sql`
-    WITH
-      avatars AS (${avatarSource})
-    SELECT
-      avatars.id,
-      avatars.url,
-      avatars.discord_user,
-      avatars.hash,
-      avatars.default_index,
-      avatars.cached
-    FROM avatars
   `;
 };
 
@@ -691,12 +691,12 @@ export const banner = (bannerSource: Slonik.SqlFragment) => {
       banners.slug,
       banners.name,
       banners.description,
-      banners.cover,
+      banner_objects.url AS cover,
       banners.active,
       banners.type,
       banners.foreground_color,
       banners.background_color
-    FROM banners
+    FROM banners INNER JOIN banner_objects ON banners.cover = banner_objects.id
     ORDER BY banners.order
   `;
 };
@@ -710,7 +710,7 @@ export const editableBanner = (bannerSource: Slonik.SqlFragment) => {
       banners.slug,
       banners.name,
       banners.description,
-      banners.cover,
+      banner_objects.url AS cover,
       banners.active,
       banners.type,
       banners.foreground_color,
@@ -718,7 +718,7 @@ export const editableBanner = (bannerSource: Slonik.SqlFragment) => {
       banners.version,
       banners.created,
       banners.modified
-    FROM banners
+    FROM banners INNER JOIN banner_objects ON banners.cover = banner_objects.id
     ORDER BY banners.order
   `;
 };
@@ -736,12 +736,12 @@ export const detailedCardType = (cardTypeSource: Slonik.SqlFragment) => {
             'user_slug', users.slug,
             'name', coalesce(credits.name, users.name),
             'discriminator', users.discriminator,
-            'avatar_url', avatars.url
+            'avatar_url', avatar_objects.url
           )) FILTER ( WHERE credits.id IS NOT NULL ) AS credits
         FROM
           gacha_credits AS credits LEFT JOIN
           users ON credits."user" = users.id LEFT JOIN
-          avatars ON users.avatar = avatars.id
+          avatar_objects ON users.avatar = avatar_objects.id
         GROUP BY
           credits.card_type
       )
@@ -749,7 +749,7 @@ export const detailedCardType = (cardTypeSource: Slonik.SqlFragment) => {
       card_types.id,
       card_types.name,
       card_types.description,
-      card_types.image,
+      card_objects.url AS image,
       card_types.layout,
       card_types.retired,
       jsonb_build_object(
@@ -761,7 +761,7 @@ export const detailedCardType = (cardTypeSource: Slonik.SqlFragment) => {
         'slug', banners.slug,
         'name', banners.name,
         'description', banners.description,
-        'cover', banners.cover,
+        'cover', banner_objects.url,
         'active', banners.active,
         'type', banners.type,
         'background_color', banners.background_color,
@@ -769,14 +769,16 @@ export const detailedCardType = (cardTypeSource: Slonik.SqlFragment) => {
         ) AS banner
     FROM 
       card_types INNER JOIN
+      card_objects ON card_types.image = card_objects.id INNER JOIN
       gacha_banners AS banners ON card_types.banner = banners.id INNER JOIN
+      banner_objects ON banners.cover = banner_objects.id INNER JOIN
       gacha_rarities AS rarities ON card_types.rarity = rarities.id LEFT JOIN
       credits ON card_types.id = credits.card_type
     GROUP BY
       card_types.id,
       card_types.name,
       card_types.description,
-      card_types.image,
+      card_objects.url,
       card_types.layout,
       card_types.retired,
       rarities.slug,
@@ -785,7 +787,7 @@ export const detailedCardType = (cardTypeSource: Slonik.SqlFragment) => {
       banners.slug,
       banners.name,
       banners.description,
-      banners.cover,
+      banner_objects.url,
       banners.active,
       banners.type,
       banners.background_color,
@@ -807,7 +809,7 @@ export const editableCardType = (cardTypeSource: Slonik.SqlFragment) => {
             'user_slug', users.slug,
             'name', coalesce(credits.name, users.name),
             'discriminator', users.discriminator,
-            'avatar_url', avatars.url,
+            'avatar_url', avatar_objects.url,
             'version', credits.version,
             'created', credits.created,
             'modified', credits.modified
@@ -815,7 +817,7 @@ export const editableCardType = (cardTypeSource: Slonik.SqlFragment) => {
         FROM
           gacha_credits AS credits LEFT JOIN
           users ON credits."user" = users.id LEFT JOIN
-          avatars ON users.avatar = avatars.id
+          avatar_objects ON users.avatar = avatar_objects.id
         GROUP BY
           credits.card_type
       )
@@ -823,7 +825,7 @@ export const editableCardType = (cardTypeSource: Slonik.SqlFragment) => {
       card_types.id,
       card_types.name,
       card_types.description,
-      card_types.image,
+      card_objects.url AS image,
       card_types.layout,
       card_types.retired,
       rarities.slug AS rarity_slug,
@@ -833,14 +835,15 @@ export const editableCardType = (cardTypeSource: Slonik.SqlFragment) => {
       card_types.modified,
       coalesce(credits.credits, '[]'::jsonb) AS credits
     FROM 
-      card_types INNER JOIN 
+      card_types INNER JOIN
+      card_objects ON card_types.image = card_objects.id INNER JOIN
       gacha_rarities AS rarities ON card_types.rarity = rarities.id LEFT JOIN
       credits ON card_types.id = credits.card_type
     GROUP BY
       card_types.id,
       card_types.name,
       card_types.description,
-      card_types.image,
+      card_objects.url,
       card_types.layout,
       card_types.retired,
       rarities.slug,
@@ -879,7 +882,7 @@ export const cardTypeWithCards = (
       card_types.id,
       card_types.name,
       card_types.description,
-      card_types.image,
+      card_objects.url AS image,
       card_types.layout,
       jsonb_build_object(
         'slug', rarities.slug,
@@ -892,6 +895,7 @@ export const cardTypeWithCards = (
       ) ORDER BY cards.id) FILTER ( WHERE cards.id IS NOT NULL ), '[]'::jsonb) AS cards
     FROM
       gacha_card_types AS card_types INNER JOIN
+      card_objects ON card_types.image = card_objects.id INNER JOIN
       jasb.gacha_banners AS banners ON card_types.banner = banners.id INNER JOIN
       gacha_rarities AS rarities ON card_types.rarity = rarities.id LEFT JOIN
       cards ON card_types.id = cards.type LEFT JOIN
@@ -902,7 +906,7 @@ export const cardTypeWithCards = (
       card_types.id,
       card_types.name,
       card_types.description,
-      card_types.image,
+      card_objects.url,
       card_types.layout,
       rarities.slug,
       rarities.name,
@@ -924,7 +928,7 @@ export const cardType = (cardTypeSource: Slonik.SqlFragment) => {
       card_types.id,
       card_types.name,
       card_types.description,
-      card_types.image,
+      card_objects.url AS image,
       card_types.layout,
       jsonb_build_object(
         'slug', rarities.slug,
@@ -932,7 +936,8 @@ export const cardType = (cardTypeSource: Slonik.SqlFragment) => {
       ) AS rarity
     FROM
       gacha_rarities as rarities INNER JOIN
-      card_types ON rarities.id = card_types.rarity  
+      card_types ON rarities.id = card_types.rarity INNER JOIN
+      card_objects ON card_types.image = card_objects.id
     ORDER BY rarities.generation_weight, card_types.created
   `;
 };
@@ -946,15 +951,17 @@ export const cardTypeByRarity = (cardTypeSource: Slonik.SqlFragment) => {
       card_types.id,
       card_types.name,
       card_types.description,
-      card_types.image,
+      card_objects.url AS image,
       card_types.layout,
       jsonb_build_object(
         'slug', rarities.slug,
         'name', rarities.name
       ) AS rarity
     FROM
-      gacha_rarities as rarities LEFT JOIN
-      card_types ON rarities.id = card_types.rarity  
+      gacha_rarities as rarities LEFT JOIN (
+        card_types INNER JOIN
+        card_objects ON card_types.image = card_objects.id
+      ) ON rarities.id = card_types.rarity
     ORDER BY rarities.generation_weight, card_types.created
   `;
 };
@@ -984,7 +991,7 @@ export const card = (cardSource: Slonik.SqlFragment, rarestFirst: boolean) => {
       cards.id,
       types.name,
       types.description,
-      types.image,
+      card_objects.url AS image,
       types.layout,
       jsonb_build_object(
         'slug', rarities.slug,
@@ -994,7 +1001,8 @@ export const card = (cardSource: Slonik.SqlFragment, rarestFirst: boolean) => {
       coalesce(qualities.qualities, '[]'::jsonb) AS qualities
     FROM 
       cards INNER JOIN 
-      gacha_card_types AS types ON cards."type" = types.id INNER JOIN  
+      gacha_card_types AS types ON cards."type" = types.id INNER JOIN
+      card_objects ON types.image = card_objects.id INNER JOIN  
       gacha_rarities AS rarities ON types.rarity = rarities.id LEFT JOIN
       qualities ON cards.id = qualities.card
     ORDER BY ${order}
@@ -1033,7 +1041,7 @@ export const detailedCard = (cardSource: Slonik.SqlFragment) => {
         FROM
           gacha_credits AS credits LEFT JOIN
           users AS credited_user ON credits."user" = credited_user.id LEFT JOIN
-          avatars AS credited_avatar ON credited_user.avatar = credited_avatar.id
+          avatar_objects AS credited_avatar ON credited_user.avatar = credited_avatar.id
         GROUP BY
           credits.card_type
       )
@@ -1041,7 +1049,7 @@ export const detailedCard = (cardSource: Slonik.SqlFragment) => {
       cards.id,
       types.name,
       types.description,
-      types.image,
+      card_objects.url AS image,
       types.layout,
       types.retired,
       jsonb_build_object(
@@ -1055,7 +1063,7 @@ export const detailedCard = (cardSource: Slonik.SqlFragment) => {
         'slug', banners.slug,
         'name', banners.name,
         'description', banners.description,
-        'cover', banners.cover,
+        'cover', banner_covers.url,
         'active', banners.active,
         'type', banners.type,
         'background_color', banners.background_color,
@@ -1063,8 +1071,10 @@ export const detailedCard = (cardSource: Slonik.SqlFragment) => {
       ) AS banner
     FROM 
       cards INNER JOIN 
-      gacha_card_types AS types ON cards."type" = types.id INNER JOIN  
+      gacha_card_types AS types ON cards."type" = types.id INNER JOIN
+      card_objects ON types.image = card_objects.id INNER JOIN
       gacha_banners AS banners ON types.banner = banners.id INNER JOIN
+      banner_objects AS banner_covers ON banners.cover = banner_covers.id INNER JOIN
       gacha_rarities AS rarities ON types.rarity = rarities.id LEFT JOIN
       qualities ON cards.id = qualities.card LEFT JOIN
       credits ON types.id = credits.card_type
@@ -1093,7 +1103,7 @@ export const highlighted = (highlightSource: Slonik.SqlFragment) => {
       cards.id,
       types.name,
       types.description,
-      types.image,
+      card_objects.url AS image,
       types.layout,
       jsonb_build_object(
         'slug', rarities.slug,
@@ -1107,11 +1117,22 @@ export const highlighted = (highlightSource: Slonik.SqlFragment) => {
       highlights INNER JOIN
       gacha_cards AS cards ON highlights.card = cards.id INNER JOIN 
       gacha_card_types AS types ON cards."type" = types.id INNER JOIN
+      card_objects ON types.image = card_objects.id INNER JOIN  
       gacha_banners AS banners ON types.banner = banners.id INNER JOIN  
       gacha_rarities AS rarities ON types.rarity = rarities.id LEFT JOIN
       qualities ON cards.id = qualities.card
     ORDER BY highlights.order
   `;
+};
+
+export const name = (namesSource: Slonik.SqlFragment) => {
+  const sql = typedSql("name");
+  return sql`${namesSource}`;
+};
+
+export const object = (objectsSource: Slonik.SqlFragment) => {
+  const sql = typedSql("object");
+  return sql`${objectsSource}`;
 };
 
 export * as Queries from "./queries.js";
