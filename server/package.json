@@ -37,7 +37,7 @@
     "koa-easy-ws": "^2.1.0",
     "koa-pino-logger": "^4.0.0",
     "pg-listen": "^1.7.0",
-    "pino": "^8.16.0",
+    "pino": "^8.16.1",
     "postgres-interval": "^4.0.0",
     "slonik": "^37.0.1",
     "zod": "^3.18.0"
