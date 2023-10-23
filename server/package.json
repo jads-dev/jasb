@@ -43,7 +43,7 @@
     "zod": "^3.18.0"
   },
   "optionalDependencies": {
-    "oci-sdk": "^2.3.1"
+    "oci-sdk": "^2.71.0"
   },
   "devDependencies": {
     "@types/koa": "^2.13.4",
