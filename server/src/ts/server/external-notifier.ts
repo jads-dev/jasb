@@ -5,7 +5,7 @@ import type { Notifier } from "./external-notifier/notifiers.js";
 import { NullNotifier } from "./external-notifier/null.js";
 import { Logging } from "./logging.js";
 
-export const fromConfig = async (
+export const init = async (
   logger: Logging.Logger,
   config: Config.Server,
 ): Promise<Notifier> => {

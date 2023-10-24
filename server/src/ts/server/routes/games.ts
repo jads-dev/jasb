@@ -5,11 +5,12 @@ import { Objects } from "../../data/objects.js";
 import { Internal } from "../../internal.js";
 import { Editor, Games } from "../../public.js";
 import { requireUrlParameter, Validation } from "../../util/validation.js";
+import type { Config } from "../config.js";
 import { WebError } from "../errors.js";
 import { Server } from "../model.js";
 import { ResultCache } from "../result-cache.js";
 import { betsApi } from "./bets.js";
-import { body, uploadBody } from "./util.js";
+import { body, uploadBody, validateSearchQuery } from "./util.js";
 
 const GameBody = {
   name: Schema.string,
@@ -54,10 +55,10 @@ const EditLockMomentBody = Schema.partial({
   ),
 });
 
-export const gamesApi = (server: Server.State): Server.Router => {
+export const gamesApi = (config: Config.Server): Server.Router => {
   const router = Server.router();
 
-  const gamesCache = new ResultCache<Games.Library>(async () => {
+  const gamesCache = new ResultCache(async (server: Server.State) => {
     const getGames = async (subset: Internal.Games.Progress) =>
       (await server.store.getGames(subset)).map(Games.fromInternal);
     const [future, current, finished] = await Promise.all([
@@ -70,26 +71,18 @@ export const gamesApi = (server: Server.State): Server.Router => {
       current,
       finished,
     };
-  }, server.config.performance.gamesCacheDuration);
+  }, config.performance.gamesCacheDuration);
 
   // Get Games.
   router.get("/", async (ctx) => {
-    ctx.body = Games.Library.encode(await gamesCache.get());
+    ctx.body = Games.Library.encode(await gamesCache.get(ctx.server));
   });
 
   // Search for games.
   router.get("/search", async (ctx) => {
-    const query = ctx.query["q"];
-    if (query === undefined) {
-      throw new WebError(StatusCodes.BAD_REQUEST, "Must provide query.");
-    }
-    if (typeof query !== "string") {
-      throw new WebError(StatusCodes.BAD_REQUEST, "Must provide single query.");
-    }
-    if (query.length < 2) {
-      throw new WebError(StatusCodes.BAD_REQUEST, "Query too short.");
-    }
-    const summaries = await server.store.searchGames(query);
+    const { store } = ctx.server;
+    const query = validateSearchQuery(ctx);
+    const summaries = await store.searchGames(query);
     ctx.body = Schema.readonlyArray(
       Schema.tuple([Games.Slug, Games.Summary]),
     ).encode(summaries.map(Games.summaryFromInternal));
@@ -99,24 +92,25 @@ export const gamesApi = (server: Server.State): Server.Router => {
   router.post(
     "/cover",
     uploadBody,
-    Objects.uploadHandler(server, Objects.gameCoverTypeProcess),
+    Objects.uploadHandler(Objects.gameCoverTypeProcess),
   );
 
   // Upload an option image.
   router.post(
     "/options/image",
     uploadBody,
-    Objects.uploadHandler(server, Objects.optionImageProcess),
+    Objects.uploadHandler(Objects.optionImageProcess),
   );
 
   // Get Game.
   router.get("/:gameSlug", async (ctx) => {
+    const { store } = ctx.server;
     const gameSlug = requireUrlParameter(
       Games.Slug,
       "game",
       ctx.params["gameSlug"],
     );
-    const internalGame = await server.store.getGame(gameSlug);
+    const internalGame = await store.getGame(gameSlug);
     if (internalGame === undefined) {
       throw new WebError(StatusCodes.NOT_FOUND, "Game not found.");
     }
@@ -126,14 +120,15 @@ export const gamesApi = (server: Server.State): Server.Router => {
 
   // Get Game with Bets.
   router.get("/:gameSlug/bets", async (ctx) => {
+    const { store } = ctx.server;
     const gameSlug = requireUrlParameter(
       Games.Slug,
       "game",
       ctx.params["gameSlug"],
     );
     const [internalGame, internalBets] = await Promise.all([
-      server.store.getGame(gameSlug),
-      server.store.getBets(gameSlug),
+      store.getGame(gameSlug),
+      store.getBets(gameSlug),
     ]);
     if (internalGame === undefined) {
       throw new WebError(StatusCodes.NOT_FOUND, "Game not found.");
@@ -147,14 +142,15 @@ export const gamesApi = (server: Server.State): Server.Router => {
 
   // Get lock status of bets.
   router.get("/:gameSlug/lock/status", async (ctx) => {
+    const { store } = ctx.server;
     const gameSlug = requireUrlParameter(
       Games.Slug,
       "game",
       ctx.params["gameSlug"],
     );
     const [lockMoments, betLockStatuses] = await Promise.all([
-      server.store.getLockMoments(gameSlug),
-      server.store.getBetsLockStatus(gameSlug),
+      store.getLockMoments(gameSlug),
+      store.getBetsLockStatus(gameSlug),
     ]);
     ctx.body = Editor.LockMoments.GameLockStatus.encode(
       Editor.LockMoments.gameLockStatusFromInternal(
@@ -166,6 +162,7 @@ export const gamesApi = (server: Server.State): Server.Router => {
 
   // Get lock moments.
   router.get("/:gameSlug/lock", async (ctx) => {
+    const { store } = ctx.server;
     const gameSlug = requireUrlParameter(
       Games.Slug,
       "game",
@@ -174,7 +171,7 @@ export const gamesApi = (server: Server.State): Server.Router => {
     ctx.body = Schema.readonlyArray(
       Schema.tuple([Editor.LockMoments.Slug, Editor.LockMoments.LockMoment]),
     ).encode(
-      (await server.store.getLockMoments(gameSlug)).map(
+      (await store.getLockMoments(gameSlug)).map(
         Editor.LockMoments.fromInternal,
       ),
     );
@@ -182,7 +179,8 @@ export const gamesApi = (server: Server.State): Server.Router => {
 
   // Edit lock moments.
   router.post("/:gameSlug/lock", body, async (ctx) => {
-    const credential = await server.auth.requireIdentifyingCredential(ctx);
+    const { auth, store } = ctx.server;
+    const credential = await auth.requireIdentifyingCredential(ctx);
     const gameSlug = requireUrlParameter(
       Games.Slug,
       "game",
@@ -193,7 +191,7 @@ export const gamesApi = (server: Server.State): Server.Router => {
       Schema.tuple([Editor.LockMoments.Slug, Editor.LockMoments.LockMoment]),
     ).encode(
       (
-        await server.store.editLockMoments(
+        await store.editLockMoments(
           credential,
           gameSlug,
           body.remove,
@@ -206,14 +204,15 @@ export const gamesApi = (server: Server.State): Server.Router => {
 
   // Create Game.
   router.put("/:gameSlug", body, async (ctx) => {
-    const credential = await server.auth.requireIdentifyingCredential(ctx);
+    const { auth, store } = ctx.server;
+    const credential = await auth.requireIdentifyingCredential(ctx);
     const gameSlug = requireUrlParameter(
       Games.Slug,
       "game",
       ctx.params["gameSlug"],
     );
     const body = Validation.body(CreateGameBody, ctx.request.body);
-    await server.store.addGame(
+    await store.addGame(
       credential,
       gameSlug,
       body.name,
@@ -222,7 +221,7 @@ export const gamesApi = (server: Server.State): Server.Router => {
       body.finished,
       body.order,
     );
-    const game = await server.store.getGame(gameSlug);
+    const game = await store.getGame(gameSlug);
     if (game === undefined) {
       throw new Error("Should exist.");
     }
@@ -231,14 +230,15 @@ export const gamesApi = (server: Server.State): Server.Router => {
 
   // Edit Game.
   router.post("/:gameSlug", body, async (ctx) => {
-    const credential = await server.auth.requireIdentifyingCredential(ctx);
+    const { auth, store } = ctx.server;
+    const credential = await auth.requireIdentifyingCredential(ctx);
     const gameSlug = requireUrlParameter(
       Games.Slug,
       "game",
       ctx.params["gameSlug"],
     );
     const body = Validation.body(EditGameBody, ctx.request.body);
-    await server.store.editGame(
+    await store.editGame(
       credential,
       body.version,
       gameSlug,
@@ -248,14 +248,14 @@ export const gamesApi = (server: Server.State): Server.Router => {
       body.finished,
       body.order,
     );
-    const game = await server.store.getGame(gameSlug);
+    const game = await store.getGame(gameSlug);
     if (game === undefined) {
       throw new Error("Should exist.");
     }
     ctx.body = Games.Game.encode(Games.fromInternal(game)[1]);
   });
 
-  const bets = betsApi(server);
+  const bets = betsApi();
   router.use("/:gameSlug/bets/:betSlug", bets.routes(), bets.allowedMethods());
 
   return router;

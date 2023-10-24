@@ -33,7 +33,7 @@ services:
       FLYWAY_SCHEMAS: jasb
       FLYWAY_CREATE_SCHEMAS: true
     volumes:
-      - ../server/src/sql:/flyway/sql
+      - ../migrate/src/sql:/flyway/sql
     networks:
       - backend
     depends_on:

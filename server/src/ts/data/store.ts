@@ -67,7 +67,7 @@ export class Store {
     this.#pool = pool;
   }
 
-  public static async load(config: Config.Server): Promise<Store> {
+  public static async init(config: Config.Server): Promise<Store> {
     return new Store(
       config,
       await Slonik.createPool(Store.connectionString(config.store.source), {
@@ -1940,8 +1940,12 @@ export class Store {
           SELECT objects.id, objects.url, objects.name, objects.source_url
           FROM 
             ${table} INNER JOIN 
-            objects ON ${column} = objects.id AND objects.type = ${type}::ObjectType
-          WHERE objects.name IS NULL AND objects.store_failures < 10
+            objects ON 
+              objects.type = ${type}::ObjectType AND 
+              ${column} = objects.id
+          WHERE 
+            objects.name IS NULL AND 
+            objects.store_failures < 10
           LIMIT ${max}
         `),
       );

@@ -46,17 +46,18 @@ const GiftSelfMadeCardBody = Schema.readonly(
   }),
 );
 
-export const cardTypesApi = (server: Server.State): Server.Router => {
+export const cardTypesApi = (): Server.Router => {
   const router = Server.router();
 
   // Get the editable card types in the given banner.
   router.get("/edit", async (ctx) => {
+    const { store } = ctx.server;
     const bannerSlug = Validation.requireUrlParameter(
       Banners.Slug,
       "banner",
       ctx.params["bannerSlug"],
     );
-    const cardTypes = await server.store.gachaGetEditableCardTypes(bannerSlug);
+    const cardTypes = await store.gachaGetEditableCardTypes(bannerSlug);
     ctx.body = Schema.readonlyArray(
       Schema.tuple([CardTypes.Id, CardTypes.EditableCardType]),
     ).encode(cardTypes.map(CardTypes.editableFromInternal));
@@ -64,6 +65,7 @@ export const cardTypesApi = (server: Server.State): Server.Router => {
 
   // Get the detailed card type.
   router.get("/:cardTypeId", async (ctx) => {
+    const { store } = ctx.server;
     const bannerSlug = Validation.requireUrlParameter(
       Banners.Slug,
       "banner",
@@ -74,10 +76,7 @@ export const cardTypesApi = (server: Server.State): Server.Router => {
       "card type",
       ctx.params["cardTypeId"],
     );
-    const cardType = await server.store.gachaGetCardType(
-      cardTypeId,
-      bannerSlug,
-    );
+    const cardType = await store.gachaGetCardType(cardTypeId, bannerSlug);
     if (cardType === undefined) {
       throw new WebError(StatusCodes.NOT_FOUND, "Card type not found.");
     }
@@ -88,7 +87,8 @@ export const cardTypesApi = (server: Server.State): Server.Router => {
 
   // Gift a self-made card to someone.
   router.post("/:cardTypeId/gift", body, async (ctx) => {
-    const credential = await server.auth.requireIdentifyingCredential(ctx);
+    const { auth, store } = ctx.server;
+    const credential = await auth.requireIdentifyingCredential(ctx);
     const bannerSlug = Validation.requireUrlParameter(
       Banners.Slug,
       "banner",
@@ -100,7 +100,7 @@ export const cardTypesApi = (server: Server.State): Server.Router => {
       ctx.params["cardTypeId"],
     );
     const body = Validation.body(GiftSelfMadeCardBody, ctx.request.body);
-    const cardType = await server.store.gachaGiftSelfMadeCard(
+    const cardType = await store.gachaGiftSelfMadeCard(
       credential,
       body.user,
       bannerSlug,
@@ -113,14 +113,15 @@ export const cardTypesApi = (server: Server.State): Server.Router => {
 
   // Create new card type in the given banner.
   router.post("/", body, async (ctx) => {
-    const credential = await server.auth.requireIdentifyingCredential(ctx);
+    const { auth, store } = ctx.server;
+    const credential = await auth.requireIdentifyingCredential(ctx);
     const bannerSlug = Validation.requireUrlParameter(
       Banners.Slug,
       "banner",
       ctx.params["bannerSlug"],
     );
     const body = Validation.body(AddCardTypeBody, ctx.request.body);
-    const id = await server.store.gachaAddCardType(
+    const id = await store.gachaAddCardType(
       credential,
       bannerSlug,
       body.name,
@@ -130,7 +131,7 @@ export const cardTypesApi = (server: Server.State): Server.Router => {
       body.layout,
       body.credits,
     );
-    const cardType = await server.store.gachaGetEditableCardType(id);
+    const cardType = await store.gachaGetEditableCardType(id);
     ctx.body = Schema.tuple([CardTypes.Id, CardTypes.EditableCardType]).encode(
       CardTypes.editableFromInternal(cardType),
     );
@@ -138,7 +139,8 @@ export const cardTypesApi = (server: Server.State): Server.Router => {
 
   // Edit a card type in the given banner.
   router.post("/:cardTypeId", body, async (ctx) => {
-    const credential = await server.auth.requireIdentifyingCredential(ctx);
+    const { auth, store } = ctx.server;
+    const credential = await auth.requireIdentifyingCredential(ctx);
     const bannerSlug = Validation.requireUrlParameter(
       Banners.Slug,
       "banner",
@@ -150,7 +152,7 @@ export const cardTypesApi = (server: Server.State): Server.Router => {
       ctx.params["cardTypeId"],
     );
     const body = Validation.body(EditCardTypeBody, ctx.request.body);
-    const id = await server.store.gachaEditCardType(
+    const id = await store.gachaEditCardType(
       credential,
       bannerSlug,
       cardTypeId,
@@ -165,7 +167,7 @@ export const cardTypesApi = (server: Server.State): Server.Router => {
       body.editCredits ?? [],
       body.addCredits ?? [],
     );
-    const cardType = await server.store.gachaGetEditableCardType(id);
+    const cardType = await store.gachaGetEditableCardType(id);
     ctx.body = Schema.tuple([CardTypes.Id, CardTypes.EditableCardType]).encode(
       CardTypes.editableFromInternal(cardType),
     );

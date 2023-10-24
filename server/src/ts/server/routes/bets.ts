@@ -85,7 +85,7 @@ const RevertBody = Schema.strict({
   version: Schema.Int,
 });
 
-export const betsApi = (server: Server.State): Server.Router => {
+export const betsApi = (): Server.Router => {
   const router = Server.router();
 
   const slugs = (ctx: {
@@ -97,6 +97,7 @@ export const betsApi = (server: Server.State): Server.Router => {
 
   // Get Bet.
   router.get("/", async (ctx) => {
+    const server = ctx.server;
     const [gameSlug, betSlug] = slugs(ctx);
     const game = await server.store.getGame(gameSlug);
     if (game === undefined) {
@@ -116,8 +117,9 @@ export const betsApi = (server: Server.State): Server.Router => {
   });
 
   router.get("/edit", async (ctx) => {
+    const { store } = ctx.server;
     const [gameSlug, betSlug] = slugs(ctx);
-    const bet = await server.store.getBet(gameSlug, betSlug);
+    const bet = await store.getBet(gameSlug, betSlug);
     if (bet === undefined) {
       throw new WebError(StatusCodes.NOT_FOUND, "Bet not found.");
     }
@@ -126,6 +128,7 @@ export const betsApi = (server: Server.State): Server.Router => {
 
   // Create Bet
   router.put("/", body, async (ctx) => {
+    const server = ctx.server;
     const credential = await server.auth.requireIdentifyingCredential(ctx);
     const [gameSlug, betSlug] = slugs(ctx);
     const body = Validation.body(CreateBetBody, ctx.request.body);
@@ -146,6 +149,7 @@ export const betsApi = (server: Server.State): Server.Router => {
 
   // Edit Bet
   router.post("/", body, async (ctx) => {
+    const server = ctx.server;
     const credential = await server.auth.requireIdentifyingCredential(ctx);
     const [gameSlug, betSlug] = slugs(ctx);
     const body = Validation.body(EditBetBody, ctx.request.body);
@@ -170,6 +174,7 @@ export const betsApi = (server: Server.State): Server.Router => {
 
   // Complete Bet
   router.post("/complete", body, async (ctx) => {
+    const server = ctx.server;
     const credential = await server.auth.requireIdentifyingCredential(ctx);
     const [gameSlug, betSlug] = slugs(ctx);
     const body = Validation.body(CompleteBetBody, ctx.request.body);
@@ -190,6 +195,7 @@ export const betsApi = (server: Server.State): Server.Router => {
 
   // Revert Complete Bet
   router.post("/complete/revert", body, async (ctx) => {
+    const server = ctx.server;
     const credential = await server.auth.requireIdentifyingCredential(ctx);
     const [gameSlug, betSlug] = slugs(ctx);
     const body = Validation.body(RevertBody, ctx.request.body);
@@ -207,6 +213,7 @@ export const betsApi = (server: Server.State): Server.Router => {
 
   // Lock Bet
   router.post("/lock", body, async (ctx) => {
+    const server = ctx.server;
     const credential = await server.auth.requireIdentifyingCredential(ctx);
     const [gameSlug, betSlug] = slugs(ctx);
     const body = Validation.body(ModifyLockStateBody, ctx.request.body);
@@ -225,6 +232,7 @@ export const betsApi = (server: Server.State): Server.Router => {
 
   // Unlock Bet
   router.post("/unlock", body, async (ctx) => {
+    const server = ctx.server;
     const credential = await server.auth.requireIdentifyingCredential(ctx);
     const [gameSlug, betSlug] = slugs(ctx);
     const body = Validation.body(ModifyLockStateBody, ctx.request.body);
@@ -243,6 +251,7 @@ export const betsApi = (server: Server.State): Server.Router => {
 
   // Cancel Bet
   router.post("/cancel", body, async (ctx) => {
+    const server = ctx.server;
     const credential = await server.auth.requireIdentifyingCredential(ctx);
     const [gameSlug, betSlug] = slugs(ctx);
     const body = Validation.body(CancelBetBody, ctx.request.body);
@@ -261,6 +270,7 @@ export const betsApi = (server: Server.State): Server.Router => {
 
   // Revert Cancel Bet
   router.post("/cancel/revert", body, async (ctx) => {
+    const server = ctx.server;
     const credential = await server.auth.requireIdentifyingCredential(ctx);
     const [gameSlug, betSlug] = slugs(ctx);
     const body = Validation.body(RevertBody, ctx.request.body);
@@ -278,6 +288,7 @@ export const betsApi = (server: Server.State): Server.Router => {
 
   // Get Bet Feed
   router.get("/feed", async (ctx) => {
+    const server = ctx.server;
     const [gameSlug, betSlug] = slugs(ctx);
     const feed = await server.store.getBetFeed(gameSlug, betSlug);
     ctx.body = Schema.readonlyArray(Feed.Event).encode(
@@ -285,10 +296,11 @@ export const betsApi = (server: Server.State): Server.Router => {
     );
   });
 
-  function validateStakeBody(body: unknown): StakeBody {
-    const stakeBody = Validation.body(StakeBody, body);
+  function validateStakeBody(ctx: Server.Context): StakeBody {
+    const { config } = ctx.server;
+    const stakeBody = Validation.body(StakeBody, ctx.request.body);
     if (stakeBody.message !== undefined) {
-      if (stakeBody.amount < server.config.rules.notableStake) {
+      if (stakeBody.amount < config.rules.notableStake) {
         throw new WebError(
           StatusCodes.BAD_REQUEST,
           "Not allowed to give a message without a notable bet amount.",
@@ -312,6 +324,7 @@ export const betsApi = (server: Server.State): Server.Router => {
 
   // Place Stake.
   router.put("/options/:optionSlug/stake", body, async (ctx) => {
+    const server = ctx.server;
     const credential = await server.auth.requireIdentifyingCredential(ctx);
     const [gameSlug, betSlug] = slugs(ctx);
     const optionSlug = requireUrlParameter(
@@ -319,7 +332,7 @@ export const betsApi = (server: Server.State): Server.Router => {
       "option",
       ctx.params["optionSlug"],
     );
-    const { amount, message } = validateStakeBody(ctx.request.body);
+    const { amount, message } = validateStakeBody(ctx);
     ctx.body = Schema.Int.encode(
       (await server.store.newStake(
         server,
@@ -336,6 +349,7 @@ export const betsApi = (server: Server.State): Server.Router => {
 
   // Edit Stake.
   router.post("/options/:optionSlug/stake", body, async (ctx) => {
+    const server = ctx.server;
     const credential = await server.auth.requireIdentifyingCredential(ctx);
     const [gameSlug, betSlug] = slugs(ctx);
     const optionSlug = requireUrlParameter(
@@ -343,7 +357,7 @@ export const betsApi = (server: Server.State): Server.Router => {
       "option",
       ctx.params["optionSlug"],
     );
-    const { amount, message } = validateStakeBody(ctx.request.body);
+    const { amount, message } = validateStakeBody(ctx);
     ctx.body = Schema.Int.encode(
       (await server.store.changeStake(
         credential,
@@ -358,6 +372,7 @@ export const betsApi = (server: Server.State): Server.Router => {
 
   // Withdraw Stake.
   router.delete("/options/:optionSlug/stake", body, async (ctx) => {
+    const server = ctx.server;
     const credential = await server.auth.requireIdentifyingCredential(ctx);
     const [gameSlug, betSlug] = slugs(ctx);
     const optionSlug = requireUrlParameter(

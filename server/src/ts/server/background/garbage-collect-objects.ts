@@ -12,7 +12,7 @@ export const garbageCollectObjects = (
 ): Tasks.Task | undefined => {
   const { objectStorage } = server;
   const types = Objects.allTypes;
-  if (objectStorage !== undefined) {
+  if (objectStorage !== null) {
     const config = objectStorage.config.garbageCollection;
     return {
       name: "Garbage Collect Object Storage",

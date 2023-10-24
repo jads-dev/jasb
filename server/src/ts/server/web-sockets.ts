@@ -52,6 +52,13 @@ export class WebSockets {
     });
   }
 
+  static async init(config: Config.Server): Promise<WebSockets> {
+    const webSockets = new WebSockets(config);
+    webSockets.#pool.start();
+    await webSockets.#pool.ready();
+    return webSockets;
+  }
+
   async #getSubscriber(): Promise<Subscriber> {
     try {
       return await this.#pool.acquire();

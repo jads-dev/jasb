@@ -21,11 +21,12 @@ const DiscordLoginBody = Schema.strict({
   state: Schema.string,
 });
 
-export const authApi = (server: Server.State): Server.Router => {
+export const authApi = (): Server.Router => {
   const router = Server.router();
 
   // Log In.
   router.post("/login", body, async (ctx) => {
+    const server = ctx.server;
     const origin = server.config.clientOrigin;
     const credential = await server.auth.getCredential(ctx);
     if (credential.credential !== "unauthorized") {
@@ -85,6 +86,7 @@ export const authApi = (server: Server.State): Server.Router => {
 
   // Log Out.
   router.post("/logout", body, async (ctx) => {
+    const server = ctx.server;
     const credential = await server.auth.requireIdentifyingCredential(ctx);
     const session = server.auth.requireUserSession(credential);
     await server.auth.logout(server, session.user, session.session);

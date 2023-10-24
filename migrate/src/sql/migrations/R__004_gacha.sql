@@ -820,6 +820,14 @@ CREATE FUNCTION gacha_forge_card_type (
     )
     RETURNING gacha_card_types.* INTO new_card_type;
 
+    INSERT INTO gacha_credits (card_type, "user", name, reason)
+    VALUES (
+      new_card_type.id,
+      user_id,
+      NULL,
+      'Forged By'
+    );
+
     PERFORM gacha_gift_self_made(
       credential,
       session_lifetime,

@@ -39,12 +39,13 @@ const ForgeCardResponse = Schema.readonly(
   }),
 );
 
-export const cardsApi = (server: Server.State): Server.Router => {
+export const cardsApi = (): Server.Router => {
   const router = Server.router();
 
   // Redirect to the card collection for the logged-in user.
   router.get("/", async (ctx) => {
-    const credential = await server.auth.requireIdentifyingCredential(ctx);
+    const { auth } = ctx.server;
+    const credential = await auth.requireIdentifyingCredential(ctx);
     // We don't actually validate this credential, but this redirect is safe to do anyway, so that's fine.
     ctx.redirect(`/api/user/${Credentials.actingUser(credential)}`);
     ctx.status = StatusCodes.TEMPORARY_REDIRECT;
@@ -58,20 +59,21 @@ export const cardsApi = (server: Server.State): Server.Router => {
       parts["layout"],
     );
     const processedType = Objects.cardImageProcess(body);
-    await Objects.uploadHandler(server, processedType)(ctx);
+    await Objects.uploadHandler(processedType)(ctx);
   });
 
-  // Get the card collection for the logged-in user.
+  // Get the card collection for the given user.
   router.get("/:userSlug", async (ctx) => {
+    const { store } = ctx.server;
     const userSlug = requireUrlParameter(
       Users.Slug,
       "user",
       ctx.params["userSlug"],
     );
     const [user, highlighted, banners] = await Promise.all([
-      server.store.getUser(userSlug),
-      server.store.gachaGetHighlighted(userSlug),
-      server.store.gachaGetCollectionBanners(userSlug),
+      store.getUser(userSlug),
+      store.gachaGetHighlighted(userSlug),
+      store.gachaGetCollectionBanners(userSlug),
     ]);
     if (user === undefined) {
       throw new WebError(StatusCodes.NOT_FOUND, "User not found.");
@@ -94,7 +96,8 @@ export const cardsApi = (server: Server.State): Server.Router => {
 
   // Forge a card type for the user.
   router.post("/:userSlug/forge", body, async (ctx) => {
-    const credential = await server.auth.requireIdentifyingCredential(ctx);
+    const { auth, store, objectStorage } = ctx.server;
+    const credential = await auth.requireIdentifyingCredential(ctx);
     const userSlug = requireUrlParameter(
       Users.Slug,
       "user",
@@ -102,9 +105,8 @@ export const cardsApi = (server: Server.State): Server.Router => {
     );
     Credentials.ensureCanActAs(credential, userSlug);
     const body = Validation.body(ForgeCardBody, ctx.request.body);
-    const { name, image } = await server.store.gachaGetForgeDetail(userSlug);
-    const objectStorage = server.objectStorage;
-    if (objectStorage === undefined) {
+    const { name, image } = await store.gachaGetForgeDetail(userSlug);
+    if (objectStorage === null) {
       throw new WebError(
         StatusCodes.SERVICE_UNAVAILABLE,
         "Object storage not available.",
@@ -140,7 +142,7 @@ export const cardsApi = (server: Server.State): Server.Router => {
     };
     const imageResolved = await tryGet();
     const imageReference = await Objects.upload(
-      server,
+      ctx.server,
       ctx.logger,
       Objects.cardImageProcess("Normal"),
       imageResolved,
@@ -150,7 +152,7 @@ export const cardsApi = (server: Server.State): Server.Router => {
         source: sourceUrl,
       },
     );
-    const cardTypeId = await server.store.gachaForgeCardType(
+    const cardTypeId = await store.gachaForgeCardType(
       credential,
       name,
       imageReference,
@@ -159,11 +161,11 @@ export const cardsApi = (server: Server.State): Server.Router => {
       `“${body.quote}”`,
       body.rarity,
     );
-    const cardType = await server.store.gachaGetCardType(cardTypeId);
+    const cardType = await store.gachaGetCardType(cardTypeId);
     if (cardType === undefined) {
       throw new Error("Should exist.");
     }
-    const balance = await server.store.gachaGetBalance(credential);
+    const balance = await store.gachaGetBalance(credential);
     ctx.body = ForgeCardResponse.encode({
       forged: CardTypes.fromInternal(cardType),
       balance: Balances.fromInternal(balance),
@@ -172,12 +174,13 @@ export const cardsApi = (server: Server.State): Server.Router => {
 
   // Get the forged card types for the user.
   router.get("/:userSlug/forged", async (ctx) => {
+    const { store } = ctx.server;
     const userSlug = requireUrlParameter(
       Users.Slug,
       "user",
       ctx.params["userSlug"],
     );
-    const cardTypes = await server.store.gachaGetUserForgeCardsTypes(userSlug);
+    const cardTypes = await store.gachaGetUserForgeCardsTypes(userSlug);
     ctx.body = Schema.readonlyArray(
       Schema.union([CardTypes.WithId, Rarities.WithSlug]),
     ).encode(cardTypes.map(CardTypes.optionalByRarity));
@@ -185,7 +188,8 @@ export const cardsApi = (server: Server.State): Server.Router => {
 
   // Retire a forged card type from the user.
   router.post("/:userSlug/forged/:cardTypeId/retire", async (ctx) => {
-    const credential = await server.auth.requireIdentifyingCredential(ctx);
+    const { auth, store } = ctx.server;
+    const credential = await auth.requireIdentifyingCredential(ctx);
     const userSlug = requireUrlParameter(
       Users.Slug,
       "user",
@@ -197,7 +201,7 @@ export const cardsApi = (server: Server.State): Server.Router => {
       "card type",
       ctx.params["cardTypeId"],
     );
-    const cardType = await server.store.gachaRetireForgedCardType(
+    const cardType = await store.gachaRetireForgedCardType(
       credential,
       cardTypeId,
     );
@@ -206,6 +210,7 @@ export const cardsApi = (server: Server.State): Server.Router => {
 
   // Get the card collection for the logged-in user in the given banner.
   router.get("/:userSlug/banners/:bannerSlug", async (ctx) => {
+    const { store } = ctx.server;
     const userSlug = requireUrlParameter(
       Users.Slug,
       "user",
@@ -217,9 +222,9 @@ export const cardsApi = (server: Server.State): Server.Router => {
       ctx.params["bannerSlug"],
     );
     const [user, banner, cardTypes] = await Promise.all([
-      server.store.getUser(userSlug),
-      server.store.gachaGetEditableBanner(bannerSlug),
-      server.store.gachaGetCollectionCards(userSlug, bannerSlug),
+      store.getUser(userSlug),
+      store.gachaGetEditableBanner(bannerSlug),
+      store.gachaGetCollectionCards(userSlug, bannerSlug),
     ]);
     if (user === undefined) {
       throw new WebError(StatusCodes.NOT_FOUND, "User not found.");
@@ -242,6 +247,7 @@ export const cardsApi = (server: Server.State): Server.Router => {
 
   // Recycle value of the given card.
   router.get("/:userSlug/banners/:bannerSlug/:cardId/value", async (ctx) => {
+    const { store } = ctx.server;
     const userSlug = requireUrlParameter(
       Users.Slug,
       "user",
@@ -257,17 +263,14 @@ export const cardsApi = (server: Server.State): Server.Router => {
       "card",
       ctx.params["cardId"],
     );
-    const value = await server.store.gachaRecycleValue(
-      userSlug,
-      bannerSlug,
-      cardId,
-    );
+    const value = await store.gachaRecycleValue(userSlug, bannerSlug, cardId);
     ctx.body = Balances.Value.encode(Balances.valueFromInternal(value));
   });
 
   // Recycle the given card.
   router.delete("/:userSlug/banners/:bannerSlug/:cardId", async (ctx) => {
-    const credential = await server.auth.requireIdentifyingCredential(ctx);
+    const { auth, store } = ctx.server;
+    const credential = await auth.requireIdentifyingCredential(ctx);
     const userSlug = requireUrlParameter(
       Users.Slug,
       "user",
@@ -279,13 +282,14 @@ export const cardsApi = (server: Server.State): Server.Router => {
       ctx.params["cardId"],
     );
     Credentials.ensureCanActAs(credential, userSlug);
-    const balance = await server.store.gachaRecycleCard(credential, cardId);
+    const balance = await store.gachaRecycleCard(credential, cardId);
     ctx.body = Balances.Balance.encode(Balances.fromInternal(balance));
   });
 
   // Reorder the highlights.
   router.post("/:userSlug/highlights", body, async (ctx) => {
-    const credential = await server.auth.requireIdentifyingCredential(ctx);
+    const { auth, store } = ctx.server;
+    const credential = await auth.requireIdentifyingCredential(ctx);
     const userSlug = requireUrlParameter(
       Users.Slug,
       "user",
@@ -293,10 +297,7 @@ export const cardsApi = (server: Server.State): Server.Router => {
     );
     Credentials.ensureCanActAs(credential, userSlug);
     const body = Validation.body(ReorderHighlightsBody, ctx.request.body);
-    const highlights = await server.store.gachaSetHighlightsOrder(
-      credential,
-      body,
-    );
+    const highlights = await store.gachaSetHighlightsOrder(credential, body);
     ctx.body = Schema.readonlyArray(
       Schema.tuple([Banners.Slug, Cards.Id, Cards.Highlight]),
     ).encode(highlights.map(Cards.highlightedFromInternal));
@@ -304,6 +305,7 @@ export const cardsApi = (server: Server.State): Server.Router => {
 
   // Get the detailed version of the given card.
   router.get("/:userSlug/banners/:bannerSlug/:cardId", async (ctx) => {
+    const { store } = ctx.server;
     const userSlug = requireUrlParameter(
       Users.Slug,
       "user",
@@ -314,7 +316,7 @@ export const cardsApi = (server: Server.State): Server.Router => {
       "card",
       ctx.params["cardId"],
     );
-    const card = await server.store.gachaGetDetailedCard(userSlug, cardId);
+    const card = await store.gachaGetDetailedCard(userSlug, cardId);
     ctx.body = Cards.Detailed.encode(Cards.detailedFromInternal(card)[1]);
   });
 
@@ -322,7 +324,8 @@ export const cardsApi = (server: Server.State): Server.Router => {
   router.put(
     "/:userSlug/banners/:bannerSlug/:cardId/highlight",
     async (ctx) => {
-      const credential = await server.auth.requireIdentifyingCredential(ctx);
+      const { auth, store } = ctx.server;
+      const credential = await auth.requireIdentifyingCredential(ctx);
       const userSlug = requireUrlParameter(
         Users.Slug,
         "user",
@@ -334,11 +337,7 @@ export const cardsApi = (server: Server.State): Server.Router => {
         ctx.params["cardId"],
       );
       Credentials.ensureCanActAs(credential, userSlug);
-      const highlight = await server.store.gachaSetHighlight(
-        credential,
-        cardId,
-        true,
-      );
+      const highlight = await store.gachaSetHighlight(credential, cardId, true);
       ctx.body = Cards.Highlight.encode(
         Cards.highlightedFromInternal(highlight)[2],
       );
@@ -350,7 +349,8 @@ export const cardsApi = (server: Server.State): Server.Router => {
     "/:userSlug/banners/:bannerSlug/:cardId/highlight",
     body,
     async (ctx) => {
-      const credential = await server.auth.requireIdentifyingCredential(ctx);
+      const { auth, store } = ctx.server;
+      const credential = await auth.requireIdentifyingCredential(ctx);
       const userSlug = requireUrlParameter(
         Users.Slug,
         "user",
@@ -373,7 +373,7 @@ export const cardsApi = (server: Server.State): Server.Router => {
           throw new WebError(StatusCodes.BAD_REQUEST, "Message too long.");
         }
       }
-      const highlight = await server.store.gachaEditHighlight(
+      const highlight = await store.gachaEditHighlight(
         credential,
         cardId,
         body.message,
@@ -389,7 +389,8 @@ export const cardsApi = (server: Server.State): Server.Router => {
   router.delete(
     "/:userSlug/banners/:bannerSlug/:cardId/highlight",
     async (ctx) => {
-      const credential = await server.auth.requireIdentifyingCredential(ctx);
+      const { auth, store } = ctx.server;
+      const credential = await auth.requireIdentifyingCredential(ctx);
       const userSlug = requireUrlParameter(
         Users.Slug,
         "user",
@@ -401,11 +402,7 @@ export const cardsApi = (server: Server.State): Server.Router => {
         ctx.params["cardId"],
       );
       Credentials.ensureCanActAs(credential, userSlug);
-      const result = await server.store.gachaSetHighlight(
-        credential,
-        cardId,
-        false,
-      );
+      const result = await store.gachaSetHighlight(credential, cardId, false);
       ctx.body = Cards.Id.encode(result.id);
     },
   );

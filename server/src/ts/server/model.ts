@@ -12,14 +12,16 @@ import type { WebSockets } from "./web-sockets.js";
 export interface State {
   readonly config: Config.Server;
   readonly logger: Logging.Logger;
+  readonly ready: Promise<void>;
   readonly store: Store;
   readonly auth: Auth;
   readonly webSockets: WebSockets;
   readonly externalNotifier: Notifier;
-  readonly objectStorage: Objects.Storage | undefined;
+  readonly objectStorage: Objects.Storage | null;
 }
 
 export interface Context extends Koa.Context {
+  server: State;
   logger: Logging.Logger;
 }
 

@@ -47,7 +47,7 @@ const fetchContent = async (url: string): Promise<Objects.Content> => {
 export const cacheObjects = (server: Server.State): Tasks.Task | undefined => {
   const { objectStorage } = server;
   const types = Objects.allTypes;
-  return objectStorage !== undefined
+  return objectStorage !== null
     ? {
         name: "Cache To Object Storage",
         details: {

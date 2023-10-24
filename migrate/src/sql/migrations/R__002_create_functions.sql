@@ -113,28 +113,30 @@ CREATE FUNCTION validate_upload (
   BEGIN
     user_id = validate_credentials(credential, session_lifetime);
     WITH
-      general AS (
+      permissions AS (
         SELECT
-          (
-            bool_or(manage_games) OR
-            bool_or(manage_bets) OR
-            bool_or(manage_gacha)
-          ) AS any_permission
+          "user",
+          manage_games,
+          manage_bets,
+          manage_gacha
         FROM general_permissions
         WHERE "user" = user_id
-        GROUP BY "user"
-      ),
-      specific AS (
+      UNION ALL
         SELECT
-          bool_or(manage_bets) AS any_permission
+          "user",
+          FALSE AS manage_games,
+          manage_bets,
+          FALSE AS manage_gacha
         FROM specific_permissions
         WHERE "user" = user_id
-        GROUP BY "user"
-      )
-    SELECT INTO can_upload
-      (general.any_permission OR specific.any_permission) AS can_upload
-    FROM
-      general CROSS JOIN specific;
+    )
+    SELECT (
+      bool_or(permissions.manage_games) OR
+      bool_or(permissions.manage_bets) OR
+      bool_or(permissions.manage_gacha)
+    ) INTO can_upload
+    FROM permissions
+    GROUP BY permissions."user";
     IF can_upload THEN
       RETURN user_id;
     ELSE
@@ -788,10 +790,16 @@ CREATE FUNCTION complete_bet (
       ),
       update_options AS (
         UPDATE options SET
-          version = version + 1,
+          version = options.version + 1,
           won = TRUE
+        FROM
+          bets INNER JOIN
+          games ON bets.game = games.id
         WHERE
-          slug = ANY(winners)
+          games.slug = game_slug AND
+          bets.slug = bet_slug AND
+          options.bet = bets.id AND
+          options.slug = ANY(winners)
       ),
       notify_users AS (
         INSERT INTO notifications ("for", notification)
