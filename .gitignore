@@ -1,16 +1,20 @@
+# IDEs.
 .idea
 .vscode
 
+# Packaging.
 node_modules
 elm-stuff
 
+# Built files.
 dist
 
-server/config.*.json5
-*.pem
-server/oci-config.cfg
-
-deployment/test-config.json5
-deployment/test-nginx.conf
-
+# Testing config for development.
 *.env
+server/config.*.json5
+
+# Testing config for test deployment.
+deployment/certs
+deployment/config.json5
+deployment/nginx.conf
+

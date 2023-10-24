@@ -272,6 +272,9 @@ CREATE FUNCTION update_object (
   DECLARE
     result objects.id%TYPE = NULL;
   BEGIN
+    IF given_url IS NULL THEN
+      RETURN old_id;
+    END IF;
     IF old_id IS NOT NULL THEN
       SELECT objects.id INTO result
       FROM objects
@@ -994,11 +997,11 @@ CREATE FUNCTION edit_game (
     SELECT validate_manage_games(credential, session_lifetime) INTO user_id;
     UPDATE games SET
       version = old_version + 1,
-      name = coalesce(new_name, name),
-      cover = update_object('cover'::ObjectType, cover, new_cover),
-      started = CASE WHEN clear_started THEN NULL ELSE coalesce(new_started, started) END,
-      finished = CASE WHEN clear_finished THEN NULL ELSE coalesce(new_finished, finished) END,
-      "order" = CASE WHEN clear_order THEN NULL ELSE coalesce(new_order, "order") END
+      name = coalesce(new_name, games.name),
+      cover = update_object('cover'::ObjectType, games.cover, new_cover),
+      started = CASE WHEN clear_started THEN NULL ELSE coalesce(new_started, games.started) END,
+      finished = CASE WHEN clear_finished THEN NULL ELSE coalesce(new_finished, games.finished) END,
+      "order" = CASE WHEN clear_order THEN NULL ELSE coalesce(new_order, games."order") END
     WHERE games.slug = game_slug
     RETURNING games.* INTO result;
     IF FOUND THEN

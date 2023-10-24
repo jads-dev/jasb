@@ -303,7 +303,7 @@ export const gameSummary = (gameSource: Slonik.SqlFragment) => {
       games.name,
       cover_objects.url AS cover
     FROM 
-      games INNER JOIN objects ON games.cover = cover_objects.id
+      games INNER JOIN cover_objects ON games.cover = cover_objects.id
   `;
 };
 

@@ -26,7 +26,7 @@ RUN echo '{ "type": "module" }' > ./dist/package.json
 
 FROM base as install
 
-RUN ["npm", "ci", "--omit=dev", "--platform=${TARGETOS}", "--arch=${TARGETARCH}", "--arm-version=${TARGETVARIANT}", "--libc=musl"]
+RUN ["npm", "ci", "--omit=dev"]
 
 
 FROM scratch AS sources
@@ -58,6 +58,7 @@ LABEL org.opencontainers.image.description="Server for JASB."
 
 WORKDIR /jasb
 
+RUN ["apk", "add", "--no-cache", "vips"]
 COPY --link --from=sources [ "/", "./" ]
 
 EXPOSE 8081
