@@ -30,6 +30,7 @@ export const Shared = z.object({
   image: z.string(),
   rarity: Rarity,
   layout: Layout,
+  retired: z.boolean(),
 });
 export type Shared = z.infer<typeof Shared>;
 
@@ -48,7 +49,6 @@ export type DetailedIndividual = z.infer<typeof DetailedIndividual>;
  * shared between all instances of a card type.
  */
 export const DetailedShared = z.object({
-  retired: z.boolean(),
   credits: z.array(Credits.Credit),
   banner: Banner,
 });

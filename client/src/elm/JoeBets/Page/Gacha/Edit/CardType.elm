@@ -411,6 +411,7 @@ cardTypeEditor rarityContext maybeEditor =
                                         |> Maybe.withDefault { name = "" }
                                     )
                                 , layout = cardType.layout
+                                , retired = False
                                 }
                     in
                     ( open

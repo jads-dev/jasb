@@ -884,6 +884,7 @@ export const cardTypeWithCards = (
       card_types.description,
       card_objects.url AS image,
       card_types.layout,
+      card_types.retired,
       jsonb_build_object(
         'slug', rarities.slug,
         'name', rarities.name
@@ -908,6 +909,7 @@ export const cardTypeWithCards = (
       card_types.description,
       card_objects.url,
       card_types.layout,
+      card_types.retired,
       rarities.slug,
       rarities.name,
       card_types.created,
@@ -930,6 +932,7 @@ export const cardType = (cardTypeSource: Slonik.SqlFragment) => {
       card_types.description,
       card_objects.url AS image,
       card_types.layout,
+      card_types.retired,
       jsonb_build_object(
         'slug', rarities.slug,
         'name', rarities.name
@@ -938,7 +941,10 @@ export const cardType = (cardTypeSource: Slonik.SqlFragment) => {
       gacha_rarities as rarities INNER JOIN
       card_types ON rarities.id = card_types.rarity INNER JOIN
       card_objects ON card_types.image = card_objects.id
-    ORDER BY rarities.generation_weight, card_types.created
+    ORDER BY 
+      card_types.retired,
+      rarities.generation_weight, 
+      card_types.created
   `;
 };
 
@@ -953,6 +959,7 @@ export const cardTypeByRarity = (cardTypeSource: Slonik.SqlFragment) => {
       card_types.description,
       card_objects.url AS image,
       card_types.layout,
+      card_types.retired,
       jsonb_build_object(
         'slug', rarities.slug,
         'name', rarities.name
@@ -962,7 +969,9 @@ export const cardTypeByRarity = (cardTypeSource: Slonik.SqlFragment) => {
         card_types INNER JOIN
         card_objects ON card_types.image = card_objects.id
       ) ON rarities.id = card_types.rarity
-    ORDER BY rarities.generation_weight, card_types.created
+    ORDER BY
+      rarities.generation_weight, 
+      card_types.created
   `;
 };
 
@@ -993,6 +1002,7 @@ export const card = (cardSource: Slonik.SqlFragment, rarestFirst: boolean) => {
       types.description,
       card_objects.url AS image,
       types.layout,
+      types.retired,
       jsonb_build_object(
         'slug', rarities.slug,
         'name', rarities.name
@@ -1105,6 +1115,7 @@ export const highlighted = (highlightSource: Slonik.SqlFragment) => {
       types.description,
       card_objects.url AS image,
       types.layout,
+      types.retired,
       jsonb_build_object(
         'slug', rarities.slug,
         'name', rarities.name

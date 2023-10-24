@@ -53,6 +53,11 @@
   }
 }
 
+:host([sample][retired]) .pivot {
+  opacity: 0.9;
+  filter: grayscale(50%);
+}
+
 :host(.unrevealed) .face {
   filter: brightness(0) invert(1);
 }

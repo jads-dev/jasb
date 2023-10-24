@@ -72,18 +72,27 @@ type TypeOrIndividual
 viewInternal : Maybe Global.Msg -> List (Html.Attribute Global.Msg) -> Banner.Id -> CardType -> TypeOrIndividual -> Html Global.Msg
 viewInternal onClick attrs bannerId cardType typeOrIndividual =
     let
-        cardTypeAttrs { name, description, image, rarity, layout } =
+        cardTypeAttrs { name, description, image, rarity, layout, retired } =
             let
                 ( rarityId, _ ) =
                     rarity
+
+                retiredAttr =
+                    if retired then
+                        [ GachaCard.retired ]
+
+                    else
+                        []
             in
-            [ GachaCard.name name
-            , GachaCard.description description
-            , GachaCard.image image
-            , GachaCard.rarity rarityId
-            , GachaCard.layout layout
-            , GachaCard.banner bannerId
-            ]
+            List.append
+                [ GachaCard.name name
+                , GachaCard.description description
+                , GachaCard.image image
+                , GachaCard.rarity rarityId
+                , GachaCard.layout layout
+                , GachaCard.banner bannerId
+                ]
+                retiredAttr
 
         typeOrIndividualAttrs =
             case typeOrIndividual of
@@ -235,7 +244,7 @@ viewDetailedInternal maybeContext bannerId cardType individualDetails =
         bannerDescription =
             let
                 retired =
-                    cardType.retired
+                    cardType.cardType.retired
 
                 ( _, banner ) =
                     cardType.banner

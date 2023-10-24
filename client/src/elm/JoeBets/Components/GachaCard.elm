@@ -8,6 +8,7 @@ module JoeBets.Components.GachaCard exposing
     , name
     , qualities
     , rarity
+    , retired
     , sample
     , serialNumber
     , view
@@ -74,6 +75,11 @@ interactive =
 sample : Html.Attribute msg
 sample =
     HtmlA.attribute "sample" ""
+
+
+retired : Html.Attribute msg
+retired =
+    HtmlA.attribute "retired" ""
 
 
 view : List (Html.Attribute msg) -> Html msg

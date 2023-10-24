@@ -68,6 +68,7 @@ type alias CardType =
     , image : String
     , rarity : Rarity.WithId
     , layout : Card.Layout
+    , retired : Bool
     }
 
 
@@ -79,6 +80,7 @@ decoder =
         |> JsonD.required "image" JsonD.string
         |> JsonD.required "rarity" Rarity.withIdDecoder
         |> JsonD.required "layout" Card.layoutDecoder
+        |> JsonD.optional "retired" JsonD.bool False
 
 
 type alias WithId =
@@ -94,7 +96,6 @@ withIdDecoder =
 
 type alias Detailed =
     { cardType : CardType
-    , retired : Bool
     , banner : Banner.WithId
     , credits : List Credits.Credit
     }
@@ -104,7 +105,6 @@ detailedDecoder : JsonD.Decoder Detailed
 detailedDecoder =
     JsonD.succeed Detailed
         |> JsonD.custom decoder
-        |> JsonD.optional "retired" JsonD.bool False
         |> JsonD.required "banner" Banner.withIdDecoder
         |> JsonD.required "credits" (JsonD.list Credits.decoder)
 

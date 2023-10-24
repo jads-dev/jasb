@@ -33,6 +33,7 @@ export const fromInternal = (internal: Internal.CardTypes.CardType): WithId => [
     image: internal.image,
     rarity: Rarities.fromInternal(internal.rarity),
     layout: internal.layout,
+    ...(internal.retired ? { retired: internal.retired } : {}),
   },
 ];
 
@@ -50,7 +51,6 @@ export const Detailed = Schema.readonly(
   Schema.intersection([
     CardType,
     Schema.strict({
-      retired: Schema.boolean,
       banner: Banners.WithSlug,
       credits: Schema.readonlyArray(Credits.Credit),
     }),
@@ -66,7 +66,6 @@ export const detailedFromInternal = (
     id,
     {
       ...cardType,
-      retired: internal.retired,
       banner: Banners.fromInternal(internal.banner),
       credits: internal.credits.map(Credits.fromInternal),
     },

@@ -113,11 +113,17 @@ export class GachaCard extends LitElement {
   declare interactive: boolean;
 
   /**
-   * If this._card is a sample of a card type, rather than an actual card
+   * If this card is a sample of a card type, rather than an actual card
    * which exists.
    */
   @property({ type: Boolean })
   declare sample: boolean;
+
+  /**
+   * If this card is of a retired card type.
+   */
+  @property({ type: Boolean })
+  declare retired: boolean;
 
   @state({ hasChanged: percentCoordinatesHaveChanged })
   declare _effectFocus: PercentCoordinates;
@@ -273,12 +279,16 @@ export class GachaCard extends LitElement {
               ${when(
                 this.serialNumber !== undefined,
                 () =>
-                  html`<span class="serial-number">${this.serialNumber?.toString()?.padStart(10, "0")}</span>`,
+                  html`<span class="serial-number"
+                    >${this.serialNumber?.toString()?.padStart(10, "0")}</span
+                  >`,
               )}
               ${when(
                 this.issueNumber !== undefined,
                 () =>
-                  html`<span class="issue-number">${this.issueNumber?.toString()?.padStart(5, "0")}</span>`,
+                  html`<span class="issue-number"
+                    >${this.issueNumber?.toString()?.padStart(5, "0")}</span
+                  >`,
               )}
               <div class="image">
                 <img src="${this.image}" alt="${this.name}" />

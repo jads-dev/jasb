@@ -24,13 +24,18 @@ export const Layout = Schema.keyof({
 export type Layout = Schema.TypeOf<typeof Layout>;
 
 export const Shared = Schema.readonly(
-  Schema.strict({
-    name: Schema.string,
-    description: Schema.string,
-    image: Schema.string,
-    rarity: Rarities.WithSlug,
-    layout: Layout,
-  }),
+  Schema.intersection([
+    Schema.strict({
+      name: Schema.string,
+      description: Schema.string,
+      image: Schema.string,
+      rarity: Rarities.WithSlug,
+      layout: Layout,
+    }),
+    Schema.partial({
+      retired: Schema.boolean,
+    }),
+  ]),
 );
 export type Shared = Schema.TypeOf<typeof Shared>;
 
@@ -42,6 +47,7 @@ export const sharedFromInternal = (
   image: internal.image,
   rarity: Rarities.fromInternal(internal.rarity),
   layout: internal.layout,
+  ...(internal.retired ? { retired: internal.retired } : {}),
 });
 
 export const Individual = Schema.readonly(
@@ -67,7 +73,6 @@ export const individualFromInternal = (
 
 export const DetailedShared = Schema.readonly(
   Schema.strict({
-    retired: Schema.boolean,
     banner: Banners.WithSlug,
     credits: Schema.readonlyArray(Credits.Credit),
   }),
@@ -77,7 +82,6 @@ export type DetailedShared = Schema.TypeOf<typeof DetailedShared>;
 export const detailedSharedFromInternal = (
   internal: Internal.Cards.DetailedShared,
 ): DetailedShared => ({
-  retired: internal.retired,
   banner: Banners.fromInternal(internal.banner),
   credits: internal.credits.map((credit) => Credits.fromInternal(credit)),
 });
