@@ -45,6 +45,7 @@ export const OptionalForRarity = z.union([
       image: z.null(),
       layout: z.null(),
       rarity: Rarity,
+      retired: z.null(),
     })
     .strict(),
   CardType,
