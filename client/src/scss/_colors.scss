@@ -39,6 +39,7 @@ $dark: (
 
   "tint": #00000080,
   "good": #{color.scale($good, $lightness: 35%)},
+  "on-good": #000000,
   "bad": #ff0000,
   "on-bad": #000000,
 
@@ -71,6 +72,7 @@ $light: (
 
   "tint": #ffffff80,
   "good": #{$good},
+  "on-good": #000000,
   "bad": #ff0000,
   "on-bad": #000000,
 

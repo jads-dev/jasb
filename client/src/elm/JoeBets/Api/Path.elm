@@ -9,6 +9,7 @@ module JoeBets.Api.Path exposing
     , GamePath(..)
     , OptionPath(..)
     , Path(..)
+    , UserCardsPath(..)
     , UserPath(..)
     )
 
@@ -16,7 +17,6 @@ import JoeBets.Bet.Model as Bets
 import JoeBets.Bet.Option as Option
 import JoeBets.Gacha.Banner as Banner
 import JoeBets.Gacha.Card as Card
-import JoeBets.Gacha.Card.Layout as Card
 import JoeBets.Gacha.CardType as CardType
 import JoeBets.Game.Id as Game
 import JoeBets.Page.Leaderboard.Route as Leaderboard
@@ -85,8 +85,14 @@ type CardPath
     | Highlight
 
 
+type UserCardsPath
+    = UserCardsOverview
+    | UserCardsInBanner Banner.Id
+    | AllUserCards
+
+
 type CardsPath
-    = UserCards (Maybe Banner.Id)
+    = UserCards UserCardsPath
     | ForgedCardTypes
     | ForgeCardType
     | RetireForged CardType.Id

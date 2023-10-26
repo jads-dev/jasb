@@ -399,8 +399,8 @@ viewActiveFilters subset filters gameFilters totalCount shownCount =
     active |> List.map viewFilter |> Filtering.viewFilters "Bets" totalCount shownCount
 
 
-view : Parent a -> Page Global.Msg
-view model =
+view : Subset -> Game.Id -> Parent a -> Page Global.Msg
+view _ _ model =
     let
         body { id, subset, data } =
             let

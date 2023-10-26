@@ -76,8 +76,8 @@ type alias Parent a =
 
 init : Model
 init =
-    { route = Nothing
-    , collection = Api.initIdData
+    { overview = Api.initIdData
+    , allCollection = Api.initIdData
     , bannerCollection = Api.initIdData
     , recycleConfirmation = Nothing
     , messageEditor = Nothing
@@ -94,26 +94,43 @@ load id route ({ origin, gacha, collection } as model) =
         ( context, contextCmd ) =
             Gacha.loadContextIfNeeded origin gacha.context
 
-        ( newCollection, collectionCmd ) =
-            { path = Api.UserCards Nothing |> Api.Cards id |> Api.Gacha
-            , decoder = collectionDecoder
-            , wrap = LoadCollection id >> wrap
-            }
-                |> Api.get origin
-                |> Api.getIdData id collection.collection
-
         loadBannerCollection bannerId =
-            { path = bannerId |> Just |> Api.UserCards |> Api.Cards id |> Api.Gacha
-            , decoder = bannerCollectionDecoder
-            , wrap = LoadBannerCollection id bannerId >> wrap
-            }
-                |> Api.get origin
-                |> Api.getIdData ( id, bannerId ) collection.bannerCollection
+            let
+                ( newBannerCollection, bannerCollectionCmd ) =
+                    { path = bannerId |> Api.UserCardsInBanner |> Api.UserCards |> Api.Cards id |> Api.Gacha
+                    , decoder = bannerCollectionDecoder
+                    , wrap = LoadBannerCollection id bannerId >> wrap
+                    }
+                        |> Api.get origin
+                        |> Api.getIdData ( id, bannerId ) collection.bannerCollection
+            in
+            ( { collection | bannerCollection = newBannerCollection }, bannerCollectionCmd )
 
-        ( newBannerCollection, newGacha, cmds ) =
+        ( newCollection, newGacha, cmds ) =
             case route of
                 Overview ->
-                    ( collection.bannerCollection, gacha, Cmd.none )
+                    let
+                        ( newOverview, collectionCmd ) =
+                            { path = Api.UserCardsOverview |> Api.UserCards |> Api.Cards id |> Api.Gacha
+                            , decoder = overviewDecoder
+                            , wrap = LoadCollection id >> wrap
+                            }
+                                |> Api.get origin
+                                |> Api.getIdData id collection.overview
+                    in
+                    ( { collection | overview = newOverview }, gacha, collectionCmd )
+
+                All ->
+                    let
+                        ( loadedCollection, loadedCmd ) =
+                            { path = Api.AllUserCards |> Api.UserCards |> Api.Cards id |> Api.Gacha
+                            , decoder = allCollectionDecoder
+                            , wrap = LoadAllCards id >> wrap
+                            }
+                                |> Api.get origin
+                                |> Api.getIdData id collection.allCollection
+                    in
+                    ( { collection | allCollection = loadedCollection }, gacha, loadedCmd )
 
                 Banner bannerId ->
                     let
@@ -138,15 +155,10 @@ load id route ({ origin, gacha, collection } as model) =
                     )
     in
     ( { model
-        | collection =
-            { collection
-                | route = Just ( id, route )
-                , collection = newCollection
-                , bannerCollection = newBannerCollection
-            }
+        | collection = newCollection
         , gacha = { newGacha | context = context }
       }
-    , Cmd.batch [ contextCmd, collectionCmd, cmds ]
+    , Cmd.batch [ contextCmd, cmds ]
     )
 
 
@@ -155,12 +167,24 @@ update msg ({ origin, collection } as model) =
     case msg of
         LoadCollection userId response ->
             let
-                updatedCollection =
-                    collection.collection |> Api.updateIdData userId response
+                updatedOverview =
+                    collection.overview |> Api.updateIdData userId response
             in
             ( { model
                 | collection =
-                    { collection | collection = updatedCollection }
+                    { collection | overview = updatedOverview }
+              }
+            , Cmd.none
+            )
+
+        LoadAllCards userId response ->
+            let
+                updatedCollection =
+                    collection.allCollection |> Api.updateIdData userId response
+            in
+            ( { model
+                | collection =
+                    { collection | allCollection = updatedCollection }
               }
             , Cmd.none
             )
@@ -195,7 +219,7 @@ update msg ({ origin, collection } as model) =
                     ( { model
                         | collection =
                             { collection
-                                | collection = collection.collection |> updatedCollection
+                                | overview = collection.overview |> updatedCollection
                                 , editingHighlights = editing
                             }
                       }
@@ -253,7 +277,7 @@ update msg ({ origin, collection } as model) =
                             { card = card, message = givenMessage }
 
                 updatedCollection =
-                    if Api.toMaybeId collection.collection == Just user then
+                    if Api.toMaybeId collection.overview == Just user then
                         { collection | messageEditor = message |> Maybe.map (updateMessageEditor collection.messageEditor) }
 
                     else
@@ -311,15 +335,15 @@ update msg ({ origin, collection } as model) =
                             c
 
                 updatedCollection =
-                    if Api.toMaybeId collection.collection == Just user then
+                    if Api.toMaybeId collection.overview == Just user then
                         let
                             newCollection =
-                                collection.collection
+                                collection.overview
                                     |> Api.updateIdDataValue user updateHighlights
                         in
                         { collection
                             | saving = state
-                            , collection = newCollection
+                            , overview = newCollection
                             , messageEditor = Nothing
                         }
 
@@ -331,7 +355,7 @@ update msg ({ origin, collection } as model) =
         ReorderHighlights user dragDropMsg ->
             let
                 updatedCollection =
-                    if Api.toMaybeId collection.collection == Just user then
+                    if Api.toMaybeId collection.overview == Just user then
                         let
                             orderEditor =
                                 collection.orderEditor
@@ -362,7 +386,7 @@ update msg ({ origin, collection } as model) =
                         in
                         { collection
                             | orderEditor = newOrderEditor
-                            , collection = collection.collection |> updateIfDropped
+                            , overview = collection.overview |> updateIfDropped
                         }
 
                     else
@@ -408,7 +432,7 @@ update msg ({ origin, collection } as model) =
                     ( { model
                         | collection =
                             { collection
-                                | collection = collection.collection |> withUpdatedHighlights
+                                | overview = collection.overview |> withUpdatedHighlights
                                 , saving = state
                                 , editingHighlights = editingHighlights
                             }
@@ -583,7 +607,7 @@ update msg ({ origin, collection } as model) =
 
 
 manageContext : Auth.Model -> Model -> Maybe ManageContext
-manageContext auth { orderEditor, collection } =
+manageContext auth { orderEditor, overview } =
     let
         contextFor ( id, { highlights } ) localUser =
             if id == localUser.id then
@@ -599,12 +623,12 @@ manageContext auth { orderEditor, collection } =
                 Nothing
     in
     Maybe.map2 contextFor
-        (Api.idDataToMaybe collection)
+        (Api.idDataToMaybe overview)
         auth.localUser
         |> Maybe.andThen identity
 
 
-viewHighlights : Maybe ManageContext -> Maybe (User.Id -> Banner.Id -> Card.Id -> Global.Msg) -> Model -> Collection -> List (Html Global.Msg)
+viewHighlights : Maybe ManageContext -> Maybe (User.Id -> Banner.Id -> Card.Id -> Global.Msg) -> Model -> CollectionOverview -> List (Html Global.Msg)
 viewHighlights maybeContext onClick model collection =
     let
         order =
@@ -704,8 +728,8 @@ viewHighlights maybeContext onClick model collection =
     ]
 
 
-view : Parent a -> Page Global.Msg
-view parent =
+view : User.Id -> Route -> Parent a -> Page Global.Msg
+view userId route parent =
     let
         titleFromDataInternal target ( id, { user } ) =
             if id == target then
@@ -720,7 +744,7 @@ view parent =
         maybeContext =
             manageContext parent.auth parent.collection
 
-        confirmRecycle userId =
+        confirmRecycle =
             let
                 ( confirmContent, confirmAction ) =
                     case parent.collection.recycleConfirmation of
@@ -777,26 +801,67 @@ view parent =
                 Api.Start
                 |> wrapGacha
 
-        viewCollection : Model -> User.Id -> Collection -> List (Html Global.Msg)
-        viewCollection model userId collection =
+        viewCollection : Model -> User.Id -> CollectionOverview -> List (Html Global.Msg)
+        viewCollection model targetId collection =
             let
                 { user } =
                     collection.user
             in
-            [ [ User.viewLink User.Full userId user ]
+            [ [ User.viewLink User.Full targetId user ]
             , viewHighlights maybeContext (viewDetailedCard |> Just) model collection
-            , [ Html.h3 [] [ Html.text "Cards by Banner" ]
+            , [ Route.a (All |> Route.CardCollection targetId)
+                    []
+                    [ Html.text "View All "
+                    , User.viewName user
+                    , Html.text "'s Cards"
+                    ]
+              , Html.h3 [] [ Html.text "Cards by Banner" ]
               , Banner.viewCollectionBanners collection.user.id collection.banners
-              , confirmRecycle userId
+              , confirmRecycle
               , Card.viewDetailedCardDialog maybeContext parent.gacha
               , Card.viewDetailedCardTypeDialog parent.gacha
               ]
             ]
                 |> List.concat
 
+        viewAllCollection _ allCollection =
+            let
+                collectionUserId =
+                    allCollection.user.id
+
+                { user } =
+                    allCollection.user
+
+                viewDetailedCardType givenBannerId cardTypeId =
+                    Gacha.ViewDetailedCardType
+                        { bannerId = givenBannerId, cardTypeId = cardTypeId }
+                        Api.Start
+                        |> wrapGacha
+
+                onClick =
+                    { placeholder = viewDetailedCardType
+                    , card = viewDetailedCard
+                    }
+                        |> Just
+
+                filter =
+                    filterBy parent.collection.filters parent.gacha.context
+
+                cards =
+                    Card.viewCardTypesWithCards onClick filter collectionUserId allCollection.cardTypes
+            in
+            [ User.viewLink User.Full collectionUserId user
+            , Route.a (Overview |> Route.CardCollection collectionUserId) [] [ Html.text "Back to Collection" ]
+            , viewFilters parent.gacha.context parent.collection.filters cards.total cards.shown
+            , cards.view
+            , Card.viewDetailedCardDialog maybeContext parent.gacha
+            , Card.viewDetailedCardTypeDialog parent.gacha
+            , confirmRecycle
+            ]
+
         viewBannerCollection _ bannerCollection =
             let
-                userId =
+                targetUserId =
                     bannerCollection.user.id
 
                 { user } =
@@ -821,19 +886,19 @@ view parent =
                     filterBy parent.collection.filters parent.gacha.context
 
                 cards =
-                    Card.viewCardTypesWithCards onClick filter userId bannerId bannerCollection.cardTypes
+                    Card.viewCardTypesWithCards onClick filter targetUserId bannerCollection.cardTypes
             in
-            [ User.viewLink User.Full userId user
-            , Route.a (Overview |> Route.CardCollection userId) [] [ Html.text "Back to Collection" ]
+            [ User.viewLink User.Full targetUserId user
+            , Route.a (Overview |> Route.CardCollection targetUserId) [] [ Html.text "Back to Collection" ]
             , Banner.viewCollectionBanner False userId bannerId banner
             , viewFilters parent.gacha.context parent.collection.filters cards.total cards.shown
             , cards.view
             , Card.viewDetailedCardDialog maybeContext parent.gacha
             , Card.viewDetailedCardTypeDialog parent.gacha
-            , confirmRecycle userId
+            , confirmRecycle
             ]
 
-        viewBannerPart userId bannerId _ =
+        viewBannerPart bannerId _ =
             let
                 id =
                     ( userId, bannerId )
@@ -849,14 +914,11 @@ view parent =
             )
 
         ( title, contents ) =
-            case parent.collection.route of
-                Nothing ->
-                    ( Nothing, [] )
-
-                Just ( userId, Overview ) ->
+            case route of
+                Overview ->
                     let
                         data =
-                            parent.collection.collection
+                            parent.collection.overview
                     in
                     ( titleFromData userId data
                     , Api.viewSpecificIdData Api.viewOrError
@@ -865,11 +927,23 @@ view parent =
                         data
                     )
 
-                Just ( userId, Banner bannerId ) ->
-                    viewBannerPart userId bannerId Nothing
+                All ->
+                    let
+                        data =
+                            parent.collection.allCollection
+                    in
+                    ( titleFromData userId data
+                    , Api.viewSpecificIdData Api.viewOrError
+                        viewAllCollection
+                        userId
+                        data
+                    )
 
-                Just ( userId, Card bannerId cardId ) ->
-                    viewBannerPart userId bannerId (Just cardId)
+                Banner bannerId ->
+                    viewBannerPart bannerId Nothing
+
+                Card bannerId cardId ->
+                    viewBannerPart bannerId (Just cardId)
 
         titleOrDefault =
             title |> Maybe.withDefault "Card Collection"

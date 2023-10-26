@@ -341,8 +341,8 @@ update msg ({ user, auth, origin } as model) =
                 ( model, Cmd.none )
 
 
-view : Parent a -> Page Global.Msg
-view model =
+view : Maybe User.Id -> Parent a -> Page Global.Msg
+view _ model =
     let
         { bets, bankruptcyDialog, permissionsDialog } =
             model.user

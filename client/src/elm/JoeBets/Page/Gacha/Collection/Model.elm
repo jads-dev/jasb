@@ -1,6 +1,7 @@
 module JoeBets.Page.Gacha.Collection.Model exposing
-    ( BannerCollection
-    , Collection
+    ( AllCollection
+    , BannerCollection
+    , CollectionOverview
     , LocalOrderHighlights
     , ManageContext
     , Model
@@ -8,12 +9,13 @@ module JoeBets.Page.Gacha.Collection.Model exposing
     , OnClick
     , OrderEditor
     , RecycleProcess(..)
+    , allCollectionDecoder
     , bannerCollectionDecoder
-    , collectionDecoder
     , getHighlights
     , getLocalOrder
     , isOrderChanged
     , localOrderHighlights
+    , overviewDecoder
     , removeHighlight
     , reorder
     , replaceOrAddHighlight
@@ -33,7 +35,6 @@ import JoeBets.Gacha.Card as Card
 import JoeBets.Gacha.CardType as CardType
 import JoeBets.Gacha.CardType.WithCards as CardType
 import JoeBets.Page.Gacha.Collection.Filters.Model exposing (..)
-import JoeBets.Page.Gacha.Collection.Route exposing (..)
 import JoeBets.User.Model as User
 import Json.Decode as JsonD
 import Json.Decode.Pipeline as JsonD
@@ -50,7 +51,8 @@ type RecycleProcess
 
 
 type Msg
-    = LoadCollection User.Id (Api.Response Collection)
+    = LoadCollection User.Id (Api.Response CollectionOverview)
+    | LoadAllCards User.Id (Api.Response AllCollection)
     | LoadBannerCollection User.Id Banner.Id (Api.Response BannerCollection)
     | SetEditingHighlights Bool
     | SetCardHighlighted User.Id Banner.Id Card.Id Bool
@@ -129,19 +131,39 @@ replaceOrAddHighlight bannerId id highlight (LocalOrderHighlights { highlights, 
             }
 
 
-type alias Collection =
+type alias CollectionOverview =
     { user : User.SummaryWithId
     , highlights : LocalOrderHighlights
     , banners : Banner.Banners
     }
 
 
-collectionDecoder : JsonD.Decoder Collection
-collectionDecoder =
-    JsonD.succeed Collection
+overviewDecoder : JsonD.Decoder CollectionOverview
+overviewDecoder =
+    JsonD.succeed CollectionOverview
         |> JsonD.required "user" User.summaryWithIdDecoder
         |> JsonD.required "highlighted" (Card.highlightsDecoder |> JsonD.map localOrderHighlights)
         |> JsonD.required "banners" Banner.bannersDecoder
+
+
+type alias AllCollection =
+    { user : User.SummaryWithId
+    , cardTypes : AssocList.Dict CardType.Id CardType.WithCards
+    }
+
+
+allCollectionDecoder : JsonD.Decoder AllCollection
+allCollectionDecoder =
+    let
+        cardTypeWithCardsAndBannerDecoder =
+            JsonD.field "banner" Banner.idDecoder |> JsonD.andThen CardType.withCardsDecoder
+
+        assocListCardsDecoder =
+            JsonD.assocListFromTupleList CardType.idDecoder cardTypeWithCardsAndBannerDecoder
+    in
+    JsonD.succeed AllCollection
+        |> JsonD.required "user" User.summaryWithIdDecoder
+        |> JsonD.required "cards" assocListCardsDecoder
 
 
 type alias BannerCollection =
@@ -153,10 +175,19 @@ type alias BannerCollection =
 
 bannerCollectionDecoder : JsonD.Decoder BannerCollection
 bannerCollectionDecoder =
-    JsonD.succeed BannerCollection
-        |> JsonD.required "user" User.summaryWithIdDecoder
-        |> JsonD.required "banner" Banner.withIdDecoder
-        |> JsonD.required "cards" (JsonD.assocListFromTupleList CardType.idDecoder CardType.withCardsDecoder)
+    let
+        cardsAndBanner ( bannerId, banner ) =
+            let
+                cardsDecoder =
+                    JsonD.assocListFromTupleList CardType.idDecoder
+                        (CardType.withCardsDecoder bannerId)
+            in
+            JsonD.succeed BannerCollection
+                |> JsonD.required "user" User.summaryWithIdDecoder
+                |> JsonD.hardcoded ( bannerId, banner )
+                |> JsonD.required "cards" cardsDecoder
+    in
+    JsonD.field "banner" Banner.withIdDecoder |> JsonD.andThen cardsAndBanner
 
 
 type alias MessageEditor =
@@ -177,8 +208,8 @@ type alias RecycleConfirmation =
 
 
 type alias Model =
-    { route : Maybe ( User.Id, Route )
-    , collection : Api.IdData User.Id Collection
+    { overview : Api.IdData User.Id CollectionOverview
+    , allCollection : Api.IdData User.Id AllCollection
     , bannerCollection : Api.IdData ( User.Id, Banner.Id ) BannerCollection
     , recycleConfirmation : Maybe RecycleConfirmation
     , orderEditor : OrderEditor

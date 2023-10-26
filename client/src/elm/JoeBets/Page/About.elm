@@ -6,7 +6,7 @@ import JoeBets.Messages as Global
 import JoeBets.Page exposing (Page)
 import JoeBets.Route as Route
 import JoeBets.Rules as Rules
-import JoeBets.User.Auth as Auth
+import JoeBets.User.Auth.Controls as Auth
 import JoeBets.User.Auth.Model as Auth
 import Util.Html as Html
 

@@ -18,7 +18,6 @@ import JoeBets.Bet.Model as Bets
 import JoeBets.Bet.Option as Option
 import JoeBets.Gacha.Banner as Banner
 import JoeBets.Gacha.Card as Card
-import JoeBets.Gacha.Card.Layout as Card
 import JoeBets.Gacha.CardType as CardType
 import JoeBets.Game.Id as Game
 import JoeBets.Page.Leaderboard.Route as Leaderboard
@@ -209,16 +208,24 @@ cardPathToStringList path =
             [ "highlight" ]
 
 
+userCardsPathToStringList : UserCardsPath -> List String
+userCardsPathToStringList path =
+    case path of
+        UserCardsOverview ->
+            []
+
+        AllUserCards ->
+            [ "all" ]
+
+        UserCardsInBanner bannerId ->
+            [ "banners", Banner.idToString bannerId ]
+
+
 cardsPathToStringList : CardsPath -> List String
 cardsPathToStringList path =
     case path of
-        UserCards maybeBannerId ->
-            case maybeBannerId of
-                Just bannerId ->
-                    [ "banners", Banner.idToString bannerId ]
-
-                Nothing ->
-                    []
+        UserCards userCardsPath ->
+            userCardsPathToStringList userCardsPath
 
         ForgedCardTypes ->
             [ "forged" ]

@@ -163,42 +163,32 @@ view model =
                     |> Menu.supportingText [ Html.text "Join the JASB discord server for notifications about bets." ]
                 ]
 
-        cardsIfLoggedIn =
-            case model.auth.localUser of
-                Just _ ->
-                    [ Html.li []
-                        [ Route.a (Route.Gacha Gacha.Roll)
-                            []
-                            [ Icon.gift |> Icon.view, Html.text "Cards" ]
-                        ]
-                    ]
-
-                Nothing ->
-                    []
-
         menu =
-            [ [ Html.li []
-                    [ Route.a Route.Feed
-                        []
-                        [ Icon.stream |> Icon.view, Html.text "Feed" ]
-                    ]
-              , Html.li []
-                    [ Route.a Route.Games
-                        []
-                        [ Icon.dice |> Icon.view, Html.text "Bets" ]
-                    ]
-              , Html.li []
-                    [ Route.a (Route.Leaderboard Leaderboard.NetWorth)
-                        []
-                        [ Icon.crown |> Icon.view, Html.text "Leaderboard" ]
-                    ]
-              ]
-            , cardsIfLoggedIn
-            , [ Html.li [ HtmlA.class "user-submenu submenu" ] userSubmenu
-              , Html.li [ HtmlA.class "more-submenu submenu" ] moreSubmenu
-              ]
+            [ Html.li []
+                [ Route.a Route.Feed
+                    []
+                    [ Icon.stream |> Icon.view, Html.text "Feed" ]
+                ]
+            , Html.li []
+                [ Route.a Route.Games
+                    []
+                    [ Icon.dice |> Icon.view, Html.text "Bets" ]
+                ]
+            , Html.li []
+                [ Route.a (Route.Leaderboard Leaderboard.NetWorth)
+                    []
+                    [ Icon.crown |> Icon.view, Html.text "Leaderboard" ]
+                ]
+            , Html.li []
+                [ Route.a (Route.Gacha Gacha.Roll)
+                    []
+                    [ Icon.gift |> Icon.view, Html.text "Cards" ]
+                ]
+            , Html.li
+                [ HtmlA.class "user-submenu submenu" ]
+                userSubmenu
+            , Html.li [ HtmlA.class "more-submenu submenu" ] moreSubmenu
             ]
-                |> List.concat
 
         errors =
             Auth.viewError model

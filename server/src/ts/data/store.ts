@@ -1255,6 +1255,27 @@ export class Store {
     });
   }
 
+  async gachaGetAllCollectionCards(
+    userSlug: Public.Users.Slug,
+  ): Promise<readonly Gacha.CardTypes.WithCardsAndBanner[]> {
+    return await this.withClient(async (client) => {
+      const result = await client.query(
+        Queries.cardTypeWithCardsAndBanner(
+          sqlFragment`
+            SELECT 
+              cards.* 
+            FROM 
+              jasb.gacha_cards AS cards INNER JOIN 
+              jasb.users ON cards.owner = users.id
+            WHERE 
+              users.slug = ${userSlug}
+          `,
+        ),
+      );
+      return result.rows;
+    });
+  }
+
   async gachaGetCollectionCards(
     userSlug: Public.Users.Slug,
     bannerSlug: Public.Gacha.Banners.Slug,

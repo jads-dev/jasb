@@ -94,8 +94,8 @@ update msg ({ leaderboard } as model) =
             )
 
 
-view : Parent a -> Page Global.Msg
-view { leaderboard } =
+view : Route.Board -> Parent a -> Page Global.Msg
+view _ { leaderboard } =
     let
         viewNetWorth { netWorth } =
             Coins.view netWorth

@@ -8,12 +8,17 @@
   list-style: none;
   padding: 0;
 
-  display: flex;
-  flex-flow: column;
+  display: grid;
   margin: 0;
-  gap: 2em;
+  gap: 1em;
+  grid-template-columns: minmax(min-content, 50em);
+  justify-content: center;
 
   align-self: stretch;
+
+  > li {
+    display: contents;
+  }
 }
 
 .banner {
@@ -36,6 +41,7 @@
   color: var(--foreground-color);
   background-color: var(--background-color);
 
+  max-width: 50em;
   width: 100%;
   min-height: 10em;
 
@@ -47,11 +53,12 @@
     padding: 0 0.3em;
     text-align: left;
     display: flex;
+    color: inherit;
 
     > h3 {
       margin: 0;
       padding: 0.1em;
-      background-color: #88888888;
+      background-color: #888888cc;
     }
   }
 

@@ -14,9 +14,9 @@ import JoeBets.Page exposing (Page)
 import JoeBets.Page.Bets.Model as Bets
 import JoeBets.Page.Edit.Model exposing (..)
 import JoeBets.Page.Edit.Msg exposing (Msg(..))
-import JoeBets.Page.Model as PageModel
 import JoeBets.Page.Problem.Model as Problem
-import JoeBets.Route as Route
+import JoeBets.Route as Route exposing (Route)
+import JoeBets.User.Auth.Controls as Auth
 import JoeBets.User.Auth.Model as Auth
 import Time.Model as Time
 
@@ -34,8 +34,8 @@ type alias Parent a =
         , auth : Auth.Model
         , navigationKey : Browser.Key
         , problem : Problem.Model
-        , page : PageModel.Page
         , bets : Bets.Model
+        , route : Route
     }
 
 
@@ -68,10 +68,7 @@ load target model =
                     ( { model | edit = betEditor |> BetEditor |> Just }, betEditorCmd )
 
                 Nothing ->
-                    ( { model
-                        | problem = Problem.MustBeLoggedIn { path = Route.Edit target |> Route.toUrl }
-                        , page = PageModel.Problem
-                      }
+                    ( Auth.mustBeLoggedIn (Route.Edit target) model
                     , Cmd.none
                     )
 
@@ -107,8 +104,8 @@ update msg ({ edit } as model) =
                     ( model, Cmd.none )
 
 
-view : Parent a -> Page Global.Msg
-view ({ edit, auth, time } as model) =
+view : Target -> Parent a -> Page Global.Msg
+view _ ({ edit, auth, time } as model) =
     let
         editor =
             case ( edit, auth.localUser ) of

@@ -6,7 +6,7 @@
   .face > .content {
     display: grid;
     grid-template:
-      ". name" auto
+      ". name" 3em
       "img img" auto
       "desc desc" 1fr
       "qual qual" auto
@@ -30,6 +30,7 @@
 
     > .image {
       grid-area: face;
+      aspect-ratio: properties.by-name("aspect-ratio");
 
       > img {
         aspect-ratio: properties.by-name("aspect-ratio");
@@ -82,8 +83,11 @@
     }
 
     .face > .content {
-      > .image > img {
+      > .image {
         aspect-ratio: var(--landscape-aspect-ratio);
+        > img {
+          aspect-ratio: var(--landscape-aspect-ratio);
+        }
       }
       > .serial-number {
         transform: rotate(0.5turn);
@@ -141,6 +145,7 @@
 
     &::before {
       background: var(--background, #000);
+      background-size: cover;
     }
 
     &::after {
@@ -161,6 +166,8 @@
 
     > .image {
       grid-area: img;
+      width: 100%;
+      aspect-ratio: 1;
 
       > img {
         width: 100%;

@@ -1,9 +1,9 @@
 module JoeBets.Page.Gacha.Banner exposing
-    ( view
-    , viewBanners
+    ( viewBanners
     , viewCollectionBanner
     , viewCollectionBanners
     , viewPreviewBanner
+    , viewRoll
     )
 
 import AssocList
@@ -23,7 +23,8 @@ import JoeBets.Page.Gacha.Collection.Route as Collection
 import JoeBets.Page.Gacha.Model as Gacha
 import JoeBets.Page.Gacha.Roll.Model as Roll
 import JoeBets.Page.Gacha.Route as Gacha
-import JoeBets.Route as Route
+import JoeBets.Route as Route exposing (Route)
+import JoeBets.User.Auth.Model as Auth
 import JoeBets.User.Model as User
 import List
 import Material.Button as Button
@@ -34,12 +35,22 @@ import Util.Maybe as Maybe
 
 type alias Parent a =
     { a
-        | gacha : Gacha.Model
+        | auth : Auth.Model
+        , gacha : Gacha.Model
     }
 
 
-viewInternal : Banner.Id -> Banner -> List (Html msg) -> Html msg
-viewInternal id { name, description, cover, type_, colors } extra =
+viewInternal : Maybe Route -> Banner.Id -> Banner -> List (Html msg) -> Html msg
+viewInternal link id { name, description, cover, type_, colors } extra =
+    let
+        titleWrapper =
+            case link of
+                Just route ->
+                    Route.a route
+
+                Nothing ->
+                    Html.div
+    in
     Html.div
         [ HtmlA.class "banner"
         , id |> Banner.cssId |> HtmlA.id
@@ -50,7 +61,7 @@ viewInternal id { name, description, cover, type_, colors } extra =
             ]
         ]
         (Html.img [ HtmlA.class "cover", HtmlA.src cover ] []
-            :: Html.div [ HtmlA.class "title" ] [ Html.h3 [] [ Html.text name ] ]
+            :: titleWrapper [ HtmlA.class "title" ] [ Html.h3 [] [ Html.text name ] ]
             :: Html.div [ HtmlA.class "description" ] [ Html.p [] [ Html.text description ] ]
             :: Html.div [ HtmlA.class "type" ]
                 [ Html.div [] [ Html.text type_, Html.text " Banner" ] ]
@@ -58,8 +69,8 @@ viewInternal id { name, description, cover, type_, colors } extra =
         )
 
 
-view : Parent a -> ( Banner.Id, Banner ) -> Html Global.Msg
-view { gacha } ( id, banner ) =
+viewRoll : Parent a -> ( Banner.Id, Banner ) -> Html Global.Msg
+viewRoll { auth, gacha } ( id, banner ) =
     let
         balance =
             gacha.balance |> Api.dataToMaybe |> Maybe.withDefault Balance.empty
@@ -103,34 +114,44 @@ view { gacha } ( id, banner ) =
                 |> Button.icon [ Balance.rollWithGuaranteeIcon ]
                 |> Button.view
 
-        magicButtons =
-            if canGuaranteedRoll (Balance.guaranteesFromInt 1) then
-                [ magicRollButton 1
-                , magicRollButton 10
+        buttons =
+            if auth.localUser /= Nothing then
+                let
+                    magicButtons =
+                        if canGuaranteedRoll (Balance.guaranteesFromInt 1) then
+                            [ magicRollButton 1
+                            , magicRollButton 10
+                            ]
+
+                        else
+                            []
+                in
+                [ rollButton 1
+                    :: rollButton 10
+                    :: magicButtons
+                    |> Html.div [ HtmlA.class "roll" ]
+                , IconButton.filledTonal (Icon.view Icon.eye) "View Possible Cards"
+                    |> Material.iconButtonLink Global.ChangeUrl (Gacha.PreviewBanner id |> Route.Gacha)
+                    |> IconButton.attrs [ HtmlA.class "preview" ]
+                    |> IconButton.view
                 ]
 
             else
                 []
     in
-    viewInternal id
+    viewInternal
+        (Just (Gacha.PreviewBanner id |> Route.Gacha))
+        id
         banner
-        [ rollButton 1
-            :: rollButton 10
-            :: magicButtons
-            |> Html.div [ HtmlA.class "roll" ]
-        , IconButton.filledTonal (Icon.view Icon.eye) "View Possible Cards"
-            |> Material.iconButtonLink Global.ChangeUrl (Gacha.PreviewBanner id |> Route.Gacha)
-            |> IconButton.attrs [ HtmlA.class "preview" ]
-            |> IconButton.view
-        ]
+        buttons
 
 
 viewBanners : Parent a -> Banner.Banners -> List (Html Global.Msg)
 viewBanners parent banners =
     let
         viewItem ( id, banner ) =
-            [ view parent ( id, banner ) ]
-                |> Html.li [ HtmlA.class "banner-container" ]
+            [ viewRoll parent ( id, banner ) ]
+                |> Html.li []
     in
     [ banners
         |> AssocList.toList
@@ -141,20 +162,18 @@ viewBanners parent banners =
 
 viewPreviewBanner : Banner.Id -> Banner -> Html msg
 viewPreviewBanner bannerId banner =
-    Route.a (Gacha.PreviewBanner bannerId |> Route.Gacha)
-        [ HtmlA.class "banner-container" ]
-        [ viewInternal bannerId banner [] ]
+    viewInternal (Just (Gacha.PreviewBanner bannerId |> Route.Gacha)) bannerId banner []
 
 
 viewCollectionBanner : Bool -> User.Id -> Banner.Id -> Banner -> Html Global.Msg
 viewCollectionBanner linkToUser userId bannerId banner =
     let
-        wrapper =
+        route =
             if linkToUser then
-                Route.a (Collection.Banner bannerId |> Route.CardCollection userId)
+                Just (Collection.Banner bannerId |> Route.CardCollection userId)
 
             else
-                Html.div
+                Just (Gacha.PreviewBanner bannerId |> Route.Gacha)
 
         possibleButton =
             if not linkToUser then
@@ -167,15 +186,13 @@ viewCollectionBanner linkToUser userId bannerId banner =
             else
                 []
     in
-    wrapper
-        [ HtmlA.class "banner-container" ]
-        [ viewInternal bannerId banner possibleButton ]
+    viewInternal route bannerId banner possibleButton
 
 
 viewCollectionBanners : User.Id -> Banner.Banners -> Html Global.Msg
 viewCollectionBanners userId =
     let
         fromTuple ( id, banner ) =
-            viewCollectionBanner True userId id banner
+            Html.li [] [ viewCollectionBanner True userId id banner ]
     in
     AssocList.toList >> List.map fromTuple >> Html.ol [ HtmlA.class "banners" ]

@@ -90,17 +90,29 @@ export class WebSockets {
     subscriber.notifications.on(
       channel,
       wrapLogErrors(logger, async (notificationId: number): Promise<void> => {
-        const notification = await store.getNotification(
-          credential,
-          notificationId as Notifications.Id,
-        );
-        socket.send(
-          JSON.stringify(
-            Notifications.Notification.encode(
-              Notifications.fromInternal(notification),
+        try {
+          const notification = await store.getNotification(
+            credential,
+            notificationId as Notifications.Id,
+          );
+
+          socket.send(
+            JSON.stringify(
+              Notifications.Notification.encode(
+                Notifications.fromInternal(notification),
+              ),
             ),
-          ),
-        );
+          );
+        } catch (error: unknown) {
+          if (
+            error instanceof WebError &&
+            error.status == StatusCodes.UNAUTHORIZED
+          ) {
+            socket.close();
+          } else {
+            throw error;
+          }
+        }
       }),
     );
 

@@ -73,4 +73,14 @@ export const WithCards = Base.merge(Cards.Shared)
   .strict();
 export type WithCards = z.infer<typeof WithCards>;
 
+export const WithCardsAndBanner = Base.merge(Cards.Shared)
+  .merge(
+    z.object({
+      banner: Types.bannerSlug,
+      cards: z.array(Cards.Individual.strict()),
+    }),
+  )
+  .strict();
+export type WithCardsAndBanner = z.infer<typeof WithCardsAndBanner>;
+
 export * as CardTypes from "./card-types.js";

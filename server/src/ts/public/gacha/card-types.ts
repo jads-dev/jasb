@@ -135,4 +135,27 @@ export const withCardsFromInternal = (
   ];
 };
 
+export const WithCardsAndBanner = Schema.readonly(
+  Schema.intersection([
+    WithCards,
+    Schema.strict({
+      banner: Banners.Slug,
+    }),
+  ]),
+);
+export type WithCardsAndBanner = Schema.TypeOf<typeof WithCardsAndBanner>;
+
+export const withCardsAndBannerFromInternal = (
+  internal: Internal.CardTypes.WithCardsAndBanner,
+): [Id, WithCardsAndBanner] => {
+  const [id, cardType] = withCardsFromInternal(internal);
+  return [
+    id,
+    {
+      ...cardType,
+      banner: internal.banner,
+    },
+  ];
+};
+
 export * as CardTypes from "./card-types.js";

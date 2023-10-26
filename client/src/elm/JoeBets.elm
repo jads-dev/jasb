@@ -20,7 +20,6 @@ import JoeBets.Page.Gacha.Collection as Collection
 import JoeBets.Page.Gacha.Forge as Forge
 import JoeBets.Page.Games as Games
 import JoeBets.Page.Leaderboard as Leaderboard
-import JoeBets.Page.Model as Page
 import JoeBets.Page.Problem as Problem
 import JoeBets.Page.User as User
 import JoeBets.Route as Route exposing (Route)
@@ -70,7 +69,6 @@ init flags url key =
             , time = { zone = Time.utc, now = Time.millisToPosix 0 }
             , route = route
             , navigation = Navigation.init
-            , page = Page.About
             , auth = auth
             , notifications = Notifications.init
             , feed = Feed.init
@@ -79,7 +77,7 @@ init flags url key =
             , bet = Bet.init
             , games = Games.init
             , leaderboard = Leaderboard.init
-            , gacha = Gacha.init Nothing
+            , gacha = Gacha.init
             , forge = Forge.init
             , collection = Collection.init
             , edit = Edit.init
@@ -224,40 +222,46 @@ subscriptions _ =
 view : Model -> Browser.Document Msg
 view model =
     let
+        pageView =
+            case model.route of
+                Route.About ->
+                    About.view
+
+                Route.Feed ->
+                    Feed.view
+
+                Route.Auth maybeCodeAndState ->
+                    Auth.view maybeCodeAndState
+
+                Route.User maybeUserId ->
+                    User.view maybeUserId
+
+                Route.CardCollection userId collectionRoute ->
+                    Collection.view userId collectionRoute
+
+                Route.Bet game bet ->
+                    Bet.view game bet
+
+                Route.Bets subset game ->
+                    Bets.view subset game
+
+                Route.Games ->
+                    Games.view
+
+                Route.Leaderboard board ->
+                    Leaderboard.view board
+
+                Route.Gacha gachaRoute ->
+                    Gacha.view gachaRoute
+
+                Route.Edit editTarget ->
+                    Edit.view editTarget
+
+                Route.Problem problem ->
+                    Problem.view problem
+
         { title, id, body } =
-            case model.page of
-                Page.About ->
-                    About.view model
-
-                Page.Feed ->
-                    Feed.view model
-
-                Page.User ->
-                    User.view model
-
-                Page.Collection ->
-                    Collection.view model
-
-                Page.Bet ->
-                    Bet.view model
-
-                Page.Bets ->
-                    Bets.view model
-
-                Page.Games ->
-                    Games.view model
-
-                Page.Leaderboard ->
-                    Leaderboard.view model
-
-                Page.Gacha ->
-                    Gacha.view model
-
-                Page.Edit ->
-                    Edit.view model
-
-                Page.Problem ->
-                    Problem.view model
+            pageView model
 
         combinedBody =
             [ [ Html.header []
@@ -294,37 +298,37 @@ load route oldRouteModel =
     in
     case route of
         Route.About ->
-            ( { model | page = Page.About }, Cmd.none )
+            ( model, Cmd.none )
 
         Route.Feed ->
-            Feed.load { model | page = Page.Feed }
+            Feed.load model
 
         Route.Auth maybeCodeAndState ->
             Auth.load maybeCodeAndState model
 
         Route.User maybeId ->
-            User.load maybeId { model | page = Page.User }
+            User.load maybeId model
 
         Route.CardCollection id collectionRoute ->
-            Collection.load id collectionRoute { model | page = Page.Collection }
+            Collection.load id collectionRoute model
 
         Route.Bets subset id ->
-            Bets.load id subset { model | page = Page.Bets }
+            Bets.load id subset model
 
         Route.Bet gameId betId ->
-            Bet.load gameId betId { model | page = Page.Bet }
+            Bet.load gameId betId model
 
         Route.Games ->
-            Games.load { model | page = Page.Games }
+            Games.load model
 
         Route.Leaderboard board ->
-            Leaderboard.load board { model | page = Page.Leaderboard }
+            Leaderboard.load board model
 
         Route.Gacha gacha ->
-            Gacha.load gacha { model | page = Page.Gacha }
+            Gacha.load gacha model
 
         Route.Edit target ->
-            Edit.load target { model | page = Page.Edit }
+            Edit.load target model
 
         Route.Problem path ->
-            Problem.load path { model | page = Page.Problem }
+            Problem.load path model

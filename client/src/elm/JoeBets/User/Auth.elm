@@ -1,16 +1,15 @@
 module JoeBets.User.Auth exposing
     ( init
     , load
-    , logInButton
     , update
     , updateLocalUser
+    , view
     , viewError
     )
 
 import Browser.Events as Browser
 import Browser.Navigation as Navigation
 import FontAwesome as Icon
-import FontAwesome.Brands as Icon
 import FontAwesome.Solid as Icon
 import Html exposing (Html)
 import Html.Attributes as HtmlA
@@ -19,7 +18,12 @@ import JoeBets.Api.Error as Api
 import JoeBets.Api.Model as Api
 import JoeBets.Api.Path as Api
 import JoeBets.Messages as Global
-import JoeBets.Page.Model as Page exposing (Page)
+import JoeBets.Page exposing (Page)
+import JoeBets.Page.Gacha as Gacha
+import JoeBets.Page.Gacha.Collection.Model as Collection
+import JoeBets.Page.Gacha.Forge.Model as Forge
+import JoeBets.Page.Gacha.Model as Gacha
+import JoeBets.Page.Problem as Problem
 import JoeBets.Page.Problem.Model as Problem
 import JoeBets.Route as Route exposing (Route)
 import JoeBets.Store.Session as Session
@@ -30,9 +34,9 @@ import JoeBets.User.Model as User exposing (User)
 import JoeBets.User.Notifications as Notifications
 import JoeBets.User.Notifications.Model as Notifications
 import Json.Encode as JsonE
-import Material.Chips.Assist as AssistChip
 import Material.IconButton as IconButton
-import Util.Maybe as Maybe
+import Material.Progress as Progress
+import Time.Model as Time
 
 
 wrap : Msg -> Global.Msg
@@ -45,11 +49,14 @@ type alias Parent a =
         | auth : Model
         , navigationKey : Navigation.Key
         , origin : String
+        , time : Time.Context
         , route : Route
         , notifications : Notifications.Model
         , visibility : Browser.Visibility
-        , page : Page
         , problem : Problem.Model
+        , gacha : Gacha.Model
+        , collection : Collection.Model
+        , forge : Forge.Model
     }
 
 
@@ -134,8 +141,21 @@ load maybeCodeAndState ({ auth } as model) =
             )
 
 
+onAuthChange : Route -> Parent a -> ( Parent a, Cmd Global.Msg )
+onAuthChange route =
+    case route of
+        Route.Problem _ ->
+            Problem.onAuthChange
+
+        Route.Gacha gachaRoute ->
+            Gacha.onAuthChange gachaRoute
+
+        _ ->
+            \m -> ( m, Cmd.none )
+
+
 update : Msg -> Parent a -> ( Parent a, Cmd Global.Msg )
-update msg ({ route, auth, page, problem } as model) =
+update msg ({ route, auth } as model) =
     case msg of
         Login progress ->
             case progress of
@@ -188,29 +208,20 @@ update msg ({ route, auth, page, problem } as model) =
 
         SetLocalUser loggedIn ->
             let
-                redirectCmd =
-                    case page of
-                        Page.Problem ->
-                            case problem of
-                                Problem.MustBeLoggedIn { path } ->
-                                    Navigation.pushUrl model.navigationKey path
-
-                                _ ->
-                                    Cmd.none
-
-                        _ ->
-                            Cmd.none
-
                 newAuth =
                     { auth
                         | inProgress = Nothing
                         , localUser = Just loggedIn.user
                         , error = Nothing
                     }
+
+                ( finalModel, onLogInCmd ) =
+                    { model | auth = newAuth, notifications = loggedIn.notifications }
+                        |> onAuthChange route
             in
-            ( { model | auth = newAuth, notifications = loggedIn.notifications }
+            ( finalModel
             , Cmd.batch
-                [ redirectCmd
+                [ onLogInCmd
                 , getLoginRedirect
                 , Notifications.changeAuthed newAuth
                 ]
@@ -244,11 +255,15 @@ update msg ({ route, auth, page, problem } as model) =
                         , wrap = \_ -> "Logout result" |> Global.NoOp
                         , decoder = User.idDecoder
                         }
+
+                ( finalModel, authChangeCmd ) =
+                    onAuthChange route { model | auth = newAuth }
             in
-            ( { model | auth = newAuth }
+            ( finalModel
             , Cmd.batch
                 [ logoutRequest
                 , Notifications.changeAuthed newAuth
+                , authChangeCmd
                 ]
             )
 
@@ -258,25 +273,16 @@ update msg ({ route, auth, page, problem } as model) =
             )
 
 
-logInButton : Model -> String -> Html Global.Msg
-logInButton auth label =
-    let
-        button =
-            case auth.localUser of
-                Nothing ->
-                    AssistChip.chip label
-                        |> AssistChip.icon [ Icon.discord |> Icon.view ]
-                        |> AssistChip.button (Start |> Login |> wrap |> Just)
-                        |> AssistChip.attrs [ HtmlA.class "log-in" ]
-                        |> AssistChip.view
-                        |> Just
-
-                Just _ ->
-                    Nothing
-    in
-    button
-        |> Maybe.andThen (Maybe.when (auth.inProgress == Nothing))
-        |> Maybe.withDefault (Html.text label)
+view : Maybe CodeAndState -> { a | auth : Model } -> Page Global.Msg
+view _ _ =
+    { title = "Logging In..."
+    , id = "auth"
+    , body =
+        [ Progress.linear
+            |> Progress.attrs [ HtmlA.class "progress" ]
+            |> Progress.view
+        ]
+    }
 
 
 viewError : { a | auth : Model } -> List (Html Global.Msg)

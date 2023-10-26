@@ -26,7 +26,6 @@ import JoeBets.Page.Gacha.Edit.CardType.Model as CardType
 import JoeBets.Page.Gacha.Forge.Model as Forge
 import JoeBets.Page.Gacha.PreviewBanner.Model as PreviewBanner
 import JoeBets.Page.Gacha.Roll.Model as Roll
-import JoeBets.Page.Gacha.Route exposing (..)
 import JoeBets.User.Model as User
 
 
@@ -94,8 +93,7 @@ closeDetailDialog dialog =
 
 
 type alias Model =
-    { route : Route
-    , balance : Api.Data Balance
+    { balance : Api.Data Balance
     , balanceInfoShown : Bool
     , banners : Api.Data Banner.Banners
     , rollAction : Api.ActionState

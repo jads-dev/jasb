@@ -724,9 +724,19 @@ CREATE FUNCTION complete_bet (
 ) RETURNS bets LANGUAGE plpgsql AS $$
   DECLARE
     user_id users.id%TYPE;
+    bet_id bets.id%TYPE;
     completed_bet bets%ROWTYPE;
   BEGIN
     SELECT validate_manage_bets(credential, session_lifetime, game_slug) INTO user_id;
+
+    SELECT bets.id INTO bet_id
+    FROM bets INNER JOIN games ON bets.game = games.id
+    WHERE games.slug = game_slug AND bets.slug = bet_slug AND bets.progress = 'Locked'::BetProgress;
+    IF bet_id is NULL THEN
+      RAISE EXCEPTION USING
+        ERRCODE = 'NTFND',
+        MESSAGE = 'Bet not found.';
+    END IF;
 
     WITH
       staked AS (
@@ -734,11 +744,8 @@ CREATE FUNCTION complete_bet (
           options.id AS option,
           sum(stakes.amount) AS total,
           (options.slug = ANY(winners)) AS is_winner
-        FROM stakes INNER JOIN
-          options ON stakes.option = options.id INNER JOIN
-          bets ON options.bet = bets.id INNER JOIN
-          games ON bets.game = games.id
-        WHERE games.slug = game_slug AND bets.slug = bet_slug
+        FROM stakes INNER JOIN options ON stakes.option = options.id
+        WHERE options.bet = bet_id
         GROUP BY (options.id, options.slug)
       ),
       pot AS (
@@ -792,13 +799,8 @@ CREATE FUNCTION complete_bet (
         UPDATE options SET
           version = options.version + 1,
           won = TRUE
-        FROM
-          bets INNER JOIN
-          games ON bets.game = games.id
         WHERE
-          games.slug = game_slug AND
-          bets.slug = bet_slug AND
-          options.bet = bets.id AND
+          options.bet = bet_id AND
           options.slug = ANY(winners)
       ),
       notify_users AS (
@@ -835,7 +837,7 @@ CREATE FUNCTION complete_bet (
         resolved = now(),
         progress = 'Complete'
       FROM games
-      WHERE bets.game = games.id AND games.slug = game_slug AND bets.slug = bet_slug AND is_active(bets.progress)
+      WHERE bets.id = bet_id
       RETURNING bets.* INTO completed_bet;
 
       INSERT INTO audit_logs (event) VALUES (
@@ -1339,8 +1341,8 @@ CREATE FUNCTION revert_complete_bet (
       balance = users.balance - coalesce(stakes.payout, 0),
       rolls = greatest(users.rolls - stakes.gacha_payout_rolls, 0),
       scrap = greatest(users.scrap - stakes.gacha_payout_scrap, 0)
-    FROM stakes INNER JOIN options ON stakes.option = options.id AND options.bet = bet_id
-    WHERE stakes.owner = users.id;
+    FROM stakes INNER JOIN options ON stakes.option = options.id
+    WHERE stakes.owner = users.id AND options.bet = bet_id;
 
     INSERT INTO notifications ("for", notification)
     SELECT
@@ -1363,8 +1365,9 @@ CREATE FUNCTION revert_complete_bet (
     FROM
       stakes LEFT JOIN
         options ON stakes.option = options.id INNER JOIN
-        bets ON options.bet = bets.id AND bets.id = bet_id INNER JOIN
-        games ON bets.game = games.id;
+        bets ON options.bet = bets.id INNER JOIN
+        games ON bets.game = games.id
+    WHERE bets.id = bet_id;
 
     UPDATE stakes SET
       payout = NULL,

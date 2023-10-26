@@ -1,5 +1,6 @@
 module JoeBets.Page.Gacha.Roll exposing
     ( load
+    , onAuthChange
     , update
     , view
     )
@@ -30,6 +31,7 @@ import JoeBets.Page.Gacha.Model as Gacha
 import JoeBets.Page.Gacha.Roll.Model exposing (..)
 import JoeBets.Page.Gacha.Route as Gacha
 import JoeBets.Route as Route
+import JoeBets.User.Auth.Controls as Auth
 import JoeBets.User.Auth.Model as Auth
 import JoeBets.User.Model as User
 import Json.Encode as JsonE
@@ -58,11 +60,16 @@ type alias Parent a =
     }
 
 
+onAuthChange : Parent a -> ( Parent a, Cmd Global.Msg )
+onAuthChange =
+    Balance.load
+
+
 load : Parent a -> ( Parent a, Cmd Global.Msg )
 load oldModel =
     let
         ( { origin, gacha } as model, balanceCmd ) =
-            Balance.load oldModel
+            onAuthChange oldModel
 
         ( banners, bannersCmd ) =
             { path = Api.Gacha (Api.Banners Api.BannersRoot)
@@ -293,7 +300,7 @@ view ({ auth, gacha, collection } as parent) =
                         |> List.concat
 
                 Nothing ->
-                    []
+                    [ Html.p [] [ Auth.logInButton auth "Log in", Html.text " to get cards of your own, or become a card!" ] ]
 
         editActions =
             if Auth.canManageGacha auth.localUser then
@@ -314,14 +321,14 @@ view ({ auth, gacha, collection } as parent) =
             Collection.manageContext parent.auth collection
 
         maybeContext =
-            collection.collection
+            collection.overview
                 |> Api.idDataToMaybe
                 |> Maybe.andThen contextFromCollection
     in
-    { title = "Roll for Cards"
+    { title = "Cards"
     , id = "gacha"
     , body =
-        [ [ Html.h2 [] [ Html.text "Roll for Cards" ] ]
+        [ [ Html.h2 [] [ Html.text "Cards" ] ]
         , loggedIn
         , gacha.banners |> Api.viewData Api.viewOrError (Banner.viewBanners parent)
         , editActions

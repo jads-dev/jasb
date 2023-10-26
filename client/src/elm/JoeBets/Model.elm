@@ -15,7 +15,6 @@ import JoeBets.Page.Gacha.Forge.Model as Forge
 import JoeBets.Page.Gacha.Model as Gacha
 import JoeBets.Page.Games.Model as Games
 import JoeBets.Page.Leaderboard.Model as Leaderboard
-import JoeBets.Page.Model exposing (Page)
 import JoeBets.Page.Problem.Model as Problem
 import JoeBets.Page.User.Model as User
 import JoeBets.Route exposing (Route)
@@ -36,7 +35,6 @@ type alias Model =
     , time : Time.Context
     , route : Route
     , navigation : Navigation.Model
-    , page : Page
     , auth : Auth.Model
     , notifications : Notifications.Model
     , feed : Feed.Model

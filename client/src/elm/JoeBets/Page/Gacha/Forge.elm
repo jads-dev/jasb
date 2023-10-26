@@ -1,6 +1,7 @@
 module JoeBets.Page.Gacha.Forge exposing
     ( init
     , load
+    , onAuthChange
     , update
     , view
     )
@@ -29,10 +30,10 @@ import JoeBets.Page.Gacha.Edit.CardType.RaritySelector as Rarity
 import JoeBets.Page.Gacha.Forge.Model exposing (..)
 import JoeBets.Page.Gacha.Model as Gacha
 import JoeBets.Page.Gacha.Route as Gacha
-import JoeBets.Page.Model as Page
 import JoeBets.Page.Problem.Model as Problem
 import JoeBets.Route as Route
 import JoeBets.User as User
+import JoeBets.User.Auth.Controls as Auth
 import JoeBets.User.Auth.Model as Auth
 import Json.Decode as JsonD
 import Json.Encode as JsonE
@@ -53,7 +54,7 @@ type alias Parent a =
         , auth : Auth.Model
         , forge : Model
         , problem : Problem.Model
-        , page : Page.Page
+        , route : Route.Route
         , collection : Collection.Model
         , gacha : Gacha.Model
     }
@@ -68,6 +69,11 @@ init =
     , rarity = Nothing
     , confirmRetire = Nothing
     }
+
+
+onAuthChange : Parent a -> ( Parent a, Cmd Global.Msg )
+onAuthChange =
+    load
 
 
 load : Parent a -> ( Parent a, Cmd Global.Msg )
@@ -94,12 +100,7 @@ load model =
             )
 
         Nothing ->
-            ( { model
-                | problem =
-                    Problem.MustBeLoggedIn
-                        { path = Gacha.Forge |> Route.Gacha |> Route.toUrl }
-                , page = Page.Problem
-              }
+            ( Auth.mustBeLoggedIn (Route.Gacha Gacha.Forge) model
             , Cmd.none
             )
 

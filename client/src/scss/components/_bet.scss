@@ -2,6 +2,9 @@
 @use "../_colors.scss";
 
 .bet {
+  --stake-color: #{colors.by-name("secondary")};
+  --on-stake-color: #{colors.by-name("on-secondary")};
+
   > ul {
     list-style: none;
     padding: 0;
@@ -15,6 +18,11 @@
 
     > li {
       display: contents;
+
+      &.winner {
+        --stake-color: #{colors.by-name("good")};
+        --on-stake-color: #{colors.by-name("on-good")};
+      }
 
       > img {
         max-height: 4em;
@@ -119,8 +127,6 @@
           border-right: unset;
         }
 
-        --stake-color: #{colors.by-name("secondary")};
-        --on-stake-color: #{colors.by-name("on-secondary")};
         background-color: var(--stake-color);
         color: var(--on-stake-color);
 

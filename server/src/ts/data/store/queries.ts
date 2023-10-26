@@ -59,6 +59,7 @@ const typedSql = Slonik.createSqlTag({
     editable_card_type: Gacha.CardTypes.Editable,
     card_type: Gacha.CardType,
     card_type_with_cards: Gacha.CardTypes.WithCards,
+    card_type_with_cards_and_banner: Gacha.CardTypes.WithCardsAndBanner,
     rarity_with_optional_card_type: Gacha.CardTypes.OptionalForRarity,
     card: Gacha.Cards.Card,
     detailed_card: Gacha.Cards.Detailed,
@@ -910,6 +911,67 @@ export const cardTypeWithCards = (
       card_objects.url,
       card_types.layout,
       card_types.retired,
+      rarities.slug,
+      rarities.name,
+      card_types.created,
+      card_types.retired
+    HAVING (NOT card_types.retired) OR (count(cards.id) > 0)
+    ORDER BY
+      max(rarities.generation_weight), 
+      card_types.created
+  `;
+};
+
+export const cardTypeWithCardsAndBanner = (cardSource: Slonik.SqlFragment) => {
+  const sql = typedSql("card_type_with_cards_and_banner");
+  return sql`
+    WITH
+      cards AS (${cardSource}),
+      qualities AS (
+        SELECT
+          card_qualities.card,
+            jsonb_agg(jsonb_build_object(
+            'slug', qualities.slug,
+            'name', qualities.name
+          )) FILTER ( WHERE qualities.id IS NOT NULL ) AS qualities
+        FROM
+          gacha_card_qualities AS card_qualities LEFT JOIN
+          gacha_qualities AS qualities ON card_qualities.quality = qualities.id
+        GROUP BY
+          card_qualities.card
+      )
+    SELECT
+      card_types.id,
+      card_types.name,
+      card_types.description,
+      card_objects.url AS image,
+      card_types.layout,
+      card_types.retired,
+      jsonb_build_object(
+        'slug', rarities.slug,
+        'name', rarities.name
+      ) AS rarity,
+      banners.slug AS banner,
+      coalesce(jsonb_agg(jsonb_build_object(
+        'id', cards.id,
+        'issue_number', cards.issue_number,
+        'qualities', coalesce(qualities.qualities, '[]'::jsonb)
+      ) ORDER BY cards.id) FILTER ( WHERE cards.id IS NOT NULL ), '[]'::jsonb) AS cards
+    FROM
+      gacha_card_types AS card_types INNER JOIN
+      card_objects ON card_types.image = card_objects.id INNER JOIN
+      jasb.gacha_banners AS banners ON card_types.banner = banners.id INNER JOIN
+      gacha_rarities AS rarities ON card_types.rarity = rarities.id LEFT JOIN
+      cards ON card_types.id = cards.type LEFT JOIN
+      qualities ON cards.id = qualities.card
+    GROUP BY
+      card_types.id,
+      card_types.name,
+      card_types.description,
+      card_objects.url,
+      card_types.layout,
+      card_types.retired,
+      banners.slug,
       rarities.slug,
       rarities.name,
       card_types.created,

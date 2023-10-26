@@ -159,8 +159,8 @@ update msg ({ origin, time } as model) =
             ( { model | bet = { bet | feed = feed } }, cmd )
 
 
-view : Parent a -> Page Global.Msg
-view model =
+view : Game.Id -> Bet.Id -> Parent a -> Page Global.Msg
+view _ _ model =
     let
         placeBetView localUser =
             PlaceBet.view (PlaceBetMsg >> wrap) localUser model.bet.placeBet

@@ -11,6 +11,7 @@ import Url.Parser as Parser exposing ((</>), Parser)
 
 type Route
     = Overview
+    | All
     | Banner Banner.Id
     | Card Banner.Id Card.Id
 
@@ -20,6 +21,9 @@ routeToListOfStrings route =
     case route of
         Overview ->
             []
+
+        All ->
+            [ "all" ]
 
         Banner bannerId ->
             [ Banner.idToString bannerId ]
@@ -34,7 +38,8 @@ routeToListOfStrings route =
 routeParser : Parser (Route -> a) a
 routeParser =
     Parser.oneOf
-        [ Banner.idParser </> Parser.s "card" </> Card.idParser |> Parser.map Card
+        [ Parser.s "all" |> Parser.map All
+        , Banner.idParser </> Parser.s "card" </> Card.idParser |> Parser.map Card
         , Banner.idParser |> Parser.map Banner
         , Parser.top |> Parser.map Overview
         ]

@@ -1,6 +1,7 @@
 module JoeBets.Page.Gacha exposing
     ( init
     , load
+    , onAuthChange
     , update
     , view
     )
@@ -27,9 +28,9 @@ import JoeBets.Page.Gacha.Model exposing (..)
 import JoeBets.Page.Gacha.PreviewBanner as PreviewBanner
 import JoeBets.Page.Gacha.Roll as Roll
 import JoeBets.Page.Gacha.Route exposing (..)
-import JoeBets.Page.Model as PageModel
 import JoeBets.Page.Problem.Model as Problem
 import JoeBets.Route as Route
+import JoeBets.User.Auth.Controls as Auth
 import JoeBets.User.Auth.Model as Auth
 import Time.Model as Time
 
@@ -47,15 +48,14 @@ type alias Parent a =
         , gacha : Model
         , collection : Collection.Model
         , problem : Problem.Model
-        , page : PageModel.Page
+        , route : Route.Route
         , forge : Forge.Model
     }
 
 
-init : Maybe Route -> Model
-init route =
-    { route = route |> Maybe.withDefault Roll
-    , balance = Api.initData
+init : Model
+init =
+    { balance = Api.initData
     , balanceInfoShown = False
     , banners = Api.initData
     , rollAction = Api.initAction
@@ -73,32 +73,15 @@ init route =
     }
 
 
-load : Route -> Parent a -> ( Parent a, Cmd Global.Msg )
-load route originalModel =
-    let
-        ({ origin, gacha } as model) =
-            let
-                originalGacha =
-                    originalModel.gacha
-            in
-            { originalModel | gacha = { originalGacha | route = route } }
-    in
+loadEdit : EditTarget -> Parent a -> ( Parent a, Cmd Global.Msg )
+loadEdit editTarget ({ origin, gacha } as model) =
     case model.auth.localUser of
         Just _ ->
-            case route of
-                Roll ->
-                    Roll.load model
-
-                Forge ->
-                    Forge.load model
-
-                PreviewBanner bannerId ->
-                    PreviewBanner.load bannerId model
-
-                Edit Banner ->
+            case editTarget of
+                Banner ->
                     loadBannersEditor model
 
-                Edit (CardType bannerId) ->
+                CardType bannerId ->
                     let
                         ( context, contextCmd ) =
                             loadContextIfNeeded origin gacha.context
@@ -112,14 +95,41 @@ load route originalModel =
                     )
 
         Nothing ->
-            ( { model
-                | problem =
-                    Problem.MustBeLoggedIn
-                        { path = route |> Route.Gacha |> Route.toUrl }
-                , page = PageModel.Problem
-              }
+            ( Auth.mustBeLoggedIn (editTarget |> Edit |> Route.Gacha) model
             , Cmd.none
             )
+
+
+onAuthChange : Route -> Parent a -> ( Parent a, Cmd Global.Msg )
+onAuthChange route parent =
+    case route of
+        Roll ->
+            Roll.onAuthChange parent
+
+        Forge ->
+            Forge.onAuthChange parent
+
+        Edit editTarget ->
+            loadEdit editTarget parent
+
+        _ ->
+            ( parent, Cmd.none )
+
+
+load : Route -> Parent a -> ( Parent a, Cmd Global.Msg )
+load route model =
+    case route of
+        Roll ->
+            Roll.load model
+
+        Forge ->
+            Forge.load model
+
+        PreviewBanner bannerId ->
+            PreviewBanner.load bannerId model
+
+        Edit editTarget ->
+            loadEdit editTarget model
 
 
 update : Msg -> Parent a -> ( Parent a, Cmd Global.Msg )
@@ -231,9 +241,9 @@ update msg ({ origin, gacha } as model) =
             ( Balance.update balanceMsg model, Cmd.none )
 
 
-view : Parent a -> Page Global.Msg
-view ({ gacha } as model) =
-    case gacha.route of
+view : Route -> Parent a -> Page Global.Msg
+view route model =
+    case route of
         Roll ->
             Roll.view model
 

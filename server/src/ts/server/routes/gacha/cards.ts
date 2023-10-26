@@ -208,7 +208,34 @@ export const cardsApi = (): Server.Router => {
     ctx.body = CardTypes.WithId.encode(CardTypes.fromInternal(cardType));
   });
 
-  // Get the card collection for the logged-in user in the given banner.
+  // Get all cards in the card collection for the given user.
+  router.get("/:userSlug/all", async (ctx) => {
+    const { store } = ctx.server;
+    const userSlug = requireUrlParameter(
+      Users.Slug,
+      "user",
+      ctx.params["userSlug"],
+    );
+    const [user, cardTypes] = await Promise.all([
+      store.getUser(userSlug),
+      store.gachaGetAllCollectionCards(userSlug),
+    ]);
+    if (user === undefined) {
+      throw new WebError(StatusCodes.NOT_FOUND, "User not found.");
+    } else {
+      ctx.body = Schema.strict({
+        user: Schema.tuple([Users.Slug, Users.Summary]),
+        cards: Schema.readonlyArray(
+          Schema.tuple([CardTypes.Id, CardTypes.WithCardsAndBanner]),
+        ),
+      }).encode({
+        user: Users.summaryFromInternal(user),
+        cards: cardTypes.map(CardTypes.withCardsAndBannerFromInternal),
+      });
+    }
+  });
+
+  // Get the card collection for the given user in the given banner.
   router.get("/:userSlug/banners/:bannerSlug", async (ctx) => {
     const { store } = ctx.server;
     const userSlug = requireUrlParameter(
@@ -223,7 +250,7 @@ export const cardsApi = (): Server.Router => {
     );
     const [user, banner, cardTypes] = await Promise.all([
       store.getUser(userSlug),
-      store.gachaGetEditableBanner(bannerSlug),
+      store.gachaGetBanner(bannerSlug),
       store.gachaGetCollectionCards(userSlug, bannerSlug),
     ]);
     if (user === undefined) {

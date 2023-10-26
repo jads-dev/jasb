@@ -636,11 +636,11 @@ viewCardTypeWithCards onClick filter userId bannerId cardTypeId cardType =
     }
 
 
-viewCardTypesWithCards : Maybe (Collection.OnClick Global.Msg) -> Filter -> User.Id -> Banner.Id -> AssocList.Dict CardType.Id CardType.WithCards -> FilteredView (Html Global.Msg)
-viewCardTypesWithCards onClick filter user banner cardTypesWithCards =
+viewCardTypesWithCards : Maybe (Collection.OnClick Global.Msg) -> Filter -> User.Id -> AssocList.Dict CardType.Id CardType.WithCards -> FilteredView (Html Global.Msg)
+viewCardTypesWithCards onClick filter user cardTypesWithCards =
     let
         internalView cardTypeId cardType =
-            viewCardTypeWithCards onClick filter.card user banner cardTypeId cardType
+            viewCardTypeWithCards onClick filter.card user cardType.banner cardTypeId cardType
 
         viewedCardTypes =
             cardTypesWithCards

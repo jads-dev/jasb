@@ -131,7 +131,16 @@ toUrlWithGivenRoot root route =
                                     ( [ "games", gameId |> Game.idToString, betId |> Bet.idToString, "edit" ], [], Nothing )
 
                 Problem path ->
-                    ( path |> String.split "/", [], Nothing )
+                    let
+                        splitPath =
+                            case path |> String.split "/" of
+                                "" :: rest ->
+                                    rest
+
+                                otherwise ->
+                                    otherwise
+                    in
+                    ( splitPath, [], Nothing )
     in
     Url.Builder.custom root parts queries fragment
 
