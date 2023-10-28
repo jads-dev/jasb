@@ -1,4 +1,5 @@
 ARG NODE_VERSION=20
+ARG NGINX_BASE="nginx:mainline-alpine"
 ARG MODE=production
 ARG BUILD_DATE
 ARG VCS_REF
@@ -35,7 +36,7 @@ FROM scratch AS sources
 COPY --link --from=build ["/jasb/dist", "/"]
 
 
-FROM --platform=${TARGETPLATFORM} nginx:mainline-alpine AS client
+FROM --platform=${TARGETPLATFORM} ${NGINX_BASE} AS client
 
 ARG VERSION
 ARG BUILD_DATE
@@ -55,4 +56,4 @@ EXPOSE 8080
 EXPOSE 8083
 
 COPY --link --from=sources ["/", "/usr/share/nginx/html/"]
-COPY ["./nginx.conf", "/etc/nginx/nginx.conf"]
+COPY ["./nginx/nginx.conf", "/etc/nginx/nginx.conf"]

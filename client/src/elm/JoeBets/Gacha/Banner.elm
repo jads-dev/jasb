@@ -104,12 +104,12 @@ decoder =
 
 
 type alias WithId =
-    ( Id, Banner )
+    { id : Id, banner : Banner }
 
 
 withIdDecoder : JsonD.Decoder WithId
 withIdDecoder =
-    JsonD.map2 Tuple.pair
+    JsonD.map2 WithId
         (JsonD.index 0 idDecoder)
         (JsonD.index 1 decoder)
 

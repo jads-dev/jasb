@@ -8,7 +8,7 @@ export class SizeCounter extends Stream.Writable {
   size = 0;
 
   override _write(
-    chunk: Buffer,
+    chunk: Uint8Array,
     _encoding: BufferEncoding,
     callback: (error?: Error | null) => void,
   ): void {
@@ -17,7 +17,7 @@ export class SizeCounter extends Stream.Writable {
   }
 
   override _writev(
-    chunks: readonly { chunk: Buffer; encoding: BufferEncoding }[],
+    chunks: readonly { chunk: Uint8Array; encoding: BufferEncoding }[],
     callback: (error?: Error | null) => void,
   ): void {
     for (const { chunk } of chunks) {

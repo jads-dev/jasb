@@ -1,6 +1,5 @@
 module JoeBets.Page.Gacha.Collection.Model exposing
-    ( AllCollection
-    , BannerCollection
+    ( CollectionCards
     , CollectionOverview
     , LocalOrderHighlights
     , ManageContext
@@ -52,8 +51,7 @@ type RecycleProcess
 
 type Msg
     = LoadCollection User.Id (Api.Response CollectionOverview)
-    | LoadAllCards User.Id (Api.Response AllCollection)
-    | LoadBannerCollection User.Id Banner.Id (Api.Response BannerCollection)
+    | LoadCards User.Id (Maybe Banner.Id) (Api.Response CollectionCards)
     | SetEditingHighlights Bool
     | SetCardHighlighted User.Id Banner.Id Card.Id Bool
     | EditHighlightMessage User.Id Banner.Id Card.Id (Maybe String)
@@ -146,13 +144,14 @@ overviewDecoder =
         |> JsonD.required "banners" Banner.bannersDecoder
 
 
-type alias AllCollection =
+type alias CollectionCards =
     { user : User.SummaryWithId
+    , banner : Maybe Banner.WithId
     , cardTypes : AssocList.Dict CardType.Id CardType.WithCards
     }
 
 
-allCollectionDecoder : JsonD.Decoder AllCollection
+allCollectionDecoder : JsonD.Decoder CollectionCards
 allCollectionDecoder =
     let
         cardTypeWithCardsAndBannerDecoder =
@@ -161,30 +160,24 @@ allCollectionDecoder =
         assocListCardsDecoder =
             JsonD.assocListFromTupleList CardType.idDecoder cardTypeWithCardsAndBannerDecoder
     in
-    JsonD.succeed AllCollection
+    JsonD.succeed CollectionCards
         |> JsonD.required "user" User.summaryWithIdDecoder
+        |> JsonD.hardcoded Nothing
         |> JsonD.required "cards" assocListCardsDecoder
 
 
-type alias BannerCollection =
-    { user : User.SummaryWithId
-    , banner : Banner.WithId
-    , cardTypes : AssocList.Dict CardType.Id CardType.WithCards
-    }
-
-
-bannerCollectionDecoder : JsonD.Decoder BannerCollection
+bannerCollectionDecoder : JsonD.Decoder CollectionCards
 bannerCollectionDecoder =
     let
-        cardsAndBanner ( bannerId, banner ) =
+        cardsAndBanner withId =
             let
                 cardsDecoder =
                     JsonD.assocListFromTupleList CardType.idDecoder
-                        (CardType.withCardsDecoder bannerId)
+                        (CardType.withCardsDecoder withId.id)
             in
-            JsonD.succeed BannerCollection
+            JsonD.succeed CollectionCards
                 |> JsonD.required "user" User.summaryWithIdDecoder
-                |> JsonD.hardcoded ( bannerId, banner )
+                |> JsonD.hardcoded (Just withId)
                 |> JsonD.required "cards" cardsDecoder
     in
     JsonD.field "banner" Banner.withIdDecoder |> JsonD.andThen cardsAndBanner
@@ -209,8 +202,7 @@ type alias RecycleConfirmation =
 
 type alias Model =
     { overview : Api.IdData User.Id CollectionOverview
-    , allCollection : Api.IdData User.Id AllCollection
-    , bannerCollection : Api.IdData ( User.Id, Banner.Id ) BannerCollection
+    , cards : Api.IdData ( User.Id, Maybe Banner.Id ) CollectionCards
     , recycleConfirmation : Maybe RecycleConfirmation
     , orderEditor : OrderEditor
     , messageEditor : Maybe MessageEditor

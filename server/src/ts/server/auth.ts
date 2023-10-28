@@ -10,8 +10,8 @@ import { Discord } from "../external.js";
 import { Notifications, Users } from "../public.js";
 import { Expect } from "../util/expect.js";
 import { Maths } from "../util/maths.js";
-import { Random } from "../util/random.js";
 import { SecretToken } from "../util/secret-token.js";
+import { SecureRandom } from "../util/secure-random.js";
 import { Validation } from "../util/validation.js";
 import type { Credential, Credentials } from "./auth/credentials.js";
 import type { Config } from "./config.js";
@@ -176,8 +176,8 @@ export class Auth {
 
   async #generateState(): Promise<State> {
     const [nonce, state, code] = await Promise.all([
-      Random.secureRandomString(32),
-      Random.secureRandomString(64),
+      SecureRandom.string(32),
+      SecureRandom.string(64),
       OAuth.generateCodeVerifier(),
     ]);
     return {
@@ -287,7 +287,7 @@ export class Auth {
           refreshToken,
           Joda.Instant.ofEpochMilli(expiresAt),
         ),
-        Random.secureRandomString(32),
+        SecureRandom.string(32),
       ]);
       const user = Users.fromInternal(login.user);
       const notifications = login.notifications.map(Notifications.fromInternal);

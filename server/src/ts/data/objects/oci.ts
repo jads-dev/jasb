@@ -16,7 +16,7 @@ import type { Config } from "../../server/config.js";
 import type { Logging } from "../../server/logging.js";
 import { Server } from "../../server/model.js";
 import { Arrays } from "../../util/arrays.js";
-import { Random } from "../../util/random.js";
+import { SecureRandom } from "../../util/secure-random.js";
 import { SizeCounter } from "../../util/streams.js";
 import { Objects } from "./model.js";
 
@@ -118,9 +118,7 @@ export class OciObjectStorage implements Objects.Storage {
     if (extension === undefined) {
       throw new Error(`No extension known for mime type “${mimeType}”.`);
     }
-    const tempFilename = `${OS.tmpdir()}/${await Random.secureRandomString(
-      64,
-    )}`;
+    const tempFilename = `${OS.tmpdir()}/${SecureRandom.string(64)}`;
     const md5 = this.#hash(stream, "md5");
     const sha256 = this.#hash(stream, "sha256");
     const sizeCounter = new SizeCounter();

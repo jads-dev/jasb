@@ -1,7 +1,7 @@
 import * as process from "node:process";
 
 import "dotenv/config";
-import { type Plugin, defineConfig } from "vite";
+import { type Plugin, defineConfig, ProxyOptions } from "vite";
 import { plugin as elm } from "vite-plugin-elm";
 import { compression } from "vite-plugin-compression2";
 
@@ -19,7 +19,7 @@ const url =
 const version = process.env["JASB_VERSION"] ?? "dev";
 const objectUpstreamUrl = process.env["JASB_OBJECT_UPSTREAM_URL"] ?? "";
 
-const objectRedirect =
+const objectRedirect: Record<string, ProxyOptions> =
   objectUpstreamUrl !== ""
     ? {
         "/assets/objects/": {
@@ -58,7 +58,10 @@ const spaRedirect = (): Plugin => ({
   name: "spa-redirect",
   configureServer: (server) => {
     server.middlewares.use((req, _res, next): void => {
-      const { pathname, search } = new URL(req.url, "http://example.com");
+      const { pathname, search } = new URL(
+        req.url ?? "/",
+        "http://example.com",
+      );
       const [_, firstPart, ..._rest] = pathname.split("/");
       if (
         // API calls should go through.
@@ -118,10 +121,10 @@ export default defineConfig({
     spaRedirect(),
     elm(),
     compression({ ...compressionShared }),
-    // compression({
-    //   ...compressionShared,
-    //   algorithm: "brotliCompress",
-    //   exclude: [/\.gz$/],
-    // }),
+    compression({
+      ...compressionShared,
+      algorithm: "brotliCompress",
+      exclude: [/\.gz$/],
+    }),
   ],
 });

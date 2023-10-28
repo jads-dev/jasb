@@ -246,8 +246,8 @@ viewDetailedInternal maybeContext bannerId cardType individualDetails =
                 retired =
                     cardType.cardType.retired
 
-                ( _, banner ) =
-                    cardType.banner
+                banner =
+                    cardType.banner.banner
 
                 content =
                     if retired || not banner.active then

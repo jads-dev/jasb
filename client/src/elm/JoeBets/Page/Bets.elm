@@ -30,7 +30,7 @@ import JoeBets.Game.Model as Game
 import JoeBets.Material as Material
 import JoeBets.Messages as Global
 import JoeBets.Page exposing (Page)
-import JoeBets.Page.Bets.Filters as Filters exposing (Filters)
+import JoeBets.Page.Bets.Filters as Filters
 import JoeBets.Page.Bets.Model exposing (..)
 import JoeBets.Page.Edit.Model as Edit
 import JoeBets.Page.User.Model as User
@@ -371,8 +371,8 @@ update msg ({ bets, origin, time } as model) =
                             ( newModel, Cmd.none )
 
 
-viewActiveFilters : Subset -> Filters.Resolved -> Filters -> Int -> Int -> Html Global.Msg
-viewActiveFilters subset filters gameFilters totalCount shownCount =
+viewActiveFilters : Subset -> Filters.Resolved -> Int -> Int -> Html Global.Msg
+viewActiveFilters subset filters totalCount shownCount =
     let
         active =
             case subset of
@@ -541,7 +541,7 @@ view _ _ model =
                     , Game.viewManagers game
                     , lockStatusDialog id model.bets.lockManager
                     ]
-              , Html.div [ HtmlA.class "controls" ] [ viewActiveFilters subset filters gameFilters totalCount shownCount ]
+              , Html.div [ HtmlA.class "controls" ] [ viewActiveFilters subset filters totalCount shownCount ]
               , if shownCount > 0 then
                     betsRendered
                         |> AssocList.toList

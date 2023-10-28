@@ -20,6 +20,7 @@ import JoeBets.Api.Path as Api
 import JoeBets.Messages as Global
 import JoeBets.Page exposing (Page)
 import JoeBets.Page.Gacha as Gacha
+import JoeBets.Page.Gacha.Collection as Collection
 import JoeBets.Page.Gacha.Collection.Model as Collection
 import JoeBets.Page.Gacha.Forge.Model as Forge
 import JoeBets.Page.Gacha.Model as Gacha
@@ -149,6 +150,9 @@ onAuthChange route =
 
         Route.Gacha gachaRoute ->
             Gacha.onAuthChange gachaRoute
+
+        Route.CardCollection id collectionRoute ->
+            Collection.onAuthChange id collectionRoute
 
         _ ->
             \m -> ( m, Cmd.none )

@@ -39,6 +39,10 @@ const createResultParserInterceptor = (): Slonik.Interceptor => ({
 
 const sqlFragment = Slonik.sql.fragment;
 
+// Slonik doesn't have TypedArray support yet.
+// eslint-disable-next-line no-restricted-globals
+const binary = (value: Uint8Array) => Slonik.sql.binary(Buffer.from(value));
+
 export class Store {
   readonly #config: Config.Server;
   readonly #pool: Slonik.DatabasePool;
@@ -226,7 +230,7 @@ export class Store {
     user: Users.User & Users.LoginDetail;
     notifications: readonly Notifications.Notification[];
   }> {
-    const sessionId = await SecretToken.secureRandom(
+    const sessionId = SecretToken.secureRandom(
       this.#config.auth.sessions.idSize,
     );
     return await this.inTransaction(async (client) => {
@@ -1607,8 +1611,8 @@ export class Store {
     cover: string,
     active: boolean,
     type: string,
-    backgroundColor: Buffer,
-    foregroundColor: Buffer,
+    backgroundColor: Uint8Array,
+    foregroundColor: Uint8Array,
   ): Promise<number> {
     const result = await this.inTransaction(
       async (client) =>
@@ -1623,8 +1627,8 @@ export class Store {
                ${cover},
                ${active},
                ${type},
-               ${Slonik.sql.binary(backgroundColor)},
-               ${Slonik.sql.binary(foregroundColor)}
+               ${binary(backgroundColor)},
+               ${binary(foregroundColor)}
              )
           `),
         ),
@@ -1641,8 +1645,8 @@ export class Store {
     cover: string | null,
     active: boolean | null,
     type: string | null,
-    backgroundColor: Buffer | null,
-    foregroundColor: Buffer | null,
+    backgroundColor: Uint8Array | null,
+    foregroundColor: Uint8Array | null,
   ): Promise<number> {
     const result = await this.inTransaction(
       async (client) =>
@@ -1658,16 +1662,8 @@ export class Store {
               ${cover},
               ${active},
               ${type},
-              ${
-                backgroundColor !== null
-                  ? Slonik.sql.binary(backgroundColor)
-                  : null
-              },
-              ${
-                foregroundColor !== null
-                  ? Slonik.sql.binary(foregroundColor)
-                  : null
-              }
+              ${backgroundColor !== null ? binary(backgroundColor) : null},
+              ${foregroundColor !== null ? binary(foregroundColor) : null}
             )
           `),
         ),

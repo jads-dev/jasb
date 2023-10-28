@@ -1,6 +1,7 @@
 import * as Util from "util";
 
-import { randomBytes, secureRandomString } from "./random.js";
+import { Base64 } from "./base-64.js";
+import { SecureRandom } from "./secure-random.js";
 
 const internalExtractFromUri = (uri: string): string | undefined => {
   if (uri.startsWith(SecretToken.scheme)) {
@@ -53,8 +54,8 @@ export class SecretToken implements SecretTokenLike {
     return new this(value);
   }
 
-  public static async secureRandom(bytes: number): Promise<SecretToken> {
-    return SecretToken.fromValue(await secureRandomString(bytes));
+  public static secureRandom(bytes: number): SecretToken {
+    return SecretToken.fromValue(SecureRandom.string(bytes));
   }
 
   public toString(): string {
@@ -103,18 +104,17 @@ export class PlaceholderSecretToken implements SecretTokenLike {
   }
 }
 
-export class BufferSecretToken implements SecretTokenLike<Buffer> {
-  public static readonly encoding = "base64url";
-  public readonly value: Buffer;
+export class BufferSecretToken implements SecretTokenLike<Uint8Array> {
+  public readonly value: Uint8Array;
 
-  private constructor(value: Buffer) {
+  private constructor(value: Uint8Array) {
     this.value = value;
   }
 
   public get uri(): string {
-    return `${SecretToken.scheme}${this.value.toString(
-      BufferSecretToken.encoding,
-    )}`;
+    return `${SecretToken.scheme}${Base64.encode(this.value, {
+      urlSafe: true,
+    })}`;
   }
 
   public inSecureEnvironment(): void {
@@ -125,9 +125,7 @@ export class BufferSecretToken implements SecretTokenLike<Buffer> {
     const value = internalExtractFromUri(uri);
     try {
       return value !== undefined
-        ? BufferSecretToken.fromValue(
-            Buffer.from(value, BufferSecretToken.encoding),
-          )
+        ? BufferSecretToken.fromValue(Base64.decode(value))
         : undefined;
     } catch (error) {
       // Not a valid encoded buffer.
@@ -139,15 +137,15 @@ export class BufferSecretToken implements SecretTokenLike<Buffer> {
     }
   }
 
-  public static fromValue(value: Buffer): BufferSecretToken {
+  public static fromValue(value: Uint8Array): BufferSecretToken {
     if (value.length < 1) {
       throw new Error("Empty secrets are not allowed.");
     }
     return new this(value);
   }
 
-  public static async secureRandom(bytes: number): Promise<BufferSecretToken> {
-    return BufferSecretToken.fromValue(await randomBytes(bytes));
+  public static secureRandom(bytes: number): BufferSecretToken {
+    return BufferSecretToken.fromValue(SecureRandom.bytes(bytes));
   }
 
   public toString(): string {
@@ -163,12 +161,14 @@ export class BufferSecretToken implements SecretTokenLike<Buffer> {
   }
 }
 
-export class PlaceholderBufferSecretToken implements SecretTokenLike<Buffer> {
-  public get value(): Buffer {
+export class PlaceholderBufferSecretToken
+  implements SecretTokenLike<Uint8Array>
+{
+  public get value(): Uint8Array {
     if (process.env["NODE_ENV"] !== "development") {
       this.inSecureEnvironment();
     }
-    return Buffer.alloc(64);
+    return new Uint8Array(64);
   }
 
   public get uri(): typeof PlaceholderSecretToken.placeholderValue {

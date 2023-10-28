@@ -4,6 +4,7 @@ import { StatusCodes } from "http-status-codes";
 import * as Schema from "io-ts";
 import { formatValidationErrors } from "io-ts-reporters";
 import * as Types from "io-ts-types";
+import { hexToUint8Array, uint8ArrayToHex } from "uint8array-extras";
 
 import { WebError } from "../server/errors.js";
 import {
@@ -231,21 +232,25 @@ export const BufferSecretTokenOrPlaceholder = Schema.union([
   PlaceholderBuffer,
 ]);
 
-export const HexAlphaColor = new Schema.Type<Buffer, string, unknown>(
+export const HexAlphaColor = new Schema.Type<Uint8Array, string, unknown>(
   "HexAlphaColor",
-  (u): u is Buffer => u instanceof Buffer && u.length == 4,
+  (u): u is Uint8Array => u instanceof Uint8Array && u.length == 4,
   (input, context) =>
-    Either.chain(
-      (value: string): Schema.Validation<Buffer> =>
-        value.startsWith("#") && value.length == 9
-          ? Schema.success(Buffer.from(value.substring(1), "hex"))
-          : Schema.failure(
-              input,
-              context,
-              `not a valid hex colour with alpha: ${value}`,
-            ),
-    )(Schema.string.validate(input, context)),
-  (a) => `#${a.toString("hex")}`,
+    Either.chain((value: string): Schema.Validation<Uint8Array> => {
+      if (value.startsWith("#") && value.length == 9) {
+        try {
+          return Schema.success(hexToUint8Array(value.substring(1)));
+        } catch (error: unknown) {
+          // Not a valid hex string, fall through to failure.
+        }
+      }
+      return Schema.failure(
+        input,
+        context,
+        `not a valid hex colour with alpha: ${value}`,
+      );
+    })(Schema.string.validate(input, context)),
+  (a) => `#${uint8ArrayToHex(a)}`,
 );
 
 export const Probability = new Schema.Type<number, number, unknown>(

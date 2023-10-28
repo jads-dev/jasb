@@ -276,19 +276,20 @@ CREATE FUNCTION update_object (
   BEGIN
     IF given_url IS NULL THEN
       RETURN old_id;
+    ELSE
+      IF old_id IS NOT NULL THEN
+        SELECT objects.id INTO result
+        FROM objects
+        WHERE
+          objects.id = old_id AND
+          objects.type = given_type AND
+          (objects.url = given_url OR objects.source_url = given_url);
+      END IF;
+      IF result IS NULL THEN
+        result = add_object(given_type, given_url);
+      END IF;
+      RETURN result;
     END IF;
-    IF old_id IS NOT NULL THEN
-      SELECT objects.id INTO result
-      FROM objects
-      WHERE
-        objects.id = old_id AND
-        objects.type = given_type AND
-        (objects.url = given_url OR objects.source_url = given_url);
-    END IF;
-    IF result IS NULL THEN
-      result = add_object(given_type, given_url);
-    END IF;
-    RETURN result;
   END;
 $$;
 
@@ -965,7 +966,15 @@ CREATE FUNCTION edit_bet (
     WHERE options.bet = bets.id AND options.slug = edits.slug;
 
     INSERT INTO options (bet, slug, name, image, "order")
-    SELECT bets.id, adds.slug, adds.name, add_object('option'::ObjectType,  adds.image), adds."order"
+    SELECT
+      bets.id,
+      adds.slug,
+      adds.name,
+      CASE
+        WHEN adds.image IS NOT NULL THEN add_object('option'::ObjectType,  adds.image)
+        ELSE NULL
+      END,
+      adds."order"
     FROM
       unnest(add_options) AS adds(slug, "name", image, "order") INNER JOIN
         bets ON bets.slug = bet_slug INNER JOIN

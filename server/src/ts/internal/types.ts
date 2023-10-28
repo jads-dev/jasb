@@ -1,6 +1,7 @@
 import * as Joda from "@js-joda/core";
 import * as Schema from "io-ts";
 import parseInterval from "postgres-interval";
+import { hexToUint8Array } from "uint8array-extras";
 import { z } from "zod";
 
 import { Public } from "../public.js";
@@ -96,15 +97,18 @@ export const duration = z.string().transform((value, context) => {
 const validByteA = /^\\x(?<hex>[a-fA-F0-9]*)$/;
 export const buffer = z.string().transform((value, context) => {
   const hex = validByteA.exec(value)?.groups?.["hex"];
-  if (hex === undefined) {
-    context.addIssue({
-      code: z.ZodIssueCode.custom,
-      message: `Not a valid bytea hex string, (got “${value}”).`,
-    });
-    return Buffer.alloc(0);
-  } else {
-    return Buffer.from(hex, "hex");
+  if (hex !== undefined) {
+    try {
+      return hexToUint8Array(hex);
+    } catch (error: unknown) {
+      // Not a valid hex string, fall through to failure.
+    }
   }
+  context.addIssue({
+    code: z.ZodIssueCode.custom,
+    message: `Not a valid bytea hex string, (got “${value}”).`,
+  });
+  return new Uint8Array(0);
 });
 
 export const color = buffer.transform((value, context) => {
@@ -113,7 +117,7 @@ export const color = buffer.transform((value, context) => {
       code: z.ZodIssueCode.custom,
       message: `Invalid colour, must be 4 bytes, not ${value.length} bytes).`,
     });
-    return Buffer.from("00000000");
+    return new Uint8Array(4);
   } else {
     return value;
   }

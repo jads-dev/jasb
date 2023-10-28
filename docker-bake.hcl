@@ -65,6 +65,17 @@ target "args" {
     BUILD_DATE = BUILD_DATE
     MODE = MODE
     URL = URL
+    NGINX_BASE = "nginx"
+  }
+}
+
+target "nginx" {
+  platforms = ["linux/amd64", "linux/arm64"]
+  context = "./client/nginx"
+  pull = true
+  output = ["type=docker"]
+  args = {
+    ENABLED_MODULES = "brotli"
   }
 }
 
@@ -77,6 +88,9 @@ target "images" {
     component = ["server", "client", "migrate"]
   }
   context = "./${component}"
+  contexts = {
+    nginx = "target:nginx"
+  }
   pull = true
   output = ["type=docker"]
   tags = generateTags(component)
