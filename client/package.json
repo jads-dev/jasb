@@ -27,7 +27,7 @@
     "@fireworks-js/web": "^2.10.7",
     "@fortawesome/fontawesome-svg-core": "^6.1.1",
     "elm-material": "file:./elm-material",
-    "lit": "^3.0.0"
+    "lit": "^3.0.2"
   },
   "devDependencies": {
     "cssnano": "^6.0.1",
