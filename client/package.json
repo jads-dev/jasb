@@ -25,7 +25,7 @@
   },
   "dependencies": {
     "@fireworks-js/web": "^2.10.7",
-    "@fortawesome/fontawesome-svg-core": "^6.1.1",
+    "@fortawesome/fontawesome-svg-core": "^6.5.1",
     "elm-material": "file:./elm-material",
     "lit": "^3.0.0"
   },
