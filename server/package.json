@@ -38,7 +38,7 @@
     "mime-types": "^2.1.35",
     "pg-listen": "^1.7.0",
     "pino": "^8.16.0",
-    "pino-http": "^8.5.0",
+    "pino-http": "^8.6.0",
     "postgres-interval": "^4.0.0",
     "slonik": "^37.0.1",
     "uint8array-extras": "^0.4.0",
