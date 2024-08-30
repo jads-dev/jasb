@@ -16,12 +16,7 @@
     "typecheck:js": "npx tsc --noEmit",
     "lint:js": "npx eslint ./src/mts components/**/mts",
     "prelint:elm": "npx elm-tooling install",
-    "lint:elm": "npx elm-review",
-    "docker": "../development/compose.sh run --tty --rm --service-ports --entrypoint /bin/ash client",
-    "docker:build": "../development/compose.sh run --rm client run build",
-    "docker:dev": "../development/compose.sh up --build --no-log-prefix client",
-    "docker:lint:js": "../development/compose.sh run --rm client run lint:js",
-    "docker:lint:elm": "../development/compose.sh run --rm client run lint:elm"
+    "lint:elm": "npx elm-review"
   },
   "dependencies": {
     "@fireworks-js/web": "^2.10.7",
@@ -30,15 +25,15 @@
     "lit": "^3.0.0"
   },
   "devDependencies": {
-    "cssnano": "^6.0.1",
+    "cssnano": "^7.0.5",
     "dotenv": "^16.3.1",
     "elm-review": "^2.10.2",
     "elm-tooling": "^1.14.1",
-    "postcss-preset-env": "^9.0.0",
+    "postcss-preset-env": "^10.0.2",
     "sass": "^1.49.9",
     "typescript": "^5.2.2",
-    "vite": "^4.4.9",
-    "vite-plugin-compression2": "^0.11.0",
-    "vite-plugin-elm": "^2.8.0"
+    "vite": "^5.4.2",
+    "vite-plugin-compression2": "^1.2.0",
+    "vite-plugin-elm": "^3.0.1"
   }
 }

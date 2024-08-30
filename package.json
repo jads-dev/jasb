@@ -3,20 +3,15 @@
   "description": "JASB shared development dependencies.",
   "version": "1.0.0",
   "private": true,
-  "scripts": {
-    "docker:storage": "./development/compose.sh up --no-log-prefix storage",
-    "docker:migrate": "./development/compose.sh run --rm migrate",
-    "docker:tools": "./development/compose.sh run --rm tools"
-  },
   "devDependencies": {
     "@types/mime-types": "^2.1.3",
-    "@typescript-eslint/eslint-plugin": "^6.1.0",
-    "@typescript-eslint/parser": "^6.1.0",
-    "eslint": "^8.0.0",
-    "eslint-plugin-simple-import-sort": "^10.0.0",
+    "@typescript-eslint/eslint-plugin": "^8.3.0",
+    "@typescript-eslint/parser": "^8.3.0",
+    "eslint": "^9.9.1",
+    "eslint-plugin-simple-import-sort": "^12.1.1",
     "prettier": "^3.0.0",
     "prettier-plugin-elm": "^0.11.0",
-    "prettier-plugin-sql": "^0.15.1",
+    "prettier-plugin-sql": "^0.18.1",
     "typescript": "^5.1.3"
   },
   "dependencies": {

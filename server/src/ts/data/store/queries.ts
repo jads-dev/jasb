@@ -70,22 +70,22 @@ const typedSql = Slonik.createSqlTag({
   },
 }).typeAlias;
 
-export const perform = (f: Slonik.SqlFragment) => {
+export const perform = (f: Slonik.FragmentSqlToken) => {
   const sql = typedSql("perform");
   return sql`SELECT NULL AS performed FROM ${f}`;
 };
 
-export const ids = (source: Slonik.SqlFragment) => {
+export const ids = (source: Slonik.FragmentSqlToken) => {
   const sql = typedSql("ids");
   return sql`${source}`;
 };
 
-export const id = (source: Slonik.SqlFragment) => {
+export const id = (source: Slonik.FragmentSqlToken) => {
   const sql = typedSql("id");
   return sql`${source}`;
 };
 
-export const user = (userSource: Slonik.SqlFragment) => {
+export const user = (userSource: Slonik.FragmentSqlToken) => {
   const sql = typedSql("user");
   return sql`
     WITH
@@ -133,8 +133,8 @@ export const user = (userSource: Slonik.SqlFragment) => {
 };
 
 export const userSummary = (
-  userSource: Slonik.SqlFragment,
-  order?: Slonik.SqlFragment,
+  userSource: Slonik.FragmentSqlToken,
+  order?: Slonik.FragmentSqlToken,
 ) => {
   const sql = typedSql("user_summary");
   return sql`
@@ -152,7 +152,7 @@ export const userSummary = (
   `;
 };
 
-export const userForgeDetail = (userSource: Slonik.SqlFragment) => {
+export const userForgeDetail = (userSource: Slonik.FragmentSqlToken) => {
   const sql = typedSql("user_forge_detail");
   return sql`
     WITH
@@ -165,7 +165,7 @@ export const userForgeDetail = (userSource: Slonik.SqlFragment) => {
   `;
 };
 
-export const editableBet = (betsSource: Slonik.SqlFragment) => {
+export const editableBet = (betsSource: Slonik.FragmentSqlToken) => {
   const sql = typedSql("editable_bet");
   return sql`
     WITH
@@ -198,7 +198,7 @@ export const editableBet = (betsSource: Slonik.SqlFragment) => {
   `;
 };
 
-export const betWithOptions = (betsSource: Slonik.SqlFragment) => {
+export const betWithOptions = (betsSource: Slonik.FragmentSqlToken) => {
   const sql = typedSql("bet_with_options");
   return sql`
     WITH
@@ -222,7 +222,7 @@ export const betWithOptions = (betsSource: Slonik.SqlFragment) => {
   `;
 };
 
-export const lockStatus = (betsSource: Slonik.SqlFragment) => {
+export const lockStatus = (betsSource: Slonik.FragmentSqlToken) => {
   const sql = typedSql("lock_status");
   return sql`
     WITH
@@ -245,7 +245,7 @@ export const lockStatus = (betsSource: Slonik.SqlFragment) => {
   `;
 };
 
-export const leaderboard = (leaderboardSource: Slonik.SqlFragment) => {
+export const leaderboard = (leaderboardSource: Slonik.FragmentSqlToken) => {
   const sql = typedSql("leaderboard");
   return sql`
     WITH
@@ -268,7 +268,7 @@ export const leaderboard = (leaderboardSource: Slonik.SqlFragment) => {
   `;
 };
 
-export const notification = (notificationSource: Slonik.SqlFragment) => {
+export const notification = (notificationSource: Slonik.FragmentSqlToken) => {
   const sql = typedSql("notification");
   return sql`
     WITH
@@ -281,7 +281,7 @@ export const notification = (notificationSource: Slonik.SqlFragment) => {
   `;
 };
 
-export const session = (sessionSource: Slonik.SqlFragment) => {
+export const session = (sessionSource: Slonik.FragmentSqlToken) => {
   const sql = typedSql("session");
   return sql`
     WITH
@@ -294,7 +294,7 @@ export const session = (sessionSource: Slonik.SqlFragment) => {
   `;
 };
 
-export const gameSummary = (gameSource: Slonik.SqlFragment) => {
+export const gameSummary = (gameSource: Slonik.FragmentSqlToken) => {
   const sql = typedSql("game_summary");
   return sql`
     WITH
@@ -309,8 +309,8 @@ export const gameSummary = (gameSource: Slonik.SqlFragment) => {
 };
 
 export const gameWithBetStats = (
-  gameSource: Slonik.SqlFragment,
-  sort: Slonik.SqlFragment = sqlFragment``,
+  gameSource: Slonik.FragmentSqlToken,
+  sort: Slonik.FragmentSqlToken = sqlFragment``,
 ) => {
   const sql = typedSql("game_with_bet_stats");
   return sql`
@@ -338,7 +338,7 @@ export const gameWithBetStats = (
   `;
 };
 
-export const gameWithBets = (betsSource: Slonik.SqlFragment) => {
+export const gameWithBets = (betsSource: Slonik.FragmentSqlToken) => {
   const sql = typedSql("game_with_bets");
   return sql`
     WITH
@@ -418,7 +418,7 @@ export const gameWithBets = (betsSource: Slonik.SqlFragment) => {
     `;
 };
 
-export const lockMoment = (lockMomentSource: Slonik.SqlFragment) => {
+export const lockMoment = (lockMomentSource: Slonik.FragmentSqlToken) => {
   const sql = typedSql("lock_moment");
   return sql`
     WITH
@@ -446,12 +446,12 @@ export const lockMoment = (lockMomentSource: Slonik.SqlFragment) => {
   `;
 };
 
-export const newBalance = (newBalanceSource: Slonik.SqlFragment) => {
+export const newBalance = (newBalanceSource: Slonik.FragmentSqlToken) => {
   const sql = typedSql("new_balance");
   return sql`SELECT (${newBalanceSource}) AS new_balance`;
 };
 
-export const feedItem = (feedItemSource: Slonik.SqlFragment) => {
+export const feedItem = (feedItemSource: Slonik.FragmentSqlToken) => {
   const sql = typedSql("feed_item");
   return sql`
     WITH
@@ -465,7 +465,7 @@ export const feedItem = (feedItemSource: Slonik.SqlFragment) => {
   `;
 };
 
-export const permissions = (userSource: Slonik.SqlFragment) => {
+export const permissions = (userSource: Slonik.FragmentSqlToken) => {
   const sql = typedSql("permissions");
   return sql`
     WITH
@@ -492,7 +492,7 @@ export const permissions = (userSource: Slonik.SqlFragment) => {
   `;
 };
 
-export const count = (countSource: Slonik.SqlFragment) => {
+export const count = (countSource: Slonik.FragmentSqlToken) => {
   const sql = typedSql("count");
   return sql`
     WITH
@@ -502,19 +502,19 @@ export const count = (countSource: Slonik.SqlFragment) => {
   `;
 };
 
-export const isTrue = (resultSource: Slonik.SqlFragment) => {
+export const isTrue = (resultSource: Slonik.FragmentSqlToken) => {
   const sql = typedSql("boolean");
   return sql`SELECT (${resultSource}) AS result`;
 };
 
-export const userId = (userSource: Slonik.SqlFragment) => {
+export const userId = (userSource: Slonik.FragmentSqlToken) => {
   const sql = typedSql("user_id");
   return sql`SELECT (${userSource}) AS user_id`;
 };
 
 export const bankruptcyStats = (
   initialBalance: number,
-  userSource: Slonik.SqlFragment,
+  userSource: Slonik.FragmentSqlToken,
 ) => {
   const sql = typedSql("bankruptcy_stats");
   return sql`
@@ -535,7 +535,7 @@ export const bankruptcyStats = (
   `;
 };
 
-export const accessToken = (sessionSource: Slonik.SqlFragment) => {
+export const accessToken = (sessionSource: Slonik.FragmentSqlToken) => {
   const sql = typedSql("access_token");
   return sql`
     WITH
@@ -545,7 +545,7 @@ export const accessToken = (sessionSource: Slonik.SqlFragment) => {
   `;
 };
 
-export const refreshToken = (sessionSource: Slonik.SqlFragment) => {
+export const refreshToken = (sessionSource: Slonik.FragmentSqlToken) => {
   const sql = typedSql("refresh_token");
   return sql`
     WITH
@@ -556,7 +556,7 @@ export const refreshToken = (sessionSource: Slonik.SqlFragment) => {
 };
 
 export const betCompleteNotificationDetails = (
-  betSource: Slonik.SqlFragment,
+  betSource: Slonik.FragmentSqlToken,
 ) => {
   const sql = typedSql("bet_complete");
   return sql`
@@ -597,7 +597,7 @@ export const betCompleteNotificationDetails = (
 
 export const newStakeNotificationDetails = (
   userSlug: string,
-  optionsSource: Slonik.SqlFragment,
+  optionsSource: Slonik.FragmentSqlToken,
 ) => {
   const sql = typedSql("new_stake");
   return sql`
@@ -627,7 +627,7 @@ export const newStakeNotificationDetails = (
   `;
 };
 
-export const balance = (userSource: Slonik.SqlFragment) => {
+export const balance = (userSource: Slonik.FragmentSqlToken) => {
   const sql = typedSql("balance");
   return sql`
     WITH
@@ -641,7 +641,7 @@ export const balance = (userSource: Slonik.SqlFragment) => {
   `;
 };
 
-export const recycleValue = (cardSource: Slonik.SqlFragment) => {
+export const recycleValue = (cardSource: Slonik.FragmentSqlToken) => {
   const sql = typedSql("gacha_value");
   return sql`
     WITH
@@ -657,7 +657,7 @@ export const recycleValue = (cardSource: Slonik.SqlFragment) => {
   `;
 };
 
-export const rarity = (raritySource: Slonik.SqlFragment) => {
+export const rarity = (raritySource: Slonik.FragmentSqlToken) => {
   const sql = typedSql("rarity");
   return sql`
       WITH
@@ -670,7 +670,7 @@ export const rarity = (raritySource: Slonik.SqlFragment) => {
   `;
 };
 
-export const quality = (qualitySource: Slonik.SqlFragment) => {
+export const quality = (qualitySource: Slonik.FragmentSqlToken) => {
   const sql = typedSql("quality");
   return sql`
       WITH
@@ -683,7 +683,7 @@ export const quality = (qualitySource: Slonik.SqlFragment) => {
   `;
 };
 
-export const banner = (bannerSource: Slonik.SqlFragment) => {
+export const banner = (bannerSource: Slonik.FragmentSqlToken) => {
   const sql = typedSql("banner");
   return sql`
     WITH
@@ -702,7 +702,7 @@ export const banner = (bannerSource: Slonik.SqlFragment) => {
   `;
 };
 
-export const editableBanner = (bannerSource: Slonik.SqlFragment) => {
+export const editableBanner = (bannerSource: Slonik.FragmentSqlToken) => {
   const sql = typedSql("editable_banner");
   return sql`
     WITH
@@ -724,7 +724,7 @@ export const editableBanner = (bannerSource: Slonik.SqlFragment) => {
   `;
 };
 
-export const detailedCardType = (cardTypeSource: Slonik.SqlFragment) => {
+export const detailedCardType = (cardTypeSource: Slonik.FragmentSqlToken) => {
   const sql = typedSql("detailed_card_type");
   return sql`
     WITH
@@ -796,7 +796,7 @@ export const detailedCardType = (cardTypeSource: Slonik.SqlFragment) => {
   `;
 };
 
-export const editableCardType = (cardTypeSource: Slonik.SqlFragment) => {
+export const editableCardType = (cardTypeSource: Slonik.FragmentSqlToken) => {
   const sql = typedSql("editable_card_type");
   return sql`
     WITH
@@ -859,7 +859,7 @@ export const editableCardType = (cardTypeSource: Slonik.SqlFragment) => {
 };
 
 export const cardTypeWithCards = (
-  cardSource: Slonik.SqlFragment,
+  cardSource: Slonik.FragmentSqlToken,
   bannerSlug: string,
 ) => {
   const sql = typedSql("card_type_with_cards");
@@ -922,7 +922,7 @@ export const cardTypeWithCards = (
   `;
 };
 
-export const cardTypeWithCardsAndBanner = (cardSource: Slonik.SqlFragment) => {
+export const cardTypeWithCardsAndBanner = (cardSource: Slonik.FragmentSqlToken) => {
   const sql = typedSql("card_type_with_cards_and_banner");
   return sql`
     WITH
@@ -983,7 +983,7 @@ export const cardTypeWithCardsAndBanner = (cardSource: Slonik.SqlFragment) => {
   `;
 };
 
-export const cardType = (cardTypeSource: Slonik.SqlFragment) => {
+export const cardType = (cardTypeSource: Slonik.FragmentSqlToken) => {
   const sql = typedSql("card_type");
   return sql`
     WITH
@@ -1010,7 +1010,7 @@ export const cardType = (cardTypeSource: Slonik.SqlFragment) => {
   `;
 };
 
-export const cardTypeByRarity = (cardTypeSource: Slonik.SqlFragment) => {
+export const cardTypeByRarity = (cardTypeSource: Slonik.FragmentSqlToken) => {
   const sql = typedSql("rarity_with_optional_card_type");
   return sql`
     WITH
@@ -1037,7 +1037,7 @@ export const cardTypeByRarity = (cardTypeSource: Slonik.SqlFragment) => {
   `;
 };
 
-export const card = (cardSource: Slonik.SqlFragment, rarestFirst: boolean) => {
+export const card = (cardSource: Slonik.FragmentSqlToken, rarestFirst: boolean) => {
   const sql = typedSql("card");
   const order = rarestFirst
     ? sqlFragment`max(rarities.generation_weight), cards.created DESC`
@@ -1081,7 +1081,7 @@ export const card = (cardSource: Slonik.SqlFragment, rarestFirst: boolean) => {
   `;
 };
 
-export const detailedCard = (cardSource: Slonik.SqlFragment) => {
+export const detailedCard = (cardSource: Slonik.FragmentSqlToken) => {
   const sql = typedSql("detailed_card");
   return sql`
     WITH
@@ -1153,7 +1153,7 @@ export const detailedCard = (cardSource: Slonik.SqlFragment) => {
   `;
 };
 
-export const highlighted = (highlightSource: Slonik.SqlFragment) => {
+export const highlighted = (highlightSource: Slonik.FragmentSqlToken) => {
   const sql = typedSql("highlighted");
   return sql`
     WITH
@@ -1198,12 +1198,12 @@ export const highlighted = (highlightSource: Slonik.SqlFragment) => {
   `;
 };
 
-export const name = (namesSource: Slonik.SqlFragment) => {
+export const name = (namesSource: Slonik.FragmentSqlToken) => {
   const sql = typedSql("name");
   return sql`${namesSource}`;
 };
 
-export const object = (objectsSource: Slonik.SqlFragment) => {
+export const object = (objectsSource: Slonik.FragmentSqlToken) => {
   const sql = typedSql("object");
   return sql`${objectsSource}`;
 };

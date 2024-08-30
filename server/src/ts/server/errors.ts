@@ -1,5 +1,5 @@
 import { StatusCodes } from "http-status-codes";
-import { SchemaValidationError } from "slonik/dist/errors.js";
+import { SchemaValidationError } from "slonik";
 
 import type { Logging } from "./logging.js";
 
@@ -20,14 +20,15 @@ export const handler = (
     logger.warn(error.message);
     return { status: error.status, message: error.message };
   } else if (error instanceof SchemaValidationError) {
+    const { sql, row, issues, message } = error;
     logger.error(
       {
         err: error,
-        sql: error.sql,
-        row: JSON.stringify(error.row, undefined, 2),
-        issues: JSON.stringify(error.issues, undefined, 2),
+        sql: sql,
+        row: JSON.stringify(row, undefined, 2),
+        issues: JSON.stringify(issues, undefined, 2),
       },
-      error.message,
+      message,
     );
     return {
       status: StatusCodes.INTERNAL_SERVER_ERROR,

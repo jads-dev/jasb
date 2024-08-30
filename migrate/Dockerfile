@@ -8,7 +8,7 @@ FROM scratch AS sources
 COPY --link ["./src/sql", "./sql"]
 
 
-FROM --platform=${BUILDPLATFORM} redgate/flyway:9 AS base
+FROM redgate/flyway:10 AS migrate
 
 ARG VERSION
 ARG BUILD_DATE

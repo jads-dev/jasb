@@ -1,0 +1,111 @@
+name: "jasb"
+
+networks:
+  frontend:
+  backend:
+
+volumes:
+  storage:
+
+services:
+  storage:
+    image: "postgres:16"
+    environment:
+      POSTGRES_USER: jasb
+      POSTGRES_PASSWORD: jasb
+      TZ: UTC
+    ports:
+      - "127.0.0.1:5432:5432/tcp" # Not needed to run, but allows you to connect to the DB with tooling locally.
+    networks:
+      - backend
+    volumes:
+      - storage:/var/lib/postgresql/data
+    restart: unless-stopped
+
+  migrate:
+    image: "redgate/flyway:10"
+    command: migrate
+    environment:
+      FLYWAY_URL: jdbc:postgresql://storage:5432/jasb
+      FLYWAY_USER: jasb
+      FLYWAY_PASSWORD: jasb
+      FLYWAY_LOCATIONS: filesystem:/flyway/sql/migrations
+      FLYWAY_SCHEMAS: jasb
+      FLYWAY_CREATE_SCHEMAS: true
+    volumes:
+      - ../migrate/src/sql:/flyway/sql
+    networks:
+      - backend
+    depends_on:
+      - storage
+    profiles:
+      - migrate
+    restart: no
+
+  server:
+    build: 
+      context: ./server
+      target: dev
+    develop:
+      watch:
+        - action: sync
+          path: ./server/src
+          target: /jasb/src
+        - action: rebuild
+          path: package.json
+          target: /jasb/package.json
+        - action: sync+restart
+          path: ./server/config.json5
+          target: /jasb/config.json5
+        - action: sync+restart
+          path: ./server/config.dev.json5
+          target: /jasb/config.dev.json5
+        - action: sync+restart
+          path: ./server/tsconfig.json
+          target: /jasb/tsconfig.json
+    environment:
+      JASB_CONFIG_PATH: "config.json5;config.dev.json5"
+      #ROARR_LOG: true # Log all SQL queries, for debugging.
+    networks:
+      - frontend
+      - backend
+
+  client:
+    build: 
+      context: ./client
+      target: dev
+      additional_contexts:
+        - nginx=./nginx
+    develop:
+      watch:
+        - action: sync
+          path: ./client/src
+          target: /jasb/src
+        - action: sync
+          path: ./client/assets
+          target: /jasb/assets
+        - action: sync
+          path: ./client/components
+          target: /jasb/components
+        - action: sync
+          path: ./elm-material
+          target: /jasb/elm-material
+        - action: rebuild
+          path: package.json
+          target: /jasb/package.json
+        - action: rebuild
+          path: elm-tooling.json
+          target: /jasb/elm-tooling.json
+        - action: sync+restart
+          path: ./client/nginx/nginx.conf
+          target: /jasb/nginx/nginx.conf
+        - action: sync+restart
+          path: ./client/vite.config.mts
+          target: /jasb/vite.config.mts
+        - action: sync+restart
+          path: ./client/tsconfig.json
+          target: /jasb/tsconfig.json
+    ports:
+      - "127.0.0.1:8080:8080/tcp" # Allows you to connect to the web UI locally.
+    networks:
+      - frontend

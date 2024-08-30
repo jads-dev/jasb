@@ -28,14 +28,14 @@
     "shine" 1fr
     / 1fr;
 
-  > * {
-    grid-area: shine;
-  }
-
   border-radius: var(--inner-border-radius);
   margin: var(--border-width);
 
   transition: opacity 0.1s;
 
   will-change: background-image, opacity, background-position, opacity;
+  
+  > * {
+    grid-area: shine;
+  }
 }

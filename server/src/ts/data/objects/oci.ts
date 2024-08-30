@@ -74,7 +74,7 @@ export class OciObjectStorage implements Objects.Storage {
 
   #hash(stream: Stream.Readable, algorithm: string): Crypto.Hash {
     const hash = Crypto.createHash(algorithm);
-    stream.pipe(hash);
+    stream.pipe(hash as unknown as NodeJS.WritableStream);
     return hash;
   }
 
@@ -122,8 +122,8 @@ export class OciObjectStorage implements Objects.Storage {
     const md5 = this.#hash(stream, "md5");
     const sha256 = this.#hash(stream, "sha256");
     const sizeCounter = new SizeCounter();
-    stream.pipe(sizeCounter);
-    await StreamP.pipeline(stream, FS.createWriteStream(tempFilename));
+    stream.pipe(sizeCounter as unknown as NodeJS.WritableStream);
+    await StreamP.pipeline(stream , FS.createWriteStream(tempFilename) as unknown as NodeJS.WritableStream);
     try {
       const reference = {
         name: `${prefix}${sha256.digest("base64url")}.${extension}`,

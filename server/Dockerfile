@@ -1,41 +1,63 @@
-ARG NODE_VERSION=20
+ARG NODE_VERSION=22
 ARG MODE=production
 ARG BUILD_DATE
 ARG VCS_REF
 ARG VERSION=${VCS_REF}-dev
 
 
-FROM --platform=${BUILDPLATFORM} node:${NODE_VERSION}-alpine AS base
+FROM --platform=${BUILDPLATFORM} node:${NODE_VERSION}-alpine AS build
 
 WORKDIR /jasb
 
-COPY --link ["./package.json", "./package-lock.json", "./"]
+RUN \
+  --mount=type=bind,source=package.json,target=package.json \
+  --mount=type=bind,source=package-lock.json,target=package-lock.json \
+  --mount=type=cache,target=/root/.npm \
+  ["npm", "ci"]
+
+RUN \
+  --mount=type=bind,source=package.json,target=package.json \
+  --mount=type=bind,source=package-lock.json,target=package-lock.json \
+  --mount=type=bind,source=tsconfig.json,target=tsconfig.json \
+  --mount=type=bind,source=src,target=src \
+  ["npm", "run", "build"]
 
 
-FROM base AS build
+FROM build AS dev
 
-RUN ["npm", "ci"]
+ENV JASB_CONFIG_PATH "config.json5;config.dev.json5"
+ENV JASB_VERSION "dev"
+ENV NODE_ENV "development"
 
-COPY --link ["./tsconfig.json", "./"]
-COPY --link ["./src", "./src"]
-RUN ["npm", "run", "build"]
+COPY --link [ "./", "./" ]
 
-# We've already done all our NPM stuff, but node looks here for `type: "module"` which we need.
-RUN echo '{ "type": "module" }' > ./dist/package.json
+HEALTHCHECK CMD curl -f http://localhost:8081/api/health || exit 1
+EXPOSE 8081
+ENTRYPOINT ["npm"]
+CMD ["run", "dev"]
 
 
-FROM base as install
+FROM node:${NODE_VERSION}-alpine AS install
 
-RUN ["npm", "ci", "--omit=dev"]
+WORKDIR /jasb
+
+RUN \
+  --mount=type=bind,source=package.json,target=package.json \
+  --mount=type=bind,source=package-lock.json,target=package-lock.json \
+  --mount=type=cache,target=/root/.npm \
+  ["npm", "ci", "--omit=dev"]
 
 
 FROM scratch AS sources
 
 COPY --link --from=install ["/jasb/node_modules", "./node_modules"]
 COPY --link --from=build ["/jasb/dist", "./"]
+# We've already done all our NPM stuff, but node looks here for `type: "module"` which we need.
+COPY --link <<EOF package.json
+{ "type": "module" }
+EOF
 
-
-FROM --platform=${TARGETPLATFORM} node:${NODE_VERSION}-alpine AS server
+FROM node:${NODE_VERSION}-alpine AS server
 
 ARG VERSION
 ARG BUILD_DATE
@@ -58,8 +80,16 @@ LABEL org.opencontainers.image.description="Server for JASB."
 
 WORKDIR /jasb
 
-RUN ["apk", "add", "--no-cache", "vips"]
+RUN \
+  --mount=type=cache,target=/var/cache/apk \
+  apk update; \
+  apk add \
+  tini \
+  vips;
 COPY --link --from=sources [ "/", "./" ]
 
+HEALTHCHECK CMD curl -f http://localhost:8081/api/health || exit 1
+USER node
 EXPOSE 8081
-CMD node --enable-source-maps ./index.js
+ENTRYPOINT ["/sbin/tini", "--"]
+CMD ["node", "--enable-source-maps", "./index.js"]

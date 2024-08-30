@@ -100,10 +100,10 @@
   }
 
   .save-state {
+    align-self: center;
     &:empty {
       display: none;
     }
-    align-self: center;
   }
 }
 

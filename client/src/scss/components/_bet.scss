@@ -118,6 +118,9 @@
         transition: flex-grow 1s ease-in-out;
         border-right: 0.1em dotted #000000;
 
+        background-color: var(--stake-color);
+        color: var(--on-stake-color);
+
         &.placeholder {
           opacity: 0;
           pointer-events: none;
@@ -126,9 +129,6 @@
         &:last-of-type {
           border-right: unset;
         }
-
-        background-color: var(--stake-color);
-        color: var(--on-stake-color);
 
         &.local {
           --stake-color: #{colors.by-name("primary")};

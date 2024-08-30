@@ -21,7 +21,7 @@ export class Stage implements Pipelines.Stage {
   ): Promise<Objects.Content> {
     if (content.mimeType !== "image/svg+xml") {
       const pipeline = Sharp();
-      content.stream.pipe(pipeline);
+      content.stream.pipe(pipeline as unknown as NodeJS.WritableStream);
       if (this.settings.targetSize !== undefined) {
         const [width, height] = this.settings.targetSize;
         pipeline.resize(width, height, { withoutEnlargement: true });

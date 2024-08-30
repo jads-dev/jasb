@@ -103,17 +103,18 @@
     }
 
     .rarity {
+      position: absolute;
+      top: 0;
+      left: var(--border-width);
+      bottom: 0;
+      right: 0;
+
       &::after {
         transform: rotate(0.25turn);
         height: 2em;
         width: properties.by-name("width");
         transform-origin: top left;
       }
-      position: absolute;
-      top: 0;
-      left: var(--border-width);
-      bottom: 0;
-      right: 0;
     }
   }
 
@@ -124,11 +125,11 @@
 
 .face {
   > .border {
+    border-radius: properties.by-name("border-radius");
     background: var(
       --border,
       linear-gradient(130deg, #888 0, #dfdfdf 35%, #7c7c7c 70%, #e1e1e1 100%)
     );
-    border-radius: properties.by-name("border-radius");
   }
 
   > .background {
@@ -144,7 +145,7 @@
     }
 
     &::before {
-      background: var(--background, #000);
+      background-image: var(--background, #000);
       background-size: cover;
     }
 

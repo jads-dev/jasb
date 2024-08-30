@@ -1,4 +1,5 @@
 import * as Joda from "@js-joda/core";
+import { StatusCodes } from "http-status-codes";
 import * as Schema from "io-ts";
 
 import { Feed } from "../public.js";
@@ -10,6 +11,7 @@ import { gachaApi } from "./routes/gacha.js";
 import { gamesApi } from "./routes/games.js";
 import { leaderboardApi } from "./routes/leaderboard.js";
 import { usersApi } from "./routes/users.js";
+import { query } from "slonik/dist/connectionMethods/query.js";
 
 export const api = (config: Config.Server): Server.Router => {
   const apiRouter = Server.router();
@@ -39,6 +41,16 @@ export const api = (config: Config.Server): Server.Router => {
     ctx.body = Schema.readonlyArray(Feed.Event).encode(
       await feedCache.get(ctx.server),
     );
+  });
+
+  apiRouter.get("/oembed", async (ctx) => {
+    const urls = ctx.query["url"];
+    const url = typeof urls === "string" ? urls : "";
+    return {};
+  });
+
+  apiRouter.get("/health", async (ctx) => {
+    ctx.status = StatusCodes.OK;
   });
 
   return apiRouter;

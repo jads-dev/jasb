@@ -375,7 +375,7 @@ export class Store {
     });
   }
 
-  getSort(subset: Games.Progress): Slonik.SqlFragment {
+  getSort(subset: Games.Progress): Slonik.FragmentSqlToken {
     switch (subset) {
       case "Future":
         return sqlFragment`games."order" ASC NULLS LAST`;
