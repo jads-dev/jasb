@@ -1,0 +1,71 @@
+.rarity {
+  position: absolute;
+  bottom: -1.5em;
+  left: 0;
+  right: 0;
+  
+  &::after {
+    content: "";
+    display: block;
+    background-image: var(--rarity-stars);
+    background-position: center;
+    background-repeat: no-repeat;
+    background-size: contain;
+    height: 2em;
+  }
+}
+
+:host([rarity="m"]) {
+  --rarity-level: 1;
+  --rarity-color: #ffffff;
+  --rarity-icon: url(../assets/rarities/icons/m.svg);
+  --rarity-stars: url(../assets/rarities/stars/1.svg);
+
+  --shine-opacity: 0.4;
+  --shine-foil: url(../assets/rarities/foils/m.svg);
+  --shine-foil-size: 2.5em 5em;
+}
+
+:host([rarity="jb"]) {
+  --rarity-level: 2;
+  --rarity-color: #06ba63;
+  --rarity-icon: url(../assets/rarities/icons/jb.svg);
+  --rarity-stars: url(../assets/rarities/stars/2.svg);
+
+  --shine-opacity: 0.6;
+  --shine-foil: url(../assets/rarities/foils/jb.svg);
+  --shine-foil-size: 3em 4.8em;
+}
+
+:host([rarity="pt"]) {
+  --rarity-level: 3;
+  --rarity-color: #003fd2;
+  --rarity-icon: url(../assets/rarities/icons/pt.svg);
+  --rarity-stars: url(../assets/rarities/stars/3.svg);
+
+  --shine-opacity: 0.6;
+  --shine-foil: url(../assets/rarities/foils/pt.svg);
+  --shine-foil-size: 10em 10em;
+}
+
+:host([rarity="crm"]) {
+  --rarity-level: 4;
+  --rarity-color: #af008f;
+  --rarity-icon: url(../assets/rarities/icons/crm.svg);
+  --rarity-stars: url(../assets/rarities/stars/4.svg);
+
+  --shine-opacity: 0.8;
+  --shine-foil: url(../assets/rarities/foils/crm.svg);
+  --shine-foil-size: 12em 16em;
+}
+
+:host([rarity="mp"]) {
+  --rarity-level: 5;
+  --rarity-color: #ecd08c;
+  --rarity-icon: url(../assets/rarities/icons/mp.svg);
+  --rarity-stars: url(../assets/rarities/stars/5.svg);
+
+  --shine-opacity: 0.8;
+  --shine-foil: url(../assets/rarities/foils/mp.svg);
+  --shine-foil-size: var(--jasb-gacha-card-width);
+}

@@ -36,6 +36,12 @@ const Rules = Schema.strict({
 });
 export type Rules = Schema.TypeOf<typeof Rules>;
 
+const PostgresReadData = Schema.partial({
+  host: Schema.string,
+  port: Schema.Int,
+});
+export type PostgresReadData = Schema.TypeOf<typeof PostgresReadData>;
+
 const PostgresData = Schema.partial({
   host: Schema.string,
   port: Schema.Int,
@@ -48,6 +54,7 @@ const PostgresData = Schema.partial({
     require: null,
   }),
   maxListenConnections: Schema.Int,
+  read: PostgresReadData,
 });
 export type PostgresData = Schema.TypeOf<typeof PostgresData>;
 
@@ -75,26 +82,36 @@ const GeneralObjectStorage = Schema.intersection([
   }),
 ]);
 
-export const OciObjectStorage = Schema.intersection([
+export const LocalObjectStorage = Schema.intersection([
   Schema.strict({
-    service: Schema.literal("oci"),
-    user: Schema.string,
-    tenancy: Schema.string,
-    fingerprint: Schema.string,
-    privateKey: Validation.SecretTokenOrPlaceholder,
-    region: Schema.string,
-
-    namespace: Schema.string,
-    bucket: Schema.string,
-  }),
-  Schema.partial({
-    passphrase: Validation.SecretTokenOrPlaceholder,
+    service: Schema.literal("local"),
+    public: Schema.string,
+    path: Schema.string,
   }),
   GeneralObjectStorage,
 ]);
-export type OciObjectStorage = Schema.TypeOf<typeof OciObjectStorage>;
+export type LocalObjectStorage = Schema.TypeOf<typeof LocalObjectStorage>;
 
-export const ObjectStorage = OciObjectStorage;
+export const S3ObjectStorage = Schema.intersection([
+  Schema.strict({
+    service: Schema.literal("s3"),
+    public: Schema.string,
+    bucket: Schema.string,
+    endpoint: Schema.string,
+    accessKey: Schema.strict({
+      id: Schema.string,
+      secret: Validation.SecretTokenOrPlaceholder,
+    }),
+    tagging: Schema.boolean,
+  }),
+  GeneralObjectStorage,
+]);
+export type S3ObjectStorage = Schema.TypeOf<typeof S3ObjectStorage>;
+
+export const ObjectStorage = Schema.union([
+  LocalObjectStorage,
+  S3ObjectStorage,
+]);
 export type ObjectStorage = Schema.TypeOf<typeof ObjectStorage>;
 
 const DiscordAuth = Schema.strict({
@@ -279,7 +296,7 @@ export const builtIn: Server = {
   clientOrigin:
     process.env["NODE_ENV"] === "development"
       ? "http://localhost:8080"
-      : "https://jasb.900000000.xyz",
+      : "https://bets.jads.stream",
 
   security: {
     cookies: {

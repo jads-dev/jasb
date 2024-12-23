@@ -1,0 +1,24 @@
+@import "./colors/dark.css";
+@import "./colors/light.css";
+
+@property --theme {
+  syntax: "dark | light";
+  inherits: false;
+  initial-value: "dark";
+}
+
+#jasb {  
+  --theme: dark; 
+
+  --trans-color: linear-gradient(
+    180deg,
+    #5bcefa 20%,
+    #f5a9b8 20%,
+    40%,
+    #ffffff 40%,
+    60%,
+    #f5a9b8 60%,
+    80%,
+    #5bcefa 80%
+  );
+}

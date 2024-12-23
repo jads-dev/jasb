@@ -8,14 +8,14 @@ import { compression } from "vite-plugin-compression2";
 const production = process.env["NODE_ENV"] !== "development";
 const inDocker = process.env["JASB_DEV_ENV"] === "docker";
 const server =
-  process.env["JASB_SERVER"] ?? inDocker
+  (process.env["JASB_SERVER"] ?? inDocker)
     ? "http://server:8081"
     : "http://localhost:8081";
 const stringPort = process.env["JASB_PORT"];
 const port = stringPort ? parseInt(stringPort) : 8080;
 const url =
   process.env["JASB_URL"] ??
-  (production ? "https://jasb.900000000.xyz/" : `http://localhost:${port}/`);
+  (production ? "https://bets.jads.stream/" : `http://localhost:${port}/`);
 const version = process.env["JASB_VERSION"] ?? "dev";
 const objectUpstreamUrl = process.env["JASB_OBJECT_UPSTREAM_URL"] ?? "";
 
@@ -95,7 +95,7 @@ export default defineConfig({
   },
   resolve: {
     alias: {
-      "../elm/JoeBets.mjs": "../elm/JoeBets.elm",
+      "../elm/Jasb.mjs": "../elm/Jasb.elm",
     },
   },
   build: {

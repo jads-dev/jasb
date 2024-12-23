@@ -136,8 +136,13 @@ export const cardsApi = (): Server.Router => {
         );
       }
       return {
-        mimeType,
-        stream: Readable.fromWeb(body as ReadableStream),
+        type: mimeType,
+        data: Readable.fromWeb(body as ReadableStream),
+        meta: {
+          uploader: Credentials.actingUser(credential),
+          reason: "forge-card-type",
+          source: sourceUrl,
+        },
       };
     };
     const imageResolved = await tryGet();
@@ -146,11 +151,6 @@ export const cardsApi = (): Server.Router => {
       ctx.logger,
       Objects.cardImageProcess("Normal"),
       imageResolved,
-      {
-        uploader: Credentials.actingUser(credential),
-        reason: "forge-card-type",
-        source: sourceUrl,
-      },
     );
     const cardTypeId = await store.gachaForgeCardType(
       credential,

@@ -1,0 +1,87 @@
+#leaderboard {
+  > .nav {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    gap: 1em;
+
+    display: flex;
+    flex-direction: row;
+    flex-wrap: wrap;
+    justify-content: center;
+    align-items: center;
+
+    font-size: 1.25em;
+
+    a {
+      display: inline-flex;
+      align-items: baseline;
+      gap: 0.25em;
+
+      &.active {
+        font-weight: bold;
+      }
+    }
+  }
+
+  > ol {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+
+    font-size: 1.5em;
+    gap: 0.25em;
+
+    display: grid;
+    grid-template-columns: auto 3em 1fr auto;
+    align-items: center;
+
+    > li,
+    > li > a {
+      display: contents;
+    }
+
+    .user-avatar {
+      line-height: 0.25em;
+      text-align: center;
+
+      > img {
+        font-size: 0.5em;
+        border-radius: 6em;
+        width: 6em;
+        height: 6em;
+      }
+    }
+
+    .rank {
+      justify-self: center;
+
+      span {
+        color: var(--on-secondary-color);
+        background-color: var(--secondary-color);
+
+        display: flex;
+        justify-content: center;
+        align-items: center;
+
+        min-width: 1.5em;
+        height: 1.5em;
+        border-radius: 1.5em;
+      }
+    }
+
+    .value {
+      justify-self: stretch;
+
+      .score {
+        display: flex;
+        align-items: center;
+
+        > span {
+          flex-grow: 1;
+          text-align: right;
+        }
+      }
+    }
+  }
+}

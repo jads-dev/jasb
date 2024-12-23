@@ -19,9 +19,9 @@ export class Stage implements Pipelines.Stage {
     config: Config.ObjectStorage,
     content: Objects.Content,
   ): Promise<Objects.Content> {
-    if (content.mimeType !== "image/svg+xml") {
+    if (content.type !== "image/svg+xml") {
       const pipeline = Sharp();
-      content.stream.pipe(pipeline as unknown as NodeJS.WritableStream);
+      content.data.pipe(pipeline as unknown as NodeJS.WritableStream);
       if (this.settings.targetSize !== undefined) {
         const [width, height] = this.settings.targetSize;
         pipeline.resize(width, height, { withoutEnlargement: true });
@@ -30,8 +30,9 @@ export class Stage implements Pipelines.Stage {
         effort: config.webp?.effort ?? 4,
       });
       return Promise.resolve({
-        stream: pipeline,
-        mimeType: "image/webp",
+        data: pipeline,
+        type: "image/webp",
+        meta: content.meta,
       });
     } else {
       return Promise.resolve(content);

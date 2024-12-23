@@ -1,0 +1,12 @@
+@import "./layouts/wide.css";
+@import "./layouts/narrow.css";
+
+@property --layout {
+  syntax: "wide | narrow";
+  inherits: false;
+  initial-value: "wide";
+}
+
+#jasb {
+  --layout: wide;
+}

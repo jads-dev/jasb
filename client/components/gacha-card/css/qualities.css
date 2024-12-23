@@ -1,0 +1,240 @@
+.quality {
+  display: block;
+  content: "";
+
+  &::after {
+    content: "";
+    display: block;
+    width: 2em;
+    height: 2em;
+    background-size: contain;
+  }
+}
+
+:host([qualities~="self"]) {
+  --quality-background: #ffffff;
+}
+.quality.self::after {
+  background-image: url(../assets/qualities/icons/self.png);
+}
+
+:host([qualities~="weeb"]) {
+  --quality-background: #fdf9b4;
+}
+.quality.weeb::after {
+  background-image: url(../assets/qualities/icons/weeb.png);
+}
+
+:host([qualities~="joms"]) {
+  --quality-background: #eb0100;
+}
+.quality.joms::after {
+  background-image: url(../assets/qualities/icons/joms.png);
+}
+
+:host([qualities~="useless"]) {
+  --quality-background: #555555;
+}
+.quality.useless::after {
+  background-image: url(../assets/qualities/icons/useless.png);
+}
+
+:host([qualities~="mistake"]) {
+  --quality-background: #ff00ff;
+}
+.quality.mistake::after {
+  background-image: url(../assets/qualities/icons/mistake.png);
+}
+
+:host([qualities~="trans"]) {
+  --quality-background: var(--trans-color);
+}
+.quality.trans::after {
+  background-image: url(../assets/qualities/icons/trans.svg);
+}
+
+:host([qualities~="censored"]) {
+  --quality-background: #ff388e;
+}
+.quality.censored::after {
+  background-image: url(../assets/qualities/icons/censored.png);
+}
+
+:host([qualities~="useless"]) {
+  filter: grayscale(100%);
+}
+
+:host([qualities~="mistake"]) .name {
+  position: relative;
+  margin: 0 auto;
+  color: #ffffff;
+  transform: scale3d(1, 1, 1);
+
+  &::before,
+  &::after {
+    content: attr(data-name);
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    overflow: hidden;
+    background: #333333;
+    color: #ffffff;
+    clip: rect(0, 900px, 0, 0);
+
+    @media (prefers-reduced-motion) {
+      animation: none !important;
+    }
+  }
+
+  &::before {
+    left: 7px;
+    text-shadow: 1px 0 #00ff00;
+    animation: glitch-effect 3s infinite linear alternate-reverse;
+  }
+
+  &::after {
+    left: 3px;
+    text-shadow: -1px 0 #ff0000;
+    animation: glitch-effect 2s infinite linear alternate-reverse;
+  }
+}
+
+@keyframes glitch-effect {
+  0% {
+    clip: rect(78px, 9999px, 98px, 0px);
+  }
+  5% {
+    clip: rect(48px, 9999px, 34px, 0px);
+  }
+  10% {
+    clip: rect(77px, 9999px, 85px, 0px);
+  }
+  15% {
+    clip: rect(29px, 9999px, 79px, 0px);
+  }
+  20% {
+    clip: rect(67px, 9999px, 50px, 0px);
+  }
+  25% {
+    clip: rect(43px, 9999px, 11px, 0px);
+  }
+  30% {
+    clip: rect(40px, 9999px, 15px, 0px);
+  }
+  35% {
+    clip: rect(90px, 9999px, 3px, 0px);
+  }
+  40% {
+    clip: rect(96px, 9999px, 77px, 0px);
+  }
+  45% {
+    clip: rect(89px, 9999px, 58px, 0px);
+  }
+  50% {
+    clip: rect(3px, 9999px, 36px, 0px);
+  }
+  55% {
+    clip: rect(35px, 9999px, 60px, 0px);
+  }
+  60% {
+    clip: rect(93px, 9999px, 99px, 0px);
+  }
+  65% {
+    clip: rect(47px, 9999px, 45px, 0px);
+  }
+  70% {
+    clip: rect(58px, 9999px, 82px, 0px);
+  }
+  75% {
+    clip: rect(23px, 9999px, 73px, 0px);
+  }
+  80% {
+    clip: rect(4px, 9999px, 67px, 0px);
+  }
+  85% {
+    clip: rect(24px, 9999px, 21px, 0px);
+  }
+  90% {
+    clip: rect(5px, 9999px, 91px, 0px);
+  }
+  95% {
+    clip: rect(94px, 9999px, 96px, 0px);
+  }
+  100% {
+    clip: rect(3px, 9999px, 72px, 0px);
+  }
+}
+
+:host([qualities~="weeb"]) .face::after {
+  display: block;
+  content: "";
+  position: absolute;
+  inset: 0 0 0 0;
+  pointer-events: none;
+  background-image: url(../assets/qualities/weeb-overlay.svg);
+  background-size: 100% 100%;
+}
+
+:host([qualities~="joms"]) .image {
+  filter: url(../assets/qualities/red-tint.svg#a);
+}
+
+:host([qualities~="self"]) .border {
+  background: var(
+    --border,
+    radial-gradient(
+      ellipse farthest-corner at right bottom,
+      #fedb37 0%,
+      #fdb931 8%,
+      #9f7928 30%,
+      #8a6e2f 40%,
+      transparent 80%
+    ),
+    radial-gradient(
+      ellipse farthest-corner at left top,
+      #ffffff 0%,
+      #ffffac 8%,
+      #d1b464 25%,
+      #5d4a1f 62.5%,
+      #5d4a1f 100%
+    )
+  );
+}
+
+:host([qualities~="trans"]) {
+  &:host([layout="full-image"]),
+  &:host([layout="landscape-full-image"]) {
+    .image {
+      position: unset;
+
+      &::after {
+        height: 100%;
+        border-radius: var(--inner-border-radius);
+        aspect-ratio: unset;
+      }
+    }
+  }
+
+  .image {
+    position: relative;
+
+    &::after {
+      display: block;
+      content: "";
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      aspect-ratio: 1;
+      pointer-events: none;
+      background: var(--trans-color);
+      background-size: 100%;
+      opacity: 0.5;
+    }
+  }
+}
+
+:host([qualities~="censored"]) .image {
+  filter: url(../assets/qualities/censor.svg#a);
+}

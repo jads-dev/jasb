@@ -1,0 +1,112 @@
+@import "./layouts.css";
+@import "./qualities.css";
+@import "./rarities.css";
+@import "./banners.css";
+@import "./effects.css";
+
+:host {
+  /* 5/8, won't work with calc defined that way. */
+  --jasb-gacha-card-aspect-ratio: 0.625;
+  --jasb-gacha-card-width: 16em;
+  --jasb-gacha-card-border-radius: 1em;
+}
+
+#card {
+  transform: translate3d(0px, 0px, 0.01px);
+
+  transform-style: preserve-3d;
+  text-rendering: optimizeLegibility;
+  image-rendering: optimizeQuality;
+
+  perspective: 600px;
+  will-change: transform;
+
+  width: var(--jasb-gacha-card-width);
+  aspect-ratio: var(--jasb-gacha-card-aspect-ratio);
+
+  --inner-border-radius: calc(var(--jasb-gacha-card-border-radius) / 2);
+  --border-width: calc(var(--jasb-gacha-card-border-radius) / 3 * 2);
+}
+
+:host(.unrevealed),
+:host(.revealed) {
+  #card::before {
+    display: block;
+    content: "";
+    position: absolute;
+    inset: -2.5em;
+    border-radius: 2.5em;
+    background: var(--quality-background, var(--rarity-color));
+    filter: blur(1em);
+    transform: translateZ(-5em);
+  }
+}
+
+:host([sample]) .pivot {
+  opacity: 0.75;
+
+  &::after {
+    content: "SAMPLE";
+    opacity: 0.5;
+    font-size: 5em;
+    position: absolute;
+    inset: 0 0 0 0;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    color: #888888;
+    filter: invert(1);
+  }
+}
+
+:host([sample][retired]) .pivot {
+  opacity: 0.9;
+  filter: grayscale(50%);
+}
+
+:host(.unrevealed) .face {
+  filter: brightness(0) invert(1);
+}
+
+.pivot,
+.effect {
+  border-radius: var(--jasb-gacha-card-border-radius);
+}
+
+.pivot {
+  display: grid;
+  grid-template:
+    "card" 1fr
+    / 1fr;
+
+  will-change: transform, box-shadow;
+
+  transform-origin: center;
+
+  transform: rotateY(var(--rotate-x)) rotateX(var(--rotate-y));
+  transform-style: preserve-3d;
+
+  > * {
+    grid-area: card;
+  }
+}
+
+.side {
+  display: grid;
+  grid-template:
+    "side" 1fr
+    / 1fr;
+
+  backface-visibility: hidden;
+
+  width: var(--jasb-gacha-card-width);
+  aspect-ratio: var(--jasb-gacha-card-aspect-ratio);
+
+  &.reverse {
+    transform: rotateY(180deg) translateZ(1px);
+  }
+
+  > * {
+    grid-area: side;
+  }
+}

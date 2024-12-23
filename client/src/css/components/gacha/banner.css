@@ -1,0 +1,106 @@
+#gacha {
+  width: min(40em, 100%);
+}
+
+.banners {
+  list-style: none;
+  padding: 0;
+
+  display: grid;
+  margin: 0;
+  gap: 1em;
+  grid-template-columns: minmax(min-content, 50em);
+  justify-content: center;
+
+  align-self: stretch;
+
+  > li {
+    display: contents;
+  }
+}
+
+.banner {
+  display: grid;
+  grid-template:
+    "type . roll roll" auto
+    "title title roll roll" auto
+    "description description description preview" auto
+    / auto 1fr auto auto;
+
+  box-sizing: border-box;
+
+  border-radius: 0 0 2em 0;
+  border: 0.1em solid var(--on-secondary-background-color);
+
+  background-image: var(--cover);
+  background-size: cover;
+  background-position: center center;
+
+  color: var(--foreground-color);
+  background-color: var(--background-color);
+
+  max-width: 50em;
+  width: 100%;
+  min-height: 10em;
+
+  align-items: center;
+
+  > .title {
+    font-size: 2em;
+    grid-area: title;
+    padding: 0 0.3em;
+    text-align: left;
+    display: flex;
+    color: inherit;
+
+    > h3 {
+      margin: 0;
+      padding: 0.1em;
+      background-color: #888888cc;
+    }
+  }
+
+  > .description {
+    grid-area: description;
+    padding: 0 1em 1em 0.6em;
+    display: flex;
+
+    > p {
+      margin: 0;
+      padding: 0.1em;
+      background-color: #88888888;
+    }
+  }
+
+  > .cover {
+    display: none;
+  }
+
+  > .roll {
+    grid-area: roll;
+    display: grid;
+    grid-template-columns: auto auto;
+    gap: 0.25em 0.5em;
+  }
+
+  > .type {
+    grid-area: type;
+    display: flex;
+    align-self: flex-start;
+    justify-self: flex-start;
+
+    > div {
+  color: var(--on-secondary-background-color);
+  background-color: var(--secondary-background-color);
+      padding: 0.5em;
+      border-radius: 0 0 0.5em 0;
+    }
+  }
+
+  > .preview {
+    grid-area: preview;
+    align-self: center;
+    justify-self: flex-end;
+    margin-right: 0.5em;
+  }
+}

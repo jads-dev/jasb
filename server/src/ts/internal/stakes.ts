@@ -2,6 +2,7 @@ import { z } from "zod";
 
 import { Types } from "./types.js";
 import { Users } from "./users.js";
+import { Gacha } from "./gacha.js";
 
 export const Stake = z
   .object({
@@ -9,6 +10,13 @@ export const Stake = z
     made_at: Types.zonedDateTime,
     amount: Types.positiveInt,
     message: z.string().nullable(),
+    payout: z
+      .object({
+        amount: Types.positiveInt.nullable(),
+        gacha: Gacha.Balances.Value.nullable(),
+      })
+      .strict()
+      .nullable(),
   })
   .strict();
 export type Stake = z.infer<typeof Stake>;

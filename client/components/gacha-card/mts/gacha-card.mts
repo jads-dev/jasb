@@ -15,7 +15,7 @@ import {
 import { styleMap } from "lit/directives/style-map.js";
 import { when } from "lit/directives/when.js";
 
-import { default as styles } from "../scss/gacha-card.scss?inline";
+import { default as styles } from "../css/gacha-card.css?inline";
 import { clamp, roughlyEquals, spaceSeparatedList } from "./util.mjs";
 
 type PercentCoordinates = readonly [x: number, y: number];

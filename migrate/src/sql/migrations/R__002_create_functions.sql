@@ -774,10 +774,12 @@ CREATE FUNCTION complete_bet (
             ELSE
               NULL
           END AS amount,
-          CASE WHEN pot.is_winner THEN win_bet_roll_reward ELSE 0 END AS rolls,
-          CASE WHEN pot.is_winner THEN 0 ELSE lose_bet_scrap_reward END AS scrap
+          CASE WHEN ROW_NUMBER() OVER same_user = 1 AND is_winner THEN win_bet_roll_reward ELSE 0 END AS rolls,
+          CASE WHEN ROW_NUMBER() OVER same_user = 1 AND (NOT is_winner) THEN lose_bet_scrap_reward ELSE 0 END AS scrap
         FROM stakes INNER JOIN pot ON stakes.option = pot.option
-        WINDOW same_option AS (PARTITION BY stakes.option)
+        WINDOW
+            same_user AS (PARTITION BY stakes.owner ORDER BY pot.is_winner DESC, stakes.made_at),
+            same_option AS (PARTITION BY stakes.option)
       ),
       update_winners AS (
         UPDATE users SET
@@ -1171,6 +1173,7 @@ CREATE FUNCTION new_stake (
   DECLARE
     user_id users.id%TYPE;
     bet_is_voting BOOLEAN;
+    existing_stakes_on_bet users.balance%TYPE;
     new_balance users.balance%TYPE;
   BEGIN
     SELECT validate_credentials(credential, session_lifetime) INTO user_id;
@@ -1203,6 +1206,17 @@ CREATE FUNCTION new_stake (
         MESSAGE = 'Bet not accepting new stakes.';
     END IF;
 
+    SELECT
+        SUM(stakes.amount) INTO existing_stakes_on_bet
+    FROM
+        stakes INNER JOIN
+        "options" ON stakes."option" = "options".id INNER JOIN
+        bets ON "options".bet = bets.id AND bets.slug = bet_slug INNER JOIN
+        games ON bets.game = games.id AND games.slug = game_slug
+    WHERE
+        stakes.owner = user_id
+    GROUP BY bets.id;
+
     BEGIN
       WITH
         stake AS (
@@ -1227,10 +1241,10 @@ CREATE FUNCTION new_stake (
           MESSAGE = 'You already have a bet on this option.';
     END;
 
-    IF new_balance < 0 AND staked > max_bet_while_in_debt THEN
+    IF new_balance < 0 AND (existing_stakes_on_bet + staked) > max_bet_while_in_debt THEN
       RAISE EXCEPTION USING
         ERRCODE = 'BDREQ',
-        MESSAGE = 'Can’t place a bet of this size while in debt.';
+        MESSAGE = 'Can’t place more than ' || max_bet_while_in_debt || ' of bets on a single bet while in, or going into, debt.';
     END IF;
 
     INSERT INTO audit_logs (event) VALUES (

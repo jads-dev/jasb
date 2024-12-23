@@ -46,6 +46,7 @@ const binary = (value: Uint8Array) => Slonik.sql.binary(Buffer.from(value));
 export class Store {
   readonly #config: Config.Server;
   readonly #pool: Slonik.DatabasePool;
+  readonly #readPool: Slonik.DatabasePool;
 
   public static connectionString({
     host,
@@ -66,23 +67,39 @@ export class Store {
     });
   }
 
-  private constructor(config: Config.Server, pool: Slonik.DatabasePool) {
+  private constructor(
+    config: Config.Server,
+    pool: Slonik.DatabasePool,
+    readPool: Slonik.DatabasePool | undefined = undefined,
+  ) {
     this.#config = config;
     this.#pool = pool;
+    this.#readPool = readPool ?? pool;
   }
 
   public static async init(config: Config.Server): Promise<Store> {
-    return new Store(
-      config,
-      await Slonik.createPool(Store.connectionString(config.store.source), {
-        typeParsers: [
-          { name: "int8", parse: (v) => Number.parseInt(v, 10) },
-          { name: "timestamptz", parse: (v) => v },
-          { name: "bytea", parse: (v) => v },
-        ],
-        interceptors: [createResultParserInterceptor()],
-      }),
+    const clientConfig: Slonik.ClientConfigurationInput = {
+      typeParsers: [
+        { name: "int8", parse: (v) => Number.parseInt(v, 10) },
+        { name: "timestamptz", parse: (v) => v },
+        { name: "bytea", parse: (v) => v },
+      ],
+      interceptors: [createResultParserInterceptor()],
+    };
+    const pool = await Slonik.createPool(
+      Store.connectionString(config.store.source),
+      clientConfig,
     );
+    const readPool = config.store.source.read
+      ? await Slonik.createPool(
+          Store.connectionString({
+            ...config.store.source,
+            ...config.store.source.read,
+          }),
+          clientConfig,
+        )
+      : undefined;
+    return new Store(config, pool, readPool);
   }
 
   anyOf(ids: readonly { id: number }[]) {
@@ -99,7 +116,7 @@ export class Store {
   }
 
   async validateUpload(credential: Credentials.Identifying): Promise<number> {
-    const result = await this.withClient(
+    const result = await this.withReadClient(
       async (client) =>
         // This will throw if not authorized.
         await client.one(
@@ -117,7 +134,7 @@ export class Store {
   async validateCredential(
     credential: Credentials.Identifying,
   ): Promise<number> {
-    const result = await this.withClient(
+    const result = await this.withReadClient(
       async (client) =>
         await client.one(
           Queries.userId(sqlFragment`
@@ -132,7 +149,7 @@ export class Store {
   }
 
   async getUser(userSlug: Public.Users.Slug): Promise<Users.User | undefined> {
-    return await this.withClient(async (client) => {
+    return await this.withReadClient(async (client) => {
       const result = await client.maybeOne(
         Queries.user(sqlFragment`
           SELECT users.* FROM users WHERE users.slug = ${userSlug}
@@ -143,7 +160,7 @@ export class Store {
   }
 
   async searchUsers(query: string): Promise<readonly Users.Summary[]> {
-    const result = await this.withClient(
+    const result = await this.withReadClient(
       async (client) =>
         await client.query(
           Queries.userSummary(
@@ -164,7 +181,7 @@ export class Store {
   }
 
   async getNetWorthLeaderboard(): Promise<readonly Users.Leaderboard[]> {
-    return await this.withClient(async (client) => {
+    return await this.withReadClient(async (client) => {
       const results = await client.query(
         Queries.leaderboard(sqlFragment`
           SELECT leaderboard.* 
@@ -177,7 +194,7 @@ export class Store {
   }
 
   async getDebtLeaderboard(): Promise<readonly Users.Leaderboard[]> {
-    return await this.withClient(async (client) => {
+    return await this.withReadClient(async (client) => {
       const results = await client.query(
         Queries.leaderboard(sqlFragment`
           SELECT debt_leaderboard.* 
@@ -192,7 +209,7 @@ export class Store {
   async bankruptcyStats(
     userSlug: Public.Users.Slug,
   ): Promise<Users.BankruptcyStats> {
-    return await this.withClient(async (client) => {
+    return await this.withReadClient(async (client) => {
       return await client.one(
         Queries.bankruptcyStats(
           this.#config.rules.initialBalance,
@@ -305,7 +322,7 @@ export class Store {
     nextSearch: Joda.Duration,
     buffer: Joda.Duration,
   ): Promise<readonly Users.DiscordRefreshToken[]> {
-    return await this.withClient(async (client) => {
+    return await this.withReadClient(async (client) => {
       const results = await client.query(
         Queries.refreshToken(sqlFragment`
           SELECT sessions.* 
@@ -365,7 +382,7 @@ export class Store {
   async getGame(
     gameSlug: Public.Games.Slug,
   ): Promise<(Games.Game & Games.BetStats) | undefined> {
-    return await this.withClient(async (client) => {
+    return await this.withReadClient(async (client) => {
       const result = await client.maybeOne(
         Queries.gameWithBetStats(sqlFragment`
           SELECT games.* FROM jasb.games WHERE games.slug = ${gameSlug}
@@ -389,7 +406,7 @@ export class Store {
   async getGames(
     subset: Games.Progress,
   ): Promise<readonly (Games.Game & Games.BetStats)[]> {
-    return await this.withClient(async (client) => {
+    return await this.withReadClient(async (client) => {
       const results = await client.query(
         Queries.gameWithBetStats(
           sqlFragment`
@@ -432,7 +449,7 @@ export class Store {
   }
 
   async searchGames(query: string): Promise<readonly Games.Summary[]> {
-    const result = await this.withClient(
+    const result = await this.withReadClient(
       async (client) =>
         await client.query(
           Queries.gameSummary(
@@ -484,7 +501,7 @@ export class Store {
   }
 
   async getLockMoments(gameSlug: string): Promise<readonly Bets.LockMoment[]> {
-    return await this.withClient(async (client) => {
+    return await this.withReadClient(async (client) => {
       const results = await client.query(
         Queries.lockMoment(sqlFragment`
           SELECT lock_moments.* 
@@ -558,7 +575,7 @@ export class Store {
   async getBets(
     gameSlug: Public.Games.Slug,
   ): Promise<readonly (Bets.Bet & Bets.WithOptions)[]> {
-    return await this.withClient(async (client) => {
+    return await this.withReadClient(async (client) => {
       const results = await client.query(
         Queries.betWithOptions(sqlFragment`
           SELECT bets.* 
@@ -573,7 +590,7 @@ export class Store {
   async getBetsLockStatus(
     gameSlug: Public.Games.Slug,
   ): Promise<readonly Bets.LockStatus[]> {
-    return await this.withClient(async (client) => {
+    return await this.withReadClient(async (client) => {
       const results = await client.query(
         Queries.lockStatus(sqlFragment`
           SELECT bets.* 
@@ -588,7 +605,7 @@ export class Store {
   async getUserBets(
     userSlug: Public.Users.Slug,
   ): Promise<readonly (Games.Game & Games.WithBets)[]> {
-    return await this.withClient(async (client) => {
+    return await this.withReadClient(async (client) => {
       const results = await client.query(
         Queries.gameWithBets(sqlFragment`
           SELECT 
@@ -612,7 +629,7 @@ export class Store {
     gameSlug: Public.Games.Slug,
     betSlug: Public.Bets.Slug,
   ): Promise<Bets.Editable | undefined> {
-    return await this.withClient(async (client) => {
+    return await this.withReadClient(async (client) => {
       const result = await client.maybeOne(
         Queries.editableBet(sqlFragment`
           SELECT bets.* 
@@ -1057,7 +1074,7 @@ export class Store {
     credential: Credentials.Identifying,
     notificationId: Public.Notifications.Id,
   ): Promise<Notifications.Notification> {
-    return await this.withClient(
+    return await this.withReadClient(
       async (client) =>
         await client.one(
           Queries.notification(sqlFragment`
@@ -1075,7 +1092,7 @@ export class Store {
     credential: Credentials.Identifying,
     includeRead = false,
   ): Promise<readonly Notifications.Notification[]> {
-    return await this.withClient(async (client) => {
+    return await this.withReadClient(async (client) => {
       const results = await client.query(
         Queries.notification(sqlFragment`
           SELECT * FROM jasb.get_notifications(
@@ -1109,7 +1126,7 @@ export class Store {
   }
 
   async getFeed(): Promise<readonly Feed.Item[]> {
-    return await this.withClient(async (client) => {
+    return await this.withReadClient(async (client) => {
       const results = await client.query(
         Queries.feedItem(sqlFragment`
           SELECT feed.* FROM jasb.feed
@@ -1123,7 +1140,7 @@ export class Store {
     gameSlug: Public.Games.Slug,
     betSlug: Public.Bets.Slug,
   ): Promise<readonly Feed.Item[]> {
-    return await this.withClient(async (client) => {
+    return await this.withReadClient(async (client) => {
       const results = await client.query(
         Queries.feedItem(sqlFragment`
           SELECT feed.* 
@@ -1138,7 +1155,7 @@ export class Store {
   async getPermissions(
     userSlug: Public.Users.Slug,
   ): Promise<Users.Permissions> {
-    return await this.withClient(async (client) => {
+    return await this.withReadClient(async (client) => {
       return await client.one(
         Queries.permissions(sqlFragment`
           SELECT users.* FROM jasb.users WHERE users.slug = ${userSlug}
@@ -1182,7 +1199,7 @@ export class Store {
   async gachaGetForgeDetail(
     userSlug: Public.Users.Slug,
   ): Promise<Users.ForgeDetail> {
-    return await this.withClient(
+    return await this.withReadClient(
       async (client) =>
         await client.one(
           Queries.userForgeDetail(sqlFragment`
@@ -1242,7 +1259,7 @@ export class Store {
   async gachaGetUserForgeCardsTypes(
     userSlug: Public.Users.Slug,
   ): Promise<readonly Gacha.CardTypes.OptionalForRarity[]> {
-    return await this.withClient(async (client) => {
+    return await this.withReadClient(async (client) => {
       const result = await client.query(
         Queries.cardTypeByRarity(sqlFragment`
           SELECT
@@ -1262,7 +1279,7 @@ export class Store {
   async gachaGetAllCollectionCards(
     userSlug: Public.Users.Slug,
   ): Promise<readonly Gacha.CardTypes.WithCardsAndBanner[]> {
-    return await this.withClient(async (client) => {
+    return await this.withReadClient(async (client) => {
       const result = await client.query(
         Queries.cardTypeWithCardsAndBanner(
           sqlFragment`
@@ -1284,7 +1301,7 @@ export class Store {
     userSlug: Public.Users.Slug,
     bannerSlug: Public.Gacha.Banners.Slug,
   ): Promise<readonly Gacha.CardTypes.WithCards[]> {
-    return await this.withClient(async (client) => {
+    return await this.withReadClient(async (client) => {
       const result = await client.query(
         Queries.cardTypeWithCards(
           sqlFragment`
@@ -1311,7 +1328,7 @@ export class Store {
     userSlug: Public.Users.Slug,
     cardId: Public.Gacha.Cards.Id,
   ): Promise<Gacha.Cards.Detailed> {
-    return await this.withClient(async (client) => {
+    return await this.withReadClient(async (client) => {
       return await client.one(
         Queries.detailedCard(sqlFragment`
           SELECT 
@@ -1328,7 +1345,7 @@ export class Store {
   async gachaGetHighlighted(
     userSlug: Public.Users.Slug,
   ): Promise<readonly Gacha.Cards.Highlighted[]> {
-    return await this.withClient(async (client) => {
+    return await this.withReadClient(async (client) => {
       const result = await client.query(
         Queries.highlighted(sqlFragment`
           SELECT 
@@ -1440,7 +1457,7 @@ export class Store {
     bannerSlug: Public.Gacha.Banners.Slug,
     cardId: Public.Gacha.Cards.Id,
   ): Promise<Gacha.Balances.Value> {
-    return await this.inTransaction(async (client) => {
+    return await this.withReadClient(async (client) => {
       return await client.one(
         Queries.recycleValue(sqlFragment`
           SELECT 
@@ -1480,7 +1497,7 @@ export class Store {
   async gachaGetBalance(
     credential: Credentials.Identifying,
   ): Promise<Gacha.Balances.Balance> {
-    const result = await this.withClient(
+    const result = await this.withReadClient(
       async (client) =>
         await client.maybeOne(
           Queries.balance(sqlFragment`
@@ -1502,7 +1519,7 @@ export class Store {
   }
 
   async gachaGetRarities(): Promise<readonly Gacha.Rarities.Rarity[]> {
-    const result = await this.withClient(
+    const result = await this.withReadClient(
       async (client) =>
         await client.query(
           Queries.rarity(sqlFragment`
@@ -1514,7 +1531,7 @@ export class Store {
   }
 
   async gachaGetQualities(): Promise<readonly Gacha.Qualities.Quality[]> {
-    const result = await this.withClient(
+    const result = await this.withReadClient(
       async (client) =>
         await client.query(
           Queries.quality(sqlFragment`
@@ -1526,7 +1543,7 @@ export class Store {
   }
 
   async gachaGetBanners(): Promise<readonly Gacha.Banners.Banner[]> {
-    return await this.withClient(async (client) => {
+    return await this.withReadClient(async (client) => {
       const result = await client.query(
         Queries.banner(sqlFragment`
           SELECT banners.* 
@@ -1539,7 +1556,7 @@ export class Store {
   }
 
   async gachaGetEditableBanners(): Promise<readonly Gacha.Banners.Editable[]> {
-    return await this.withClient(async (client) => {
+    return await this.withReadClient(async (client) => {
       const result = await client.query(
         Queries.editableBanner(sqlFragment`
           SELECT banners.* 
@@ -1553,7 +1570,7 @@ export class Store {
   async gachaGetBanner(
     bannerSlug: string,
   ): Promise<Gacha.Banners.Banner | undefined> {
-    const result = await this.withClient(
+    const result = await this.withReadClient(
       async (client) =>
         await client.maybeOne(
           Queries.banner(sqlFragment`
@@ -1569,7 +1586,7 @@ export class Store {
   async gachaGetEditableBanner(
     bannerSlug: string,
   ): Promise<Gacha.Banners.Editable | undefined> {
-    const result = await this.withClient(
+    const result = await this.withReadClient(
       async (client) =>
         await client.maybeOne(
           Queries.editableBanner(sqlFragment`
@@ -1585,7 +1602,7 @@ export class Store {
   async gachaGetCollectionBanners(
     userSlug: Public.Users.Slug,
   ): Promise<readonly Gacha.Banners.Editable[]> {
-    return await this.withClient(async (client) => {
+    return await this.withReadClient(async (client) => {
       const result = await client.query(
         Queries.editableBanner(sqlFragment`
           SELECT DISTINCT ON (banners.id) banners.* 
@@ -1695,7 +1712,7 @@ export class Store {
   async gachaGetCardTypes(
     bannerSlug: Public.Gacha.Banners.Slug,
   ): Promise<readonly Gacha.CardTypes.CardType[]> {
-    const result = await this.withClient(
+    const result = await this.withReadClient(
       async (client) =>
         await client.query(
           Queries.cardType(sqlFragment`
@@ -1715,7 +1732,7 @@ export class Store {
   async gachaGetEditableCardTypes(
     bannerSlug: Public.Gacha.Banners.Slug,
   ): Promise<readonly Gacha.CardTypes.Editable[]> {
-    const result = await this.withClient(
+    const result = await this.withReadClient(
       async (client) =>
         await client.query(
           Queries.editableCardType(sqlFragment`
@@ -1737,7 +1754,7 @@ export class Store {
     bannerSlug?: Public.Gacha.Banners.Slug,
   ): Promise<Gacha.CardTypes.Detailed | undefined> {
     const bannerSlugOrNull = bannerSlug ?? null;
-    const result = await this.withClient(
+    const result = await this.withReadClient(
       async (client) =>
         await client.maybeOne(
           Queries.detailedCardType(sqlFragment`
@@ -1918,7 +1935,7 @@ export class Store {
   async gachaGetEditableCardType(
     id: number,
   ): Promise<Gacha.CardTypes.Editable> {
-    return await this.withClient(
+    return await this.withReadClient(
       async (client) =>
         await client.one(
           Queries.editableCardType(sqlFragment`
@@ -1951,7 +1968,7 @@ export class Store {
     table: Slonik.IdentifierSqlToken,
     column: Slonik.IdentifierSqlToken,
   ): Promise<readonly { id: number; url: string }[]> {
-    return await this.withClient(async (client) => {
+    return await this.withReadClient(async (client) => {
       const results = await client.query(
         Queries.object(sqlFragment`
           SELECT objects.id, objects.url, objects.name, objects.source_url
@@ -2033,7 +2050,7 @@ export class Store {
     typeName: Objects.TypeName,
     objects: readonly Objects.Reference[],
   ): Promise<readonly Objects.Reference[]> {
-    return await this.withClient(async (client) => {
+    return await this.withReadClient(async (client) => {
       const results = await client.query(
         Queries.name(sqlFragment`
           SELECT name
@@ -2079,6 +2096,14 @@ export class Store {
 
   async unload(): Promise<void> {
     await this.#pool.end();
+  }
+
+  private async withReadClient<Value>(
+    operation: (client: Slonik.DatabasePoolConnection) => Promise<Value>,
+  ): Promise<Value> {
+    return await Store.translatingErrors(
+      async () => await this.#readPool.connect(operation),
+    );
   }
 
   private async withClient<Value>(

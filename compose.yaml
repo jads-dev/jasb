@@ -9,7 +9,7 @@ volumes:
 
 services:
   storage:
-    image: "postgres:16"
+    image: "postgres:17"
     environment:
       POSTGRES_USER: jasb
       POSTGRES_PASSWORD: jasb
@@ -23,17 +23,14 @@ services:
     restart: unless-stopped
 
   migrate:
-    image: "redgate/flyway:10"
+    build:
+      context: ./migrate
     command: migrate
     environment:
       FLYWAY_URL: jdbc:postgresql://storage:5432/jasb
       FLYWAY_USER: jasb
       FLYWAY_PASSWORD: jasb
-      FLYWAY_LOCATIONS: filesystem:/flyway/sql/migrations
       FLYWAY_SCHEMAS: jasb
-      FLYWAY_CREATE_SCHEMAS: true
-    volumes:
-      - ../migrate/src/sql:/flyway/sql
     networks:
       - backend
     depends_on:
@@ -43,7 +40,7 @@ services:
     restart: no
 
   server:
-    build: 
+    build:
       context: ./server
       target: dev
     develop:
@@ -71,11 +68,11 @@ services:
       - backend
 
   client:
-    build: 
+    build:
       context: ./client
       target: dev
       additional_contexts:
-        - nginx=./nginx
+        - nginx=./client/nginx
     develop:
       watch:
         - action: sync

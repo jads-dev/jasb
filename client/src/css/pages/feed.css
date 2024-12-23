@@ -1,0 +1,63 @@
+#feed {
+  max-width: 50em;
+
+  > p {
+    margin: 0;
+  }
+}
+
+#feed,
+.feed {
+  > ol {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    align-self: stretch;
+
+    font-size: 1.5em;
+
+    display: flex;
+    flex-direction: column;
+    gap: 0.5em;
+
+    > li {
+      width: 100%;
+      display: flex;
+      align-items: center;
+      color: var(--on-secondary-background-color);
+      background-color: var(--secondary-background-color);
+      padding: 0.25em;
+      border-radius: 0.5em;
+
+      > div {
+        flex-grow: 1;
+      }
+
+      p {
+        margin: 0;
+      }
+    }
+  }
+
+  .hide-spoilers {
+    position: relative;
+
+    &::before {
+      display: block;
+      content: "";
+      position: absolute;
+      top: 0;
+      right: 0;
+      bottom: 0;
+      left: 0;
+      z-index: 10;
+      cursor: pointer;
+      border-radius: 0.5em;
+      background-color: #00000077;
+    }
+
+    .potential-spoiler {
+      filter: blur(0.4em);
+    }
+  }
+}

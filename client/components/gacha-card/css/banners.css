@@ -1,0 +1,19 @@
+:host([banner="joms"]) {
+  --background: url(../assets/banners/joms-background.svg);
+  --color: #ffffff;
+}
+
+:host([banner="jads"]) {
+  --background: url(../assets/banners/jads-background.svg);
+  --color: #ffffff;
+}
+
+:host([banner="chans"]) {
+  --background: url(../assets/banners/chans-background.svg);
+  --color: #000;
+}
+
+:host([banner="joe"]) {
+  --background: url(../assets/banners/joe-background.webp);
+  --color: #ffffff;
+}

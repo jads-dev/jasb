@@ -1,0 +1,13 @@
+@media (min-width: 30rem) {
+  .auto-layout {
+    --layout: wide;
+  }
+}
+
+.wide-layout {
+  --layout: wide;
+}
+
+#jasb {
+  font-size: 1em;
+}

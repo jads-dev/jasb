@@ -1,4 +1,4 @@
-import type { InboundPort, OutboundPort } from "../elm/JoeBets.mjs";
+import type { InboundPort, OutboundPort } from "../elm/Jasb.mjs";
 import type { BaseUrl } from "./base-url.mjs";
 
 export interface Ports {

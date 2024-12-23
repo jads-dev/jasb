@@ -29,10 +29,11 @@
     "dotenv": "^16.3.1",
     "elm-review": "^2.10.2",
     "elm-tooling": "^1.14.1",
+    "postcss": "^8.4.47",
+    "postcss-nesting": "^13.0.0",
     "postcss-preset-env": "^10.0.2",
-    "sass": "^1.49.9",
     "typescript": "^5.2.2",
-    "vite": "^5.4.2",
+    "vite": "^6.0.3",
     "vite-plugin-compression2": "^1.2.0",
     "vite-plugin-elm": "^3.0.1"
   }

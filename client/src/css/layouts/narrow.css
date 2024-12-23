@@ -1,0 +1,35 @@
+@media (max-width: 30rem) {
+  .auto-layout {
+    --layout: narrow;
+  }
+}
+
+.narrow-layout {
+  --layout: narrow;
+}
+
+@container style(--layout: narrow) {
+  #jasb {
+    font-size: 0.8em;
+
+    .bet > ul > li {
+      > img,
+      > .stats {
+        display: none;
+      }
+    }
+  
+    #bets {
+      grid-template-columns: [left] 1fr [right] 0;
+    }
+  
+    .leaderboard {
+      font-size: 1em;
+    }
+  
+    #feed > ol,
+    .feed > ol {
+      font-size: 1em;
+    }
+  }
+}

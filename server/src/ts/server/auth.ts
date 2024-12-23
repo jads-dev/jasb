@@ -267,7 +267,7 @@ export class Auth {
       }
       const discriminator =
         discord.user.discriminator !== "0"
-          ? discord.user.discriminator ?? null
+          ? (discord.user.discriminator ?? null)
           : null;
       const avatarUrl = avatar(
         discord.user.id,

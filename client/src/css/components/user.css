@@ -1,0 +1,79 @@
+.user {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.25em;
+  text-align: center;
+
+  .avatar {
+    font-size: 0.5em;
+    width: 2em;
+    height: 2em;
+    border-radius: 100%;
+  }
+
+  .name .discriminator {
+    opacity: 0.25;
+    font-size: 0.75em;
+  }
+}
+
+.user-selector {
+  position: relative;
+  --mdc-list-item-graphic-margin: 0.5em;
+
+  .avatar {
+    border-radius: 100%;
+  }
+
+  .name .discriminator {
+    opacity: 0.25;
+    font-size: 0.75em;
+  }
+
+  .input {
+    display: flex;
+    flex-flow: row;
+    align-items: center;
+    gap: 1em;
+  }
+
+  .search {
+    display: flex;
+    flex-flow: row;
+    align-items: center;
+    gap: 0.25em;
+    flex-grow: 1;
+
+    .selected {
+      margin-left: 0.75em;
+      margin-right: 0.5em;
+    }
+  }
+
+  .options {
+    overflow-y: auto;
+
+    .avatar {
+      font-size: 2em;
+      width: 1em;
+      height: 1em;
+    }
+  }
+}
+
+.permission-selector {
+  position: relative;
+  --mdc-list-item-graphic-margin: 0.5em;
+
+  .search {
+    display: flex;
+    flex-flow: row;
+    align-items: center;
+    gap: 0.25em;
+    flex-grow: 1;
+  }
+
+  .options {
+    overflow-y: auto;
+  }
+}

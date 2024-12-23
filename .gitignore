@@ -3,11 +3,11 @@
 .vscode
 
 # Packaging.
-node_modules
-elm-stuff
+node_modules/
+elm-stuff/
 
 # Built files.
-dist
+dist/
 
 # Testing config for development.
 *.env
@@ -18,3 +18,8 @@ deployment/certs
 deployment/config.json5
 deployment/nginx.conf
 
+# Testing asset local storage.
+temp/
+
+# Testing data
+jasb-backup.sql

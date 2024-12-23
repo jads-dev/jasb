@@ -41,7 +41,11 @@ const fetchContent = async (url: string): Promise<Objects.Content> => {
   if (stream === null) {
     throw new Error(`No body from object to cache: ${url}`);
   }
-  return { mimeType, stream: Readable.fromWeb(stream as ReadableStream) };
+  return {
+    type: mimeType,
+    data: Readable.fromWeb(stream as ReadableStream),
+    meta: { source: url.length > 255 ? `${url.slice(0, 254)}…` : url },
+  };
 };
 
 export const cacheObjects = (server: Server.State): Tasks.Task | undefined => {
@@ -83,12 +87,11 @@ export const cacheObjects = (server: Server.State): Tasks.Task | undefined => {
                     };
                   } else {
                     const content = await fetchContent(url);
-                    const reference = await objectStorage.upload(
+                    const reference = await objectStorage.store(
                       server,
                       logger,
                       prefix,
                       content,
-                      { ...(url.length < 256 ? { source: url } : {}) },
                     );
                     return {
                       id,

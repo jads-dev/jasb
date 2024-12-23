@@ -4,9 +4,9 @@ JASB is a community site that runs bets for [Joeseph Anderson streams][twitch-an
 
 [twitch-andersonjph]: https://www.twitch.tv/andersonjph
 
-You can find the live instance at [jasb.900000000.xyz][jasb].
+You can find the live instance at [bets.jads.stream][jasb].
 
-[jasb]: https://jasb.900000000.xyz
+[jasb]: https://bets.jads.stream
 
 ## License
 

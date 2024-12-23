@@ -1,4 +1,4 @@
-ARG NODE_VERSION=22
+ARG NODE_VERSION=23
 ARG NGINX_BASE="nginx:mainline-alpine"
 ARG MODE=production
 ARG BUILD_DATE
@@ -14,15 +14,15 @@ ARG VERSION
 ARG MODE
 ARG URL
 
-ENV JASB_VERSION ${VERSION}
-ENV JASB_BUILD_MODE ${MODE}
-ENV JASB_URL ${URL}
+ENV JASB_VERSION=${VERSION}
+ENV JASB_BUILD_MODE=${MODE}
+ENV JASB_URL=${URL}
 
 COPY --link ["./package.json", "./package-lock.json", "./elm-tooling.json", "./"]
 COPY --link ["./elm-material/package.json", "./elm-material/package-lock.json", "./elm-material/"]
 RUN \
-  --mount=type=cache,target=/root/.npm \
-  ["npm", "ci"]
+    --mount=type=cache,target=/root/.npm \
+    ["npm", "ci"]
 
 COPY --link ["./tsconfig.json", "./postcss.config.js", "./vite.config.mts", "./elm.json", "./"]
 COPY --link ["./index.html", "./"]
@@ -35,8 +35,8 @@ RUN ["npm", "run", "build"]
 
 FROM build AS dev
 
-ENV NODE_ENV "development"
-ENV JASB_DEV_ENV "docker"
+ENV NODE_ENV="development"
+ENV JASB_DEV_ENV="docker"
 
 COPY --link [ "./", "./" ]
 
@@ -70,7 +70,7 @@ LABEL org.opencontainers.image.description="Static web client for JASB."
 # HTTP
 EXPOSE 8080
 # HTTPS
-EXPOSE 8083 
+EXPOSE 8083
 
 HEALTHCHECK CMD curl -f http://localhost:8080/health || exit 1
 COPY --link --from=sources ["/", "/usr/share/nginx/html/"]

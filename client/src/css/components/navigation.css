@@ -1,0 +1,82 @@
+header nav {
+  flex-grow: 1;
+  padding: 0.5rem;
+  font-size: 1.25em;
+
+  display: flex;
+  flex-flow: column;
+
+  > ul {
+    list-style-type: none;
+    margin: 0;
+    padding: 0;
+
+    display: flex;
+    flex-flow: row wrap-reverse;
+    justify-content: flex-end;
+    align-items: center;
+    gap: 0.5em;
+
+    > li > a {
+      display: inline-flex;
+      align-items: baseline;
+      gap: 0.25em;
+    }
+  }
+
+  .user-submenu .avatar {
+    width: 1em;
+    height: 1em;
+    border-radius: 100%;
+  }
+  .more-submenu {
+    width: 0.5em;
+    > md-icon-button {
+      margin-left: -0.75em;
+    }
+  }
+  .submenu {
+    flex-grow: 0;
+    position: relative;
+
+    > md-menu {
+      max-width: 100%;
+      margin: 1em;
+    }
+
+    div[slot="headline"] {
+      width: max-content;
+    }
+  }
+}
+
+.auth-error {
+  position: absolute;
+  right: 0;
+  top: 2em;
+  z-index: 1;
+
+  max-width: 30em;
+  margin: 1em;
+  color: var(--on-card-color);
+  background-color: var(--card-color);
+  padding: 0.5em;
+  border-radius: 0.5em;
+
+  display: grid;
+  grid-template:
+    "dismiss . title" auto
+    "error error error" auto
+    / auto 1fr auto;
+  gap: 0.25em;
+  align-items: center;
+
+  > h3 {
+    grid-area: title;
+    margin: 0;
+  }
+
+  > .error {
+    grid-area: error;
+  }
+}

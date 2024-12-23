@@ -1,0 +1,16 @@
+.score {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.25em;
+
+  &::before {
+    display: block;
+    width: 1em;
+    height: 1em;
+
+    content: "";
+    background-image: url(../../../assets/images/monocoin.png);
+    background-size: contain;
+    background-position: center;
+  }
+}

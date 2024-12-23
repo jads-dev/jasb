@@ -1,4 +1,4 @@
-import type { InboundPort, OutboundPort } from "../elm/JoeBets.mjs";
+import type { InboundPort, OutboundPort } from "../elm/Jasb.mjs";
 
 export interface Flags {
   store: Value[];

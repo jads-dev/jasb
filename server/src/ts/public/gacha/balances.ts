@@ -35,9 +35,9 @@ export type Value = Schema.TypeOf<typeof Value>;
 export const valueFromInternal = (
   internal: Internal.Balances.Value,
 ): Value => ({
-  ...(internal.rolls !== null ? { rolls: internal.rolls } : {}),
-  ...(internal.guarantees !== null ? { guarantees: internal.guarantees } : {}),
-  ...(internal.scrap !== null ? { scrap: internal.scrap } : {}),
+  ...(internal.rolls ? { rolls: internal.rolls } : {}),
+  ...(internal.guarantees ? { guarantees: internal.guarantees } : {}),
+  ...(internal.scrap ? { scrap: internal.scrap } : {}),
 });
 
 export * as Balances from "./balances.js";

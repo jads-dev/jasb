@@ -1,0 +1,78 @@
+@media (prefers-color-scheme: dark) {
+  .auto-theme {
+    --theme: dark;  
+  }
+}
+
+.dark-theme {
+  --theme: dark;
+}
+
+#jasb {
+  --background-color: #101010;
+  --on-background-color: #ffffff;
+  --secondary-background-color: #0e0e12;
+  --on-secondary-background-color: #ffffff;
+
+  --card-color: #000000;
+  --on-card-color: #ffffff;
+
+  --disabled-color: #666666;
+  --on-disabled-color: #ffffff;
+
+  --primary-color: #fed766;
+  --on-primary-color: #000000;
+  --secondary-color: #009fb7;
+  --on-secondary-color: #000000;
+  --tertiary-color: #fe4a49;
+  --on-tertiary-color: #000000;
+
+  --discord-color: #7d92dd;
+  --on-discord-color: #000000;
+  --twitch-color: #6700fd;
+  --on-twitch-color: #ffffff;
+
+  --tint-color: #00000080;
+  --good-color: #a1bc76;
+  --on-good-color: #000000;
+  --bad-color: #ff0000;
+  --on-bad-color: #000000;
+
+  --md-sys-color-background: #17130a;
+  --md-sys-color-on-background: #ebe1d1;
+  --md-sys-color-surface: #17130a;
+  --md-sys-color-surface-dim: #17130a;
+  --md-sys-color-surface-bright: #3e392d;
+  --md-sys-color-surface-container-lowest: #110e06;
+  --md-sys-color-surface-container-low: #1f1b11;
+  --md-sys-color-surface-container: #231f15;
+  --md-sys-color-surface-container-high: #2e2a1f;
+  --md-sys-color-surface-container-highest: #393429;
+  --md-sys-color-on-surface: #ebe1d1;
+  --md-sys-color-surface-variant: #4e4633;
+  --md-sys-color-on-surface-variant: #d1c5ac;
+  --md-sys-color-inverse-surface: #ebe1d1;
+  --md-sys-color-inverse-on-surface: #353025;
+  --md-sys-color-outline: #9a9079;
+  --md-sys-color-outline-variant: #4e4633;
+  --md-sys-color-shadow: #000000;
+  --md-sys-color-scrim: #000000;
+  --md-sys-color-surface-tint: #efc120;
+  --md-sys-color-primary: #ffd551;
+  --md-sys-color-on-primary: #3d2f00;
+  --md-sys-color-primary-container: #d5ab00;
+  --md-sys-color-on-primary-container: #2e2300;
+  --md-sys-color-inverse-primary: #745b00;
+  --md-sys-color-secondary: #ddc480;
+  --md-sys-color-on-secondary: #3d2f00;
+  --md-sys-color-secondary-container: #4c3c04;
+  --md-sys-color-on-secondary-container: #e9cf8a;
+  --md-sys-color-tertiary: #bee868;
+  --md-sys-color-on-tertiary: #253600;
+  --md-sys-color-tertiary-container: #95bd43;
+  --md-sys-color-on-tertiary-container: #1b2900;
+  --md-sys-color-error: #ffb4ab;
+  --md-sys-color-on-error: #690005;
+  --md-sys-color-error-container: #93000a;
+  --md-sys-color-on-error-container: #ffdad6;
+}

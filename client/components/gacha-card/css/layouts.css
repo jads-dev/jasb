@@ -1,0 +1,225 @@
+:host([layout="normal"]) {
+  .face > .content {
+    display: grid;
+    grid-template:
+      ". name" 3em
+      "img img" auto
+      "desc desc" 1fr
+      "qual qual" auto
+      / 1fr auto;
+
+    > .details {
+      display: contents;
+    }
+  }
+}
+
+:host([layout="full-image"]),
+:host([layout="landscape-full-image"]) {
+  .face > .content {
+    display: grid;
+    grid-template:
+      "face" 1fr
+      / 1fr;
+    justify-items: stretch;
+    align-items: stretch;
+
+    > .image {
+      grid-area: face;
+      aspect-ratio: var(--jasb-gacha-card-aspect-ratio);
+
+      > img {
+        aspect-ratio: var(--jasb-gacha-card-aspect-ratio);
+        object-fit: cover;
+
+        width: 100%;
+        height: 100%;
+        border-radius: var(--inner-border-radius);
+      }
+    }
+
+    > .details {
+      grid-area: face;
+      display: grid;
+      grid-template:
+        ". name" auto
+        "desc desc" 1fr
+        "qual qual" auto
+        / 1fr auto;
+
+      justify-items: center;
+      align-items: center;
+
+      color: #fff;
+      text-shadow:
+        -0.05em -0.05em 0 #000,
+        0.05em -0.05em 0 #000,
+        -0.05em 0.05em 0 #000,
+        0.05em 0.05em 0 #000;
+
+      .description {
+        font-size: 1.2em;
+      }
+    }
+  }
+}
+
+:host([layout="landscape-full-image"]) {
+  --landscape-aspect-ratio: calc(1 / var(--jasb-gacha-card-aspect-ratio));
+
+  #card {
+    height: var(--jasb-gacha-card-width);
+    width: unset;
+    aspect-ratio: var(--landscape-aspect-ratio);
+
+    .side {
+      height: var(--jasb-gacha-card-width);
+      width: unset;
+      aspect-ratio: var(--landscape-aspect-ratio);
+    }
+
+    .face > .content {
+      > .image {
+        aspect-ratio: var(--landscape-aspect-ratio);
+        > img {
+          aspect-ratio: var(--landscape-aspect-ratio);
+        }
+      }
+      > .serial-number {
+        transform: rotate(0.5turn);
+        right: 30em;
+        bottom: -1.1em;
+      }
+      > .issue-number {
+        transform: rotate(0.25turn);
+        height: 1em;
+        left: -2em;
+        top: 2.5em;
+      }
+    }
+
+    .rarity {
+      position: absolute;
+      top: 0;
+      left: var(--border-width);
+      bottom: 0;
+      right: 0;
+
+      &::after {
+        transform: rotate(0.25turn);
+        height: 2em;
+        width: var(--jasb-gacha-card-width);
+        transform-origin: top left;
+      }
+    }
+  }
+
+  &:host([sample]) .pivot::after {
+    font-size: 8em;
+  }
+}
+
+.face {
+  > .border {
+    border-radius: var(--jasb-gacha-card-border-radius);
+    background: var(
+      --border,
+      linear-gradient(130deg, #888 0, #dfdfdf 35%, #7c7c7c 70%, #e1e1e1 100%)
+    );
+  }
+
+  & > .background {
+    display: grid;
+    grid-template: "bg" 1fr / 1fr;
+
+    &::before,
+    &::after {
+      content: "";
+      grid-area: bg;
+      border-radius: var(--inner-border-radius);
+      margin: var(--border-width);
+    }
+
+    &::before {
+      background-image: var(--background, #000);
+      background-size: cover;
+    }
+
+    &::after {
+      background: url(../assets/grain.webp);
+      background-size: cover;
+      opacity: 0.15;
+    }
+  }
+
+  & > .content {
+    position: relative;
+    border-radius: var(--inner-border-radius);
+    margin: var(--border-width);
+    color: var(--color, #fff);
+
+    justify-items: center;
+    align-items: center;
+
+    > .image {
+      grid-area: img;
+      width: 100%;
+      aspect-ratio: 1;
+
+      > img {
+        width: 100%;
+        aspect-ratio: 1;
+        object-fit: cover;
+        object-position: center;
+      }
+    }
+
+    > .serial-number {
+      position: absolute;
+      font-size: 0.5em;
+      transform: rotate(0.25turn);
+      top: 30em;
+      right: -3.5em;
+      line-height: 1em;
+      color: #000000;
+    }
+
+    > .issue-number {
+      position: absolute;
+      font-size: 0.5em;
+      bottom: -1.1em;
+      left: 1em;
+      line-height: 1em;
+      color: #000000;
+    }
+
+    > .details {
+      > .name {
+        grid-area: name;
+        padding: 0.25em;
+        font-size: 1.4em;
+        font-weight: bold;
+        font-stretch: 25%;
+        text-align: right;
+      }
+
+      > .description {
+        grid-area: desc;
+        text-align: center;
+        padding: 0.5em;
+      }
+
+      > .qualities {
+        position: absolute;
+        bottom: 0;
+        right: 0;
+        grid-area: qual;
+        list-style: none;
+        margin: 0;
+        display: flex;
+        flex-flow: row wrap;
+        padding: 0.5em;
+      }
+    }
+  }
+}

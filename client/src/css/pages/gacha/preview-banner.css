@@ -1,0 +1,21 @@
+#preview-banner {
+  .banner-container {
+    align-self: stretch;
+  }
+
+  .collection-links {
+    display: flex;
+    flex-flow: column;
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    text-align: center;
+    gap: 0.5em;
+
+    a {
+      display: inline-flex;
+      align-items: baseline;
+      gap: 0.25em;
+    }
+  }
+}

@@ -1,4 +1,4 @@
-ARG NODE_VERSION=22
+ARG NODE_VERSION=23
 ARG MODE=production
 ARG BUILD_DATE
 ARG VCS_REF
@@ -10,24 +10,24 @@ FROM --platform=${BUILDPLATFORM} node:${NODE_VERSION}-alpine AS build
 WORKDIR /jasb
 
 RUN \
-  --mount=type=bind,source=package.json,target=package.json \
-  --mount=type=bind,source=package-lock.json,target=package-lock.json \
-  --mount=type=cache,target=/root/.npm \
-  ["npm", "ci"]
+    --mount=type=bind,source=package.json,target=package.json \
+    --mount=type=bind,source=package-lock.json,target=package-lock.json \
+    --mount=type=cache,target=/root/.npm \
+    ["npm", "ci"]
 
 RUN \
-  --mount=type=bind,source=package.json,target=package.json \
-  --mount=type=bind,source=package-lock.json,target=package-lock.json \
-  --mount=type=bind,source=tsconfig.json,target=tsconfig.json \
-  --mount=type=bind,source=src,target=src \
-  ["npm", "run", "build"]
+    --mount=type=bind,source=package.json,target=package.json \
+    --mount=type=bind,source=package-lock.json,target=package-lock.json \
+    --mount=type=bind,source=tsconfig.json,target=tsconfig.json \
+    --mount=type=bind,source=src,target=src \
+    ["npm", "run", "build"]
 
 
 FROM build AS dev
 
-ENV JASB_CONFIG_PATH "config.json5;config.dev.json5"
-ENV JASB_VERSION "dev"
-ENV NODE_ENV "development"
+ENV JASB_CONFIG_PATH="config.json5;config.dev.json5"
+ENV JASB_VERSION="dev"
+ENV NODE_ENV="development"
 
 COPY --link [ "./", "./" ]
 
@@ -42,10 +42,10 @@ FROM node:${NODE_VERSION}-alpine AS install
 WORKDIR /jasb
 
 RUN \
-  --mount=type=bind,source=package.json,target=package.json \
-  --mount=type=bind,source=package-lock.json,target=package-lock.json \
-  --mount=type=cache,target=/root/.npm \
-  ["npm", "ci", "--omit=dev"]
+    --mount=type=bind,source=package.json,target=package.json \
+    --mount=type=bind,source=package-lock.json,target=package-lock.json \
+    --mount=type=cache,target=/root/.npm \
+    ["npm", "ci", "--omit=dev"]
 
 
 FROM scratch AS sources
@@ -64,9 +64,9 @@ ARG BUILD_DATE
 ARG VCS_REF
 ARG MODE
 
-ENV JASB_CONFIG_PATH "config.json5"
-ENV JASB_VERSION ${VERSION}
-ENV NODE_ENV ${MODE}
+ENV JASB_CONFIG_PATH="config.json5"
+ENV JASB_VERSION=${VERSION}
+ENV NODE_ENV=${MODE}
 
 LABEL org.opencontainers.image.created=${BUILD_DATE}
 LABEL org.opencontainers.image.url="https://github.com/jads-dev/jasb"
@@ -81,11 +81,11 @@ LABEL org.opencontainers.image.description="Server for JASB."
 WORKDIR /jasb
 
 RUN \
-  --mount=type=cache,target=/var/cache/apk \
-  apk update; \
-  apk add \
-  tini \
-  vips;
+    --mount=type=cache,target=/var/cache/apk \
+    apk update; \
+    apk add \
+    tini \
+    vips;
 COPY --link --from=sources [ "/", "./" ]
 
 HEALTHCHECK CMD curl -f http://localhost:8081/api/health || exit 1

@@ -21,15 +21,23 @@ export const storage = async (
     logger.warn("Configured with no object storage.");
     return null;
   }
-  switch (config.service) {
-    case "oci": {
-      logger.info("Configured with OCI object storage.");
-      const { OciObjectStorage } = await import("./objects/oci.js");
-      return new OciObjectStorage(config);
+
+  const service = config.service;
+  switch (service) {
+    case "s3": {
+      logger.info("Configured with S3 API object storage.");
+      const { S3ObjectStorage } = await import("./objects/s3.js");
+      return new S3ObjectStorage(config);
+    }
+
+    case "local": {
+      logger.info("Configured with local file object storage.");
+      const { LocalObjectStorage } = await import("./objects/local.js");
+      return new LocalObjectStorage(config);
     }
 
     default:
-      return Expect.exhaustive("object storage service")(config.service);
+      return Expect.exhaustive("object storage service")(service);
   }
 };
 
@@ -38,16 +46,14 @@ export const upload = async (
   logger: Logging.Logger,
   { type: objectType, pipeline }: ProcessedType,
   content: Objects.Content,
-  metadata: Record<string, string>,
 ): Promise<Objects.Reference> => {
   const { objectStorage } = server;
   if (objectStorage !== null) {
-    return await objectStorage.upload(
+    return await objectStorage.store(
       server,
       logger,
       objectType.prefix,
       await pipeline.process(objectStorage.config, content),
-      metadata,
     );
   } else {
     throw new WebError(
@@ -80,17 +86,15 @@ export const uploadHandler =
         throw new WebError(StatusCodes.BAD_REQUEST, "File type not provided.");
       }
       const content = {
-        stream: FS.createReadStream(file.filepath),
-        mimeType: file.mimetype,
+        data: FS.createReadStream(file.filepath),
+        type: file.mimetype,
+        meta: Credentials.objectMeta(credential),
       };
-      const object = await objectStorage.upload(
+      const object = await objectStorage.store(
         ctx.server,
         ctx.logger,
         objectType.prefix,
         await pipeline.process(objectStorage.config, content),
-        {
-          uploader: Credentials.actingUser(credential),
-        },
       );
       ctx.body = Schema.strict({ url: Schema.string }).encode({
         url: objectStorage.url(object),

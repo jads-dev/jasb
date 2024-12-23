@@ -1,0 +1,255 @@
+@import "@fortawesome/fontawesome-svg-core/styles.css";
+
+@import "./colors.css";
+@import "./material.css";
+@import "./fonts.css";
+@import "./layouts.css";
+@import "./components/filtering.css";
+@import "./components/user.css";
+@import "./components/notifications.css";
+@import "./components/navigation.css";
+@import "./components/game.css";
+@import "./components/settings.css";
+@import "./components/monocoins.css";
+@import "./components/bet.css";
+@import "./components/gacha.css";
+@import "./components/place-bet.css";
+@import "./pages/about.css";
+@import "./pages/feed.css";
+@import "./pages/games.css";
+@import "./pages/leaderboard.css";
+@import "./pages/bets.css";
+@import "./pages/bet.css";
+@import "./pages/user.css";
+@import "./pages/edit.css";
+@import "./pages/gacha.css";
+
+body {
+  margin: 0;
+  font-size: 1em;
+}
+
+img {
+  max-width: 100%;
+}
+
+#settings-wrapper {
+  display: contents;
+}
+
+#jasb {
+  font-family: "Roboto Flex", sans-serif;
+  font-optical-sizing: auto;
+
+  width: max(20em, 100vw);
+  min-height: 100vh;
+  overflow: hidden;
+  color: var(--on-background-color);
+  background-color: var(--background-color);
+
+  background-image: url(../../assets/images/background.svg);
+  background-repeat: repeat;
+  background-size: 7.5em 1.5em;
+}
+
+header {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  padding: 0.1rem 0.5rem;
+  box-sizing: border-box;
+  color: var(--on-secondary-background-color);
+  background-color: var(--secondary-background-color);
+
+  > div {
+    display: contents;
+  }
+
+  h1 {
+    margin: 0;
+    padding: 0.5rem;
+
+    display: inline-flex;
+    align-items: baseline;
+    gap: 0.25em;
+    align-items: center;
+
+    &::before {
+      display: block;
+      content: "";
+      width: 1em;
+      height: 1em;
+      background-image: url(../../assets/images/monocoin.png);
+      background-size: contain;
+    }
+  }
+}
+
+a {
+  color: var(--on-background-color);
+  text-decoration-color: rgba(127, 127, 127, 0.5);
+
+  &:hover {
+    color: var(--primary-color);
+  }
+
+  .external,
+  .permalink {
+    font-size: 0.5em;
+    vertical-align: top;
+  }
+}
+
+h2 {
+  margin: 0;
+  text-align: center;
+  font-size: 2em;
+}
+
+.core {
+  padding: 1em;
+  display: flex;
+  flex-flow: column;
+  align-items: center;
+}
+
+.page {
+  display: flex;
+  flex-flow: column;
+  align-items: center;
+  gap: 1em;
+  padding: 1em;
+  margin: 0 auto 0 auto;
+  border-radius: 1em;
+  background-color: var(--tint-color);
+  min-width: 10em;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+.dangerous {
+  --md-sys-color-primary: var(--bad-color);
+  --md-sys-color-on-primary: var(--on-bad-color);
+  --md-sys-color-secondary-container: var(--bad-color);
+  --md-sys-color-on-secondary-container: var(--on-bad-color);
+}
+
+details {
+  > summary {
+    display: flex;
+    align-items: center;
+    gap: 0.5em;
+
+    cursor: pointer;
+
+    list-style-type: none;
+    &::marker {
+      display: none;
+    }
+  }
+
+  > summary > .marker {
+    > .up {
+      display: none;
+    }
+    > .down {
+      display: block;
+    }
+  }
+
+  &[open] > summary > .marker {
+    > .up {
+      display: block;
+    }
+    > .down {
+      display: none;
+    }
+  }
+}
+
+.validation-errors {
+  color: var(--bad-color);
+  list-style: none;
+  padding: 0;
+  margin: 0;
+
+  display: flex;
+  flex-flow: row wrap;
+  gap: 1em;
+}
+
+.error {
+  border: 0.1em solid var(--bad-color);
+  padding: 0.25em;
+
+  display: grid;
+  grid-template:
+    "icon reason" auto
+    "icon message" auto
+    "details details" auto
+    / auto 1fr;
+  align-items: center;
+  gap: 0.25em;
+
+  > .icon {
+    grid-area: icon;
+    color: var(--bad-color);
+  }
+
+  > .reason {
+    grid-area: reason;
+  }
+
+  > .message {
+    grid-area: message;
+  }
+
+  > .details {
+    grid-area: details;
+    border-top: 0.1em dashed var(--bad-color);
+    padding-top: 0.25em;
+  }
+}
+
+.loading {
+  align-self: stretch;
+
+  display: flex;
+  flex-flow: column;
+  align-items: center;
+  gap: 0.5em;
+
+  md-linear-progress.progress {
+    width: 100%;
+  }
+
+  .load-description {
+    text-align: center;
+    font-size: 1.5em;
+  }
+
+  &:empty {
+    display: none;
+  }
+}
+
+.switch {
+  display: flex;
+  gap: 0.5em;
+}
+
+.empty {
+  opacity: 0.75;
+
+  span {
+    margin-left: 0.5em;
+  }
+}
+
+.good {
+  color: var(--good-color);
+}
+
+.bad {
+  color: var(--bad-color);
+}

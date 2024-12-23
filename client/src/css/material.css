@@ -1,0 +1,63 @@
+#jasb {
+  --md-switch-track-height: 1em;
+  --md-switch-track-width: 2em;
+
+  --md-elevated-button-container-shape: 0.25em;
+  --md-filled-button-container-shape: 0.25em;
+  --md-filled-tonal-button-container-shape: 0.25em;
+  --md-outlined-button-container-shape: 0.25em;
+  --md-text-button-container-shape: 0.25em;
+
+  --md-ref-typeface-plain: "Roboto Flex";
+
+  --md-outlined-icon-button-container-width: 2.5em;
+  --md-outlined-icon-button-container-height: 2.5em;
+  --md-outlined-icon-button-icon-size: 1.5em;
+
+  --md-icon-button-container-width: 2.5em;
+  --md-icon-button-container-height: 2.5em;
+  --md-icon-button-icon-size: 1.5em;
+
+  --md-assist-chip-icon-size: 1.25em;
+  --md-input-chip-icon-size: 1.25em;
+  --md-suggest-chip-icon-size: 1.25em;
+
+  --md-linear-progress-track-height: 0.2em;
+  --md-linear-progress-active-indicator-height: 0.2em;
+}
+
+md-outlined-text-field,
+md-outlined-select {
+  width: 100%;
+}
+
+md-outlined-text-field[type="color"] {
+  height: 4em;
+}
+
+md-dialog {
+  max-height: 95vh;
+  max-width: 95vw;
+
+  > [slot="actions"] {
+    display: flex;
+    flex-flow: row wrap;
+    justify-content: space-between;
+    gap: 1em;
+
+    > .actions,
+    > .lesser-actions {
+      display: flex;
+      flex-flow: row wrap;
+      gap: 1em;
+    }
+
+    > .lesser-actions {
+      justify-self: flex-start;
+    }
+
+    > .actions {
+      justify-self: flex-end;
+    }
+  }
+}

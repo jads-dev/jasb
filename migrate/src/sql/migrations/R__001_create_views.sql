@@ -354,7 +354,15 @@ SELECT
       ),
       'made_at', stakes.made_at,
       'amount', stakes.amount,
-      'message', stakes.message
+      'message', stakes.message,
+      'payout', jsonb_build_object(
+        'amount', stakes.payout,
+        'gacha', jsonb_build_object(
+            'rolls', stakes.gacha_payout_rolls,
+            'guarantees', NULL,
+            'scrap', stakes.gacha_payout_scrap
+        )
+      )
     )
     ORDER BY stakes.made_at
   ), '[]'::jsonb) AS stakes
@@ -424,7 +432,7 @@ CREATE VIEW
     general_permissions.manage_bets
   FROM
     games CROSS JOIN general_permissions
-  WHERE 
+  WHERE
     general_permissions.manage_bets
 ) UNION (
   SELECT
@@ -432,7 +440,7 @@ CREATE VIEW
     specific_permissions."user",
     specific_permissions.manage_bets
   FROM
-    specific_permissions 
-  WHERE 
+    specific_permissions
+  WHERE
     specific_permissions.manage_bets
 );

@@ -20,14 +20,19 @@ variable "MODE" {
 
 # The public URL the build expects to exist under.
 variable "URL" {
-  default = "https://jasb.900000000.xyz/"
+  default = "https://bets.jads.stream/"
+}
+
+# The repo to tag the images with.
+variable "REPO" {
+  default = "ghcr.io/jads-dev/jasb/"
 }
 
 function "splitSemVer" {
   params = [version]
   result = regexall("^v?(?P<major>0|[1-9]\\d*)\\.(?P<minor>0|[1-9]\\d*)\\.(?P<patch>0|[1-9]\\d*)(?:-(?P<prerelease>(?:0|[1-9]\\d*|\\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\\.(?:0|[1-9]\\d*|\\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\\+(?P<buildmetadata>[0-9a-zA-Z-]+(?:\\.[0-9a-zA-Z-]+)*))?$", version)
 }
-    
+
 function "generateVersionTags" {
   params = [semVer]
   result = length(semVer) != 1 ? [] : concat(
@@ -43,17 +48,13 @@ function "generateVersionTags" {
   )
 }
 
-function "repos" {
-  params = []
-  result = [
-    "ghcr.io/jads-dev/jasb/",
-  ]
-}   
-    
 function "generateTags" {
   params = [component]
   result = flatten([
-    for repo in repos(): [ for tag in flatten(["${VCS_REF}-dev", generateVersionTags(splitSemVer(VERSION)), "latest"]) : "${repo}${component}:${tag}" ]
+    for tag in flatten(
+      ["${VCS_REF}-dev", generateVersionTags(splitSemVer(VERSION)),
+      "latest"]
+    ) : "${REPO}${component}:${tag}"
   ])
 }
 
@@ -89,7 +90,7 @@ target "images" {
   }
   context = "./${component}"
   contexts = {
-    nginx = "target:nginx"
+    nginx = "docker-image://nginx:mainline-alpine" #"target:nginx"
   }
   pull = true
   output = ["type=docker"]

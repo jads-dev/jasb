@@ -99,6 +99,21 @@ export const actingUser = (credential: Identifying): Users.Slug => {
   }
 };
 
+export const objectMeta = (credential: Identifying): Record<string, string> => {
+  const credentialType = credential.credential;
+  switch (credentialType) {
+    case "user-session":
+      return { uploader: credential.user };
+    case "external-service":
+      return {
+        uploader: credential.actingAs,
+        uploaded_via: credential.service,
+      };
+    default:
+      return Expect.exhaustive("credential type")(credentialType);
+  }
+};
+
 export const ensureCanActAs = (
   credential: Credential,
   requiredUser: Users.Slug,

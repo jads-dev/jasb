@@ -17,15 +17,15 @@
   },
 
   rules: {
-    initialBalance: 1000,
+    initialBalance: 2000,
     maxStakeWhileInDebt: 100,
     notableStake: 500,
-    minStake: 25,
+    minStake: 10,
     gacha: {
-      maxPity: 75,
+      maxPity: 70,
       scrapPerRoll: 5,
       rewards: {
-        winBetRolls: 1,
+        winBetRolls: 2,
         loseBetScrap: 2,
       },
     },
@@ -119,27 +119,24 @@
 
   // If given, will allow images uploading and caching to the given storage.
   objectStorage: {
-    // Oracle Cloud Infrastructure Object Storage
-    service: "oci",
-    // OCID of the user calling the API. See https://docs.oracle.com/en-us/iaas/Content/API/Concepts/apisigningkey.htm#five
-    user: "ocid1.user.oc1..CHANGE_ME",
-    // OCID of your tenancy. See https://docs.oracle.com/en-us/iaas/Content/API/Concepts/apisigningkey.htm#five
-    tenancy: "ocid1.tenancy.oc1..CHANGE_ME",
-    // Fingerprint for the public key that was added to this user. See https://docs.oracle.com/en-us/iaas/Content/API/Concepts/apisigningkey.htm#four
-    fingerprint: "12:34:56:78:90:ab:cd:ef:12:34:56:78:90:ab:cd:ef",
-    // The private key to use. See https://docs.oracle.com/en-us/iaas/Content/API/Concepts/apisigningkey.htm#two
-    // This should be a secret token uri of the key in PEM format in full, with newlines encoded as "/n".
-    // It will start with "-----BEGIN PRIVATE KEY-----\n" and end with "\n-----END PRIVATE KEY-----\n"
-    privateKey: "CHANGE_ME",
-    // Passphrase used for the key, if it is encrypted.
-    // If it is not encrypted, do not provide a value.
-    //passphrase: "CHANGE_ME",
-    // An Oracle Cloud Infrastructure region. See https://docs.oracle.com/en-us/iaas/Content/General/Concepts/regions.htm#top
-    region: "us-ashburn-1",
-    // The namespace the bucket you want to use is in.
-    namespace: "abcdefghi",
-    // The name of the bucket you want to use.
-    bucket: "your-bucket-name",
+    // S3 compatible API.
+    service: "s3",
+    // The public URL prefix for objects uploaded here.
+    public: "https://assets.bets.jads.stream/",
+    // The bucket name.
+    bucket: "jasb",
+    // The endpoint for accessing the API.
+    endpoint: "https://some-s3-compatible-api.example.com",
+    // The access key to use for the API.
+    accessKey: {
+      // The ID of the access key to use.
+      id: "01234567890abcdef01234567890abcd",
+      // The secret for the access key to use.
+      secret: "CHANGE_ME",
+    },
+    // Allows you to disable tagging if the services doesn't support it or you
+    // don't want it.
+    tagging: false,
 
     // How to remove unused objects from storage.
     garbageCollection: {

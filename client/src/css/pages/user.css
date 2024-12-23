@@ -1,0 +1,123 @@
+#user {
+  max-width: 50em;
+
+  h2 {
+    align-items: center;
+    justify-content: center;
+  }
+
+  .net-worth {
+    list-style: none;
+    padding: 0;
+
+    font-size: 1.5em;
+
+    display: grid;
+    grid-template-columns: auto auto auto;
+    justify-content: center;
+    gap: 0.1em 0.75em;
+
+    > li {
+      display: contents;
+
+      &:first-of-type {
+        .title {
+          margin-bottom: 0.25em;
+        }
+      }
+
+      .title {
+        text-align: right;
+      }
+
+      .score {
+        align-items: center;
+
+        > span {
+          flex-grow: 1;
+          text-align: right;
+        }
+      }
+    }
+  }
+
+  .bankrupt {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 1em;
+    gap: 0.5em;
+
+    color: var(--on-card-color);
+    background-color: var(--card-color);
+
+    h3 {
+      margin: 0;
+      font-size: 1.5em;
+    }
+
+    p {
+      font-size: 1.5em;
+      max-width: 20em;
+      margin: 0;
+    }
+  }
+
+  .manage-user {
+    display: flex;
+    justify-content: center;
+  }
+
+  .bets {
+    padding: 1em;
+    color: var(--on-card-color);
+    background-color: var(--card-color);
+
+    h3,
+    h4 {
+      margin: 0;
+    }
+  }
+
+  .gacha-links {
+    list-style: none;
+    padding: 0;
+    display: flex;
+    flex-flow: column;
+    align-items: center;
+
+    a {
+      display: inline-flex;
+  align-items: baseline;
+  gap: 0.25em;
+    }
+  }
+
+  .game-section,
+  .bets-section {
+    padding: 0.5em 0 0 0.5em;
+    margin: 0;
+    list-style-type: none;
+
+    display: flex;
+    flex-flow: column;
+    gap: 0.5em;
+  }
+}
+
+#permissions-dialog .permission-selector {
+  margin-bottom: 1em;
+}
+
+#bankruptcy-dialog {
+  p {
+    margin: 0;
+  }
+
+  .switch {
+    display: flex;
+    justify-content: center;
+    margin-top: 1em;
+  }
+}

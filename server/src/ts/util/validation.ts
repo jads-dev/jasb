@@ -269,7 +269,10 @@ export const Probability = new Schema.Type<number, number, unknown>(
   (a) => a,
 );
 
-export const JsonWebKey = Schema.readonly(
+export const JsonWebKey = Schema.readonly(Schema.intersection([
+  Schema.strict({
+    kty: Schema.string,
+  }),
   Schema.partial({
     alg: Schema.string,
     crv: Schema.string,
@@ -281,7 +284,6 @@ export const JsonWebKey = Schema.readonly(
     k: Schema.string,
     key_ops: Schema.array(Schema.string),
     kid: Schema.string,
-    kty: Schema.string,
     n: Schema.string,
     oth: Schema.array(
       Schema.readonly(
@@ -303,7 +305,7 @@ export const JsonWebKey = Schema.readonly(
     x5u: Schema.string,
     y: Schema.string,
   }),
-);
+]));
 
 export function body<Parsed, Encoded>(
   schema: Schema.Type<Parsed, Encoded>,

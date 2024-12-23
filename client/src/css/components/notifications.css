@@ -1,0 +1,25 @@
+#notifications {
+  position: fixed;
+  right: 0;
+  bottom: 0;
+  margin-left: 2em;
+  color: var(--on-secondary-background-color);
+  background-color: var(--secondary-background-color);
+
+  > ul {
+    list-style: none;
+    padding: 0.5em;
+    margin: 0;
+
+    > li {
+      display: flex;
+      align-items: center;
+      gap: 0.5em;
+
+      > p {
+        margin: 0;
+        flex-grow: 1;
+      }
+    }
+  }
+}
