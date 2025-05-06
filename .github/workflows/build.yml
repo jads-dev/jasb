@@ -17,11 +17,6 @@ jobs:
       packages: write
 
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-        with:
-          submodules: true
-
       - name: Set up QEMU.
         id: qemu
         uses: docker/setup-qemu-action@v3
@@ -39,7 +34,7 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build and push
-        uses: docker/bake-action@v4
+        uses: docker/bake-action@v6
         with:
           files: "docker-bake.hcl"
           set: |
