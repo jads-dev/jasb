@@ -12,7 +12,7 @@ export const Stake = z
     message: z.string().nullable(),
     payout: z
       .object({
-        amount: Types.positiveInt.nullable(),
+        amount: Types.nonNegativeInt.nullable(),
         gacha: Gacha.Balances.Value.nullable(),
       })
       .strict()

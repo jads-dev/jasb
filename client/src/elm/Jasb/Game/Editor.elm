@@ -223,8 +223,7 @@ update wrap msg ({ origin, navigationKey } as parent) model =
                     model.saving |> Api.handleActionResult result
 
                 redirect _ =
-                    gameId
-                        |> Route.Bets Bets.Active
+                    Route.Bets Bets.Active gameId Nothing
                         |> Route.pushUrl navigationKey
             in
             ( { model | saving = actionState }

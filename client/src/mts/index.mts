@@ -8,6 +8,7 @@ import * as SessionStore from "./session-store.mjs";
 import * as Store from "./store.mjs";
 import * as WebSocket from "./web-socket.mjs";
 import * as Select from "./select.mjs";
+import * as Scroll from "./scroll.mjs";
 
 const baseUrl = BaseUrl.discover();
 
@@ -26,3 +27,4 @@ Store.ports(store, app.ports);
 SessionStore.ports(sessionStore, app.ports);
 WebSocket.ports(webSocketManager, app.ports);
 Select.ports(app.ports);
+Scroll.ports(app.ports);

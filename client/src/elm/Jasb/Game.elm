@@ -128,7 +128,7 @@ view changeUrl wrap { favourites } time localUser id { name, cover, bets, progre
         interactions =
             Html.div [ HtmlA.class "interactions" ] (favouriteControl :: adminContent)
     in
-    [ Route.a (Route.Bets Bets.Active id) [] [ normalContent |> Html.div [] ]
+    [ Route.a (Route.Bets Bets.Active id Nothing) [] [ normalContent |> Html.div [] ]
     , interactions
     ]
         |> Html.div

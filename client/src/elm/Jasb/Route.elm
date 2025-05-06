@@ -12,6 +12,7 @@ module Jasb.Route exposing
 import Browser.Navigation as Browser
 import Html exposing (Html)
 import Html.Attributes as HtmlA
+import Jasb.Bet.Editor.LockMoment as LockMoment exposing (LockMoment)
 import Jasb.Bet.Model as Bet
 import Jasb.Game.Id as Game
 import Jasb.Page.Bets.Model as Bets
@@ -35,7 +36,7 @@ type Route
     | Auth (Maybe Auth.CodeAndState)
     | User (Maybe User.Id)
     | CardCollection User.Id Collection.Route
-    | Bets Bets.Subset Game.Id
+    | Bets Bets.Subset Game.Id (Maybe LockMoment.Id)
     | Bet Game.Id Bet.Id
     | Games
     | Leaderboard Leaderboard.Board
@@ -79,9 +80,9 @@ toUrlWithGivenRoot root route =
                     , Nothing
                     )
 
-                Bets subset id ->
+                Bets subset id lockMoment ->
                     let
-                        end =
+                        subsetPart =
                             case subset of
                                 Bets.Active ->
                                     []
@@ -89,7 +90,10 @@ toUrlWithGivenRoot root route =
                                 Bets.Suggestions ->
                                     [ "suggestions" ]
                     in
-                    ( "games" :: Game.idToString id :: end, [], Nothing )
+                    ( "games" :: Game.idToString id :: subsetPart
+                    , []
+                    , lockMoment |> Maybe.map LockMoment.idToString
+                    )
 
                 Bet gameId betId ->
                     ( [ "games", gameId |> Game.idToString, betId |> Bet.idToString ], [], Nothing )
@@ -155,9 +159,9 @@ fromUrl url =
                 , Parser.s "user" |> Parser.map (Nothing |> User)
                 , Parser.s "games" |> Parser.map Games
                 , Parser.s "games" </> Parser.s "new" |> Parser.map (Nothing |> Edit.Game >> Edit)
-                , Parser.s "games" </> Game.idParser |> Parser.map (Bets Bets.Active)
+                , Parser.s "games" </> Game.idParser </> Parser.fragment (Maybe.map LockMoment.idFromString) |> Parser.map (Bets Bets.Active)
                 , Parser.s "games" </> Game.idParser </> Parser.s "suggest" |> Parser.map (\g -> Edit.Bet g Edit.Suggest |> Edit)
-                , Parser.s "games" </> Game.idParser </> Parser.s "suggestions" |> Parser.map (Bets Bets.Suggestions)
+                , Parser.s "games" </> Game.idParser </> Parser.s "suggestions" </> Parser.fragment (Maybe.map LockMoment.idFromString) |> Parser.map (Bets Bets.Suggestions)
                 , Parser.s "games" </> Game.idParser </> Parser.s "new" |> Parser.map (\g -> Edit.Bet g Edit.New |> Edit)
                 , Parser.s "games" </> Game.idParser </> Parser.s "edit" |> Parser.map (Just >> Edit.Game >> Edit)
                 , Parser.s "games" </> Game.idParser </> Bet.idParser |> Parser.map Bet

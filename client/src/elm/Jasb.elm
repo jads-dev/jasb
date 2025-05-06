@@ -242,8 +242,8 @@ view model =
                 Route.Bet game bet ->
                     Bet.view game bet
 
-                Route.Bets subset game ->
-                    Bets.view subset game
+                Route.Bets subset game lockMoment ->
+                    Bets.view subset game lockMoment
 
                 Route.Games ->
                     Games.view
@@ -313,8 +313,8 @@ load route oldRouteModel =
         Route.CardCollection id collectionRoute ->
             Collection.load id collectionRoute model
 
-        Route.Bets subset id ->
-            Bets.load id subset model
+        Route.Bets subset id lockMoment ->
+            Bets.load id subset lockMoment model
 
         Route.Bet gameId betId ->
             Bet.load gameId betId model

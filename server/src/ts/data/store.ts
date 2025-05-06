@@ -19,7 +19,9 @@ import type { Objects } from "./objects.js";
 import { Queries } from "./store/queries.js";
 
 const createResultParserInterceptor = (): Slonik.Interceptor => ({
-  transformRow: ({ resultParser }, actualQuery, row) => {
+  name: "Slonik",
+  transformRow: (executionContext, actualQuery, row) => {
+    const { log, resultParser } = executionContext;
     if (resultParser) {
       const validationResult = resultParser.safeParse(row);
       if (validationResult.success) {
@@ -184,7 +186,7 @@ export class Store {
     return await this.withReadClient(async (client) => {
       const results = await client.query(
         Queries.leaderboard(sqlFragment`
-          SELECT leaderboard.* 
+          SELECT leaderboard.*
           FROM jasb.leaderboard
           WHERE net_worth > ${this.#config.rules.initialBalance}
         `),
@@ -197,7 +199,7 @@ export class Store {
     return await this.withReadClient(async (client) => {
       const results = await client.query(
         Queries.leaderboard(sqlFragment`
-          SELECT debt_leaderboard.* 
+          SELECT debt_leaderboard.*
           FROM jasb.debt_leaderboard
           WHERE balance < 0
         `),
@@ -309,7 +311,7 @@ export class Store {
             jasb.users
           WHERE
             users.slug = ${userSlug} AND
-            sessions."user" = users.id AND 
+            sessions."user" = users.id AND
             session = ${session.uri}
           RETURNING sessions.*
         `),
@@ -325,8 +327,8 @@ export class Store {
     return await this.withReadClient(async (client) => {
       const results = await client.query(
         Queries.refreshToken(sqlFragment`
-          SELECT sessions.* 
-          FROM jasb.sessions 
+          SELECT sessions.*
+          FROM jasb.sessions
           WHERE discord_expires < (NOW() + ${nextSearch.toString()}::interval - ${buffer.toString()}::interval)
         `),
       );
@@ -353,7 +355,7 @@ export class Store {
       const results = await client.query(
         Queries.refreshToken(sqlFragment`
           UPDATE sessions
-          SET 
+          SET
             access_token = updates.access_token,
             refresh_token = updates.refresh_token,
             discord_expires = updates.expires_at
@@ -504,11 +506,11 @@ export class Store {
     return await this.withReadClient(async (client) => {
       const results = await client.query(
         Queries.lockMoment(sqlFragment`
-          SELECT lock_moments.* 
-          FROM 
-            jasb.lock_moments INNER JOIN 
-            jasb.games ON 
-              lock_moments.game = games.id AND 
+          SELECT lock_moments.*
+          FROM
+            jasb.lock_moments INNER JOIN
+            jasb.games ON
+              lock_moments.game = games.id AND
               games.slug = ${gameSlug}
         `),
       );
@@ -578,7 +580,7 @@ export class Store {
     return await this.withReadClient(async (client) => {
       const results = await client.query(
         Queries.betWithOptions(sqlFragment`
-          SELECT bets.* 
+          SELECT bets.*
           FROM jasb.bets INNER JOIN jasb.games ON bets.game = games.id
           WHERE games.slug = ${gameSlug}
         `),
@@ -593,7 +595,7 @@ export class Store {
     return await this.withReadClient(async (client) => {
       const results = await client.query(
         Queries.lockStatus(sqlFragment`
-          SELECT bets.* 
+          SELECT bets.*
           FROM jasb.bets INNER JOIN jasb.games ON bets.game = games.id
           WHERE games.slug = ${gameSlug}
         `),
@@ -608,11 +610,11 @@ export class Store {
     return await this.withReadClient(async (client) => {
       const results = await client.query(
         Queries.gameWithBets(sqlFragment`
-          SELECT 
+          SELECT
             bets.*,
             max(stakes.made_at) AS game_order
           FROM
-            jasb.users INNER JOIN 
+            jasb.users INNER JOIN
             jasb.stakes ON users.id = stakes.owner INNER JOIN
             jasb.options ON stakes.option = options.id INNER JOIN
             jasb.bets ON options.bet = bets.id
@@ -632,10 +634,10 @@ export class Store {
     return await this.withReadClient(async (client) => {
       const result = await client.maybeOne(
         Queries.editableBet(sqlFragment`
-          SELECT bets.* 
-          FROM 
-            jasb.bets INNER JOIN 
-            jasb.games ON bets.game = games.id AND games.slug = ${gameSlug} 
+          SELECT bets.*
+          FROM
+            jasb.bets INNER JOIN
+            jasb.games ON bets.game = games.id AND games.slug = ${gameSlug}
           WHERE bets.slug = ${betSlug}
         `),
       );
@@ -663,7 +665,7 @@ export class Store {
       options.map(({ id, name, image }) => [id, name, image ?? null]),
       ["text", "text", "text"],
     );
-    return await this.inTransaction(async (client) => {
+    const result = await this.inTransaction(async (client) => {
       const result = await client.one(
         Queries.editableBet(sqlFragment`
           SELECT *
@@ -684,28 +686,29 @@ export class Store {
           )
         `),
       );
-      Background.runTask(
-        server,
-        logger,
-        sendExternalNotification(async (): Promise<Feed.NewBet> => {
-          const result = await this.withClient(
-            async (client) =>
-              await client.one(
-                Queries.gameWithBetStats(sqlFragment`
-                  SELECT games.* FROM jasb.games WHERE games.slug = ${gameSlug}
-                `),
-              ),
-          );
-          return {
-            type: "NewBet",
-            game: { slug: result.slug, name: result.name },
-            bet: { slug: betSlug, name: betName },
-            spoiler,
-          };
-        }),
-      );
       return result;
     });
+    Background.runTask(
+      server,
+      logger,
+      sendExternalNotification(async (): Promise<Feed.NewBet> => {
+        const result = await this.withClient(
+          async (client) =>
+            await client.one(
+              Queries.gameWithBetStats(sqlFragment`
+                SELECT games.* FROM jasb.games WHERE games.slug = ${gameSlug}
+              `),
+            ),
+        );
+        return {
+          type: "NewBet",
+          game: { slug: result.slug, name: result.name },
+          bet: { slug: betSlug, name: betName },
+          spoiler,
+        };
+      }),
+    );
+    return result;
   }
 
   async editBet(
@@ -829,7 +832,7 @@ export class Store {
     old_version: number,
     winners: string[],
   ): Promise<Bets.Editable | undefined> {
-    return await this.inTransaction(async (client) => {
+    const result = await this.inTransaction(async (client) => {
       const result = await client.maybeOne(
         Queries.editableBet(sqlFragment`
           SELECT *
@@ -846,37 +849,38 @@ export class Store {
           )
         `),
       );
-      Background.runTask(
-        server,
-        logger,
-        sendExternalNotification(async (): Promise<Feed.BetComplete> => {
-          const row = await this.withClient(
-            async (client) =>
-              await client.one(
-                Queries.betCompleteNotificationDetails(sqlFragment`
-                    SELECT bets.*
-                    FROM jasb.games INNER JOIN jasb.bets ON games.id = bets.game
-                    WHERE games.slug = ${gameSlug} AND bets.slug = ${betSlug}
-                `),
-              ),
-          );
-          return {
-            type: "BetComplete",
-            game: { slug: gameSlug, name: row.game_name },
-            bet: { slug: betSlug, name: row.bet_name },
-            spoiler: row.spoiler,
-            winners: row.winners,
-            winningStakes: row.winning_stakes_count,
-            totalReturn: row.total_staked_amount,
-            highlighted: {
-              winners: row.top_winning_users,
-              amount: row.biggest_payout_amount,
-            },
-          };
-        }),
-      );
       return result ?? undefined;
     });
+    Background.runTask(
+      server,
+      logger,
+      sendExternalNotification(async (): Promise<Feed.BetComplete> => {
+        const row = await this.withClient(
+          async (client) =>
+            await client.one(
+              Queries.betCompleteNotificationDetails(sqlFragment`
+                  SELECT bets.*
+                  FROM jasb.games INNER JOIN jasb.bets ON games.id = bets.game
+                  WHERE games.slug = ${gameSlug} AND bets.slug = ${betSlug}
+              `),
+            ),
+        );
+        return {
+          type: "BetComplete",
+          game: { slug: gameSlug, name: row.game_name },
+          bet: { slug: betSlug, name: row.bet_name },
+          spoiler: row.spoiler,
+          winners: row.winners,
+          winningStakes: row.winning_stakes_count,
+          totalReturn: row.total_staked_amount,
+          highlighted: {
+            winners: row.top_winning_users,
+            amount: row.biggest_payout_amount,
+          },
+        };
+      }),
+    );
+    return result;
   }
 
   async revertCompleteBet(
@@ -960,7 +964,7 @@ export class Store {
     amount: number,
     message: string | null,
   ): Promise<number> {
-    return await this.inTransaction(async (client) => {
+    const result = await this.inTransaction(async (client) => {
       const row = await client.one(
         Queries.newBalance(sqlFragment`
           SELECT * FROM jasb.new_stake(
@@ -977,46 +981,47 @@ export class Store {
           )
         `),
       );
-      if (message !== null) {
-        Background.runTask(
-          server,
-          logger,
-          sendExternalNotification(async (): Promise<Feed.NotableStake> => {
-            const row = await this.withClient(
-              async (client) =>
-                await client.one(
-                  Queries.newStakeNotificationDetails(
-                    Credentials.actingUser(credential),
-                    sqlFragment`
-                      SELECT 
-                        options.* 
-                      FROM 
-                        jasb.games INNER JOIN 
-                        jasb.bets ON games.id = bets.game INNER JOIN 
-                        jasb.options ON bets.id = options.bet
-                      WHERE 
-                        games.slug = ${gameSlug} AND 
-                        bets.slug = ${betSlug} AND 
-                        options.slug = ${optionSlug}
-                    `,
-                  ),
-                ),
-            );
-            return {
-              type: "NotableStake",
-              game: { slug: gameSlug, name: row.game_name },
-              bet: { slug: betSlug, name: row.bet_name },
-              spoiler: row.spoiler,
-              option: { slug: optionSlug, name: row.option_name },
-              user: row.user_summary,
-              message: message,
-              stake: amount as Schema.Int,
-            };
-          }),
-        );
-      }
       return row.new_balance;
     });
+    if (message !== null) {
+      Background.runTask(
+        server,
+        logger,
+        sendExternalNotification(async (): Promise<Feed.NotableStake> => {
+          const row = await this.withClient(
+            async (client) =>
+              await client.one(
+                Queries.newStakeNotificationDetails(
+                  Credentials.actingUser(credential),
+                  sqlFragment`
+                    SELECT
+                      options.*
+                    FROM
+                      jasb.games INNER JOIN
+                      jasb.bets ON games.id = bets.game INNER JOIN
+                      jasb.options ON bets.id = options.bet
+                    WHERE
+                      games.slug = ${gameSlug} AND
+                      bets.slug = ${betSlug} AND
+                      options.slug = ${optionSlug}
+                  `,
+                ),
+              ),
+          );
+          return {
+            type: "NotableStake",
+            game: { slug: gameSlug, name: row.game_name },
+            bet: { slug: betSlug, name: row.bet_name },
+            spoiler: row.spoiler,
+            option: { slug: optionSlug, name: row.option_name },
+            user: row.user_summary,
+            message: message,
+            stake: amount as Schema.Int,
+          };
+        }),
+      );
+    }
+    return result;
   }
 
   async withdrawStake(
@@ -1143,7 +1148,7 @@ export class Store {
     return await this.withReadClient(async (client) => {
       const results = await client.query(
         Queries.feedItem(sqlFragment`
-          SELECT feed.* 
+          SELECT feed.*
           FROM jasb.feed
           WHERE game_slug = ${gameSlug} AND bet_slug = ${betSlug}
         `),
@@ -1263,11 +1268,11 @@ export class Store {
       const result = await client.query(
         Queries.cardTypeByRarity(sqlFragment`
           SELECT
-            card_types.* 
+            card_types.*
           FROM
             jasb.gacha_card_types AS card_types INNER JOIN
             jasb.users ON card_types.forged_by = users.id
-          WHERE 
+          WHERE
             users.slug = ${userSlug} AND
             NOT card_types.retired
         `),
@@ -1283,12 +1288,12 @@ export class Store {
       const result = await client.query(
         Queries.cardTypeWithCardsAndBanner(
           sqlFragment`
-            SELECT 
-              cards.* 
-            FROM 
-              jasb.gacha_cards AS cards INNER JOIN 
+            SELECT
+              cards.*
+            FROM
+              jasb.gacha_cards AS cards INNER JOIN
               jasb.users ON cards.owner = users.id
-            WHERE 
+            WHERE
               users.slug = ${userSlug}
           `,
         ),
@@ -1305,16 +1310,16 @@ export class Store {
       const result = await client.query(
         Queries.cardTypeWithCards(
           sqlFragment`
-            SELECT 
-              cards.* 
-            FROM 
-              jasb.gacha_cards AS cards INNER JOIN 
+            SELECT
+              cards.*
+            FROM
+              jasb.gacha_cards AS cards INNER JOIN
               jasb.users ON cards.owner = users.id INNER JOIN
-              jasb.gacha_card_types AS card_types ON 
+              jasb.gacha_card_types AS card_types ON
                 cards.type = card_types.id INNER JOIN
               jasb.gacha_banners AS banners ON card_types.banner = banners.id
-            WHERE 
-              users.slug = ${userSlug} AND 
+            WHERE
+              users.slug = ${userSlug} AND
               banners.slug = ${bannerSlug}
           `,
           bannerSlug,
@@ -1331,10 +1336,10 @@ export class Store {
     return await this.withReadClient(async (client) => {
       return await client.one(
         Queries.detailedCard(sqlFragment`
-          SELECT 
-            cards.* 
-          FROM 
-            jasb.gacha_cards AS cards INNER JOIN 
+          SELECT
+            cards.*
+          FROM
+            jasb.gacha_cards AS cards INNER JOIN
             jasb.users ON cards.owner = users.id
           WHERE users.slug = ${userSlug} AND cards.id = ${cardId}
         `),
@@ -1348,9 +1353,9 @@ export class Store {
     return await this.withReadClient(async (client) => {
       const result = await client.query(
         Queries.highlighted(sqlFragment`
-          SELECT 
-            highlights.* 
-          FROM 
+          SELECT
+            highlights.*
+          FROM
             jasb.gacha_card_highlights AS highlights INNER JOIN
             jasb.users ON highlights.owner = users.id
           WHERE users.slug = ${userSlug}
@@ -1433,8 +1438,8 @@ export class Store {
               ${this.sqlCredential(credential)},
               ${this.#config.auth.sessions.lifetime.toString()},
               ${this.#config.rules.gacha.maxPity},
-              ${bannerSlug}, 
-              ${count}, 
+              ${bannerSlug},
+              ${count},
               ${guarantee}
             )
           `,
@@ -1443,7 +1448,7 @@ export class Store {
       const finalResult = await client.query(
         Queries.card(
           sqlFragment`
-            SELECT * FROM gacha_cards 
+            SELECT * FROM gacha_cards
             WHERE id = ${this.anyOf(result.rows)}`,
           false,
         ),
@@ -1460,17 +1465,17 @@ export class Store {
     return await this.withReadClient(async (client) => {
       return await client.one(
         Queries.recycleValue(sqlFragment`
-          SELECT 
-            gacha_cards.* 
-          FROM 
+          SELECT
+            gacha_cards.*
+          FROM
             gacha_cards INNER JOIN
             gacha_card_types ON gacha_cards.type = gacha_card_types.id INNER JOIN
             gacha_banners ON gacha_card_types.banner = gacha_banners.id INNER JOIN
             users ON gacha_cards.owner = users.id
-          WHERE 
+          WHERE
             gacha_cards.id = ${cardId} AND
             gacha_banners.slug = ${bannerSlug} AND
-            users.slug = ${userSlug} 
+            users.slug = ${userSlug}
         `),
       );
     });
@@ -1546,8 +1551,8 @@ export class Store {
     return await this.withReadClient(async (client) => {
       const result = await client.query(
         Queries.banner(sqlFragment`
-          SELECT banners.* 
-          FROM jasb.gacha_banners AS banners 
+          SELECT banners.*
+          FROM jasb.gacha_banners AS banners
           WHERE banners.active
         `),
       );
@@ -1559,8 +1564,8 @@ export class Store {
     return await this.withReadClient(async (client) => {
       const result = await client.query(
         Queries.editableBanner(sqlFragment`
-          SELECT banners.* 
-          FROM jasb.gacha_banners AS banners 
+          SELECT banners.*
+          FROM jasb.gacha_banners AS banners
         `),
       );
       return result.rows;
@@ -1574,8 +1579,8 @@ export class Store {
       async (client) =>
         await client.maybeOne(
           Queries.banner(sqlFragment`
-            SELECT banners.* 
-            FROM jasb.gacha_banners AS banners 
+            SELECT banners.*
+            FROM jasb.gacha_banners AS banners
             WHERE banners.slug = ${bannerSlug}
           `),
         ),
@@ -1590,8 +1595,8 @@ export class Store {
       async (client) =>
         await client.maybeOne(
           Queries.editableBanner(sqlFragment`
-            SELECT banners.* 
-            FROM jasb.gacha_banners AS banners 
+            SELECT banners.*
+            FROM jasb.gacha_banners AS banners
             WHERE banners.slug = ${bannerSlug}
           `),
         ),
@@ -1605,12 +1610,12 @@ export class Store {
     return await this.withReadClient(async (client) => {
       const result = await client.query(
         Queries.editableBanner(sqlFragment`
-          SELECT DISTINCT ON (banners.id) banners.* 
-          FROM 
+          SELECT DISTINCT ON (banners.id) banners.*
+          FROM
             jasb.gacha_cards AS cards INNER JOIN
-            jasb.gacha_card_types AS card_types ON 
+            jasb.gacha_card_types AS card_types ON
               cards.type = card_types.id INNER JOIN
-            jasb.gacha_banners AS banners ON 
+            jasb.gacha_banners AS banners ON
               card_types.banner = banners.id INNER JOIN
             jasb.users ON cards.owner = users.id
           WHERE users.slug = ${userSlug}
@@ -1716,12 +1721,12 @@ export class Store {
       async (client) =>
         await client.query(
           Queries.cardType(sqlFragment`
-            SELECT 
-              card_types.* 
-            FROM 
-              jasb.gacha_card_types AS card_types INNER JOIN 
-              jasb.gacha_banners AS banners ON card_types.banner = banners.id 
-            WHERE 
+            SELECT
+              card_types.*
+            FROM
+              jasb.gacha_card_types AS card_types INNER JOIN
+              jasb.gacha_banners AS banners ON card_types.banner = banners.id
+            WHERE
               banners.slug = ${bannerSlug}
           `),
         ),
@@ -1736,12 +1741,12 @@ export class Store {
       async (client) =>
         await client.query(
           Queries.editableCardType(sqlFragment`
-            SELECT 
-              card_types.* 
-            FROM 
-              jasb.gacha_card_types AS card_types INNER JOIN 
-              jasb.gacha_banners AS banners ON card_types.banner = banners.id 
-            WHERE 
+            SELECT
+              card_types.*
+            FROM
+              jasb.gacha_card_types AS card_types INNER JOIN
+              jasb.gacha_banners AS banners ON card_types.banner = banners.id
+            WHERE
               banners.slug = ${bannerSlug}
           `),
         ),
@@ -1758,12 +1763,12 @@ export class Store {
       async (client) =>
         await client.maybeOne(
           Queries.detailedCardType(sqlFragment`
-            SELECT 
-              card_types.* 
-            FROM 
-              jasb.gacha_card_types AS card_types INNER JOIN 
-              jasb.gacha_banners AS banners ON card_types.banner = banners.id 
-            WHERE 
+            SELECT
+              card_types.*
+            FROM
+              jasb.gacha_card_types AS card_types INNER JOIN
+              jasb.gacha_banners AS banners ON card_types.banner = banners.id
+            WHERE
               (${bannerSlugOrNull}::TEXT IS NULL OR banners.slug = ${bannerSlugOrNull}::TEXT) AND
               card_types.id = ${cardTypeId}
           `),
@@ -1972,13 +1977,13 @@ export class Store {
       const results = await client.query(
         Queries.object(sqlFragment`
           SELECT objects.id, objects.url, objects.name, objects.source_url
-          FROM 
-            ${table} INNER JOIN 
-            objects ON 
-              objects.type = ${type}::ObjectType AND 
+          FROM
+            ${table} INNER JOIN
+            objects ON
+              objects.type = ${type}::ObjectType AND
               ${column} = objects.id
-          WHERE 
-            objects.name IS NULL AND 
+          WHERE
+            objects.name IS NULL AND
             objects.store_failures < 10
           LIMIT ${max}
         `),
@@ -2003,9 +2008,9 @@ export class Store {
       const results = await client.query(
         Queries.object(sqlFragment`
           UPDATE objects
-          SET 
+          SET
             name = updates.name,
-            url = updates.url 
+            url = updates.url
           FROM ${Slonik.sql.unnest(
             [
               ...Iterables.map(updates, ({ id, oldUrl, name, url }) => [
@@ -2017,10 +2022,10 @@ export class Store {
             ],
             ["int4", "text", "text", "text"],
           )} AS updates(id, old_url, name, url)
-          WHERE 
+          WHERE
             objects.id = updates.id AND
             objects.type = ${typeName}::ObjectType AND
-            objects.url = updates.old_url AND 
+            objects.url = updates.old_url AND
             objects.name IS NULL
           RETURNING objects.id, objects.url, objects.name, objects.source_url
         `),
@@ -2036,9 +2041,9 @@ export class Store {
     return await this.withClient(async (client) => {
       const results = await client.query(
         Queries.object(sqlFragment`
-          UPDATE objects 
+          UPDATE objects
           SET store_failures = objects.store_failures + 1
-          WHERE objects.id = ${id} AND objects.type = ${typeName}::ObjectType 
+          WHERE objects.id = ${id} AND objects.type = ${typeName}::ObjectType
           RETURNING objects.id, objects.url, objects.name, objects.source_url
         `),
       );
@@ -2054,16 +2059,16 @@ export class Store {
       const results = await client.query(
         Queries.name(sqlFragment`
           SELECT name
-          FROM 
+          FROM
             ${Slonik.sql.unnest(
               objects.map(({ name }) => [name]),
               ["text"],
-            )} AS searching_for(name) 
+            )} AS searching_for(name)
           WHERE NOT EXISTS (
-            SELECT name 
-            FROM objects 
-            WHERE 
-              searching_for.name = objects.name AND 
+            SELECT name
+            FROM objects
+            WHERE
+              searching_for.name = objects.name AND
               objects.type = ${typeName}::ObjectType
           )
         `),

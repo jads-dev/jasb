@@ -17,6 +17,11 @@
     > li {
       display: contents;
 
+      &.highlighted .lock-moment {
+        border-top: 0.2em solid var(--disabled-color);
+        font-weight: bold;
+      }
+
       &:last-of-type > .bet-list {
         padding: 1em;
         border-radius: 0 0 1em 1em;
@@ -33,6 +38,10 @@
       overflow: hidden;
       margin-top: 1em;
     }
+  }
+
+  .highlighted .bet-list {
+    border-top: 0.2em solid var(--disabled-color);
   }
 
   .bet-list {

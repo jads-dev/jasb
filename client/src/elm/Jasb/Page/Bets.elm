@@ -34,7 +34,8 @@ import Jasb.Page.Bets.Filters as Filters
 import Jasb.Page.Bets.Model exposing (..)
 import Jasb.Page.Edit.Model as Edit
 import Jasb.Page.User.Model as User
-import Jasb.Route as Route
+import Jasb.Route as Route exposing (Route)
+import Jasb.Scroll as Scroll
 import Jasb.Settings.Model as Settings
 import Jasb.Store as Store
 import Jasb.Store.Codecs as Codecs
@@ -58,7 +59,8 @@ wrap =
 
 type alias Parent a =
     { a
-        | bets : Model
+        | route : Route
+        , bets : Model
         , settings : Settings.Model
         , origin : String
         , auth : Auth.Model
@@ -93,8 +95,8 @@ init storeData =
     storeData |> List.filterMap fromItem |> List.foldl apply model
 
 
-load : Game.Id -> Subset -> Parent a -> ( Parent a, Cmd Global.Msg )
-load id subset ({ bets } as model) =
+load : Game.Id -> Subset -> Maybe LockMoment.Id -> Parent a -> ( Parent a, Cmd Global.Msg )
+load id subset lockMoment ({ bets } as model) =
     let
         end =
             case subset of
@@ -106,7 +108,7 @@ load id subset ({ bets } as model) =
 
         request =
             { path = Api.Game id end
-            , wrap = Load id subset >> wrap
+            , wrap = Load id subset lockMoment >> wrap
             , decoder = Game.withBetsDecoder
             }
                 |> Api.get model.origin
@@ -123,15 +125,17 @@ load id subset ({ bets } as model) =
                 Nothing
 
         insertIntoNew ( data, insertCmd ) =
-            ( { id = id, subset = subset, data = data }, insertCmd )
+            ( { id = id, subset = subset, lockMoment = lockMoment, data = data }
+            , insertCmd
+            )
 
-        ( newGameBets, cmd ) =
+        ( newGameBets, dataCmd ) =
             bets.gameBets
                 |> Maybe.andThen existingDataIfMatching
                 |> Maybe.withDefault (request |> Api.initGetData |> insertIntoNew)
     in
     ( { model | bets = { bets | gameBets = Just newGameBets } }
-    , cmd
+    , dataCmd
     )
 
 
@@ -156,15 +160,25 @@ updateLockManager f ({ bets } as model) =
 update : Msg -> Parent a -> ( Parent a, Cmd Global.Msg )
 update msg ({ bets, origin, time } as model) =
     case msg of
-        Load loadedId loadedSubset result ->
+        Load loadedId loadedSubset requestedLockMoment result ->
             let
                 loadIntoSelected selected =
                     { selected
                         | subset = loadedSubset
                         , data = selected.data |> Api.updateData result
                     }
+
+                scrollCmd =
+                    case requestedLockMoment of
+                        Just lockMomentId ->
+                            lockMomentId
+                                |> LockMoment.idToString
+                                |> Scroll.elementIntoViewById
+
+                        Nothing ->
+                            Cmd.none
             in
-            ( updateSelected loadedId loadIntoSelected model, Cmd.none )
+            ( updateSelected loadedId loadIntoSelected model, scrollCmd )
 
         PlaceBetMsg placeBetMsg ->
             let
@@ -364,8 +378,8 @@ update msg ({ bets, origin, time } as model) =
                             model |> updateLockManager newLockManager
                     in
                     case bets.gameBets of
-                        Just { id, subset } ->
-                            load id subset newModel
+                        Just { id, subset, lockMoment } ->
+                            load id subset lockMoment newModel
 
                         Nothing ->
                             ( newModel, Cmd.none )
@@ -399,8 +413,8 @@ viewActiveFilters subset filters totalCount shownCount =
     active |> List.map viewFilter |> Filtering.viewFilters "Bets" totalCount shownCount
 
 
-view : Subset -> Game.Id -> Parent a -> Page Global.Msg
-view _ _ model =
+view : Subset -> Game.Id -> Maybe LockMoment.Id -> Parent a -> Page Global.Msg
+view _ _ lockMoment model =
     let
         body { id, subset, data } =
             let
@@ -458,13 +472,26 @@ view _ _ model =
                         Nothing
 
                     else
+                        let
+                            stringId =
+                                lockMomentId |> LockMoment.idToString
+                        in
                         Just
-                            ( lockMomentId |> LockMoment.idToString
-                            , [ lockMomentBets |> HtmlK.ol [ HtmlA.class "bet-list" ]
-                              , Html.div [ HtmlA.class "lock-moment" ]
+                            ( stringId
+                            , [ lockMomentBets
+                                    |> HtmlK.ol
+                                        [ HtmlA.class "bet-list"
+                                        , stringId |> HtmlA.id
+                                        ]
+                              , Route.a (Route.Bets subset id (Just lockMomentId))
+                                    [ HtmlA.class "lock-moment" ]
                                     [ Html.text lockMomentName ]
                               ]
-                                |> Html.li [ lockMomentId |> LockMoment.idToString |> HtmlA.id ]
+                                |> Html.li
+                                    [ HtmlA.classList
+                                        [ ( "highlighted", lockMoment == Just lockMomentId )
+                                        ]
+                                    ]
                             )
 
                 shownCount =
@@ -569,7 +596,7 @@ view _ _ model =
         remoteData =
             case model.bets.gameBets of
                 Just { id, subset, data } ->
-                    data |> Api.mapData (\d -> { id = id, subset = subset, data = d })
+                    data |> Api.mapData (\d -> { id = id, subset = subset, lockMoment = lockMoment, data = d })
 
                 Nothing ->
                     Api.initData

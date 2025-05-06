@@ -177,7 +177,7 @@ view wrap specificFeed { bets, settings } feed =
                         Icon.plusCircle
                         [ Html.p []
                             [ Html.text "New bet on “"
-                            , Route.a (Route.Bets Bets.Active game.id) [] [ Html.text game.name ]
+                            , Route.a (Route.Bets Bets.Active game.id Nothing) [] [ Html.text game.name ]
                             , Html.text "”: “"
                             , Route.a (Route.Bet game.id bet.id) [ potentialSpoiler ] [ Html.text bet.name ]
                             , Html.text "”."
@@ -240,7 +240,7 @@ view wrap specificFeed { bets, settings } feed =
                             [ Html.text "The bet “"
                             , Route.a (Route.Bet game.id bet.id) [ potentialSpoiler ] [ Html.text bet.name ]
                             , Html.text "” for “"
-                            , Route.a (Route.Bets Bets.Active game.id) [] [ Html.text game.name ]
+                            , Route.a (Route.Bets Bets.Active game.id Nothing) [] [ Html.text game.name ]
                             , Html.text "” has finished! "
                             , Html.span [ potentialSpoiler ] winnersText
                             , Html.text " won."
@@ -259,7 +259,7 @@ view wrap specificFeed { bets, settings } feed =
                             , Html.text "” in “"
                             , Route.a (Route.Bet game.id bet.id) [ potentialSpoiler ] [ Html.text bet.name ]
                             , Html.text "” for “"
-                            , Route.a (Route.Bets Bets.Active game.id) [] [ Html.text game.name ]
+                            , Route.a (Route.Bets Bets.Active game.id Nothing) [] [ Html.text game.name ]
                             , Html.text "”."
                             ]
                         , Html.div [ HtmlA.class "message" ]

@@ -56,7 +56,7 @@ const secure = process.env["NODE_ENV"] !== "development";
 
 interface ResolvedExternalServices {
   config: Config.ExternalServices;
-  recognised: Map<string, Jose.KeyLike | Uint8Array>;
+  recognised: Map<string, Jose.CryptoKey | Uint8Array>;
 }
 
 const avatarSuffix = (
@@ -126,7 +126,7 @@ export class Auth {
       await Promise.all(
         Object.entries(config.recognised).map(
           async ([issuer, { publicKey }]): Promise<
-            [string, Jose.KeyLike | Uint8Array]
+            [string, Jose.CryptoKey | Uint8Array]
           > => [issuer, await Jose.importJWK(publicKey, "EdDSA")],
         ),
       ),

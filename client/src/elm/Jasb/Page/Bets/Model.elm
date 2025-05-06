@@ -43,6 +43,7 @@ type Subset
 type alias Selected =
     { id : Game.Id
     , subset : Subset
+    , lockMoment : Maybe LockMoment.Id
     , data : Api.Data Game.WithBets
     }
 
@@ -113,7 +114,7 @@ type LockBetsMsg
 
 
 type Msg
-    = Load Game.Id Subset (Api.Response Game.WithBets)
+    = Load Game.Id Subset (Maybe LockMoment.Id) (Api.Response Game.WithBets)
     | SetFilter Filter Bool
     | ClearFilters
     | SetFavourite Game.Id Bool

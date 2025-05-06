@@ -1,5 +1,6 @@
 port module Jasb.Ports exposing
-    ( selectCmd
+    ( scrollCmd
+    , selectCmd
     , sessionStoreCmd
     , sessionStoreSub
     , storeCmd
@@ -10,6 +11,9 @@ port module Jasb.Ports exposing
 
 import Json.Decode as JsonD
 import Json.Encode as JsonE
+
+
+port scrollCmd : JsonE.Value -> Cmd msg
 
 
 port selectCmd : JsonE.Value -> Cmd msg

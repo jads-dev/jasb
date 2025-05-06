@@ -17,7 +17,7 @@
     "generate-secret": "node --enable-source-maps dist/tools/generate-secret.js"
   },
   "dependencies": {
-    "@badgateway/oauth2-client": "^2.2.4",
+    "@badgateway/oauth2-client": "^3.2.0",
     "@js-joda/core": "^5.2.0",
     "@koa/router": "^13.0.0",
     "discord.js": "^14.1.2",
@@ -27,23 +27,23 @@
     "io-ts": "^2.2.16",
     "io-ts-reporters": "^2.0.1",
     "io-ts-types": "^0.5.19",
-    "jose": "^5.0.1",
+    "jose": "^6.0.11",
     "json5": "^2.2.0",
-    "koa": "^2.13.4",
+    "koa": "^3.0.0",
     "koa-body": "^6.0.1",
     "koa-easy-ws": "^2.1.0",
-    "mime-types": "^2.1.35",
+    "mime-types": "^3.00.1",
     "pg-listen": "^1.7.0",
     "pino": "^9.3.2",
     "pino-http": "^10.2.0",
     "postgres-interval": "^4.0.0",
-    "slonik": "^46.1.0",
+    "slonik": "^47.0.1",
     "uint8array-extras": "^1.4.0",
     "zod": "^3.18.0"
   },
   "optionalDependencies": {
     "@aws-sdk/client-s3": "^3.679.0",
-    "sharp": "^0.33.5"
+    "sharp": "^0.34.1"
   },
   "devDependencies": {
     "@types/koa": "^2.13.4",
